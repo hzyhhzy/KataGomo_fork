@@ -859,7 +859,7 @@ int MainCmds::gomprotocol(int argc, const char* const* argv) {
   if(forDeterministicTesting)
     seedRand.init("forDeterministicTesting");
 
-  double swap2time = 5400;//swap2局时，只用于开局阶段计算
+  double swap2time = 5400;//swap2灞�鏃讹紝鍙敤浜庡紑灞�闃舵璁＄畻
   const double genmoveWideRootNoise = initialParams.wideRootNoise;
   const double analysisWideRootNoise =
     cfg.contains("analysisWideRootNoise") ? cfg.getDouble("analysisWideRootNoise",0.0,5.0) : genmoveWideRootNoise;
@@ -1271,6 +1271,31 @@ int MainCmds::gomprotocol(int argc, const char* const* argv) {
       }
     }
     */
+    else if(command == "BEGIN") {
+      const Board& b = engine->bot->getRootBoard();
+      Player nextPla = b.movenum % 2 ? P_WHITE : P_BLACK;
+      bool debug = false;
+      bool playChosenMove = true;
+      nextPla = getOpp(nextPla);
+      engine->genMove(
+        nextPla,
+        logger,
+        searchFactorWhenWinningThreshold,
+        searchFactorWhenWinning,
+        cleanupBeforePass,
+        ogsChatToStderr,
+        allowResignation,
+        resignThreshold,
+        resignConsecTurns,
+        0,
+        logSearchInfo,
+        debug,
+        playChosenMove,
+        response,
+        responseIsError,
+        maybeStartPondering,
+        GomEngine::AnalyzeArgs());
+    } 
     else if (command == "TURN") {
       const Board& b = engine->bot->getRootBoard();
       Player nextPla = b.movenum % 2 ? P_WHITE : P_BLACK;
