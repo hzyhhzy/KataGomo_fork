@@ -49,7 +49,7 @@ string TestCommon::getBenchmarkSGFData(int boardSize) {
     sgfData = "(;FF[4]GM[1]SZ[10]HA[0]KM[7.5];B[gc];W[gg];B[dh];W[cd];B[dc];W[cg];B[ch];W[cc];B[he];W[hf];B[ie];W[fh];B[bg];W[gd];B[hc];W[ec];B[db];W[dd];B[eb];W[bf];B[cf];W[dg];B[be];W[bh];B[af];W[bi];B[eg];W[df];B[ef];W[de];B[eh];W[ce];B[ci];W[bf];B[gf];W[hh];B[cf];W[bj];B[cj];W[bf];B[fi];W[gi];B[fg];W[gh];B[if];W[ei];B[cf];W[fe];B[ff];W[bf];B[ah];W[ag];B[ii];W[ih];B[bg];W[hd];B[id];W[ag];B[ej];W[fj];B[bg];W[dj];B[cf];W[fc];B[fb];W[bf];B[di];W[ag];B[ej];W[bg];B[ji];W[dj];B[jh];W[ge];B[hg];W[ig])";
   }
   else if(boardSize == 9) {
-    sgfData = "(;FF[4]GM[1]SZ[9]HA[0]KM[7];B[ef];W[ed];B[ge];W[gc];B[cc];W[cd];B[bd];W[ce];B[be];W[dg];B[cf];W[df];B[de];W[dd];B[ee];W[cg];B[bf];W[cb];B[eg];W[bc];B[bh];W[he];B[hd];W[gf];B[fe];W[hf];B[fc];W[eb];B[gd];W[fh];B[eh];W[hh];B[ac];W[dc];B[fb];W[ab];B[fg];W[gg];B[fi];W[bg];B[dh];W[gh];B[ea];W[da];B[fa];W[ad];B[ch];W[id];B[ic];W[ie];B[gb];W[gi];B[ec];W[hc];B[hb];W[ei];B[db];W[ae];B[ag];W[eb];B[ig];W[db];B[ih];W[ii];B[di];W[ac];B[fi];W[hg];B[ei];W[af];B[ff];W[if];B[fd];W[bb])";
+    sgfData = "(;FF[4]GM[1]SZ[9]HA[0]KM[7])";
   }
   else if(boardSize == 8) {
     sgfData = "(;FF[4]GM[1]SZ[8]HA[0]KM[10];B[ee];W[dd];B[ed];W[de];B[df];W[cf];B[dc];W[cc];B[ec];W[ef];B[dg];W[cg];B[eg];W[ff];B[fg];W[cb];B[db];W[fe];B[ce];W[cd];B[be];W[fc];B[fd];W[gd];B[gc];W[da];B[fb];W[bf];B[bd];W[bc];B[ea];W[gg];B[ca];W[ad];B[gf];W[ge];B[hg];W[hf];B[gh];W[ba];B[gf];W[dh];B[he];W[eh];B[fh];W[ch];B[da];W[ae];B[hd])";

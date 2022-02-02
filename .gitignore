@@ -1,6 +1,5 @@
 *.[oa]
 *.exe
-*.dll
 *~
 __pycache__
 *.h5
@@ -9,7 +8,7 @@ __pycache__
 .vs
 
 tmp*.txt
-
+LinuxCompile*/
 cpp/write
 cpp/runtests
 cpp/example

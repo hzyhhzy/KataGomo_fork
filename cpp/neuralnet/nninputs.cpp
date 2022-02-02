@@ -787,41 +787,43 @@ void NNInputs::fillRowV7(
       }
     }
   }
-
-  //Ladder features 14,15,16,17
-  auto addLadderFeature = [&board,xSize,nnXLen,nnYLen,posStride,featureStride,rowBin,opp](Loc loc, int pos, const vector<Loc>& workingMoves){
-    assert(board.colors[loc] == P_BLACK || board.colors[loc] == P_WHITE);
-    assert(pos >= 0 && pos < NNPos::MAX_BOARD_AREA);
-    setRowBin(rowBin,pos,14, 1.0f, posStride, featureStride);
-    if(board.colors[loc] == opp && board.getNumLiberties(loc) > 1) {
-      for(size_t j = 0; j < workingMoves.size(); j++) {
-        int workingPos = NNPos::locToPos(workingMoves[j],xSize,nnXLen,nnYLen);
-        setRowBin(rowBin,workingPos,17, 1.0f, posStride, featureStride);
+  if (!ANTI_CAPTURE)
+  {
+    //Ladder features 14,15,16,17
+    auto addLadderFeature = [&board, xSize, nnXLen, nnYLen, posStride, featureStride, rowBin, opp](Loc loc, int pos, const vector<Loc>& workingMoves) {
+      assert(board.colors[loc] == P_BLACK || board.colors[loc] == P_WHITE);
+      assert(pos >= 0 && pos < NNPos::MAX_BOARD_AREA);
+      setRowBin(rowBin, pos, 14, 1.0f, posStride, featureStride);
+      if (board.colors[loc] == opp && board.getNumLiberties(loc) > 1) {
+        for (size_t j = 0; j < workingMoves.size(); j++) {
+          int workingPos = NNPos::locToPos(workingMoves[j], xSize, nnXLen, nnYLen);
+          setRowBin(rowBin, workingPos, 17, 1.0f, posStride, featureStride);
+        }
       }
-    }
-  };
+    };
 
-  iterLadders(board, nnXLen, addLadderFeature);
+    iterLadders(board, nnXLen, addLadderFeature);
 
-  const Board& prevBoard = hideHistory ? board : hist.getRecentBoard(1);
-  auto addPrevLadderFeature = [&prevBoard,posStride,featureStride,rowBin](Loc loc, int pos, const vector<Loc>& workingMoves){
-    (void)workingMoves;
-    (void)loc;
-    assert(prevBoard.colors[loc] == P_BLACK || prevBoard.colors[loc] == P_WHITE);
-    assert(pos >= 0 && pos < NNPos::MAX_BOARD_AREA);
-    setRowBin(rowBin,pos,15, 1.0f, posStride, featureStride);
-  };
-  iterLadders(prevBoard, nnXLen, addPrevLadderFeature);
+    const Board& prevBoard = hideHistory ? board : hist.getRecentBoard(1);
+    auto addPrevLadderFeature = [&prevBoard, posStride, featureStride, rowBin](Loc loc, int pos, const vector<Loc>& workingMoves) {
+      (void)workingMoves;
+      (void)loc;
+      assert(prevBoard.colors[loc] == P_BLACK || prevBoard.colors[loc] == P_WHITE);
+      assert(pos >= 0 && pos < NNPos::MAX_BOARD_AREA);
+      setRowBin(rowBin, pos, 15, 1.0f, posStride, featureStride);
+    };
+    iterLadders(prevBoard, nnXLen, addPrevLadderFeature);
 
-  const Board& prevPrevBoard = hideHistory ? board : hist.getRecentBoard(2);
-  auto addPrevPrevLadderFeature = [&prevPrevBoard,posStride,featureStride,rowBin](Loc loc, int pos, const vector<Loc>& workingMoves){
-    (void)workingMoves;
-    (void)loc;
-    assert(prevPrevBoard.colors[loc] == P_BLACK || prevPrevBoard.colors[loc] == P_WHITE);
-    assert(pos >= 0 && pos < NNPos::MAX_BOARD_AREA);
-    setRowBin(rowBin,pos,16, 1.0f, posStride, featureStride);
-  };
-  iterLadders(prevPrevBoard, nnXLen, addPrevPrevLadderFeature);
+    const Board& prevPrevBoard = hideHistory ? board : hist.getRecentBoard(2);
+    auto addPrevPrevLadderFeature = [&prevPrevBoard, posStride, featureStride, rowBin](Loc loc, int pos, const vector<Loc>& workingMoves) {
+      (void)workingMoves;
+      (void)loc;
+      assert(prevPrevBoard.colors[loc] == P_BLACK || prevPrevBoard.colors[loc] == P_WHITE);
+      assert(pos >= 0 && pos < NNPos::MAX_BOARD_AREA);
+      setRowBin(rowBin, pos, 16, 1.0f, posStride, featureStride);
+    };
+    iterLadders(prevPrevBoard, nnXLen, addPrevPrevLadderFeature);
+  }
 
 
   //Global features.
