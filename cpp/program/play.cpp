@@ -1552,7 +1552,7 @@ FinishedGameData* Play::runGame(
       finalValueTargets.loss = 1.0f - finalValueTargets.win;
       finalValueTargets.noResult = 0.0f;
       finalValueTargets.score = (float)ScoreValue::whiteScoreDrawAdjust(hist.finalWhiteMinusBlackScore,gameData->drawEquivalentWinsForWhite,hist);
-      finalValueTargets.hasLead = false;
+      finalValueTargets.hasLead = true;
       finalValueTargets.lead = finalValueTargets.score;
 
     }
