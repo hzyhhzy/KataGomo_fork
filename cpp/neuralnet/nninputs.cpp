@@ -709,8 +709,13 @@ void NNInputs::fillRowV7(
 
   double isOdd = (board.x_size * board.y_size) % 2;
   double komi = hist.rules.komi;
-  double komiint = 2 * floor((komi+isOdd) / 2) + 1-isOdd;
+  double komiint1 = 2 * floor((komi+isOdd) / 2) + 1-isOdd;
+  double komiint2 = -(2 * floor((-komi+isOdd) / 2) + 1-isOdd);
+  double komiint = (komiint1 + komiint2) / 2;
   if (nextPlayer == C_WHITE)komiint = -komiint;
+
+
+
   rowGlobal[2] = komiint * 0.2;
 
 
