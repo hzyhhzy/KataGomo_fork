@@ -148,7 +148,6 @@ uint32_t VCFsolver::findDefendPosOfFive(int y, int x)
   return -1;
 }
 
-#if RULE==1||RULE==2
 void VCFsolver::addNeighborSix(int y, int x, uint8_t pla,int factor)
 {
   //cout << int(pla);
@@ -213,7 +212,6 @@ void VCFsolver::addNeighborSix(int y, int x, uint8_t pla,int factor)
   if (x1>=0 && y1 <ysize)
     stonecount[t][y1][x1] += factor;
 }
-#endif
 
 void VCFsolver::solve(const Board& board, uint8_t pla, uint8_t& res, uint16_t& loc)
 {
@@ -314,16 +312,16 @@ int32_t VCFsolver::setBoard(const Board& b, uint8_t pla)
 {
   xsize = b.x_size;
   ysize = b.y_size;
-#if RULE==2
-  forbiddenSide = (pla == C_BLACK) ? C_MY : C_OPP;//如果自己是黑棋则为1，否则为2
-#endif
+  if(rules.basicRule==Rules::BASICRULE_RENJU)
+    forbiddenSide = (pla == C_BLACK) ? C_MY : C_OPP;//如果自己是黑棋则为1，否则为2
   movenum = 0;
   bestmovenum = 10000;
   nodenum = 0;
   threeCount = 0;
   oppFourPos = -1;
-  if (pla == C_WHITE)boardhash = zob_plaWhite;
-  else boardhash = zob_plaBlack;
+  boardhash = Rules::ZOBRIST_BASIC_RULE_HASH[rules.basicRule];
+  if (pla == C_WHITE)boardhash ^= zob_plaWhite;
+  else boardhash ^= zob_plaBlack;
 
   int32_t result = 0;
 
@@ -347,25 +345,17 @@ int32_t VCFsolver::setBoard(const Board& b, uint8_t pla)
         movenum++;
         board[y][x] = C_MY;
         boardhash ^= zob_board[0][y][x];
-#if RULE==1
-        addNeighborSix(y, x, C_MY, 6);
-#endif
-#if RULE==2
-        if(forbiddenSide== C_MY)
-          addNeighborSix(y, x, C_MY, 6);
-#endif
+        if(rules.basicRule==Rules::BASICRULE_STANDARD ||
+          (rules.basicRule==Rules::BASICRULE_RENJU && forbiddenSide== C_MY))
+            addNeighborSix(y, x, C_MY, 6);
       }
       else
       {
         board[y][x] = C_OPP;
         boardhash ^= zob_board[1][y][x];
-#if RULE==1
-        addNeighborSix(y, x, C_OPP, 6);
-#endif
-#if RULE==2
-        if (forbiddenSide== C_OPP)
+        if(rules.basicRule==Rules::BASICRULE_STANDARD ||
+          (rules.basicRule==Rules::BASICRULE_RENJU && forbiddenSide== C_OPP))
           addNeighborSix(y, x, C_OPP, 6);
-#endif
       }
       rootboard[y][x] = board[y][x];
     }
@@ -475,35 +465,30 @@ int32_t VCFsolver::play(int x, int y, uint8_t pla, bool updateHash)
   board[y][x] = pla;
   if(updateHash)boardhash ^= zob_board[pla-1][y][x];
 
+  //带有_forRenju后缀的变量，保证只在renju规则下使用
 
-#if RULE==1
-  addNeighborSix(y, x, pla, 6);
-#endif
-#if RULE==2
-  bool isPlaForbidden = (forbiddenSide==pla);
-  if(isPlaForbidden)
+  bool isPlaForbidden_forRenju = rules.basicRule==Rules::BASICRULE_RENJU && forbiddenSide== pla; //only for renju
+  if(rules.basicRule==Rules::BASICRULE_STANDARD ||
+    isPlaForbidden_forRenju)
     addNeighborSix(y, x, pla, 6);
-#endif
 
   int32_t result = 0;
 
   if (pla == C_MY)
   {
 
-#if RULE==2
     //不需要考虑连五解禁，因为提前一步已经判断出来胜负了
     //检查双四的方法：如果发现两个连五点，活四当且仅当两个点的距离为[0,+-5],[+-5,0],[+-5,+-5]
     //活四的下一手一定可以胜，因为连五没禁手。当然，代码层面已经排除了对手提前一步冲四
     //如果发现更多连五点，一定是双四禁手
-    bool lifeFour = false;
-    bool isForbidden = false;
+    bool lifeFour_forRenju = false;
+    bool isForbidden_forRenju = false;
 
     //活三判据：在同一条线上同时产生连续两个或者三个三。之后对交点进行判断是否禁手，如果一条线产生的1或2个活四点都不是禁手说明是活三
-    int8_t threeCountDir[4] = {0, 0, 0, 0};//每个方向的新3个数,大于等于2说明可能有活三
+    int8_t threeCountDir_forRenju[4] = {0, 0, 0, 0};//每个方向的新3个数,大于等于2说明可能有活三
    // int16_t maybeLifeFourPoses[4][3] ;//所有可能的下一手的活四点
     //第一个维度是4个方向，第二个维度的第一个数是活四点个数1或2，第二，三个是活四点
 
-#endif
     movenum++;
     int32_t fourPos =-1;//这一步棋形成的冲四的防守点
     bool winThisMove = false;//无禁手双四
@@ -513,23 +498,19 @@ int32_t VCFsolver::play(int x, int y, uint8_t pla, bool updateHash)
       mystonecount[t][y][x]++;
       auto msc = mystonecount[t][y][x];
    //   cout << int(msc) << endl;
-#if RULE==2
 
-      if (isPlaForbidden)
+      if (isPlaForbidden_forRenju)
       {
-        if (msc > 5 && msc % 6 == 5)isForbidden = true;//长连
+        if (msc > 5 && msc % 6 == 5)isForbidden_forRenju = true;//长连
       }
-#endif
       if (oppstonecount[t][y][x]%6 != 0|| msc <= 2 || msc>5)return;
       if (msc == 3)
       {
-#if RULE==2
 
-        if (isPlaForbidden)
+        if (isPlaForbidden_forRenju)
         {
-          threeCountDir[t]++;
+          threeCountDir_forRenju[t]++;
         }
-#endif
         uint64_t locs = findEmptyPos(t, y, x);
         uint64_t threeEntry = (uint64_t(uint64_t(t) * sz * sz + uint64_t(y) * sz + x) << 32) | locs;
         threes[threeCount] =threeEntry;
@@ -549,21 +530,19 @@ int32_t VCFsolver::play(int x, int y, uint8_t pla, bool updateHash)
           if (anotherFourPos != fourPos)
           {
             //检查是否是活四
-#if RULE==2
-            if (isPlaForbidden)
+            if (isPlaForbidden_forRenju)
             {
-              if (lifeFour)isForbidden = true;
+              if (lifeFour_forRenju)isForbidden_forRenju = true;
               else
               {
                 int x1 = fourPos % sz, x2 = anotherFourPos % sz, y1 = fourPos / sz, y2 = anotherFourPos / sz;
                 int dx = x1 - x2, dy = y1 - y2;
-                if ((dx == 0 || dx == 5 || dx == -5) && (dy == 0 || dy == 5 || dy == -5))lifeFour = true;
-                else isForbidden = true;
+                if ((dx == 0 || dx == 5 || dx == -5) && (dy == 0 || dy == 5 || dy == -5))lifeFour_forRenju = true;
+                else isForbidden_forRenju = true;
               }
-           }
+            }
 
-            if (!isForbidden)
-#endif
+            if (!isForbidden_forRenju)
             {
                 winThisMove = true;//这个是无禁的双四
             }
@@ -619,15 +598,14 @@ int32_t VCFsolver::play(int x, int y, uint8_t pla, bool updateHash)
       addandcheck(3, y1, x1);
     }
 
-#if RULE==2
     //todo renju:check if is forbidden
     //只检查33,因为 44 长连都检查了
-    if (isPlaForbidden&&(!isForbidden))
+    if (isPlaForbidden_forRenju&&(!isForbidden_forRenju))
     {
       int maybeLife3 = 0;
       for (int i = 0; i < 4; i++)
       {
-        if (threeCountDir[i] >= 2)maybeLife3++;
+        if (threeCountDir_forRenju[i] >= 2)maybeLife3++;
       }
       if (maybeLife3 >= 2)
       {
@@ -636,12 +614,11 @@ int32_t VCFsolver::play(int x, int y, uint8_t pla, bool updateHash)
         {
           if (checkLife3(y,x,i))life3++;
         }
-        if (life3 >= 2)isForbidden = true;
+        if (life3 >= 2)isForbidden_forRenju = true;
       }
     }
-    winThisMove = winThisMove && (!isForbidden);
+    winThisMove = winThisMove && (!isForbidden_forRenju);
 
-#endif
     if (winThisMove)
     {
       result = 10000 - movenum - 1;//双四或活四
@@ -664,27 +641,23 @@ int32_t VCFsolver::play(int x, int y, uint8_t pla, bool updateHash)
       }
       result = -10000;
     }
-#if RULE==2
-    if (isForbidden)
+    if (isForbidden_forRenju)
       result = -10000;
-#endif
   }
   else if (pla == C_OPP)
   {
-#if RULE==2
   //不需要考虑连五解禁，因为提前一步已经判断出来胜负了
   //检查双四的方法：如果发现两个连五点，活四当且仅当两个点的距离为[0,+-5],[+-5,0],[+-5,+-5]
   //活四的下一手一定可以胜，因为连五没禁手。当然，代码层面已经排除了对手提前一步冲四
   //如果发现更多连五点，一定是双四禁手
-  bool lifeFour = false;
-  bool isForbidden = false;
+  bool lifeFour_forRenju = false;
+  bool isForbidden_forRenju = false;
 
   //活三判据：在同一条线上同时产生连续两个或者三个三。之后对交点进行判断是否禁手，如果一条线产生的1或2个活四点都不是禁手说明是活三
-  int8_t threeCountDir[4] = { 0, 0, 0, 0 };//每个方向的新3个数,大于等于2说明可能有活三
+  int8_t threeCountDir_forRenju[4] = { 0, 0, 0, 0 };//每个方向的新3个数,大于等于2说明可能有活三
  // int16_t maybeLifeFourPoses[4][3] ;//所有可能的下一手的活四点
   //第一个维度是4个方向，第二个维度的第一个数是活四点个数1或2，第二，三个是活四点
 
-#endif
     //todo renju:check if is forbidden
     oppFourPos = -1;//对手冲四直接记录在oppFourPos里
 
@@ -694,23 +667,19 @@ int32_t VCFsolver::play(int x, int y, uint8_t pla, bool updateHash)
     {
       oppstonecount[t][y][x]++;
       auto osc = oppstonecount[t][y][x];
-#if RULE==2
 
-      if (isPlaForbidden)
+      if (isPlaForbidden_forRenju)
       {
-        if (osc > 5 && osc % 6 == 5)isForbidden = true;//长连
+        if (osc > 5 && osc % 6 == 5)isForbidden_forRenju = true;//长连
       }
-#endif
       if (mystonecount[t][y][x]%6 != 0 || osc < 3 || osc >5)return;//无威胁
       if (osc == 3)
       {
-#if RULE==2
 
-        if (isPlaForbidden)
+        if (isPlaForbidden_forRenju)
         {
-          threeCountDir[t]++;
+          threeCountDir_forRenju[t]++;
         }
-#endif
       }
       else if (osc == 4)
       {
@@ -721,21 +690,19 @@ int32_t VCFsolver::play(int x, int y, uint8_t pla, bool updateHash)
           if (anotherFourPos != oppFourPos)
           {
             //检查是否是活四
-#if RULE==2
-            if (isPlaForbidden)
+            if (isPlaForbidden_forRenju)
             {
-              if (lifeFour)isForbidden = true;
+              if (lifeFour_forRenju)isForbidden_forRenju = true;
               else
               {
                 int x1 = oppFourPos % sz, x2 = anotherFourPos % sz, y1 = oppFourPos / sz, y2 = anotherFourPos / sz;
                 int dx = x1 - x2, dy = y1 - y2;
-                if ((dx == 0 || dx == 5 || dx == -5) && (dy == 0 || dy == 5 || dy == -5))lifeFour = true;
-                else isForbidden = true;
+                if ((dx == 0 || dx == 5 || dx == -5) && (dy == 0 || dy == 5 || dy == -5))lifeFour_forRenju = true;
+                else isForbidden_forRenju = true;
               }
             }
 
-            if (!isForbidden)
-#endif
+            if (!isForbidden_forRenju)
             {
               winThisMove = true;//这个是无禁的双四
             }
@@ -791,15 +758,14 @@ int32_t VCFsolver::play(int x, int y, uint8_t pla, bool updateHash)
       addandcheck(3, y1, x1);
     }
 
-#if RULE==2
     //todo renju:check if is forbidden
     //只检查33,因为 44 长连都检查了
-    if (isPlaForbidden && (!isForbidden))
+    if (isPlaForbidden_forRenju && (!isForbidden_forRenju))
     {
       int maybeLife3 = 0;
       for (int i = 0; i < 4; i++)
       {
-        if (threeCountDir[i] >= 2)maybeLife3++;
+        if (threeCountDir_forRenju[i] >= 2)maybeLife3++;
       }
       if (maybeLife3 >= 2)
       {
@@ -808,19 +774,17 @@ int32_t VCFsolver::play(int x, int y, uint8_t pla, bool updateHash)
         {
           if (checkLife3(y, x, i))life3++;
         }
-        if (life3 >= 2)isForbidden = true;
+        if (life3 >= 2)isForbidden_forRenju = true;
       }
     }
-    winThisMove = winThisMove && (!isForbidden);
+    winThisMove = winThisMove && (!isForbidden_forRenju);
 
-#endif
     if (winThisMove)
     {
       result = -10000;
     }
 
-#if RULE==2
-    if (isForbidden)//抓禁成功
+    if (isForbidden_forRenju)//抓禁成功
     {
       result = 10000 - movenum - 1;//双四或活四
       if (bestmovenum > movenum + 1)
@@ -832,7 +796,6 @@ int32_t VCFsolver::play(int x, int y, uint8_t pla, bool updateHash)
         cout << "how can you reach here 5\n";
       }
     }
-#endif
   }
   return result;
 }
@@ -844,13 +807,13 @@ void VCFsolver::undo(int x, int y, int64_t oppFourPos1, uint64_t threeCount1, bo
   //result = 0;
   auto pla = board[y][x];
   board[y][x] = 0;
-#if RULE==1
-  addNeighborSix(y, x, pla, -6);
-#endif
-#if RULE==2
-  if (forbiddenSide ==pla )
+
+
+  bool isPlaForbidden_forRenju = rules.basicRule==Rules::BASICRULE_RENJU && forbiddenSide== pla; //only for renju
+  if(rules.basicRule==Rules::BASICRULE_STANDARD ||
+      isPlaForbidden_forRenju)
     addNeighborSix(y, x, pla, -6);
-#endif
+
   if (updateHash) boardhash ^= zob_board[pla - 1][y][x];
 
   //这地方代码复用很差劲，如果要改，需要改一大堆
@@ -1011,15 +974,8 @@ int32_t VCFsolver::solveIter(bool isRoot)
       auto hashchange = zob_board[0][y1][x1] ^ zob_board[1][y2][x2];
       boardhash ^= hashchange;
 
-      //无禁在这里查hash表，有禁在落子后查，为了避免下禁手
-#if RULE!=2
-      auto resultAndLoc = hashtable.get(boardhash);
-      int32_t result = resultAndLoc & 0xFFFFFFFF;
-      bool shouldCalculate = (result <= 0 && result != 10000 && -result <= maxMovenum);
-#else 
       int32_t result = 0;
       bool shouldCalculate = true;
-#endif
 
 
       if (shouldCalculate)
@@ -1031,11 +987,9 @@ int32_t VCFsolver::solveIter(bool isRoot)
             result = play(x2, y2, C_OPP, false);
             if (resultNotSure(result))
             {
-#if RULE==2
               auto resultAndLoc = hashtable.get(boardhash);
               result = resultAndLoc & 0xFFFFFFFF;
               if (resultNotSure(result))
-#endif
                 result = solveIter(false);
             }
             undo(x2, y2, oppFourPos_old, threeCount_old, false);
@@ -1064,7 +1018,6 @@ int32_t VCFsolver::solveIter(bool isRoot)
 
 }
 
-#if RULE==2
 bool VCFsolver::isForbiddenMove(int y, int x,bool fiveForbidden)//检查禁手
 {
   if (board[y][x] != 0)return false;
@@ -1515,4 +1468,3 @@ void VCFsolver::printForbiddenMap()
   }
   cout << endl;
 }
-#endif

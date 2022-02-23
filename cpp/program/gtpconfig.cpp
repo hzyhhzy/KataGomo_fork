@@ -39,17 +39,7 @@ logToStderr = false
 # These rules are defaults and can be changed mid-run by several custom GTP commands.
 # See https://github.com/lightvector/KataGo/blob/master/docs/GTP_Extensions.md for those commands.
 
-$$KO_RULE
-
-$$SCORING_RULE
-
-$$TAX_RULE
-
-$$MULTI_STONE_SUICIDE
-
-$$BUTTON
-
-$$FRIENDLY_PASS_OK
+$$BASIC_RULE
 
 # Bot behavior---------------------------------------------------------------------------------------
 

@@ -10,6 +10,7 @@
 #include "../core/global.h"
 #include "../core/hash.h"
 #include "../external/nlohmann_json/json.hpp"
+#include "../game/rules.h"
 
 
 
@@ -126,10 +127,10 @@ struct Board
   bool isForbidden(Loc loc) const;
   bool isForbiddenAlreadyPlayed(Loc loc) const;
 
-  MovePriority getMovePriority(Player pla, Loc loc, bool isSixWin, bool isPassForbidded)const;
-  MovePriority getMovePriorityAssumeLegal(Player pla, Loc loc, bool isSixWin)const;
+  MovePriority getMovePriority(Player pla, Loc loc, const Rules& rule)const;
 private:
-  MovePriority getMovePriorityOneDirectionAssumeLegal(Player pla, Loc loc, bool isSixWin, int adjID)const;
+  MovePriority getMovePriorityAssumeLegal(Player pla, Loc loc, bool isSixWinMe, bool isSixWinOpp)const;
+  MovePriority getMovePriorityOneDirectionAssumeLegal(Player pla, Loc loc, bool isSixWinMe, bool isSixWinOpp, int adjID)const;
   int connectionLengthOneDirection(Player pla, Loc loc, short adj, bool isSixWin, bool& isLife)const;
 public:
 

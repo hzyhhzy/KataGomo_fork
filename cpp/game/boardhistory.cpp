@@ -296,7 +296,7 @@ void BoardHistory::maybeFinishGame(Board& board,Player lastPla,Loc lastLoc)
     rules.basicRule==Rules::BASICRULE_FREESTYLE ? true :
     rules.basicRule==Rules::BASICRULE_STANDARD ? false :
     rules.basicRule==Rules::BASICRULE_RENJU ? (lastPla == C_BLACK ? false : true):true;
-  if (board.getMovePriorityAssumeLegal(lastPla, lastLoc, isSixWin) == MP_FIVE)
+  if (board.getMovePriority(lastPla, lastLoc, rules) == MP_FIVE)
   {
     setWinner(lastPla);
     return;

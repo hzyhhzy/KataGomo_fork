@@ -8,14 +8,6 @@
 
 
 
-#define FREESTYLE 0  // freestyle rule, 6 is win
-#define STANDARD 1   // standard rule, 6 is not win
-#define RENJU 2      // renju mode
-#define RULE RENJU
-
-#if(RULE < 0 || RULE > 2)
-static_assert(false,"rule must be 1, 2, 3");
-#endif
 
 #ifndef COMPILE_MAX_BOARD_LEN
 #define COMPILE_MAX_BOARD_LEN 15 // Board::MAX_LEN, Normal gomoku/renju games are on 15x15 board

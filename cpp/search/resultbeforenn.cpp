@@ -25,7 +25,7 @@ void ResultBeforeNN::init(const Board& board, const BoardHistory& hist, Color ne
     for (int y = 0; y < board.y_size; y++)
     {
       Loc loc = Location::getLoc(x, y, board.x_size);
-      MovePriority mp = board.getMovePriority(nextPlayer, loc, true, false);
+      MovePriority mp = board.getMovePriority(nextPlayer, loc, hist.rules);
       if (mp == MP_FIVE)
       {
         winner = nextPlayer;
@@ -60,10 +60,10 @@ void ResultBeforeNN::init(const Board& board, const BoardHistory& hist, Color ne
 
   //check VCF
   uint16_t oppvcfloc;
-  VCFsolver::run(board, getOpp(nextPlayer), oppVCFresult, oppvcfloc);
+  VCFsolver::run(board,hist.rules, getOpp(nextPlayer), oppVCFresult, oppvcfloc);
 
   uint16_t myvcfloc;
-  VCFsolver::run(board, nextPlayer, myVCFresult, myvcfloc);
+  VCFsolver::run(board,hist.rules, nextPlayer, myVCFresult, myvcfloc);
   if (myVCFresult == 1)
   {
     winner = nextPlayer;

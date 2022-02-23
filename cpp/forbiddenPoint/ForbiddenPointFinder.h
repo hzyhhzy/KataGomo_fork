@@ -12,7 +12,6 @@
 #define WHITEFIVE 25
 #define BLACKFORBIDDEN 26
 
-#if RULE==RENJU
 class CForbiddenPointFinder
 {
 public:
@@ -45,5 +44,4 @@ public:
 
 	//void FindForbiddenPoints();
 };
-#endif//RENJU
 #endif // !defined(FORBIDDENPOINTFINDER_H_INCLUDED_)

@@ -19,7 +19,6 @@ static char THIS_FILE[]=__FILE__;
 // Construction/Destruction
 //////////////////////////////////////////////////////////////////////
 
-#if RULE==RENJU
 CForbiddenPointFinder::CForbiddenPointFinder() :f_boardsize(15)
 {
 	Clear();
@@ -1401,4 +1400,3 @@ void CForbiddenPointFinder::FindForbiddenPoints()
 		}
 	}
 }*/
-#endif//RENJU

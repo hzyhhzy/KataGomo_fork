@@ -6,10 +6,12 @@
 #include "../core/global.h"
 #include "../game/board.h"
 
+
+// 屎山代码，不建议修改
+
 using namespace std;
 
 /*
-#define RULE 2
 const uint8_t C_EMPTY = 0;
 const uint8_t C_BLACK = 1;
 const uint8_t C_WHITE = 2;
@@ -33,9 +35,9 @@ public:
   //hashTable
   static VCFHashTable hashtable;
 
-#if RULE==2
+  //RULE
+  Rules rules;
   uint8_t forbiddenSide;//如果自己是黑棋则为0，否则为1
-#endif
 
   //board
   int xsize, ysize;
@@ -72,14 +74,14 @@ public:
   static uint64_t totalnodenum;
 
   static void init();
-  VCFsolver() { threes.resize(4 * sz * sz); }
+  VCFsolver(const Rules rules):rules(rules){ threes.resize(4 * sz * sz); }
   void solve(const Board& board, uint8_t pla,uint8_t& res,uint16_t& loc);
   void print();
   void printRoot();
-  static void run(const Board& board, uint8_t pla, uint8_t& res, uint16_t& loc)
+  static void run(const Board& board,const Rules& rules, uint8_t pla, uint8_t& res, uint16_t& loc)
   {
 #ifndef NOVCF
-    VCFsolver solver;
+    VCFsolver solver(rules);
     solver.solve(board, pla, res, loc);
 #else
     res = 2;
@@ -94,9 +96,9 @@ public:
 
   uint32_t findEmptyPos(int t, int y, int x);//找到一个组里面的空地方，pos1<<16|pos2（2个空位） 或 pos1（1个空位）
   uint32_t findDefendPosOfFive(int y, int x);//找己方冲四的防守点，只在个别地方用
-#if RULE==1||RULE==2
+
+//For Renju and Standard
   void addNeighborSix(int y, int x, uint8_t pla, int factor);//factor是一次加多少，取+6是加6（落子），取-6是undo
-#endif
 
 
   int32_t solveIter(bool isRoot);//递归求解,结果是返回值
@@ -104,11 +106,10 @@ public:
   int32_t play(int x, int y, uint8_t pla,bool updateHash);
   void undo(int x, int y, int64_t oppFourPos, uint64_t threeCount, bool updateHash);
 
-#if RULE==2
+//For Renju
   bool isForbiddenMove(int y, int x,bool fiveForbidden = false);
   bool checkLife3(int y, int x, int t);//检查是否是活三
   void printForbiddenMap();
-#endif
 };
 
 

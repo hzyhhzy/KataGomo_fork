@@ -205,39 +205,50 @@ bool Board::isLegal(Loc loc, Player pla, bool isMultiStoneSuicideLegal) const
 }
 
 
-MovePriority Board::getMovePriority(Player pla, Loc loc, bool isSixWin, bool isPassForbidded)const
+MovePriority Board::getMovePriority(Player pla, Loc loc, const Rules& rule)const
 {
 
-  if (loc == PASS_LOC)return isPassForbidded ? MP_ILLEGAL : MP_NORMAL;
+  if (loc == PASS_LOC)return MP_NORMAL;
   if (!isLegal(loc, pla, false))return MP_ILLEGAL;
-  MovePriority MP = getMovePriorityAssumeLegal(pla, loc, isSixWin);
+
+  if (rule.basicRule == Rules::BASICRULE_RENJU && pla == C_BLACK && isForbidden(loc))return MP_NORMAL;
+
+  bool isSixWinMe =
+    rule.basicRule == Rules::BASICRULE_FREESTYLE ? true :
+    rule.basicRule == Rules::BASICRULE_STANDARD ? false :
+    rule.basicRule == Rules::BASICRULE_RENJU ? (pla == C_WHITE) :
+    true;
+
+  bool isSixWinOpp =
+    rule.basicRule == Rules::BASICRULE_FREESTYLE ? true :
+    rule.basicRule == Rules::BASICRULE_STANDARD ? false :
+    rule.basicRule == Rules::BASICRULE_RENJU ? (pla == C_BLACK) :
+    true;
+
+  MovePriority MP = getMovePriorityAssumeLegal(pla, loc, isSixWinMe, isSixWinOpp);
   return MP;
 }
-MovePriority Board::getMovePriorityAssumeLegal(Player pla, Loc loc, bool isSixWin)const
+MovePriority Board::getMovePriorityAssumeLegal(Player pla, Loc loc, bool isSixWinMe, bool isSixWinOpp)const
 {
   if (loc == PASS_LOC)return MP_NORMAL;
   MovePriority MP = MP_NORMAL;
   for (int i = 0; i < 4; i++)
   {
-    MovePriority tmpMP = getMovePriorityOneDirectionAssumeLegal(pla, loc, isSixWin, i);
+    MovePriority tmpMP = getMovePriorityOneDirectionAssumeLegal(pla, loc, isSixWinMe, isSixWinOpp, i);
     if (tmpMP < MP)MP = tmpMP;
   }
   return MP;
 }
-MovePriority Board::getMovePriorityOneDirectionAssumeLegal(Player pla, Loc loc, bool isSixWin, int adjID) const
+MovePriority Board::getMovePriorityOneDirectionAssumeLegal(Player pla, Loc loc, bool isSixWinMe, bool isSixWinOpp, int adjID) const
 {
   assert(adjID >= 0 && adjID < 4);
   Player opp = getOpp(pla);
   short adj = adj_offsets[2*adjID];
   bool isMyLife1, isMyLife2, isOppLife1, isOppLife2;
-  int myConNum = connectionLengthOneDirection(pla, loc, adj, isSixWin, isMyLife1) + connectionLengthOneDirection(pla, loc, -adj, isSixWin, isMyLife2) + 1;
-  int oppConNum = connectionLengthOneDirection(opp, loc, adj, isSixWin, isOppLife1) + connectionLengthOneDirection(opp, loc, -adj, isSixWin, isOppLife2) + 1;
-  if (myConNum == 5 || (myConNum > 5 && isSixWin))return MP_FIVE;
-#if RULE==RENJU
-  if ((oppConNum == 5 && opp == P_BLACK) || (oppConNum >= 5 && opp == P_WHITE))return MP_OPPOFOUR;
-#else
-  if (oppConNum == 5 || (oppConNum > 5 && isSixWin))return MP_OPPOFOUR;
-#endif //  RENJU
+  int myConNum = connectionLengthOneDirection(pla, loc, adj, isSixWinMe, isMyLife1) + connectionLengthOneDirection(pla, loc, -adj, isSixWinMe, isMyLife2) + 1;
+  int oppConNum = connectionLengthOneDirection(opp, loc, adj, isSixWinOpp, isOppLife1) + connectionLengthOneDirection(opp, loc, -adj, isSixWinOpp, isOppLife2) + 1;
+  if (myConNum == 5 || (myConNum > 5 && isSixWinMe))return MP_FIVE;
+  if (oppConNum == 5 || (oppConNum > 5 && isSixWinOpp))return MP_OPPOFOUR;
 
 
   if (myConNum == 4 && isMyLife1&&isMyLife2)return MP_MYLIFEFOUR;
@@ -264,14 +275,6 @@ int Board::connectionLengthOneDirection(Player pla, Loc loc, short adj, bool isS
         tmploc += adj;
         if (isOnBoard(tmploc) && colors[tmploc] == pla)isLife = false;
       }
-#if RULE==RENJU
-      if (pla == C_BLACK)
-      {
-
-        tmploc += adj;
-        if (isOnBoard(tmploc) && colors[tmploc] == C_BLACK)isLife = false;
-      }
-#endif
       break;
     }
     else break;

@@ -576,18 +576,20 @@ void NNInputs::fillRowV7(
   }
   resultbeforenn.init(board,hist,nextPlayer);
 
-#if RULE==RENJU
-#ifdef FORBIDDEN_FEATURE 
-
 
   CForbiddenPointFinder fpf(board.x_size);
-  for (int x = 0; x < board.x_size; x++)
-    for (int y = 0; y < board.y_size; y++)
-    {
-      fpf.SetStone(x, y, board.colors[Location::getLoc(x, y, board.x_size)]);
-    }
+#ifdef FORBIDDEN_FEATURE 
+  if (hist.rules.basicRule == Rules::BASICRULE_RENJU)
+  {
+
+    for (int x = 0; x < board.x_size; x++)
+      for (int y = 0; y < board.y_size; y++)
+      {
+        fpf.SetStone(x, y, board.colors[Location::getLoc(x, y, board.x_size)]);
+      }
+  }
 #endif
-#endif // RENJU
+
   for (int y = 0; y < ySize; y++) {
     for (int x = 0; x < xSize; x++) {
       int pos = NNPos::xyToPos(x, y, nnXLen);
@@ -609,20 +611,21 @@ void NNInputs::fillRowV7(
       if (resultbeforenn.winner == nextPlayer && loc == resultbeforenn.myOnlyLoc)setRowBin(rowBin, pos, 5, 1.0f, posStride, featureStride);
 #endif
 
-#if RULE==RENJU
 #ifdef FORBIDDEN_FEATURE 
-      if (pla == C_BLACK)
+      if (hist.rules.basicRule == Rules::BASICRULE_RENJU)
       {
-        if (fpf.isForbidden(x, y)) setRowBin(rowBin, pos, 3, 1.0f, posStride, featureStride);
-      }
-      else if (pla == C_WHITE)
-      {
+        if (pla == C_BLACK)
+        {
+          if (fpf.isForbidden(x, y)) setRowBin(rowBin, pos, 3, 1.0f, posStride, featureStride);
+        }
+        else if (pla == C_WHITE)
+        {
 
-        if (fpf.isForbidden(x, y)) setRowBin(rowBin, pos, 4, 1.0f, posStride, featureStride);
+          if (fpf.isForbidden(x, y)) setRowBin(rowBin, pos, 4, 1.0f, posStride, featureStride);
 
+        }
       }
 #endif 
-#endif //RENJU
     }
   }
   //Tax
