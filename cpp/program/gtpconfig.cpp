@@ -220,9 +220,9 @@ string GTPConfig::makeConfig(
   };
 
 
-  if(rules.taxRule == Rules::TAX_NONE)      replace("$$TAX_RULE", "taxRule = NONE  # options: NONE, SEKI, ALL");
-  else if(rules.taxRule == Rules::TAX_SEKI) replace("$$TAX_RULE", "taxRule = SEKI  # options: NONE, SEKI, ALL");
-  else if(rules.taxRule == Rules::TAX_ALL)  replace("$$TAX_RULE", "taxRule = ALL  # options: NONE, SEKI, ALL");
+  if(rules.basicRule == Rules::BASICRULE_FREESTYLE)      replace("$$BASIC_RULE", "basicRule = FREESTYLE  # options: FREESTYLE, STANDARD, RENJU");
+  else if(rules.basicRule == Rules::BASICRULE_STANDARD) replace("$$BASIC_RULE", "basicRule = STANDARD  # options: FREESTYLE, STANDARD, RENJU");
+  else if(rules.basicRule == Rules::BASICRULE_RENJU)  replace("$$BASIC_RULE", "basicRule = RENJU  # options: FREESTYLE, STANDARD, RENJU");
   else { ASSERT_UNREACHABLE; }
 
   if(maxVisits < ((int64_t)1 << 50)) replace("$$MAX_VISITS", "maxVisits = " + Global::int64ToString(maxVisits));

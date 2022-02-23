@@ -9,10 +9,10 @@
 struct Rules {
 
   //taxRule不删只是为了给之后新增规则留下个模板
-  static const int TAX_NONE = 0;
-  static const int TAX_SEKI = 1;
-  static const int TAX_ALL = 2;
-  int taxRule;
+  static const int BASICRULE_FREESTYLE = 0;
+  static const int BASICRULE_STANDARD = 1;
+  static const int BASICRULE_RENJU = 2;
+  int basicRule;
 
 
   float komi;
@@ -22,7 +22,7 @@ struct Rules {
 
   Rules();
   Rules(
-    int taxRule,
+    int basicRule,
     float komi
   );
   ~Rules();
@@ -35,9 +35,9 @@ struct Rules {
 
   static Rules getTrompTaylorish();
 
-  static std::set<std::string> taxRuleStrings();
-  static int parseTaxRule(const std::string& s);
-  static std::string writeTaxRule(int taxRule);
+  static std::set<std::string> basicRuleStrings();
+  static int parseBasicRule(const std::string& s);
+  static std::string writeBasicRule(int basicRule);
 
   static bool komiIsIntOrHalfInt(float komi);
 
@@ -59,7 +59,7 @@ struct Rules {
   nlohmann::json toJsonNoKomi() const;
   nlohmann::json toJsonNoKomiMaybeOmitStuff() const;
 
-  static const Hash128 ZOBRIST_TAX_RULE_HASH[3];
+  static const Hash128 ZOBRIST_BASIC_RULE_HASH[3];
 
 private:
   nlohmann::json toJsonHelper(bool omitKomi, bool omitDefaults) const;

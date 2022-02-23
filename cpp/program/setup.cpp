@@ -669,7 +669,7 @@ Rules Setup::loadSingleRules(
   Rules rules;
 
   if(cfg.contains("rules")) {
-    if(cfg.contains("taxRule")) throw StringError("Cannot both specify 'rules' and individual rules like taxRule");
+    if(cfg.contains("basicRule")) throw StringError("Cannot both specify 'rules' and individual rules like basicRule");
 
     rules = Rules::parseRules(cfg.getString("rules"));
   }
@@ -678,12 +678,12 @@ Rules Setup::loadSingleRules(
 
     rules.komi = komi;
 
-    if(cfg.contains("taxRule")) {
-      string taxRule = cfg.getString("taxRule", Rules::taxRuleStrings());
-      rules.taxRule = Rules::parseTaxRule(taxRule);
+    if(cfg.contains("basicRule")) {
+      string basicRule = cfg.getString("basicRule", Rules::basicRuleStrings());
+      rules.basicRule = Rules::parseBasicRule(basicRule);
     }
     else {
-      rules.taxRule =  Rules::TAX_NONE;
+      rules.basicRule =  Rules::BASICRULE_FREESTYLE;
     }
 
  
@@ -724,7 +724,7 @@ bool Setup::loadDefaultBoardXYSize(
 vector<pair<set<string>,set<string>>> Setup::getMutexKeySets() {
   vector<pair<set<string>,set<string>>> mutexKeySets = {
     std::make_pair<set<string>,set<string>>(
-    {"rules"},{"taxRule"}
+    {"rules"},{"basicRule"}
     ),
   };
   return mutexKeySets;

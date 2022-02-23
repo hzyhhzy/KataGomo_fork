@@ -123,6 +123,8 @@ struct Board
   Board& operator=(const Board&) = default;
 
   bool isLegal(Loc loc, Player pla, bool isMultiStoneSuicideLegal) const;
+  bool isForbidden(Loc loc) const;
+  bool isForbiddenAlreadyPlayed(Loc loc) const;
 
   MovePriority getMovePriority(Player pla, Loc loc, bool isSixWin, bool isPassForbidded)const;
   MovePriority getMovePriorityAssumeLegal(Player pla, Loc loc, bool isSixWin)const;
@@ -189,9 +191,6 @@ public:
   void removeSingleStone(Loc loc);
 
   friend std::ostream& operator<<(std::ostream& out, const Board& board);
-#if RULE==RENJU
-  bool isForbidden(Loc loc) const;
-#endif
   //static void monteCarloOwner(Player player, Board* board, int mc_counts[]);
 };
 

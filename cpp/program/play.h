@@ -97,7 +97,7 @@ class GameInitializer {
     const Sgf::PositionSample* startPosSample
   );
 
-  Rules randomizeTaxRules(Rules rules, Rand& randToUse) const;
+  Rules randomizeBasicRules(Rules rules, Rand& randToUse) const;
 
   //Only sample the space of possible rules
   Rules createRules();
@@ -124,8 +124,8 @@ class GameInitializer {
   std::mutex createGameMutex;
   Rand rand;
 
-  std::vector<std::string> allowedTaxRuleStrs;
-  std::vector<int> allowedTaxRules;
+  std::vector<std::string> allowedBasicRuleStrs;
+  std::vector<int> allowedBasicRules;
 
   std::vector<int> allowedBSizes;
   std::vector<double> allowedBSizeRelProbs;

@@ -62,12 +62,12 @@ GameInitializer::GameInitializer(ConfigParser& cfg, Logger& logger, const string
 
 void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
 
-  allowedTaxRuleStrs = cfg.getStrings("taxRules", Rules::taxRuleStrings());
+  allowedBasicRuleStrs = cfg.getStrings("basicRules", Rules::basicRuleStrings());
 
-  for(size_t i = 0; i < allowedTaxRuleStrs.size(); i++)
-    allowedTaxRules.push_back(Rules::parseTaxRule(allowedTaxRuleStrs[i]));
+  for(size_t i = 0; i < allowedBasicRuleStrs.size(); i++)
+    allowedBasicRules.push_back(Rules::parseBasicRule(allowedBasicRuleStrs[i]));
 
-  if(allowedTaxRules.size() <= 0)
+  if(allowedBasicRules.size() <= 0)
     throw IOError("taxRules must have at least one value in " + cfg.getFileName());
 
   allowedBSizes = cfg.getInts("bSizes", 2, Board::MAX_LEN);
@@ -305,8 +305,8 @@ void GameInitializer::createGame(
   }
 }
 
-Rules GameInitializer::randomizeTaxRules(Rules rules, Rand& randToUse) const {
-  rules.taxRule = allowedTaxRules[randToUse.nextUInt(allowedTaxRules.size())];
+Rules GameInitializer::randomizeBasicRules(Rules rules, Rand& randToUse) const {
+  rules.basicRule = allowedBasicRules[randToUse.nextUInt(allowedBasicRules.size())];
 
 
   return rules;
@@ -345,7 +345,7 @@ Rules GameInitializer::createRules() {
 
 Rules GameInitializer::createRulesUnsynchronized() {
   Rules rules;
-  rules.taxRule = allowedTaxRules[rand.nextUInt(allowedTaxRules.size())];
+  rules.basicRule = allowedBasicRules[rand.nextUInt(allowedBasicRules.size())];
   return rules;
 }
 
@@ -1564,7 +1564,6 @@ FinishedGameData* Play::runGame(
 
     assert(gameData->finalWhiteScoring == NULL);
     gameData->finalWhiteScoring = new float[Board::MAX_ARR_SIZE];
-    NNInputs::fillScoring(board,gameData->finalOwnership,hist.rules.taxRule == Rules::TAX_ALL,gameData->finalWhiteScoring);
 
     gameData->hasFullData = true;
 

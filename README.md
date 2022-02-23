@@ -1,2 +1,2 @@
 ***Engine based on Katago TensorRT+GraphSearch***   
-# 兼容旧权重(vcf版)的2022版五子棋引擎
+# 五子棋新引擎（正在写）

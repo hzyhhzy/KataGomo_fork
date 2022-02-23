@@ -201,9 +201,6 @@ bool Board::isLegal(Loc loc, Player pla, bool isMultiStoneSuicideLegal) const
     loc < MAX_ARR_SIZE &&
     (colors[loc] == C_EMPTY)
   ))) return false;
-#if RULE==RENJU
-  if (pla == C_BLACK) return !isForbidden(loc);
-#endif
    return true;
 }
 
@@ -386,7 +383,6 @@ void Board::removeSingleStone(Loc loc)
   colors[loc] = C_EMPTY;
   pos_hash ^= ZOBRIST_BOARD_HASH[loc][pla];
 }
-#if RULE==RENJU
 bool Board::isForbidden(Loc loc) const
 {
   if (loc == PASS_LOC)
@@ -425,7 +421,45 @@ bool Board::isForbidden(Loc loc) const
   }
   return false;
 }
-#endif
+bool Board::isForbiddenAlreadyPlayed(Loc loc) const
+{
+  if (loc == PASS_LOC)
+  {
+    return false;
+  }
+  if (!(loc >= 0 &&
+    loc < MAX_ARR_SIZE &&
+    (colors[loc] == C_BLACK)))return false;
+  if (x_size == y_size)
+  {
+    int x = Location::getX(loc, x_size);
+    int y = Location::getY(loc, x_size);
+    int nearbyBlack = 0;
+    //x++; y++;
+    for (int i = std::max(x - 2, 0); i <= std::min(x + 2, x_size - 1); i++)
+      for (int j = std::max(y - 2, 0); j <= std::min(y + 2, y_size - 1); j++)
+      {
+        int xd = i - x;
+        int yd = j - y;
+        xd = xd > 0 ? xd : -xd;
+        yd = yd > 0 ? yd : -yd;
+        if (((xd + yd) != 3) && (colors[Location::getLoc(i, j, x_size)] == C_BLACK))nearbyBlack++;
+      }
+
+    if (nearbyBlack >= 3)
+    {
+      CForbiddenPointFinder fpf(x_size);
+      for (int x = 0; x < x_size; x++)
+        for (int y = 0; y < y_size; y++)
+        {
+          fpf.SetStone(x, y, colors[Location::getLoc(x, y, x_size)]);
+        }
+      fpf.SetStone(Location::getX(loc, x_size), Location::getY(loc, x_size), C_EMPTY);
+      if (fpf.isForbiddenNoNearbyCheck(Location::getX(loc, x_size), Location::getY(loc, x_size)))return true;
+    }
+  }
+  return false;
+}
 
 
 int Location::distance(Loc loc0, Loc loc1, int x_size) {

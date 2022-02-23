@@ -282,16 +282,30 @@ void BoardHistory::maybeFinishGame(Board& board,Player lastPla,Loc lastLoc)
   if (lastLoc == Board::PASS_LOC)
   {
     setWinner(getOpp(lastPla));
+    return;
+  }
+  if (rules.basicRule==Rules::BASICRULE_RENJU && lastPla == C_BLACK)
+  {
+    if (board.isForbiddenAlreadyPlayed(lastLoc))
+    {
+      setWinner(getOpp(lastPla));
+      return;
+    }
   }
   bool isSixWin =
-    RULE == FREESTYLE ? true :
-    RULE == STANDARD ? false :
-    RULE == RENJU ? (lastPla == C_BLACK ? false : true):true;
+    rules.basicRule==Rules::BASICRULE_FREESTYLE ? true :
+    rules.basicRule==Rules::BASICRULE_STANDARD ? false :
+    rules.basicRule==Rules::BASICRULE_RENJU ? (lastPla == C_BLACK ? false : true):true;
   if (board.getMovePriorityAssumeLegal(lastPla, lastLoc, isSixWin) == MP_FIVE)
   {
     setWinner(lastPla);
+    return;
   }
-  if (board.numStonesOnBoard() >= board.x_size * board.y_size-10)setWinner(C_EMPTY);
+  if (board.numStonesOnBoard() >= board.x_size * board.y_size - 10)
+  {
+    setWinner(C_EMPTY);
+    return;
+  }
 }
 
 
@@ -311,7 +325,7 @@ Hash128 BoardHistory::getSituationRulesHash(const Board& board, const BoardHisto
   hash.hash1 ^= Hash::basicLCong(komiHash);
 
   //Fold in the ko, scoring, and suicide rules
-  hash ^= Rules::ZOBRIST_TAX_RULE_HASH[hist.rules.taxRule];
+  hash ^= Rules::ZOBRIST_BASIC_RULE_HASH[hist.rules.basicRule];
 
   return hash;
 }
