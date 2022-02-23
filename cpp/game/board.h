@@ -128,6 +128,7 @@ struct Board
   bool isForbiddenAlreadyPlayed(Loc loc) const;
 
   MovePriority getMovePriority(Player pla, Loc loc, const Rules& rule)const;
+  bool checkAlreadyWin(Player pla, Loc loc, const Rules& rule)const;
 private:
   MovePriority getMovePriorityAssumeLegal(Player pla, Loc loc, bool isSixWinMe, bool isSixWinOpp)const;
   MovePriority getMovePriorityOneDirectionAssumeLegal(Player pla, Loc loc, bool isSixWinMe, bool isSixWinOpp, int adjID)const;
