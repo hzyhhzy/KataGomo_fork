@@ -654,16 +654,20 @@ void NNInputs::fillRowV7(
   if (nnInputParams.useVCFInput)
   {
     const ResultBeforeNN& resultbeforenn = nnInputParams.resultbeforenn;
-    if (resultbeforenn.winner == nextPlayer && board.isOnBoard(resultbeforenn.myOnlyLoc))
+    if (board.isOnBoard(resultbeforenn.myOnlyLoc))
       setRowBin(rowBin, NNPos::locToPos(resultbeforenn.myOnlyLoc, board.x_size, nnXLen, nnYLen), 5, 1.0f, posStride, featureStride);
-    if (resultbeforenn.winner == nextPlayer)rowGlobal[7] = 1.0;//can win by five/lifeFour/vcf
-    else if (resultbeforenn.myVCFresult == 2)rowGlobal[8] = 1.0;//cannot vcf
-    else if (resultbeforenn.myVCFresult == 3)rowGlobal[11] = 1.0;//at least no short vcf
-    else ASSERT_UNREACHABLE;
-    if (resultbeforenn.oppVCFresult == 1)rowGlobal[9] = 1.0;//opp can vcf
-    else if (resultbeforenn.oppVCFresult == 2)rowGlobal[10] = 1.0;//opp cannot vcf
-    else if (resultbeforenn.oppVCFresult == 3)rowGlobal[12] = 1.0;//at least no short vcf
-    else ASSERT_UNREACHABLE;
+    if (resultbeforenn.calculatedVCF)
+    {
+      if (resultbeforenn.winner == nextPlayer)rowGlobal[7] = 1.0;//can win by five/lifeFour/vcf
+      else if (resultbeforenn.myVCFresult == 2)rowGlobal[8] = 1.0;//cannot vcf
+      else if (resultbeforenn.myVCFresult == 3)rowGlobal[11] = 1.0;//at least no short vcf
+      else ASSERT_UNREACHABLE;
+      if (resultbeforenn.oppVCFresult == 1)rowGlobal[9] = 1.0;//opp can vcf
+      else if (resultbeforenn.oppVCFresult == 2)rowGlobal[10] = 1.0;//opp cannot vcf
+      else if (resultbeforenn.oppVCFresult == 3)rowGlobal[12] = 1.0;//at least no short vcf
+      else ASSERT_UNREACHABLE;
+    }
+    
   }
 
   rowGlobal[13] = nextPlayer == P_BLACK ?  - nnInputParams.noResultUtilityForWhite : nnInputParams.noResultUtilityForWhite;

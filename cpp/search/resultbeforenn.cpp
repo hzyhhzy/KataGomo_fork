@@ -19,7 +19,6 @@ void ResultBeforeNN::init(const Board& board, const BoardHistory& hist, Color ne
 
   //check five and four
   bool oppHasFour = false;
-  bool oppHasDoubleFour = false;
   bool IHaveLifeFour = false;
   Loc myLifeFourLoc = Board::NULL_LOC;
   for (int x = 0; x < board.x_size; x++)
@@ -35,7 +34,6 @@ void ResultBeforeNN::init(const Board& board, const BoardHistory& hist, Color ne
       }
       else if (mp == MP_OPPOFOUR)
       {
-        if (oppHasFour)oppHasDoubleFour = true;
         oppHasFour = true;
         myOnlyLoc = loc;
       }
@@ -45,12 +43,6 @@ void ResultBeforeNN::init(const Board& board, const BoardHistory& hist, Color ne
         myLifeFourLoc = loc;
       }
     }
-  //I have no five
-  if (oppHasDoubleFour)
-  {
-    winner = opp;
-    return;
-  }
   //I have no five, opp has no four
   if (IHaveLifeFour&&(!oppHasFour))
   {
