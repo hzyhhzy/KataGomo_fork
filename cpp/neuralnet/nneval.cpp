@@ -594,7 +594,7 @@ void NNEvaluator::evaluate(
   Board& board,
   const BoardHistory& history,
   Player nextPlayer,
-  const MiscNNInputParams& nnInputParams,
+  MiscNNInputParams nnInputParams,
   NNResultBuf& buf,
   bool skipCache,
   bool includeOwnerMap
@@ -633,9 +633,7 @@ void NNEvaluator::evaluate(
 
   buf.boardXSizeForServer = board.x_size;
   buf.boardYSizeForServer = board.y_size;
-
-  ResultBeforeNN resultbeforenn(board, history, nextPlayer);
-
+  nnInputParams.initResultbeforenn(board, history, nextPlayer);
   if(!debugSkipNeuralNet) {
     int rowSpatialLen = NNModelVersion::getNumSpatialFeatures(modelVersion) * nnXLen * nnYLen;
     if(buf.rowSpatial == NULL) {
@@ -658,7 +656,7 @@ void NNEvaluator::evaluate(
 
     static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
     if(inputsVersion == 7)
-      NNInputs::fillRowV7(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal,resultbeforenn);
+      NNInputs::fillRowV7(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
     else
       ASSERT_UNREACHABLE;
   }
@@ -722,7 +720,7 @@ void NNEvaluator::evaluate(
     bool isLegal[NNPos::MAX_NN_POLICY_SIZE];
     int legalCount = 0;
     //if(false)
-    if (resultbeforenn.myOnlyLoc == Board::NULL_LOC)
+    if (nnInputParams.resultbeforenn.myOnlyLoc == Board::NULL_LOC)
     {
       for (int i = 0; i < policySize; i++) {
         Loc loc = NNPos::posToLoc(i, xSize, ySize, nnXLen, nnYLen);
@@ -734,7 +732,7 @@ void NNEvaluator::evaluate(
       for (int i = 0; i < policySize; i++) {
         isLegal[i] = false;
       }
-      isLegal[NNPos::locToPos(resultbeforenn.myOnlyLoc, xSize, nnXLen, nnYLen)] = true;
+      isLegal[NNPos::locToPos(nnInputParams.resultbeforenn.myOnlyLoc, xSize, nnXLen, nnYLen)] = true;
     }
 
 
@@ -813,13 +811,13 @@ void NNEvaluator::evaluate(
 
         //noResultLogits -= 100000.0;
 
-        if(resultbeforenn.winner == nextPlayer)
+        if(nnInputParams.resultbeforenn.winner == nextPlayer)
         {
           winProb = 1;
           lossProb = 0;
           noResultProb = 0;
         }
-        else if(resultbeforenn.winner == getOpp(nextPlayer))
+        else if(nnInputParams.resultbeforenn.winner == getOpp(nextPlayer))
         {
           winProb = 0;
           lossProb = 1;

@@ -9,6 +9,7 @@ class ResultBeforeNN
 {
 public:
   bool inited;
+  bool calculatedVCF;
   Color winner;
   Loc myOnlyLoc;
 
@@ -16,8 +17,8 @@ public:
   uint8_t oppVCFresult;
 
   ResultBeforeNN();
-  ResultBeforeNN(const Board& board, const BoardHistory& hist, Color nextPlayer):ResultBeforeNN() { init(board, hist, nextPlayer); }
-  void init(const Board& board, const BoardHistory& hist, Color nextPlayer);
+  //ResultBeforeNN(const Board& board, const BoardHistory& hist, Color nextPlayer,bool hasVCF):ResultBeforeNN() { init(board, hist, nextPlayer,hasVCF); }
+  void init(const Board& board, const BoardHistory& hist, Color nextPlayer,bool hasVCF);
   //bool shouldSkipNN();
 };
 

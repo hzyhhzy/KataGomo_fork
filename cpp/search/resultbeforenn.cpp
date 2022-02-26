@@ -3,15 +3,16 @@
 ResultBeforeNN::ResultBeforeNN()
 {
   inited = false;
+  calculatedVCF = false;
   winner = C_EMPTY;
   myOnlyLoc = Board::NULL_LOC;
   myVCFresult = 0;
   oppVCFresult = 0;
 }
 
-void ResultBeforeNN::init(const Board& board, const BoardHistory& hist, Color nextPlayer)
+void ResultBeforeNN::init(const Board& board, const BoardHistory& hist, Color nextPlayer,bool hasVCF)
 {
-  if (inited)return;
+  if (inited&&(calculatedVCF || (!hasVCF)))return;
   inited = true;
 
   Color opp = getOpp(nextPlayer);
@@ -58,7 +59,10 @@ void ResultBeforeNN::init(const Board& board, const BoardHistory& hist, Color ne
     return;
   }
 
+  if (!hasVCF)return;
+
   //check VCF
+  calculatedVCF = true;
   uint16_t oppvcfloc;
   VCFsolver::run(board,hist.rules, getOpp(nextPlayer), oppVCFresult, oppvcfloc);
 

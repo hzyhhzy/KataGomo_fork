@@ -59,7 +59,7 @@ FinishedGameData::FinishedGameData()
    startPla(P_BLACK),
    gameHash(),
 
-   drawEquivalentWinsForWhite(0.0),
+   noResultUtilityForWhite(0.0),
    playoutDoublingAdvantagePla(P_BLACK),
    playoutDoublingAdvantage(0.0),
 
@@ -360,10 +360,14 @@ void TrainingWriteBuffers::addRow(
 
   {
     MiscNNInputParams nnInputParams;
-    nnInputParams.drawEquivalentWinsForWhite = data.drawEquivalentWinsForWhite;
+    nnInputParams.noResultUtilityForWhite = data.noResultUtilityForWhite;
     //Note: this is coordinated with the fact that selfplay does not use this feature on side positions
     if(!isSidePosition)
       nnInputParams.playoutDoublingAdvantage = getOpp(nextPlayer) == data.playoutDoublingAdvantagePla ? -data.playoutDoublingAdvantage : data.playoutDoublingAdvantage;
+
+    nnInputParams.useForbiddenInput = rand.nextBool(TRAINING_DATA_FORBIDDEN_FEATURE_PROB);
+    nnInputParams.useVCFInput = rand.nextBool(TRAINING_DATA_VCF_PROB);
+    nnInputParams.initResultbeforenn(board, hist, nextPlayer);
 
     bool inputsUseNHWC = false;
     float* rowBin = binaryInputNCHWUnpacked;
@@ -373,8 +377,7 @@ void TrainingWriteBuffers::addRow(
     if(inputsVersion == 7) {
       assert(NNInputs::NUM_FEATURES_SPATIAL_V7 == numBinaryChannels);
       assert(NNInputs::NUM_FEATURES_GLOBAL_V7 == numGlobalChannels);
-      ResultBeforeNN rbn;
-      NNInputs::fillRowV7(board, hist, nextPlayer, nnInputParams, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal,rbn);
+      NNInputs::fillRowV7(board, hist, nextPlayer, nnInputParams, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
     }
     else
       ASSERT_UNREACHABLE;
@@ -481,7 +484,7 @@ void TrainingWriteBuffers::addRow(
   rowGlobal[46] = (float)((gameHash.hash1 >> 44) & 0xFFFFF);
 
   //Various other data
-  rowGlobal[47] = hist.currentSelfKomi(nextPlayer,data.drawEquivalentWinsForWhite);
+  rowGlobal[47] = hist.currentSelfKomi(nextPlayer,data.noResultUtilityForWhite);
   rowGlobal[48] =  1.0f ;
 
   //Earlier neural net metadata

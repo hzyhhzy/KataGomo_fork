@@ -251,7 +251,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
     bool skipCache = true;
     bool includeOwnerMap = true;
     MiscNNInputParams nnInputParams;
-    nnInputParams.drawEquivalentWinsForWhite = params.drawEquivalentWinsForWhite;
+    nnInputParams.noResultUtilityForWhite = params.noResultUtilityForWhite;
     nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
 
     cout << "Rules: " << hist.rules << endl;

@@ -138,7 +138,7 @@ class NNEvaluator {
     Board& board,
     const BoardHistory& history,
     Player nextPlayer,
-    const MiscNNInputParams& nnInputParams,
+    MiscNNInputParams nnInputParams,
     NNResultBuf& buf,
     bool skipCache,
     bool includeOwnerMap

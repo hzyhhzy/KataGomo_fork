@@ -61,7 +61,7 @@ struct FinishedGameData {
   Player startPla; //Player to move as of end of startHist.
   Hash128 gameHash;
 
-  double drawEquivalentWinsForWhite;
+  double noResultUtilityForWhite;
   Player playoutDoublingAdvantagePla;
   double playoutDoublingAdvantage;
   bool hitTurnLimit;

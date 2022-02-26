@@ -13,8 +13,10 @@ void Search::computeRootNNEvaluation(NNResultBuf& nnResultBuf, bool includeOwner
   bool skipCache = false;
   // bool isRoot = true;
   MiscNNInputParams nnInputParams;
-  nnInputParams.drawEquivalentWinsForWhite = searchParams.drawEquivalentWinsForWhite;
+  nnInputParams.noResultUtilityForWhite = searchParams.noResultUtilityForWhite;
   nnInputParams.nnPolicyTemperature = searchParams.nnPolicyTemperature;
+  nnInputParams.useForbiddenInput = searchParams.useForbiddenInput;
+  nnInputParams.useVCFInput = searchParams.useVCFInput;
   if(searchParams.playoutDoublingAdvantage != 0) {
     Player playoutDoublingAdvantagePla = getPlayoutDoublingAdvantagePla();
     nnInputParams.playoutDoublingAdvantage = (
@@ -46,14 +48,17 @@ bool Search::initNodeNNOutput(
     antiMirrorDifficult = true;
   }
   MiscNNInputParams nnInputParams;
-  nnInputParams.drawEquivalentWinsForWhite = searchParams.drawEquivalentWinsForWhite;
+  nnInputParams.noResultUtilityForWhite = searchParams.noResultUtilityForWhite;
   nnInputParams.nnPolicyTemperature = searchParams.nnPolicyTemperature;
+  nnInputParams.useForbiddenInput = searchParams.useForbiddenInput;
+  nnInputParams.useVCFInput = searchParams.useVCFInput;
   if(searchParams.playoutDoublingAdvantage != 0) {
     Player playoutDoublingAdvantagePla = getPlayoutDoublingAdvantagePla();
     nnInputParams.playoutDoublingAdvantage = (
       getOpp(thread.pla) == playoutDoublingAdvantagePla ? -searchParams.playoutDoublingAdvantage : searchParams.playoutDoublingAdvantage
     );
   }
+
 
   std::shared_ptr<NNOutput>* result;
   if(isRoot && searchParams.rootNumSymmetriesToSample > 1) {

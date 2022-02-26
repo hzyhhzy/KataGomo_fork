@@ -1,10 +1,13 @@
 // options
-#define FORBIDDEN_FEATURE  // forbidden points input features
 //#define NOVCF                     //if defined, then not use vcf
-#define USE_VCF_FEATURE_IF_USE_VCF
 //#define CHANGE_FORBIDDEN_POLICY   //set policy target of forbidden points to nonzero
-//#define USE_HISTORY               //history features
 //#define FORGOMOCUP                //CPU only and single thread
+
+//有多大比例的训练数据是带着vcf的
+#define TRAINING_DATA_VCF_PROB 0.7
+
+//训练数据带着禁手特征的概率
+#define TRAINING_DATA_FORBIDDEN_FEATURE_PROB 0.0  
 
 
 

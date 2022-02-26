@@ -311,7 +311,7 @@ static void initializeDemoGame(Board& board, BoardHistory& hist, Player& pla, Ra
           Search* search = bot->getSearchStopAndWait();
           NNResultBuf buf;
           MiscNNInputParams nnInputParams;
-          nnInputParams.drawEquivalentWinsForWhite = search->searchParams.drawEquivalentWinsForWhite;
+          nnInputParams.noResultUtilityForWhite = search->searchParams.noResultUtilityForWhite;
           search->nnEvaluator->evaluate(board,hist,pla,nnInputParams,buf,false,false);
           std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
 

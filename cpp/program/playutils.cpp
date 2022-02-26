@@ -143,7 +143,7 @@ Loc PlayUtils::getGameInitializationMove(
 ) {
   NNEvaluator* nnEval = (pla == P_BLACK ? botB : botW)->nnEvaluator;
   MiscNNInputParams nnInputParams;
-  nnInputParams.drawEquivalentWinsForWhite = (pla == P_BLACK ? botB : botW)->searchParams.drawEquivalentWinsForWhite;
+  nnInputParams.noResultUtilityForWhite = (pla == P_BLACK ? botB : botW)->searchParams.noResultUtilityForWhite;
   nnEval->evaluate(board,hist,pla,nnInputParams,buf,false,false);
   std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
 

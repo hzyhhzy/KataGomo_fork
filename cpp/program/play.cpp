@@ -789,7 +789,7 @@ static void extractValueTargets(ValueTargets& buf, const Search* toMoveBot, cons
 static NNRawStats computeNNRawStats(const Search* bot, const Board& board, const BoardHistory& hist, Player pla) {
   NNResultBuf buf;
   MiscNNInputParams nnInputParams;
-  nnInputParams.drawEquivalentWinsForWhite = bot->searchParams.drawEquivalentWinsForWhite;
+  nnInputParams.noResultUtilityForWhite = bot->searchParams.noResultUtilityForWhite;
   Board b = board;
   bot->nnEvaluator->evaluate(b,hist,pla,nnInputParams,buf,false,false);
   NNOutput& nnOutput = *(buf.result);
@@ -1254,7 +1254,7 @@ FinishedGameData* Play::runGame(
   gameData->gameHash.hash0 = gameRand.nextUInt64();
   gameData->gameHash.hash1 = gameRand.nextUInt64();
 
-  gameData->drawEquivalentWinsForWhite = botSpecB.baseParams.drawEquivalentWinsForWhite;
+  gameData->noResultUtilityForWhite = botSpecB.baseParams.noResultUtilityForWhite;
   gameData->playoutDoublingAdvantagePla = otherGameProps.playoutDoublingAdvantagePla;
   gameData->playoutDoublingAdvantage = otherGameProps.playoutDoublingAdvantage;
 
@@ -1545,7 +1545,7 @@ FinishedGameData* Play::runGame(
       //Although in practice actually the training normally weights by having a result or not, so it doesn't matter what we fill.
     }
     else if (hist.isGameFinished) {
-      finalValueTargets.win = (float)ScoreValue::whiteWinsOfWinner(hist.winner, gameData->drawEquivalentWinsForWhite);
+      finalValueTargets.win = (float)ScoreValue::whiteWinsOfWinner(hist.winner, botSpecB.baseParams.drawEquivalentWinsForWhite);
       finalValueTargets.loss = 1.0f - finalValueTargets.win;
       finalValueTargets.noResult = 0.0f;
       finalValueTargets.score = 0.0f;
@@ -1726,7 +1726,7 @@ FinishedGameData* Play::runGame(
         else {
           Search* toMoveBot2 = sp2->pla == P_BLACK ? botB : botW;
           MiscNNInputParams nnInputParams;
-          nnInputParams.drawEquivalentWinsForWhite = toMoveBot2->searchParams.drawEquivalentWinsForWhite;
+          nnInputParams.noResultUtilityForWhite = toMoveBot2->searchParams.noResultUtilityForWhite;
           toMoveBot2->nnEvaluator->evaluate(
             sp2->board,sp2->hist,sp2->pla,nnInputParams,
             nnResultBuf,false,false
@@ -1884,14 +1884,13 @@ void Play::maybeForkGame(
   double bestScore = 0.0;
 
   NNResultBuf buf;
-  double drawEquivalentWinsForWhite = 0.5;
   for(int i = 0; i<numChoices; i++) {
     Loc loc = possibleMoves[i];
     Board copy = board;
     BoardHistory copyHist = hist;
     copyHist.makeBoardMoveAssumeLegal(copy,loc,pla);
     MiscNNInputParams nnInputParams;
-    nnInputParams.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
+    nnInputParams.noResultUtilityForWhite = 0.0;
     bot->nnEvaluator->evaluate(copy,copyHist,getOpp(pla),nnInputParams,buf,false,false);
     std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
     double whiteScore = nnOutput->whiteScoreMean;

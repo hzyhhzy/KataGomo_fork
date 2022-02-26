@@ -32,11 +32,20 @@ namespace NNInputs {
 }
 
 struct MiscNNInputParams {
-  double drawEquivalentWinsForWhite = 0.5;
+  double noResultUtilityForWhite = 0.0;
   double playoutDoublingAdvantage = 0.0;
   float nnPolicyTemperature = 1.0f;
   // If no symmetry is specified, it will use default or random based on config, unless node is already cached.
   int symmetry = NNInputs::SYMMETRY_NOTSPECIFIED;
+
+  bool useVCFInput=true;
+  bool useForbiddenInput=true;
+  ResultBeforeNN resultbeforenn=ResultBeforeNN();
+  
+  void initResultbeforenn(const Board& board, const BoardHistory& hist, Color nextPlayer)
+  {
+    resultbeforenn.init(board, hist, nextPlayer, useVCFInput);
+  }
 
   static const Hash128 ZOBRIST_PLAYOUT_DOUBLINGS;
   static const Hash128 ZOBRIST_NN_POLICY_TEMP;
@@ -53,7 +62,7 @@ namespace NNInputs {
 
   void fillRowV7(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
-    const MiscNNInputParams& nnInputParams, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal, ResultBeforeNN& resultbeforenn
+    const MiscNNInputParams& nnInputParams, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
   );
 
 }

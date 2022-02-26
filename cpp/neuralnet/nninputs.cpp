@@ -515,7 +515,7 @@ Hash128 NNInputs::getHash(
   const Board& board, const BoardHistory& hist, Player nextPlayer,
   const MiscNNInputParams& nnInputParams
 ) {
-  Hash128 hash = BoardHistory::getSituationRulesHash(board, hist, nextPlayer, nnInputParams.drawEquivalentWinsForWhite);
+  Hash128 hash = BoardHistory::getSituationRulesHash(board, hist, nextPlayer, nnInputParams.noResultUtilityForWhite*0.5+0.5);
 
   //Fold in whether the game is over or not, since this affects how we compute input features
   //but is not a function necessarily of previous hashed values.
@@ -550,7 +550,7 @@ Hash128 NNInputs::getHash(
 void NNInputs::fillRowV7(
   const Board& board, const BoardHistory& hist, Player nextPlayer,
   const MiscNNInputParams& nnInputParams,
-  int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal, ResultBeforeNN& resultbeforenn
+  int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
 ) {
   assert(nnXLen <= NNPos::MAX_BOARD_LEN);
   assert(nnYLen <= NNPos::MAX_BOARD_LEN);
@@ -574,12 +574,34 @@ void NNInputs::fillRowV7(
     featureStride = nnXLen * nnYLen;
     posStride = 1;
   }
-  resultbeforenn.init(board,hist,nextPlayer);
 
+  //为了兼容旧版本，输入层的顺序很乱
+
+  //bf
+  //0       onBoard
+  //1       己方棋子
+  //2       对方棋子
+  //3       己方黑棋禁手
+  //4       对方黑棋禁手
+  //5       胜点（如果有）
+
+  //gf
+  //3       无禁/有禁0，无禁六不胜1
+  //4       无禁/无禁六不胜0，有禁1
+  //5       无禁/无禁六不胜0，有禁黑-1，有禁白1
+  //6       是否使用禁手特征（两种无禁恒为0）
+  //7~12    自己和对手的VCF（是否使用vcf，vcf的结果是什么）
+  //13      和棋胜率，1.0是和棋己方胜，-1.0是和棋对方胜
+  //15,16   PDA
+
+
+
+
+  bool hasForbiddenFeature = nnInputParams.useForbiddenInput&&hist.rules.basicRule == Rules::BASICRULE_RENJU;
+  rowGlobal[5] = hasForbiddenFeature;
 
   CForbiddenPointFinder fpf(board.x_size);
-#ifdef FORBIDDEN_FEATURE 
-  if (hist.rules.basicRule == Rules::BASICRULE_RENJU)
+  if (hasForbiddenFeature)
   {
 
     for (int x = 0; x < board.x_size; x++)
@@ -588,7 +610,8 @@ void NNInputs::fillRowV7(
         fpf.SetStone(x, y, board.colors[Location::getLoc(x, y, board.x_size)]);
       }
   }
-#endif
+
+
 
   for (int y = 0; y < ySize; y++) {
     for (int x = 0; x < xSize; x++) {
@@ -606,13 +629,8 @@ void NNInputs::fillRowV7(
       else if (stone == opp)
         setRowBin(rowBin, pos, 2, 1.0f, posStride, featureStride);
 
-      //Features 5 - vcf
-#ifdef USE_VCF_FEATURE_IF_USE_VCF
-      if (resultbeforenn.winner == nextPlayer && loc == resultbeforenn.myOnlyLoc)setRowBin(rowBin, pos, 5, 1.0f, posStride, featureStride);
-#endif
 
-#ifdef FORBIDDEN_FEATURE 
-      if (hist.rules.basicRule == Rules::BASICRULE_RENJU)
+      if (hasForbiddenFeature)
       {
         if (pla == C_BLACK)
         {
@@ -625,30 +643,30 @@ void NNInputs::fillRowV7(
 
         }
       }
-#endif 
     }
   }
-  //Tax
-  //if(hist.rules.taxRule == Rules::TAX_NONE) {}
-  //else if(hist.rules.taxRule == Rules::TAX_SEKI)
-  //  rowGlobal[15] = 1.0f;
-  //else if(hist.rules.taxRule == Rules::TAX_ALL) {\
-  //  rowGlobal[15] = 2.0f;
-  //}
-  //else
-  //  ASSERT_UNREACHABLE;
 
-  rowGlobal[5] = nextPlayer == P_BLACK ? -1 : 1;
-  //rowGlobal[6] =1;// hist.rules.koRule == Rules::KO_SITUATIONAL;//situational = sixNotWin
-#ifdef USE_VCF_FEATURE_IF_USE_VCF
-  if (resultbeforenn.myVCFresult == 1)rowGlobal[7] = 1.0;//can vcf
-  else if (resultbeforenn.myVCFresult == 2)rowGlobal[8] = 1.0;//cannot vcf
-  if (resultbeforenn.oppVCFresult == 1)rowGlobal[9] = 1.0;//opp can vcf
-  else if (resultbeforenn.oppVCFresult == 2)rowGlobal[10] = 1.0;//opp cannot vcf
-#endif
+  rowGlobal[3] = hist.rules.basicRule == Rules::BASICRULE_STANDARD;
+  rowGlobal[4] = hist.rules.basicRule == Rules::BASICRULE_RENJU;
+  rowGlobal[5] = hist.rules.basicRule == Rules::BASICRULE_RENJU ?
+    (nextPlayer == P_BLACK ? -1 : 1) :
+    0.0;
+  if (nnInputParams.useVCFInput)
+  {
+    const ResultBeforeNN& resultbeforenn = nnInputParams.resultbeforenn;
+    if (resultbeforenn.winner == nextPlayer && board.isOnBoard(resultbeforenn.myOnlyLoc))
+      setRowBin(rowBin, NNPos::locToPos(resultbeforenn.myOnlyLoc, board.x_size, nnXLen, nnYLen), 5, 1.0f, posStride, featureStride);
+    if (resultbeforenn.winner == nextPlayer)rowGlobal[7] = 1.0;//can win by five/lifeFour/vcf
+    else if (resultbeforenn.myVCFresult == 2)rowGlobal[8] = 1.0;//cannot vcf
+    else if (resultbeforenn.myVCFresult == 3)rowGlobal[11] = 1.0;//at least no short vcf
+    else ASSERT_UNREACHABLE;
+    if (resultbeforenn.oppVCFresult == 1)rowGlobal[9] = 1.0;//opp can vcf
+    else if (resultbeforenn.oppVCFresult == 2)rowGlobal[10] = 1.0;//opp cannot vcf
+    else if (resultbeforenn.oppVCFresult == 3)rowGlobal[12] = 1.0;//at least no short vcf
+    else ASSERT_UNREACHABLE;
+  }
 
-  //rowGlobal[11] = nextPlayer == P_BLACK ? -nnInputParams.noResultUtilityForWhite : nnInputParams.noResultUtilityForWhite;
-
+  rowGlobal[13] = nextPlayer == P_BLACK ?  - nnInputParams.noResultUtilityForWhite : nnInputParams.noResultUtilityForWhite;
 
 
   //Used for handicap play
