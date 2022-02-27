@@ -37,7 +37,14 @@ int NNPos::getPolicySize(int nnXLen, int nnYLen) {
 const Hash128 MiscNNInputParams::ZOBRIST_PLAYOUT_DOUBLINGS =
   Hash128(0xa5e6114d380bfc1dULL, 0x4160557f1222f4adULL);
 const Hash128 MiscNNInputParams::ZOBRIST_NN_POLICY_TEMP =
-  Hash128(0xebcbdfeec6f4334bULL, 0xb85e43ee243b5ad2ULL);
+Hash128(0xebcbdfeec6f4334bULL, 0xb85e43ee243b5ad2ULL);
+const Hash128 MiscNNInputParams::ZOBRIST_NO_RESULT_UTILITY = 
+Hash128(0x391d245011c6cbf9ULL, 0xf39b923e18c67a82ULL);
+const Hash128 MiscNNInputParams::ZOBRIST_USE_VCF =
+Hash128(0xd8b858bf3159e999ULL, 0x2eeaaa4d750b89e0ULL);
+const Hash128 MiscNNInputParams::ZOBRIST_USE_FORBIDDEN_FEATURE =
+Hash128(0xc07f051dcf020534ULL, 0xf24d6bb55323e505ULL);
+
 
 //-----------------------------------------------------------------------------------------------------------
 //-----------------------------------------------------------------------------------------------------------
@@ -523,6 +530,11 @@ Hash128 NNInputs::getHash(
   if(hist.isGameFinished)
     hash ^= Board::ZOBRIST_GAME_IS_OVER;
 
+  if (nnInputParams.useVCFInput)
+    hash ^= MiscNNInputParams::ZOBRIST_USE_VCF;
+  if (nnInputParams.useForbiddenInput)
+    hash ^= MiscNNInputParams::ZOBRIST_USE_FORBIDDEN_FEATURE;
+
   //Fold in asymmetric playout indicator
   if(nnInputParams.playoutDoublingAdvantage != 0) {
     int64_t playoutDoublingsDiscretized = (int64_t)(nnInputParams.playoutDoublingAdvantage*256.0f);
@@ -538,6 +550,15 @@ Hash128 NNInputs::getHash(
     hash.hash1 = Hash::splitMix64(hash.hash1 + (uint64_t)nnPolicyTemperatureDiscretized);
     hash.hash0 += hash.hash1;
     hash ^= MiscNNInputParams::ZOBRIST_NN_POLICY_TEMP;
+  }
+
+  //Fold in policy temperature
+  if(nnInputParams.noResultUtilityForWhite != 0.0f) {
+    int64_t noResultUtilityForWhiteDiscretized = (int64_t)(nnInputParams.noResultUtilityForWhite*128.0f);
+    hash.hash0 ^= Hash::rrmxmx((uint64_t)noResultUtilityForWhiteDiscretized);
+    hash.hash1 = Hash::rrmxmx(hash.hash1 + (uint64_t)noResultUtilityForWhiteDiscretized);
+    hash.hash0 += hash.hash1;
+    hash ^= MiscNNInputParams::ZOBRIST_NO_RESULT_UTILITY;
   }
 
   return hash;

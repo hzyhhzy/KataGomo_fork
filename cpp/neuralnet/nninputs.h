@@ -49,6 +49,10 @@ struct MiscNNInputParams {
 
   static const Hash128 ZOBRIST_PLAYOUT_DOUBLINGS;
   static const Hash128 ZOBRIST_NN_POLICY_TEMP;
+  static const Hash128 ZOBRIST_NO_RESULT_UTILITY;
+  static const Hash128 ZOBRIST_USE_VCF;
+  static const Hash128 ZOBRIST_USE_FORBIDDEN_FEATURE;
+
 };
 
 namespace NNInputs {

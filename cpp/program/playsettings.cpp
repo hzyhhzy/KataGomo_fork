@@ -1,7 +1,7 @@
 #include "../program/playsettings.h"
 
 PlaySettings::PlaySettings()
-  :initGamesWithPolicy(false),policyInitAreaProp(0.0),startPosesPolicyInitAreaProp(0.0),
+  :initGamesWithPolicy(false),policyInitProp(0.0),startPosesPolicyInitProp(0.0),
    compensateAfterPolicyInitProb(0.0),sidePositionProb(0.0),
    policyInitAreaTemperature(1.0),
    compensateKomiVisits(20),estimateLeadVisits(10),estimateLeadProb(0.0),
@@ -28,8 +28,8 @@ PlaySettings PlaySettings::loadForMatch(ConfigParser& cfg) {
   playSettings.compensateKomiVisits = cfg.contains("compensateKomiVisits") ? cfg.getInt("compensateKomiVisits",1,10000) : 100;
   playSettings.initGamesWithPolicy =  cfg.contains("initGamesWithPolicy") ? cfg.getBool("initGamesWithPolicy") : false;
   if(playSettings.initGamesWithPolicy) {
-    playSettings.policyInitAreaProp = cfg.getDouble("policyInitAreaProp",0.0,1.0);
-    playSettings.startPosesPolicyInitAreaProp = cfg.contains("startPosesPolicyInitAreaProp") ? cfg.getDouble("startPosesPolicyInitAreaProp",0.0,1.0) : 0.0;
+    playSettings.policyInitProp = cfg.getDouble("policyInitProp",0.0,100.0);
+    playSettings.startPosesPolicyInitProp = cfg.contains("startPosesPolicyInitProp") ? cfg.getDouble("startPosesPolicyInitProp",0.0,100.0) : 0.0;
     playSettings.compensateAfterPolicyInitProb = cfg.contains("compensateAfterPolicyInitProb") ? cfg.getDouble("compensateAfterPolicyInitProb",0.0,1.0) : 1.0;
     playSettings.policyInitAreaTemperature = cfg.contains("policyInitAreaTemperature") ? cfg.getDouble("policyInitAreaTemperature",0.1,5.0) : 1.0;
   }
@@ -49,8 +49,8 @@ PlaySettings PlaySettings::loadForGatekeeper(ConfigParser& cfg) {
 PlaySettings PlaySettings::loadForSelfplay(ConfigParser& cfg) {
   PlaySettings playSettings;
   playSettings.initGamesWithPolicy = cfg.getBool("initGamesWithPolicy");
-  playSettings.policyInitAreaProp = cfg.contains("policyInitAreaProp") ? cfg.getDouble("policyInitAreaProp",0.0,1.0) : 0.04;
-  playSettings.startPosesPolicyInitAreaProp = cfg.contains("startPosesPolicyInitAreaProp") ? cfg.getDouble("startPosesPolicyInitAreaProp",0.0,1.0) : 0.0;
+  playSettings.policyInitProp = cfg.contains("policyInitProp") ? cfg.getDouble("policyInitProp",0.0,100.0) : 15.0;
+  playSettings.startPosesPolicyInitProp = cfg.contains("startPosesPolicyInitProp") ? cfg.getDouble("startPosesPolicyInitProp",0.0,100.0) : 15.0;
   playSettings.compensateAfterPolicyInitProb = cfg.getDouble("compensateAfterPolicyInitProb",0.0,1.0);
   playSettings.sidePositionProb =
     //forkSidePositionProb is the legacy name, included for backward compatibility

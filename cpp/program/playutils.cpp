@@ -187,12 +187,16 @@ Loc PlayUtils::getGameInitializationMove(
 void PlayUtils::initializeGameUsingPolicy(
   Search* botB, Search* botW, Board& board, BoardHistory& hist, Player& pla,
   Rand& gameRand,
-  double proportionOfBoardArea, double temperature
+  double avgMovenum, double temperature
 ) {
   NNResultBuf buf;
 
-  //This gives us about 15 moves on average for 19x19.
-  int numInitialMovesToPlay = (int)floor(gameRand.nextExponential() * (board.x_size * board.y_size * proportionOfBoardArea));
+  //已经撒过一些子了，所以不用init太多步
+  //随机撒一个子顶policy init 2步
+  const double randomInitMovenumEquToPolicyInit = 2.0;
+  double movenum = board.numStonesOnBoard();
+  int numInitialMovesToPlay = (int)floor(gameRand.nextExponential() * avgMovenum - randomInitMovenumEquToPolicyInit*movenum);
+  if (numInitialMovesToPlay < 0)numInitialMovesToPlay = 0;
   assert(numInitialMovesToPlay >= 0);
   for(int i = 0; i<numInitialMovesToPlay; i++) {
     Loc loc = getGameInitializationMove(botB, botW, board, hist, pla, buf, gameRand, temperature);

@@ -45,7 +45,7 @@ namespace PlayUtils {
   void initializeGameUsingPolicy(
     Search* botB, Search* botW, Board& board, BoardHistory& hist, Player& pla,
     Rand& gameRand,
-    double proportionOfBoardArea, double temperature
+    double avgMovenum, double temperature
   );
 
   float roundAndClipKomi(double unrounded, const Board& board, bool looseClipping);
