@@ -213,10 +213,10 @@ void VCFsolver::addNeighborSix(int y, int x, uint8_t pla,int factor)
     stonecount[t][y1][x1] += factor;
 }
 
-void VCFsolver::solve(const Board& board, uint8_t pla, uint8_t& res, uint16_t& loc)
+void VCFsolver::solve(const Board& kataboard, uint8_t pla, uint8_t& res, uint16_t& loc)
 {
   if (zob_board[0][0][0].hash0 == 0)cout << "VCFSolver::zob_board not init";
-  int32_t result=setBoard(board,pla); 
+  int32_t result=setBoard(kataboard,pla); 
   if (resultNotSure(result))
   {
     auto resultAndLoc = hashtable.get(boardhash);
@@ -1439,7 +1439,12 @@ bool VCFsolver::checkLife3(int y, int x, int t)//检查是否是活三
       pos2 = (y + ctstart + 1) * sz + (x - ctstart - 1);
     }
 
+    break;
+
+  default:
+    cout << "bug";
   }
+
   
 
   if (pos1 != -1 && (!isForbiddenMove(pos1 / sz, pos1 % sz,true)))return true;

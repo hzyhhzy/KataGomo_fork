@@ -75,7 +75,7 @@ public:
 
   static void init();
   VCFsolver(const Rules rules):rules(rules){ threes.resize(4 * sz * sz); }
-  void solve(const Board& board, uint8_t pla,uint8_t& res,uint16_t& loc);
+  void solve(const Board& kataboard, uint8_t pla,uint8_t& res,uint16_t& loc);
   void print();
   void printRoot();
   static void run(const Board& board,const Rules& rules, uint8_t pla, uint8_t& res, uint16_t& loc)

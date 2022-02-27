@@ -1547,7 +1547,7 @@ FinishedGameData* Play::runGame(
   bool drawEarlyEndGame = gameRand.nextBool(0.9);
 
   //Main play loop
-  for(int i = 0; i<maxMovesPerGame; i++) {
+  for(int movenum = 0; movenum<maxMovesPerGame; movenum++) {
     if(hist.isGameFinished)
       break;
     if(shouldStop != nullptr && shouldStop())
@@ -1667,7 +1667,7 @@ FinishedGameData* Play::runGame(
     if(playSettings.allowResignation && historicalMctsWinLossValues.size() >= playSettings.resignConsecTurns) {
       //Play at least some moves no matter what
       int minTurnForResignation = 1 + board.x_size * board.y_size / 5;
-      if(i >= minTurnForResignation) {
+      if(movenum >= minTurnForResignation) {
         if(playSettings.resignThreshold > 0 || std::isnan(playSettings.resignThreshold))
           throw StringError("playSettings.resignThreshold > 0 || std::isnan(playSettings.resignThreshold)");
 
@@ -1761,6 +1761,13 @@ FinishedGameData* Play::runGame(
 
     assert(gameData->finalWhiteScoring == NULL);
     gameData->finalWhiteScoring = new float[Board::MAX_ARR_SIZE];
+    for (int i = 0; i < Board::MAX_ARR_SIZE; i++)
+    {
+      Color c = board.colors[i];
+      if (c == C_WHITE)gameData->finalWhiteScoring[i] = 1.0;
+      else if (c == C_BLACK)gameData->finalWhiteScoring[i] = -1.0;
+      else gameData->finalWhiteScoring[i] = 0.0;
+    }
 
     gameData->hasFullData = true;
 
