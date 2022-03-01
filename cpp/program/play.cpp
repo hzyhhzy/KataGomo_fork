@@ -73,7 +73,7 @@ static double getBoardValue(Search* botB, Search* botW, const Board& board, cons
   if (nextPlayer == C_BLACK)return -value;
   else return value;
 }
-static Loc getBalanceMove(Search* botB, Search* botW, const Board& board, const BoardHistory& hist, Player nextPlayer, Rand& gameRand)
+static Loc getBalanceMove(Search* botB, Search* botW, const Board& board, const BoardHistory& hist, Player nextPlayer, Rand& gameRand,bool forSelfplay)
 {
   int xsize = board.x_size, ysize = board.y_size;
   vector<double> prob(xsize*ysize, 0);
@@ -92,7 +92,8 @@ static Loc getBalanceMove(Search* botB, Search* botW, const Board& board, const 
     if (histCopy.isGameFinished)continue;
 
     double value = getBoardValue(botB,botW,boardCopy,histCopy,getOpp(nextPlayer));
-    double p = pow(1 - value * value, 2);
+
+    double p = forSelfplay?pow(1 - value * value, 2):pow(1 - value * value, 6);
     maxProb = std::max(maxProb, p);
     prob[y*xsize + x] = p;
 
@@ -128,7 +129,7 @@ static Loc getBalanceMove(Search* botB, Search* botW, const Board& board, const 
 }
 static bool tryInitializeBalancedRandomOpening(
   Search* botB, Search* botW, Board& board,BoardHistory& hist, Player& nextPlayer,
-  Rand& gameRand) 
+  Rand& gameRand,bool forSelfplay) 
 {
   Board boardCopy(board);
   BoardHistory histCopy(hist);
@@ -164,7 +165,7 @@ static bool tryInitializeBalancedRandomOpening(
     nextPlayerCopy = getOpp(nextPlayerCopy);
 
   }
-  Loc balancedMove = getBalanceMove(botB, botW, boardCopy, histCopy, nextPlayerCopy, gameRand);
+  Loc balancedMove = getBalanceMove(botB, botW, boardCopy, histCopy, nextPlayerCopy, gameRand,forSelfplay);
   if (balancedMove==Board::NULL_LOC)return false;
   histCopy.makeBoardMoveAssumeLegal(boardCopy, balancedMove, nextPlayerCopy);
   if (histCopy.isGameFinished)return false;
@@ -179,13 +180,13 @@ static bool tryInitializeBalancedRandomOpening(
 }
 static void initializeBalancedRandomOpening(
   Search* botB, Search* botW, Board& board, BoardHistory& hist, Player& nextPlayer,
-  Rand& gameRand) 
+  Rand& gameRand,bool forSelfplay) 
 {
   static const int maxTryTimes = 100;
   int tryTimes = 0;
   while (!tryInitializeBalancedRandomOpening(
     botB, botW, board,hist,nextPlayer,
-    gameRand))
+    gameRand,forSelfplay))
   {
     tryTimes++;
     if (tryTimes > maxTryTimes)
@@ -1491,9 +1492,9 @@ FinishedGameData* Play::runGame(
     }
   };
 
-  if (playSettings.forSelfPlay && gameRand.nextBool(0.99))
+  if (gameRand.nextBool(0.99))
   {
-    initializeBalancedRandomOpening(botB, botW, board, hist, pla, gameRand);
+    initializeBalancedRandomOpening(botB, botW, board, hist, pla, gameRand,playSettings.forSelfPlay);
   }
 
   if(playSettings.initGamesWithPolicy && otherGameProps.allowPolicyInit) {
