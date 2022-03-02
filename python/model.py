@@ -62,8 +62,8 @@ class Model:
     self.binp_input_shape = [self.num_bin_input_features,(self.pos_len*self.pos_len+7)//8]
     self.global_input_shape = [self.num_global_input_features]
     self.post_input_shape = [self.pos_len,self.pos_len,self.num_bin_input_features]
-    self.policy_output_shape_nopass = [self.pos_len*self.pos_len,2]
-    self.policy_output_shape = [self.pos_len*self.pos_len+1,2] #+1 for pass move
+    self.policy_output_shape_nopass = [self.pos_len*self.pos_len,Model.NUM_POLICY_TARGETS]
+    self.policy_output_shape = [self.pos_len*self.pos_len+1,Model.NUM_POLICY_TARGETS] #+1 for pass move
     self.policy_target_shape = [self.pos_len*self.pos_len+1] #+1 for pass move
     self.policy_target_weight_shape = []
     self.value_target_shape = [3]
@@ -716,11 +716,11 @@ class Model:
     policy_output = tf.reshape(policy_output, [-1] + self.policy_output_shape_nopass)
 
     #Add pass move based on the global g values
-    matmulpass = self.weight_variable("matmulpass",[g2_num_channels,2],g2_num_channels*8,Model.NUM_POLICY_TARGETS,scale_initial_weights=0.3)
+    matmulpass = self.weight_variable("matmulpass",[g2_num_channels,Model.NUM_POLICY_TARGETS],g2_num_channels*8,Model.NUM_POLICY_TARGETS,scale_initial_weights=0.3)
     # self.add_lr_factor("matmulpass:0",0.25)
     pass_output = tf.tensordot(g2_layer,matmulpass,axes=[[3],[0]])
     self.outputs_by_layer.append(("pass",pass_output))
-    pass_output = tf.reshape(pass_output, [-1] + [1,2])
+    pass_output = tf.reshape(pass_output, [-1] + [1,Model.NUM_POLICY_TARGETS])
     policy_output = tf.concat([policy_output,pass_output],axis=1, name="policy_output")
 
     self.policy_output = policy_output
@@ -957,6 +957,8 @@ class Target_vars:
     self.policy_target_weight = (placeholders["policy_target_weight"] if "policy_target_weight" in placeholders else
                                  tf.compat.v1.placeholder(tf.float32, [None] + model.policy_target_weight_shape))
     self.policy_target_weight1 = (placeholders["policy_target_weight1"] if "policy_target_weight1" in placeholders else
+                                 tf.compat.v1.placeholder(tf.float32, [None] + model.policy_target_weight_shape))
+    self.policy_target_weight2 = (placeholders["policy_target_weight2"] if "policy_target_weight2" in placeholders else
                                  tf.compat.v1.placeholder(tf.float32, [None] + model.policy_target_weight_shape))
     self.lead_target_weight = (placeholders["lead_target_weight"] if "lead_target_weight" in placeholders else
                                     tf.compat.v1.placeholder(tf.float32, [None] + model.lead_target_weight_shape))

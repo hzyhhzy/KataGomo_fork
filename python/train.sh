@@ -64,7 +64,7 @@ time python ./train.py \
      -datadir "$BASEDIR"/shuffleddata/current/ \
      -exportdir "$BASEDIR"/"$EXPORT_SUBDIR" \
      -exportprefix "$TRAININGNAME" \
-     -pos-len 11 \
+     -pos-len 15 \
      -batch-size "$BATCHSIZE" \
      -gpu-memory-frac 0.75 \
      -model-kind "$MODELKIND" \
@@ -73,7 +73,7 @@ time python ./train.py \
      -swa-sub-epoch-scale 1 \
      -lr-scale 1\
      -samples-per-epoch 1000000 \
-     -multi-gpus 0,1 \
+     -multi-gpus 0 \
      $EXTRAFLAG \
      "$@" \
      2>&1 | tee -a "$BASEDIR"/train/"$TRAININGNAME"/stdout.txt

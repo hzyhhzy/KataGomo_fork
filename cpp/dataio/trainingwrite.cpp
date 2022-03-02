@@ -651,8 +651,8 @@ void TrainingWriteBuffers::addRow(
           throw StringError("not isFutureForbidden == 1.0f || isFutureForbidden == -1.0f");
         Color isCurrentForbidden = (finalOwnership[loc]);
         if (!(isCurrentForbidden == 0 || isCurrentForbidden == 1))
-          throw StringError("not isCurrentForbidden == 0f || isCurrentForbidden == 1f");
-        rowOwnership[pos + posArea * 0] = isCurrentForbidden == 1 ? 1.0 : 0.0;
+          throw StringError("not isCurrentForbidden == 0 || isCurrentForbidden == 1");
+        rowOwnership[pos + posArea * 0] = isCurrentForbidden == 1 ? 1.0 : -1.0;
         rowOwnership[pos+posArea*4] = isFutureForbidden;
         rowOwnership[pos+posArea*1] = 0;//reserved
       }
@@ -1010,7 +1010,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             &(data.endHist.getRecentBoard(0)),
             data.finalFullArea,
             currentForbiddenFloat.data(),
-            data.finalWhiteScoring,
+            futureForbiddenFloat.data(),
             &posHistForFutureBoards,
             isSidePosition,
             numNeuralNetsBehindLatest,
