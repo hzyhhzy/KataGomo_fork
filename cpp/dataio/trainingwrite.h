@@ -227,6 +227,7 @@ struct TrainingWriteBuffers {
     int64_t unreducedNumVisits,
     const std::vector<PolicyTargetMove>* policyTarget0, //can be null
     const std::vector<PolicyTargetMove>* policyTarget1, //can be null
+    const std::vector<PolicyTargetMove>* policyTarget2, //can be null
     const std::vector<ValueTargets>& whiteValueTargets,
     int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
     const NNRawStats& nnRawStats,

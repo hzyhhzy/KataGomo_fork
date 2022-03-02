@@ -3,6 +3,8 @@
 #include "../core/fileutils.h"
 #include "../neuralnet/modelversion.h"
 
+#include "../forbiddenPoint/ForbiddenPointFinder.h"
+
 using namespace std;
 
 ValueTargets::ValueTargets()
@@ -199,7 +201,7 @@ void FinishedGameData::printDebug(ostream& out) const {
 
 //Don't forget to update everything else in the header file and the code below too if changing any of these
 //And update the python code
-static const int POLICY_TARGET_NUM_CHANNELS = 2;
+static const int POLICY_TARGET_NUM_CHANNELS = 3;
 static const int GLOBAL_TARGET_NUM_CHANNELS = 64;
 static const int VALUE_SPATIAL_TARGET_NUM_CHANNELS = 5;
 
@@ -337,6 +339,7 @@ void TrainingWriteBuffers::addRow(
   int64_t unreducedNumVisits,
   const vector<PolicyTargetMove>* policyTarget0, //can be null
   const vector<PolicyTargetMove>* policyTarget1, //can be null
+  const vector<PolicyTargetMove>* policyTarget2, //can be null
   const vector<ValueTargets>& whiteValueTargets,
   int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
   const NNRawStats& nnRawStats,
@@ -416,6 +419,16 @@ void TrainingWriteBuffers::addRow(
     rowGlobal[28] = 0.0f;
   }
 
+
+  if(policyTarget2 != NULL) {
+    fillPolicyTarget(*policyTarget2, policySize, dataXLen, dataYLen, board.x_size, rowPolicy + 2 * policySize);
+    rowGlobal[35] = 1.0f;
+  }
+  else {
+    uniformPolicyTarget(policySize, rowPolicy + 2* policySize);
+    rowGlobal[35] = 0.0f;
+  }
+
   //Fill td-like value targets
   int boardArea = board.x_size * board.y_size;
   assert(whiteValueTargetsIdx >= 0 && whiteValueTargetsIdx < whiteValueTargets.size());
@@ -460,7 +473,6 @@ void TrainingWriteBuffers::addRow(
   rowGlobal[30] = 0.0f;
   rowGlobal[31] = 0.0f;
   rowGlobal[32] = 0.0f;
-  rowGlobal[35] = 0.0f;
 
   //Fill in whether we should use history or not
   bool useHist0 = rand.nextDouble() < 0.98;
@@ -529,11 +541,13 @@ void TrainingWriteBuffers::addRow(
   int8_t* rowScoreDistr = scoreDistrN.data + curRows * scoreDistrLen;
   int8_t* rowOwnership = valueTargetsNCHW.data + curRows * VALUE_SPATIAL_TARGET_NUM_CHANNELS * posArea;
 
-  if(finalOwnership == NULL || (data.endHist.isGameFinished && data.endHist.isNoResult)) {
+  //fill currentForbidden feature: 1 true, -1 false
+
+
+
+  if(finalBoard == NULL || (data.endHist.isGameFinished && data.endHist.isNoResult)) {
     rowGlobal[27] = 0.0f;
     rowGlobal[20] = 0.0f;
-    for(int i = 0; i<posArea*2; i++)
-      rowOwnership[i] = 0;
     for(int i = 0; i<scoreDistrLen; i++)
       rowScoreDistr[i] = 0;
     //Dummy value, to make sure it still sums to 100
@@ -541,32 +555,13 @@ void TrainingWriteBuffers::addRow(
     rowScoreDistr[scoreDistrMid] = 50;
   }
   else {
-    assert(finalFullArea != NULL);
-    assert(finalBoard != NULL);
-
     rowGlobal[27] = 1.0f;
+
     //Fill score info
     const ValueTargets& lastTargets = whiteValueTargets[whiteValueTargets.size()-1];
     float score = nextPlayer == P_WHITE ? lastTargets.score : -lastTargets.score;
     rowGlobal[20] = score;
 
-    //Fill with zeros in case the buffers differ in size
-    for(int i = 0; i<posArea*2; i++)
-      rowOwnership[i] = 0;
-
-    //Fill ownership info
-    Player opp = getOpp(nextPlayer);
-    for(int y = 0; y<board.y_size; y++) {
-      for(int x = 0; x<board.x_size; x++) {
-        int pos = NNPos::xyToPos(x,y,dataXLen);
-        Loc loc = Location::getLoc(x,y,board.x_size);
-        if(finalOwnership[loc] == nextPlayer) rowOwnership[pos] = 1;
-        else if(finalOwnership[loc] == opp) rowOwnership[pos] = -1;
-        //Mark full area points that ended up not being owned
-        if(finalFullArea[loc] != C_EMPTY && finalOwnership[loc] == C_EMPTY)
-          rowOwnership[pos+posArea] = (finalFullArea[loc] == nextPlayer ? 1 : -1);
-      }
-    }
 
     //Fill score vector "onehot"-like
     for(int i = 0; i<scoreDistrLen; i++)
@@ -601,7 +596,7 @@ void TrainingWriteBuffers::addRow(
     rowGlobal[33] = 1.0f;
     int endIdx = (int)boards.size()-1;
     const Board& board2 = boards[std::min(whiteValueTargetsIdx+8,endIdx)];
-    const Board& board3 = boards[std::min(whiteValueTargetsIdx+32,endIdx)];
+    const Board& board3 = boards[endIdx];
     assert(board2.y_size == board.y_size && board2.x_size == board.x_size);
     assert(board3.y_size == board.y_size && board3.x_size == board.x_size);
 
@@ -624,18 +619,26 @@ void TrainingWriteBuffers::addRow(
   }
 
 
-  if(finalWhiteScoring == NULL
+
+  //fill futureForbidden feature: 1 true, -1 false
+  if(hist.rules.basicRule!=Rules::BASICRULE_RENJU 
+     || finalWhiteScoring == NULL || finalOwnership == NULL
      || (data.endHist.isGameFinished && data.endHist.isNoResult)
   ) {
     rowGlobal[34] = 0.0f;
     for(int i = 0; i<posArea; i++) {
+      rowOwnership[i] = 0;
+      rowOwnership[i+posArea*1] = 0;
       rowOwnership[i+posArea*4] = 0;
     }
+
   }
   else {
     rowGlobal[34] = 1.0f;
     //Fill with zeros in case the buffers differ in size
     for(int i = 0; i<posArea; i++) {
+      rowOwnership[i] = 0;
+      rowOwnership[i+posArea*1] = 0;
       rowOwnership[i+posArea*4] = 0;
     }
 
@@ -643,9 +646,15 @@ void TrainingWriteBuffers::addRow(
       for(int x = 0; x<board.x_size; x++) {
         int pos = NNPos::xyToPos(x,y,dataXLen);
         Loc loc = Location::getLoc(x,y,board.x_size);
-        float scoring = (nextPlayer == P_WHITE ? finalWhiteScoring[loc] : -finalWhiteScoring[loc]);
-        assert(scoring <= 1.0f && scoring >= -1.0f);
-        rowOwnership[pos+posArea*4] = convertRadiusOneToRadius120(scoring,rand);
+        float isFutureForbidden = (finalWhiteScoring[loc]);
+        if (!(isFutureForbidden == 1.0f || isFutureForbidden == -1.0f))
+          throw StringError("not isFutureForbidden == 1.0f || isFutureForbidden == -1.0f");
+        Color isCurrentForbidden = (finalOwnership[loc]);
+        if (!(isCurrentForbidden == 0 || isCurrentForbidden == 1))
+          throw StringError("not isCurrentForbidden == 0f || isCurrentForbidden == 1f");
+        rowOwnership[pos + posArea * 0] = isCurrentForbidden == 1 ? 1.0 : 0.0;
+        rowOwnership[pos+posArea*4] = isFutureForbidden;
+        rowOwnership[pos+posArea*1] = 0;//reserved
       }
     }
   }
@@ -893,6 +902,55 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
       posHistForFutureBoards.push_back(board);
     }
   }
+  
+  //compute forbidden locs
+  const int xSize = data.startBoard.x_size;
+  const int ySize = data.startBoard.y_size;
+  vector<vector<bool>> currentForbidden(numMoves,vector<bool>(Board::MAX_ARR_SIZE,false));
+  vector<vector<bool>> futureForbidden(numMoves,vector<bool>(Board::MAX_ARR_SIZE,false));
+  if (data.startHist.rules.basicRule == Rules::BASICRULE_RENJU)
+  {
+    for (int turnAfterStart = 0; turnAfterStart < numMoves; turnAfterStart++)
+    {
+      const Board& curBoard = posHistForFutureBoards[turnAfterStart];
+      CForbiddenPointFinder fpf(xSize);
+      for (int x = 0; x < xSize; x++)
+        for (int y = 0; y < ySize; y++)
+        {
+          fpf.SetStone(x, y, curBoard.colors[Location::getLoc(x, y, xSize)]);
+        }
+
+      for (int x = 0; x < xSize; x++)
+        for (int y = 0; y < ySize; y++)
+        {
+          if (fpf.isForbidden(x, y)) currentForbidden[turnAfterStart][Location::getLoc(x, y, xSize)]=true;
+        }
+    }
+
+    for (int turnBeforeEnd = 0; turnBeforeEnd < numMoves; turnBeforeEnd++)
+    {
+      int turnAfterStart = numMoves - turnBeforeEnd - 1;
+      if (turnBeforeEnd == 0)
+      {
+        for (int x = 0; x < xSize; x++)
+          for (int y = 0; y < ySize; y++)
+          {
+            Loc loc = Location::getLoc(x, y, xSize);
+            futureForbidden[turnAfterStart][loc] = currentForbidden[turnAfterStart][loc];
+          }
+      }
+      else
+      {
+        for (int x = 0; x < xSize; x++)
+          for (int y = 0; y < ySize; y++)
+          {
+            Loc loc = Location::getLoc(x, y, xSize);
+            futureForbidden[turnAfterStart][loc] = currentForbidden[turnAfterStart][loc]&&futureForbidden[turnAfterStart+1][loc];
+          }
+      }
+    }
+  }
+
 
   Board board(data.startBoard);
   BoardHistory hist(data.startHist);
@@ -907,6 +965,24 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
     int64_t unreducedNumVisits = data.policyTargetsByTurn[turnAfterStart].unreducedNumVisits;
     const vector<PolicyTargetMove>* policyTarget0 = data.policyTargetsByTurn[turnAfterStart].policyTargets;
     const vector<PolicyTargetMove>* policyTarget1 = (turnAfterStart + 1 < numMoves) ? data.policyTargetsByTurn[turnAfterStart+1].policyTargets : NULL;
+
+    vector<PolicyTargetMove> policyTarget2;
+    vector<PolicyTargetMove>* policyTarget2ptr = NULL;
+    if (turnAfterStart >= 1)//policyTarget2 : predict last move
+    {
+      Loc moveLoc = data.endHist.moveHistory[turnIdx].loc;
+      policyTarget2.push_back(PolicyTargetMove(moveLoc, 1));
+      policyTarget2ptr = &policyTarget2;
+    }
+
+    vector<Color> currentForbiddenFloat(Board::MAX_ARR_SIZE,0.0);
+    vector<float> futureForbiddenFloat(Board::MAX_ARR_SIZE,0.0);
+    for (int i = 0; i < Board::MAX_ARR_SIZE; i++)
+    {
+      currentForbiddenFloat[i] = currentForbidden[turnAfterStart][i] ? 1 : 0;
+      futureForbiddenFloat[i] = futureForbidden[turnAfterStart][i] ? 1.0 : -1.0;
+    }
+    
     bool isSidePosition = false;
 
     int numNeuralNetsBehindLatest = 0;
@@ -927,12 +1003,13 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             unreducedNumVisits,
             policyTarget0,
             policyTarget1,
+            policyTarget2ptr,
             data.whiteValueTargetsByTurn,
             turnAfterStart,
             data.nnRawStatsByTurn[turnAfterStart],
             &(data.endHist.getRecentBoard(0)),
             data.finalFullArea,
-            data.finalOwnership,
+            currentForbiddenFloat.data(),
             data.finalWhiteScoring,
             &posHistForFutureBoards,
             isSidePosition,
@@ -977,6 +1054,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             1.0,
             sp->unreducedNumVisits,
             &(sp->policyTarget),
+            NULL,
             NULL,
             whiteValueTargetsBuf,
             0,

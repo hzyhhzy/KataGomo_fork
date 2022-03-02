@@ -1553,7 +1553,7 @@ FinishedGameData* Play::runGame(
 
   ClockTimer timer;
 
-  bool drawEarlyEndGame = 0.0;//gameRand.nextBool(0.9);
+  bool drawEarlyEndGame = playSettings.forSelfPlay ? 0.0 : 0.9;//gameRand.nextBool(0.9);
 
   //Main play loop
   for(int movenum = 0; movenum<maxMovesPerGame; movenum++) {
