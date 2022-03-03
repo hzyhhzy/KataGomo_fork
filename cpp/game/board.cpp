@@ -360,6 +360,19 @@ Hash128 Board::getPosHashAfterMove(Loc loc, Player pla) const {
   return hash;
 }
 
+int Board::countScoreWhite() const
+{
+  int s = 0;
+  for(int y = 0; y < y_size; y++) {
+    for(int x = 0; x < x_size; x++) {
+      Loc loc = Location::getLoc(x,y,x_size);
+      s += countFiveWhiteMinusBlackSingleLoc(loc);
+    }
+  }
+  return s;
+}
+
+
 //Plays the specified move, assuming it is legal.
 void Board::playMoveAssumeLegal(Loc loc, Player pla)
 {
@@ -381,6 +394,33 @@ void Board::removeSingleStone(Loc loc)
 
   colors[loc] = C_EMPTY;
   pos_hash ^= ZOBRIST_BOARD_HASH[loc][pla];
+}
+
+int Board::countFiveWhiteMinusBlackSingleLoc(Loc loc) const
+{
+  if (!isOnBoard(loc))return 0;
+  Color color = colors[loc];
+  if (color == C_EMPTY)return 0;
+  else 
+  {
+    int count = 0;
+    for (int dir = 0; dir < 4; dir++)
+    {
+      int adj = adj_offsets[2 * dir];
+      Loc l = loc + adj;
+      if (!isOnBoard(l) || colors[l] != color)continue;
+      l = loc - adj;
+      if (!isOnBoard(l) || colors[l] != color)continue;
+      l = loc + 2*adj;
+      if (!isOnBoard(l) || colors[l] != color)continue;
+      l = loc - 2*adj;
+      if (!isOnBoard(l) || colors[l] != color)continue;
+      count++;
+    }
+    if (color == C_BLACK)count = -count;
+    return count;
+  }
+  ASSERT_UNREACHABLE;
 }
 
 

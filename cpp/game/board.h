@@ -171,6 +171,8 @@ public:
   Hash128 getPosHashAfterMove(Loc loc, Player pla) const;
 
 
+  int countScoreWhite() const;
+
   //Run some basic sanity checks on the board state, throws an exception if not consistent, for testing/debugging
   void checkConsistency() const;
   //For the moment, only used in testing since it does extra consistency checks.
@@ -202,6 +204,8 @@ public:
   private:
   void init(int xS, int yS);
   void removeSingleStone(Loc loc);
+
+  int countFiveWhiteMinusBlackSingleLoc(Loc loc) const;
 
   friend std::ostream& operator<<(std::ostream& out, const Board& board);
 

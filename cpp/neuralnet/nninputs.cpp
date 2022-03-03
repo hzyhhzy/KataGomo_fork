@@ -708,6 +708,8 @@ void NNInputs::fillRowV7(
     }
   }
 
+  float selfkomi = pla == C_WHITE ? hist.rules.komi : -hist.rules.komi;
+  rowGlobal[2] = selfkomi * 0.2;
 
   //Global features.
   //The first 2 of them were set already above to flag which of the past 5 moves were passes.

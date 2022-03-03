@@ -97,6 +97,7 @@ struct BoardHistory {
 
   void setWinnerByResignation(Player pla);
   void setWinner(Player pla);
+  void setScore(float whiteScore);
 
   void printBasicInfo(std::ostream& out, const Board& board) const;
   void printDebugInfo(std::ostream& out, const Board& board) const;

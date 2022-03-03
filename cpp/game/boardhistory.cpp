@@ -283,13 +283,21 @@ void BoardHistory::maybeFinishGame(Board& board,Player lastPla,Loc lastLoc)
   {
     setWinner(getOpp(lastPla));
   }
-  if (board.getMovePriorityAssumeLegal(lastPla, lastLoc, true) == MP_FIVE)
-  {
-    setWinner(lastPla);
-  }
-  if (board.numStonesOnBoard() >= board.x_size * board.y_size)setWinner(C_EMPTY);
+  if (board.numStonesOnBoard() >= board.x_size * board.y_size)setScore(board.countScoreWhite());
 }
 
+void BoardHistory::setScore(float whiteScore)
+{
+  isGameFinished = true;
+  isScored = true;
+  isNoResult = false;
+  isResignation = false;
+  finalWhiteMinusBlackScore = whiteScore+rules.komi;
+
+  if (finalWhiteMinusBlackScore > 0)winner = C_WHITE;
+  else if (finalWhiteMinusBlackScore < 0)winner = C_BLACK;
+  else winner = C_EMPTY;
+}
 
 Hash128 BoardHistory::getSituationRulesHash(const Board& board, const BoardHistory& hist, Player nextPlayer, double drawEquivalentWinsForWhite) {
  
