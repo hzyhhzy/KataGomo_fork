@@ -280,10 +280,9 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
 void BoardHistory::maybeFinishGame(Board& board,Player lastPla,Loc lastLoc)
 {
   if (lastLoc == Board::PASS_LOC)
-  {
     setWinner(getOpp(lastPla));
-  }
-  //if (board.numStonesOnBoard() >= board.x_size * board.y_size)setWinner(C_EMPTY);
+  else if(board.isPlaWin(lastPla))
+    setWinner(lastPla);
 }
 
 

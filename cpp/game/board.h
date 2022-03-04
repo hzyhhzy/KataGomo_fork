@@ -21,7 +21,7 @@
 
 //每一步棋分为几个阶段
 //例如：象棋类分为“选子”和“选落点”2步，六子棋分为2步，amazons分为3步，也有一些棋不定步数
-static const int STAGE_NUM_EACH_PLA = 3;
+static const int STAGE_NUM_EACH_PLA = 2;
 
 struct Board;
 
@@ -172,6 +172,8 @@ struct Board
   //Assumes the move is on an empty location.
   Hash128 getPosHashAfterMove(Loc loc, Player pla) const;
 
+  bool isPlaWin(Player pla) const;
+
 
   //Run some basic sanity checks on the board state, throws an exception if not consistent, for testing/debugging
   void checkConsistency() const;
@@ -212,7 +214,6 @@ struct Board
 
   private:
   void init(int xS, int yS);
-  bool isQueenMove(Loc locSrc, Loc locDst) const;
 
   friend std::ostream& operator<<(std::ostream& out, const Board& board);
 
