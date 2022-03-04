@@ -254,6 +254,8 @@ bool Board::isLegal(Loc loc, Player pla, bool isMultiStoneSuicideLegal) const
   }
   else if (stage == 1)//Âä×Ó
   {
+    Color c = colors[loc];
+    Color opp = getOpp(pla);
     Loc chosenMove = midLocs[0];
     int x0 = Location::getX(chosenMove, x_size);
     int y0 = Location::getY(chosenMove, x_size);
@@ -264,9 +266,9 @@ bool Board::isLegal(Loc loc, Player pla, bool isMultiStoneSuicideLegal) const
     if (!((pla == C_BLACK && dy == -1) || (pla == C_WHITE && dy == 1)))
       return false;
     if (dx == 1 || dx == -1)
-      return true;
+      return c == opp || c == C_EMPTY;
     else if (dx == 0)
-      return colors[loc] == getOpp(pla);
+      return  c == C_EMPTY;
     else return false;
   }
 
