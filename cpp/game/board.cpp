@@ -413,7 +413,7 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
     midLocs[1] = loc;
     pos_hash ^= ZOBRIST_STAGELOC_HASH[loc][1];
 
-    if (loc == C_EMPTY)return;
+    if (!isOnBoard(loc))return;
     Loc chosenLoc = midLocs[0];
     setStone(chosenLoc, C_EMPTY);
     setStone(loc, nextPla);
