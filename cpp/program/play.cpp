@@ -1565,7 +1565,7 @@ FinishedGameData* Play::runGame(
 
     assert(gameData->finalWhiteScoring == NULL);
     gameData->finalWhiteScoring = new float[Board::MAX_ARR_SIZE];
-    NNInputs::fillScoring(board,gameData->finalOwnership,hist.rules.taxRule == Rules::TAX_ALL,gameData->finalWhiteScoring);
+    std::fill(gameData->finalWhiteScoring,gameData->finalWhiteScoring+Board::MAX_ARR_SIZE,0.0);
 
     gameData->hasFullData = true;
 

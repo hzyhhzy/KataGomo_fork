@@ -55,14 +55,6 @@ namespace NNInputs {
     const MiscNNInputParams& nnInputParams, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
   );
 
-  //If groupTax is specified, for each color region of area, reduce weight on empty spaces equally to reduce the total sum by 2.
-  //(but should handle seki correctly)
-  void fillScoring(
-    const Board& board,
-    const Color* area,
-    bool groupTax,
-    float* scoring
-  );
 }
 
 struct NNOutput {
@@ -135,8 +127,6 @@ namespace SymmetryHelpers {
   //Applies a symmetry to a board
   Board getSymBoard(const Board& board, int symmetry);
 
-  //Get the inverse of the specified symmetry
-  int invert(int symmetry);
   //Get the symmetry equivalent to first applying firstSymmetry and then applying nextSymmetry.
   int compose(int firstSymmetry, int nextSymmetry);
   int compose(int firstSymmetry, int nextSymmetry, int nextNextSymmetry);
