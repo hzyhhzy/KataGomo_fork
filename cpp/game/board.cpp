@@ -477,7 +477,7 @@ bool Board::isPlaWin(Player pla) const
 
   int checkY = pla == C_BLACK ? 0 : y_size - 1;
   for (int x = 0; x < x_size; x++)
-    if (colors[Location::getLoc(x, checkY, x_size)])
+    if (colors[Location::getLoc(x, checkY, x_size)] == pla)
       return true;
 
   return false;

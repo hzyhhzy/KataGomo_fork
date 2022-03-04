@@ -437,7 +437,6 @@ void TrainingWriteBuffers::addRow(
     uniformPolicyTarget(policySize, rowPolicy + 1 * policySize);
     rowGlobal[28] = 0.0f;
   }
-  if(nextPlayer==C_WHITE)selfTransposeNCHW(rowPolicy, 1, 2, dataYLen, dataXLen);
 
   if (nextPlayer == C_WHITE)
   {
