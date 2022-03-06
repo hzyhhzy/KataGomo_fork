@@ -43,14 +43,20 @@ int Location::getY(Loc loc, int x_size)
 }
 void Location::getAdjacentOffsets(short adj_offsets[8], int x_size)
 {
-  adj_offsets[0] = -(x_size+1);
-  adj_offsets[1] = -1;
-  adj_offsets[2] = 1;
-  adj_offsets[3] = (x_size+1);
-  adj_offsets[4] = -(x_size+1)-1;
-  adj_offsets[5] = -(x_size+1)+1;
-  adj_offsets[6] = (x_size+1)-1;
+  //  604          6
+  //  2 3   ->    2 0
+  //  517        5 x 4
+  //              1 3
+  //               7
+  adj_offsets[0] = -(x_size+1);   
+  adj_offsets[2] = -1;
+  adj_offsets[3] = 1;
+  adj_offsets[1] = (x_size+1);
+  adj_offsets[6] = -(x_size+1)-1;
+  adj_offsets[4] = -(x_size+1)+1;
   adj_offsets[7] = (x_size+1)+1;
+  adj_offsets[5] = (x_size+1)-1;
+  //0到5是相连
 }
 
 bool Location::isAdjacent(Loc loc0, Loc loc1, int x_size)
@@ -112,6 +118,7 @@ Board::Board(const Board& other)
   y_size = other.y_size;
 
   memcpy(colors, other.colors, sizeof(Color)*MAX_ARR_SIZE);
+  memcpy(legalMap, other.legalMap, sizeof(bool)*MAX_ARR_SIZE);
 
   pos_hash = other.pos_hash;
   memcpy(adj_offsets, other.adj_offsets, sizeof(short)*8);
@@ -121,6 +128,61 @@ Board::Board(const Board& other)
   memcpy(midLocs, other.midLocs, sizeof(Loc) * STAGE_NUM_EACH_PLA);
 }
 
+void Board::clearLegalMap()
+{
+  for (int i = 0; i < MAX_ARR_SIZE; i++)
+  {
+    legalMap[i] = false;
+  }
+}
+
+void Board::setLegalMap()
+{
+  Loc chosenLoc = midLocs[0];
+  if (!isOnBoard(chosenLoc))
+  {
+    clearLegalMap();
+    return;
+  }
+
+  legalMap[chosenLoc] = true;
+  setLegalMapIter(chosenLoc, true);
+  legalMap[chosenLoc] = false;
+  for (int i = 0; i < 6; i++)
+  {
+    Loc loc = chosenLoc + adj_offsets[i];
+    if (colors[loc] == C_EMPTY)legalMap[loc] = true;
+  }
+
+
+}
+
+void Board::setLegalMapIter(Loc startLoc,bool isFirst)
+{
+
+  if (!isOnBoard(startLoc))return;
+  if (isFirst)
+  {
+    if (colors[startLoc] != nextPla)
+    {
+      cout << "colors[startLoc] != chosenColor";
+      return;
+    }
+  }
+  else if (colors[startLoc] != C_EMPTY)
+  {
+    return;
+  }
+  if (!isFirst&&legalMap[startLoc])return;
+  //	cout << Location::toString(startLoc, *this) << endl;
+  legalMap[startLoc] = 1;
+  for (int i = 0; i < 6; i++)
+  {
+    Loc loc = startLoc + adj_offsets[i];
+    if (colors[loc] == C_BLACK || colors[loc] == C_WHITE)setLegalMapIter(startLoc + 2 * adj_offsets[i], false);
+  }
+
+}
 void Board::init(int xS, int yS)
 {
   assert(IS_ZOBRIST_INITALIZED);
@@ -130,8 +192,11 @@ void Board::init(int xS, int yS)
   x_size = xS;
   y_size = yS;
 
-  for(int i = 0; i < MAX_ARR_SIZE; i++)
+  for (int i = 0; i < MAX_ARR_SIZE; i++)
+  {
     colors[i] = C_WALL;
+    legalMap[i] = false;
+  }
 
   for(int y = 0; y < y_size; y++)
   {
@@ -156,18 +221,22 @@ void Board::init(int xS, int yS)
 
   Location::getAdjacentOffsets(adj_offsets,x_size);
 
-  if (y_size < 4)
+  if (y_size < 5 )
   {
-    cout << "y_size < 4 is not supported for Breakthrough";
+    cout << "y_size < 5 is not supported for TiaoQi";
+    return;
+  }
+  if (x_size != y_size)
+  {
+    cout << "x_size != y_size is not supported for TiaoQi";
     return;
   }
 
-  for (int x = 0; x < x_size; x++)
+  for (int x = 0; x < 4; x++)
+    for (int y = 0; y < 4-x; y++)
   {
-    setStone(Location::getLoc(x, 0, x_size),C_WHITE);
-    setStone(Location::getLoc(x, 1, x_size),C_WHITE);
-    setStone(Location::getLoc(x, y_size-1, x_size),C_BLACK);
-    setStone(Location::getLoc(x, y_size-2, x_size),C_BLACK);
+      setStone(Location::getLoc(x, y, x_size),C_WHITE);
+      setStone(Location::getLoc(x_size-x-1, y_size-y-1, x_size),C_BLACK);
   }
 
 }
@@ -247,29 +316,13 @@ bool Board::isLegal(Loc loc, Player pla, bool isMultiStoneSuicideLegal) const
   if (!isOnBoard(loc))
     return false;
 
-  //TODO: Add some logic
   if (stage == 0)//选子
   {
     return colors[loc] == pla;
   }
   else if (stage == 1)//落子
   {
-    Color c = colors[loc];
-    Color opp = getOpp(pla);
-    Loc chosenMove = midLocs[0];
-    int x0 = Location::getX(chosenMove, x_size);
-    int y0 = Location::getY(chosenMove, x_size);
-    int x1 = Location::getX(loc, x_size);
-    int y1 = Location::getY(loc, x_size);
-    int dy = y1 - y0;
-    int dx = x1 - x0;
-    if (!((pla == C_BLACK && dy == -1) || (pla == C_WHITE && dy == 1)))
-      return false;
-    if (dx == 1 || dx == -1)
-      return c == opp || c == C_EMPTY;
-    else if (dx == 0)
-      return  c == C_EMPTY;
-    else return false;
+    return legalMap[loc];
   }
 
   ASSERT_UNREACHABLE;
@@ -349,6 +402,76 @@ Hash128 Board::getPosHashAfterMove(Loc loc, Player pla) const {
   return hash;
 }
 
+int Board::stonesFinished(Player pla) const
+{
+  int count = 0;
+  if (pla == C_BLACK)
+  {
+    for (int x = 0; x < 4; x++)
+      for (int y = 0; y < 4 - x; y++)
+      {
+        if (colors[Location::getLoc(x, y, x_size)] == C_BLACK)count++;
+      }
+  }
+  else if (pla == C_WHITE)
+  {
+    for (int x = 0; x < 4; x++)
+      for (int y = 0; y < 4 - x; y++)
+      {
+        if (colors[Location::getLoc(x_size - x - 1, y_size - y - 1, x_size)] == C_WHITE)count++;
+      }
+  }
+  return count;
+
+}
+
+#ifdef EARLYSTAGE
+int Board::scoreEarlyStageForBlack() const
+{
+  int score = 0;
+  for (int x = 0; x < 4; x++)
+    for (int y = 0; y < 4 - x; y++)
+    {
+      Color color = colors[Location::getLoc(x, y, x_size)];
+      if (color == C_BLACK)
+      {
+        int dist = x_size + y_size - x - y - 2;
+        score += dist * dist;
+      }
+      else if (color == C_WHITE)
+      {
+        int dist = x+y ;
+        score -= dist * dist;
+      }
+
+    }
+  return score;
+}
+#endif
+
+int Board::stonesInHome(Player pla) const
+{
+  int count = 0;
+  if (pla == C_BLACK)
+  {
+    for (int x = 0; x < 4; x++)
+      for (int y = 0; y < 4 - x; y++)
+      {
+        if (colors[Location::getLoc(x_size - x - 1, y_size - y - 1, x_size)] == C_BLACK)count++;
+      }
+  }
+  else if (pla == C_WHITE)
+  {
+    for (int x = 0; x < 4; x++)
+      for (int y = 0; y < 4 - x; y++)
+      {
+        if (colors[Location::getLoc(x, y, x_size)] == C_WHITE)count++;
+      }
+  }
+  return count;
+
+}
+
 //Plays the specified move, assuming it is legal.
 void Board::playMoveAssumeLegal(Loc loc, Player pla)
 {
@@ -364,6 +487,7 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
 
     midLocs[0] = loc;
     pos_hash ^= ZOBRIST_STAGELOC_HASH[loc][0];
+    setLegalMap();
   }
   else if (stage == 1)//挪子
   {
@@ -384,7 +508,7 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
       midLocs[i] = Board::NULL_LOC;
     }
 
-
+    clearLegalMap();
 
     nextPla = getOpp(nextPla);
     pos_hash ^= ZOBRIST_NEXTPLA_HASH[getOpp(nextPla)];
@@ -471,20 +595,6 @@ void Board::checkConsistency() const {
       throw StringError(errLabel + "Corrupted adj_offsets array");
 }
 
-bool Board::isPlaWin(Player pla) const
-{
-  Player opp = getOpp(pla);
-  if (numPlaStonesOnBoard(opp) == 0)
-    return true;
-
-  int checkY = pla == C_BLACK ? 0 : y_size - 1;
-  for (int x = 0; x < x_size; x++)
-    if (colors[Location::getLoc(x, checkY, x_size)] == pla)
-      return true;
-
-  return false;
-
-}
 
 bool Board::isEqualForTesting(const Board& other, bool checkNumCaptures, bool checkSimpleKo) const {
   (void)checkNumCaptures;

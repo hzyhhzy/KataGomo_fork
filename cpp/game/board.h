@@ -12,8 +12,12 @@
 #include "../external/nlohmann_json/json.hpp"
 
 
+
+//早期如果随机撒子，学不会，所以需要特殊处理
+//#define EARLYSTAGE
+
 #ifndef COMPILE_MAX_BOARD_LEN
-#define COMPILE_MAX_BOARD_LEN 8
+#define COMPILE_MAX_BOARD_LEN 9
 #endif
 
 //TYPES AND CONSTANTS-----------------------------------------------------------------
@@ -172,7 +176,13 @@ struct Board
   //Assumes the move is on an empty location.
   Hash128 getPosHashAfterMove(Loc loc, Player pla) const;
 
-  bool isPlaWin(Player pla) const;
+  int stonesInHome(Player pla) const;
+  int stonesFinished(Player pla) const;
+
+#ifdef EARLYSTAGE
+  //早期随机撒子它学不会把自己的棋子都挪到对面，因此设计一个评分，如果都没全挪到对面，则分数高的胜
+  int scoreEarlyStageForBlack() const;
+#endif
 
 
   //Run some basic sanity checks on the board state, throws an exception if not consistent, for testing/debugging
@@ -194,6 +204,7 @@ struct Board
   int x_size;                  //Horizontal size of board
   int y_size;                  //Vertical size of board
   Color colors[MAX_ARR_SIZE];  //Color of each location on the board.
+  bool legalMap[MAX_ARR_SIZE];  //已经选择的棋子可以落在哪里
 
   //下一阶段是谁下
   Color nextPla;
@@ -212,7 +223,11 @@ struct Board
 
   short adj_offsets[8]; //Indices 0-3: Offsets to add for adjacent points. Indices 4-7: Offsets for diagonal points. 2 and 3 are +x and +y.
 
-  private:
+private:
+
+  void clearLegalMap();
+  void setLegalMap();
+  void setLegalMapIter(Loc startLoc, bool isFirst);
   void init(int xS, int yS);
 
   friend std::ostream& operator<<(std::ostream& out, const Board& board);

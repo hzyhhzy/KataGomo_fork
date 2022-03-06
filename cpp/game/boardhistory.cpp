@@ -216,13 +216,17 @@ void BoardHistory::setWinnerByResignation(Player pla) {
 
 void BoardHistory::setWinner(Player pla)
 {
+  isNoResult = false;
+  if (pla == C_WALL)//no result
+  {
+    isNoResult = true;
+    pla == C_EMPTY;
+  }
   isGameFinished = true;
   isScored = true;
-  isNoResult = false;
   isResignation = false;
   winner = pla;
   finalWhiteMinusBlackScore = 0.0f;
-  if (pla == C_EMPTY)isNoResult = true;
 }
 
 
@@ -237,10 +241,11 @@ bool BoardHistory::isLegal(const Board& board, Loc moveLoc, Player movePla) cons
 
 
 bool BoardHistory::isLegalTolerant(const Board& board, Loc moveLoc, Player movePla) const {
-  bool multiStoneSuicideLegal = true; //Tolerate suicide regardless of rules
-  if(!board.isLegal(moveLoc,movePla,multiStoneSuicideLegal))
-    return false;
-  return true;
+  if (moveLoc == Board::PASS_LOC)return true;
+  if (!board.isOnBoard(moveLoc))return false;
+  if ((board.stage == 0 && board.colors[moveLoc] == movePla) ||
+    (board.stage == 1 && board.colors[moveLoc] == C_EMPTY))return true;
+  return false;
 }
 
 bool BoardHistory::makeBoardMoveTolerant(Board& board, Loc moveLoc, Player movePla) {
@@ -279,10 +284,71 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
 
 void BoardHistory::maybeFinishGame(Board& board,Player lastPla,Loc lastLoc)
 {
-  if (lastLoc == Board::PASS_LOC)
-    setWinner(getOpp(lastPla));
-  else if(board.isPlaWin(lastPla))
+  Player opp = getOpp(lastPla);
+
+  if (board.stonesFinished(lastPla) == 10)
+  {
     setWinner(lastPla);
+    return;
+  }
+
+  if (board.stonesFinished(opp) == 10)
+  {
+    setWinner(opp);
+    return;
+  }
+
+  //pass in second stage is not allowed
+  int lastStage = 1 - board.stage;
+  if (lastLoc == Board::PASS_LOC && (lastStage == 1 && board.midLocs[0] != Board::PASS_LOC))
+  {
+    setWinner(opp);
+    return;
+  }
+
+  int turnnum = (initialTurnNumber + moveHistory.size())/4;
+#ifdef EARLYSTAGE
+  if (turnnum >= 60)
+  {
+    int blackScore = board.scoreEarlyStageForBlack();
+    if (blackScore > 0)setWinner(C_BLACK);
+    else if (blackScore < 0)setWinner(C_WHITE);
+    else setWinner(C_EMPTY);
+    return;
+  }
+#else
+  if (turnnum >= 60)
+  {
+    setWinner(C_WALL);
+    return;
+  }
+  else if (turnnum >= 30)
+  {
+    if (board.stonesInHome(lastPla) >= 1)
+    {
+      setWinner(opp);
+      return;
+    }
+  }
+
+  /*else if (turnnum >= 25)
+  {
+    if (board.stonesInHome(lastPla) >= 3)
+    {
+      setWinner(opp);
+      return;
+    }
+  }
+  else if (turnnum >= 20)
+  {
+    if (board.stonesInHome(lastPla) >= 6)
+    {
+      setWinner(opp);
+      return;
+    }
+  }*/
+#endif
+
 }
 
 
