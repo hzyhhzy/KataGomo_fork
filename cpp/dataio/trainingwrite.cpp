@@ -18,7 +18,7 @@ template<typename T> static void selfTransposeNCHW(T* src, int n, int c, int h, 
         for (int x = 0; x < w; x++)
         {
           int spos = NNPos::xyToPos(x, y, w);
-          int dpos = NNPos::xyToPos(x, h - y - 1, w);
+          int dpos = NNPos::xyToPos(w - x - 1, h - y - 1, w);
           buf[dpos + bias] = src[spos + bias];
         }
       }

@@ -288,8 +288,8 @@ void NNOutput::debugPrint(ostream& out, const Board& board) {
 //-------------------------------------------------------------------------------------------------------------
 
 static void copyWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int cSize, bool useNHWC, int symmetry, bool reverse) {
-  bool transpose = false;
-  bool flipX = (symmetry & 0x2) != 0;
+  bool transpose = (symmetry & 0x2) != 0;
+  bool flipX = (symmetry & 0x1) != 0;
   bool flipY = (symmetry & 0x1) != 0;
   if(transpose && !reverse)
     std::swap(flipX,flipY);

@@ -523,6 +523,7 @@ void NNEvaluator::serve(
             buf.resultBufs[row]->symmetry = defaultSymmetry;
           }
         }
+        //transpose,none,updown_and_leftright
         if (isWhite)buf.resultBufs[row]->symmetry |= 0b001;
         else buf.resultBufs[row]->symmetry &= 0b110;
       }
