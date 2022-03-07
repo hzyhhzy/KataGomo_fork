@@ -613,7 +613,11 @@ void NNInputs::fillRowV7(
   }
   else ASSERT_UNREACHABLE;
 
-
+  float komi = hist.rules.komi;
+  if (komi > 1.0)komi = 1.0;
+  else if (komi < 0.0)komi = 0.0;
+  else komi = 0.5;
+  rowGlobal[3] = pla == C_BLACK ? -komi : komi;
 
 
   //Tax

@@ -220,7 +220,7 @@ void BoardHistory::setWinner(Player pla)
   if (pla == C_WALL)//no result
   {
     isNoResult = true;
-    pla == C_EMPTY;
+    pla = C_EMPTY;
   }
   isGameFinished = true;
   isScored = true;
@@ -286,20 +286,60 @@ void BoardHistory::maybeFinishGame(Board& board,Player lastPla,Loc lastLoc)
 {
   Player opp = getOpp(lastPla);
 
-  if (board.stonesFinished(lastPla) == 10)
+  int lastStage = 1 - board.stage;
+  if (lastStage == 1)//just finished one move
   {
-    setWinner(lastPla);
-    return;
-  }
+    bool myTen = board.stonesFinished(lastPla) == 10;
+    bool oppTen = board.stonesFinished(opp) == 10;
 
-  if (board.stonesFinished(opp) == 10)
-  {
-    setWinner(opp);
-    return;
+    if (rules.komi <= 0.0)//draw black win
+    {
+      if (oppTen)
+        throw StringError("rules.komi <= 0.0 && oppTen");
+      if (myTen)
+      {
+        setWinner(lastPla);
+        return;
+      }
+    }
+    else if (rules.komi >= 1.0)//draw white win
+    {
+      if (lastPla == C_WHITE)
+      {
+        if (myTen)
+        {
+          setWinner(lastPla);
+          return;
+        }
+        else if (oppTen)
+        {
+          setWinner(opp);
+          return;
+        }
+      }
+      //black will not finish game
+    }
+    else //draw 50% winrate
+    {
+      if (lastPla == C_WHITE)
+      {
+        if (myTen)
+        {
+          if (oppTen)setWinner(C_EMPTY);
+          else setWinner(lastPla);
+          return;
+        }
+        else if (oppTen)
+        {
+          setWinner(opp);
+          return;
+        }
+      }
+      //black will not finish game
+    }
   }
 
   //pass in second stage is not allowed
-  int lastStage = 1 - board.stage;
   if (lastLoc == Board::PASS_LOC && (lastStage == 1 && board.midLocs[0] != Board::PASS_LOC))
   {
     setWinner(opp);
@@ -308,7 +348,7 @@ void BoardHistory::maybeFinishGame(Board& board,Player lastPla,Loc lastLoc)
 
   int turnnum = (initialTurnNumber + moveHistory.size())/4;
 #ifdef EARLYSTAGE
-  if (turnnum >= 60)
+  if (turnnum >= 100)
   {
     int blackScore = board.scoreEarlyStageForBlack();
     if (blackScore > 0)setWinner(C_BLACK);
@@ -317,7 +357,7 @@ void BoardHistory::maybeFinishGame(Board& board,Player lastPla,Loc lastLoc)
     return;
   }
 #else
-  if (turnnum >= 60)
+  if (turnnum >= 100)
   {
     setWinner(C_WALL);
     return;

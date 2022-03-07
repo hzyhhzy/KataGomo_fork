@@ -1206,46 +1206,6 @@ FinishedGameData* Play::runGame(
   assert(!(extraBlackAndKomi.makeGameFair && extraBlackAndKomi.makeGameFairForEmptyBoard));
   assert(!(playSettings.forSelfPlay && !clearBotBeforeSearch));
 
-  if(extraBlackAndKomi.makeGameFairForEmptyBoard) {
-    Board b(startBoard.x_size,startBoard.y_size);
-    BoardHistory h(b,pla,startHist.rules);
-    //Restore baseline on empty hist, adjust empty hist to fair, then apply to real history.
-    PlayUtils::setKomiWithoutNoise(extraBlackAndKomi,h);
-    PlayUtils::adjustKomiToEven(botB,botW,b,h,pla,playSettings.compensateKomiVisits,otherGameProps,gameRand);
-    extraBlackAndKomi.komiMean = h.rules.komi;
-    PlayUtils::setKomiWithNoise(extraBlackAndKomi,hist,gameRand);
-  }
-  if(extraBlackAndKomi.makeGameFair) {
-    //Restore baseline on hist, adjust hist to fair, then apply it with noise.
-    PlayUtils::setKomiWithoutNoise(extraBlackAndKomi,hist);
-    PlayUtils::adjustKomiToEven(botB,botW,board,hist,pla,playSettings.compensateKomiVisits,otherGameProps,gameRand);
-    extraBlackAndKomi.komiMean = hist.rules.komi;
-    PlayUtils::setKomiWithNoise(extraBlackAndKomi,hist,gameRand);
-  }
-  else if((otherGameProps.isFork) &&
-          playSettings.fancyKomiVarying &&
-          gameRand.nextBool(0.25)) {
-    double origKomi = hist.rules.komi;
-    //Restore baseline on hist, adjust hist to fair, then apply it with noise.
-    PlayUtils::setKomiWithoutNoise(extraBlackAndKomi,hist);
-    PlayUtils::adjustKomiToEven(botB,botW,board,hist,pla,playSettings.compensateKomiVisits,otherGameProps,gameRand);
-    double newKomi = hist.rules.komi;
-
-    //Now, randomize between the old and new komi, with extra noise
-    double randKomi = gameRand.nextDouble(min(origKomi,newKomi),max(origKomi,newKomi));
-    randKomi += 0.75 * sqrt(board.x_size * board.y_size) * gameRand.nextGaussianTruncated(2.5);
-    extraBlackAndKomi.komiMean = (float)randKomi;
-    PlayUtils::setKomiWithNoise(extraBlackAndKomi,hist,gameRand);
-  }
-  //Vary komi more when things are completely random to set a better prior for how komi affects evals
-  if(playSettings.fancyKomiVarying &&
-     botB->nnEvaluator->isNeuralNetLess() &&
-     (botW == NULL || botW->nnEvaluator->isNeuralNetLess())) {
-    double randKomi = hist.rules.komi + 1.5 * sqrt(board.x_size * board.y_size) * gameRand.nextGaussianTruncated(2.5);
-    extraBlackAndKomi.komiMean = (float)randKomi;
-    PlayUtils::setKomiWithNoise(extraBlackAndKomi,hist,gameRand);
-  }
-
   gameData->bName = botSpecB.botName;
   gameData->wName = botSpecW.botName;
   gameData->bIdx = botSpecB.botIdx;

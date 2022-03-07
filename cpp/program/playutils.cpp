@@ -67,6 +67,8 @@ void PlayUtils::setKomiWithNoise(const ExtraBlackAndKomi& extraBlackAndKomi, Boa
   assert(Rules::komiIsIntOrHalfInt(komi));
   if(!extraBlackAndKomi.allowInteger && komi == (int)komi)
     komi += rand.nextBool(0.5) ? (-0.5f) : (0.5f);
+  if (komi > 1.0)komi = 1.0;
+  if (komi < 0.0)komi = 0.0;
   hist.setKomi(komi);
 }
 
