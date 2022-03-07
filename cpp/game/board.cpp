@@ -429,8 +429,8 @@ int Board::stonesFinished(Player pla) const
 int Board::scoreEarlyStageForBlack() const
 {
   int score = 0;
-  for (int x = 0; x < 4; x++)
-    for (int y = 0; y < 4 - x; y++)
+  for (int x = 0; x < x_size; x++)
+    for (int y = 0; y < y_size; y++)
     {
       Color color = colors[Location::getLoc(x, y, x_size)];
       if (color == C_BLACK)
