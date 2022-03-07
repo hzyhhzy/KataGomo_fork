@@ -25,6 +25,9 @@ Hash128 Board::ZOBRIST_PLAYER_HASH[4];
 Hash128 Board::ZOBRIST_STAGENUM_HASH[STAGE_NUM_EACH_PLA];
 Hash128 Board::ZOBRIST_STAGELOC_HASH[MAX_ARR_SIZE][STAGE_NUM_EACH_PLA];
 Hash128 Board::ZOBRIST_NEXTPLA_HASH[4];
+
+
+Hash128 Board::ZOBRIST_TURNNUM_HASH[Board::MAX_ARR_SIZE*5];
 const Hash128 Board::ZOBRIST_GAME_IS_OVER = //Based on sha256 hash of Board::ZOBRIST_GAME_IS_OVER
   Hash128(0xb6f9e465597a77eeULL, 0xf1d583d960a4ce7fULL);
 
@@ -266,6 +269,9 @@ void Board::initHash()
 
     }
   }
+
+  for(int i=0;i<(sizeof(ZOBRIST_TURNNUM_HASH)/sizeof(Hash128));i++)
+    ZOBRIST_TURNNUM_HASH[i] = nextHash();
 
   for (int i = 0; i < STAGE_NUM_EACH_PLA; i++)
   {

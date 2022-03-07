@@ -357,6 +357,8 @@ Hash128 BoardHistory::getSituationRulesHash(const Board& board, const BoardHisto
   //Note that board.pos_hash also incorporates the size of the board.
   Hash128 hash = board.pos_hash;
   hash ^= Board::ZOBRIST_PLAYER_HASH[nextPlayer];
+  int turnnum = (hist.initialTurnNumber + hist.moveHistory.size())/4;
+  hash ^= Board::ZOBRIST_TURNNUM_HASH[turnnum];
 
 
   float selfKomi = hist.currentSelfKomi(nextPlayer,drawEquivalentWinsForWhite);
