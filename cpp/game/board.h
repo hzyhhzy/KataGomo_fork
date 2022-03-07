@@ -136,6 +136,7 @@ struct Board
   static Hash128 ZOBRIST_STAGELOC_HASH[MAX_ARR_SIZE][STAGE_NUM_EACH_PLA];
   static Hash128 ZOBRIST_NEXTPLA_HASH[4];
   static Hash128 ZOBRIST_PLAYER_HASH[4];
+  static Hash128 ZOBRIST_TURNNUM_HASH[Board::MAX_ARR_SIZE*5];
   static const Hash128 ZOBRIST_GAME_IS_OVER;
 
   //Structs-------

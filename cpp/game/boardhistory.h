@@ -6,7 +6,6 @@
 #include "../game/board.h"
 #include "../game/rules.h"
 
-struct KoHashTable;
 
 //A data structure enabling checking of move legality, including optionally superko,
 //and implements scoring and support for various rulesets (see rules.h)
