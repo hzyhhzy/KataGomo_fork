@@ -36,7 +36,7 @@ static constexpr int NUM_BOARD_COLORS = 4;
 
 typedef char MovePriority;
 static const MovePriority MP_NORMAL = 126;
-static const MovePriority MP_FIVE = 1;
+static const MovePriority MP_WIN = 1;
 static const MovePriority MP_OPPOFOUR = 2;
 static const MovePriority MP_MYLIFEFOUR = 3;
 static const MovePriority MP_VCF = 4;
@@ -191,6 +191,8 @@ public:
   int y_size;                  //Vertical size of board
   Color colors[MAX_ARR_SIZE];  //Color of each location on the board.
 
+  int stonenum;
+
 
   /* PointList empty_list; //List of all empty locations on board */
 
@@ -201,7 +203,6 @@ public:
 
   private:
   void init(int xS, int yS);
-  void removeSingleStone(Loc loc);
 
   friend std::ostream& operator<<(std::ostream& out, const Board& board);
 

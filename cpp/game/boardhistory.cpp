@@ -283,7 +283,7 @@ void BoardHistory::maybeFinishGame(Board& board,Player lastPla,Loc lastLoc)
   {
     setWinner(getOpp(lastPla));
   }
-  if (board.getMovePriorityAssumeLegal(lastPla, lastLoc, true) == MP_FIVE)
+  if (board.getMovePriorityAssumeLegal(lastPla, lastLoc, true) == MP_WIN)
   {
     setWinner(lastPla);
   }

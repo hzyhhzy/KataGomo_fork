@@ -107,6 +107,7 @@ Board::Board(const Board& other)
 {
   x_size = other.x_size;
   y_size = other.y_size;
+  stonenum = other.stonenum;
 
   memcpy(colors, other.colors, sizeof(Color)*MAX_ARR_SIZE);
 
@@ -122,6 +123,7 @@ void Board::init(int xS, int yS)
 
   x_size = xS;
   y_size = yS;
+  stonenum = 0;
 
   for(int i = 0; i < MAX_ARR_SIZE; i++)
     colors[i] = C_WALL;
@@ -231,15 +233,8 @@ MovePriority Board::getMovePriorityOneDirectionAssumeLegal(Player pla, Loc loc, 
   bool isMyLife1, isMyLife2, isOppLife1, isOppLife2;
   int myConNum = connectionLengthOneDirection(pla, loc, adj, isSixWin, isMyLife1) + connectionLengthOneDirection(pla, loc, -adj, isSixWin, isMyLife2) + 1;
   int oppConNum = connectionLengthOneDirection(opp, loc, adj, isSixWin, isOppLife1) + connectionLengthOneDirection(opp, loc, -adj, isSixWin, isOppLife2) + 1;
-  if (myConNum == 5 || (myConNum > 5 && isSixWin))return MP_FIVE;
-#if RULE==RENJU
-  if ((oppConNum == 5 && opp == P_BLACK) || (oppConNum >= 5 && opp == P_WHITE))return MP_OPPOFOUR;
-#else
-  if (oppConNum == 5 || (oppConNum > 5 && isSixWin))return MP_OPPOFOUR;
-#endif //  RENJU
+  if (myConNum == 5 || (myConNum > 5 && isSixWin))return MP_WIN;
 
-
-  if (myConNum == 4 && isMyLife1&&isMyLife2)return MP_MYLIFEFOUR;
   return MP_NORMAL;
 
 }
@@ -263,14 +258,6 @@ int Board::connectionLengthOneDirection(Player pla, Loc loc, short adj, bool isS
         tmploc += adj;
         if (isOnBoard(tmploc) && colors[tmploc] == pla)isLife = false;
       }
-#if RULE==RENJU
-      if (pla == C_BLACK)
-      {
-
-        tmploc += adj;
-        if (isOnBoard(tmploc) && colors[tmploc] == C_BLACK)isLife = false;
-      }
-#endif
       break;
     }
     else break;
@@ -292,15 +279,7 @@ bool Board::isEmpty() const {
 }
 
 int Board::numStonesOnBoard() const {
-  int num = 0;
-  for(int y = 0; y < y_size; y++) {
-    for(int x = 0; x < x_size; x++) {
-      Loc loc = Location::getLoc(x,y,x_size);
-      if(colors[loc] == C_BLACK || colors[loc] == C_WHITE)
-        num += 1;
-    }
-  }
-  return num;
+  return stonenum;
 }
 
 int Board::numPlaStonesOnBoard(Player pla) const {
@@ -322,16 +301,13 @@ bool Board::setStone(Loc loc, Color color)
   if(color != C_BLACK && color != C_WHITE && color != C_EMPTY)
     return false;
 
-  if(colors[loc] == color)
-  {}
-  else if(colors[loc] == C_EMPTY)
-    playMoveAssumeLegal(loc,color);
-  else if(color == C_EMPTY)
-    removeSingleStone(loc);
-  else {
-    removeSingleStone(loc);
-    playMoveAssumeLegal(loc,color);
-  }
+  Color colorOld = colors[loc];
+  colors[loc] = color;
+  pos_hash ^= ZOBRIST_BOARD_HASH[loc][colorOld];
+  pos_hash ^= ZOBRIST_BOARD_HASH[loc][color];
+
+  if (colorOld != C_EMPTY)stonenum--;
+  if (color != C_EMPTY)stonenum++;
 
   return true;
 }
@@ -369,18 +345,7 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
     return;
   }
 
-
-  colors[loc] = pla;
-  pos_hash ^= ZOBRIST_BOARD_HASH[loc][pla];
-}
-
-//Remove a single stone, even a stone part of a larger group.
-void Board::removeSingleStone(Loc loc)
-{
-  Player pla = colors[loc];
-
-  colors[loc] = C_EMPTY;
-  pos_hash ^= ZOBRIST_BOARD_HASH[loc][pla];
+  setStone(loc, pla);
 }
 
 
@@ -405,6 +370,7 @@ void Board::checkConsistency() const {
 
   vector<Loc> buf;
   Hash128 tmp_pos_hash = ZOBRIST_SIZE_X_HASH[x_size] ^ ZOBRIST_SIZE_Y_HASH[y_size];
+  int tmp_stonenum = 0;
   for(Loc loc = 0; loc < MAX_ARR_SIZE; loc++) {
     int x = Location::getX(loc,x_size);
     int y = Location::getY(loc,x_size);
@@ -416,6 +382,7 @@ void Board::checkConsistency() const {
       if(colors[loc] == C_BLACK || colors[loc] == C_WHITE) {
         tmp_pos_hash ^= ZOBRIST_BOARD_HASH[loc][colors[loc]];
         tmp_pos_hash ^= ZOBRIST_BOARD_HASH[loc][C_EMPTY];
+        tmp_stonenum++;
       }
       else if(colors[loc] == C_EMPTY) {
         // if(!empty_list.contains(loc))
@@ -427,7 +394,8 @@ void Board::checkConsistency() const {
   }
   if(pos_hash != tmp_pos_hash)
     throw StringError(errLabel + "Pos hash does not match expected");
-
+  if (stonenum != tmp_stonenum)
+    throw StringError(errLabel + "Stone num does not match expected");
 
   short tmpAdjOffsets[8];
   Location::getAdjacentOffsets(tmpAdjOffsets,x_size);
