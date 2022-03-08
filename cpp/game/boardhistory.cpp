@@ -287,7 +287,7 @@ void BoardHistory::maybeFinishGame(Board& board,Player lastPla,Loc lastLoc)
   {
     setWinner(lastPla);
   }
-  if (board.numStonesOnBoard() >= board.x_size * board.y_size)setWinner(C_EMPTY);
+  if (board.hasLegalMove(getOpp(lastPla)))setWinner(C_EMPTY);
 }
 
 

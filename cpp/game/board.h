@@ -138,6 +138,7 @@ struct Board
   Board& operator=(const Board&) = default;
 
   bool isLegal(Loc loc, Player pla, bool isMultiStoneSuicideLegal) const;
+  bool hasLegalMove(Player pla) const;
 
   MovePriority getMovePriority(Player pla, Loc loc, bool isSixWin, bool isPassForbidded)const;
   MovePriority getMovePriorityAssumeLegal(Player pla, Loc loc, bool isSixWin)const;
