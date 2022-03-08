@@ -716,11 +716,27 @@ void NNEvaluator::evaluate(
     int ySize = board.y_size;
 
     float maxPolicy = -1e25f;
-    bool isLegal[NNPos::MAX_NN_POLICY_SIZE];
+    bool isLegal[NNPos::MAX_NN_POLICY_SIZE] = { false };
     int legalCount = 0;
+
+
+    bool haveWinLoc = false;
+
     for(int i = 0; i<policySize; i++) {
       Loc loc = NNPos::posToLoc(i,xSize,ySize,nnXLen,nnYLen);
-      isLegal[i] = history.isLegal(board,loc,nextPlayer);
+      if (board.getMovePriority(nextPlayer, loc, true, false)==MP_WIN)
+      {
+        isLegal[i] = true;
+        haveWinLoc = true;
+      }
+    }
+
+    if (!haveWinLoc)
+    {
+      for (int i = 0; i < policySize; i++) {
+        Loc loc = NNPos::posToLoc(i, xSize, ySize, nnXLen, nnYLen);
+        isLegal[i] = history.isLegal(board, loc, nextPlayer);
+      }
     }
 
 
