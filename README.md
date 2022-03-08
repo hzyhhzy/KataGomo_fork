@@ -1,3 +1,4 @@
 ***Engine based on Katago TensorRT+GraphSearch***   
-# 四子棋1号
-规则：除了第一手，每一手必须下在对手棋子相邻位置（每个对手棋子周围8个点），连四获胜
+# 鍘绘帀浜嗗悆瀛愮殑katago
+鐢ㄤ簬鍒朵綔鍚勭涓嶅悆瀛愮殑妫嬬
+杩欎釜寮曟搸鏄渶鍩虹鐨勪簲瀛愭銆傛洿瀹屽杽鐨勭増鏈Gom2022
