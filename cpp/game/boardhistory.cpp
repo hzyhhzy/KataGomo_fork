@@ -282,12 +282,18 @@ void BoardHistory::maybeFinishGame(Board& board,Player lastPla,Loc lastLoc)
   if (lastLoc == Board::PASS_LOC)
   {
     setWinner(getOpp(lastPla));
+    return;
   }
   if (board.getMovePriorityAssumeLegal(lastPla, lastLoc, true) == MP_WIN)
   {
     setWinner(lastPla);
+    return;
   }
-  if (board.hasLegalMove(getOpp(lastPla)))setWinner(C_EMPTY);
+  if (!board.hasLegalMove(getOpp(lastPla)))
+  {
+    setWinner(C_EMPTY);
+    return;
+  }
 }
 
 
