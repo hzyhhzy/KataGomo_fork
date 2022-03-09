@@ -582,8 +582,8 @@ void NNInputs::fillRowV7(
         setRowBin(rowBin,pos,1, 1.0f, posStride, featureStride);
       else if(stone == opp)
         setRowBin(rowBin,pos,2, 1.0f, posStride, featureStride);
-      else if(stone == C_BANLOC)
-        setRowBin(rowBin,pos,5, 1.0f, posStride, featureStride);
+      //else if(stone == C_BANLOC)
+      //  setRowBin(rowBin,pos,5, 1.0f, posStride, featureStride);
 
       if (board.stage == 1 && board.legalMap[loc])
         setRowBin(rowBin, pos, 3, 1.0f, posStride, featureStride);

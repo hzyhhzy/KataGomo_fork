@@ -17,7 +17,7 @@
 //#define EARLYSTAGE
 
 #ifndef COMPILE_MAX_BOARD_LEN
-#define COMPILE_MAX_BOARD_LEN 17
+#define COMPILE_MAX_BOARD_LEN 9
 #endif
 
 //TYPES AND CONSTANTS-----------------------------------------------------------------
@@ -228,7 +228,6 @@ private:
 
   void clearLegalMap();
   void setLegalMap();
-  void setLegalMapIter(Loc startLoc, Loc firstLoc);
   void init(int xS, int yS);
 
   friend std::ostream& operator<<(std::ostream& out, const Board& board);

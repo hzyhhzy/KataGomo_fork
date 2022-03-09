@@ -139,6 +139,50 @@ void Board::clearLegalMap()
   }
 }
 
+static int locToLegalMapPos(Loc loc)
+{
+  int x = Location::getX(loc, 9);
+  int y = Location::getY(loc, 9);
+  return x + y * 17;
+}
+
+static const int dxs[6] = { 1, -1, 0, 0, 1, -1 };
+static const int dys[6] = { 0, 0,1, -1, -1, 1 };
+
+static void setLegalMapIter(int startX,int startY,Color* boardForLegalMap, bool* legalMapFull)
+{
+  if (startX<0||startX>=17||startY<0||startY>=17)return;
+  int startPos = startX + startY & 17;
+  if (boardForLegalMap[startPos] != C_EMPTY)
+  {
+    return;
+  }
+  if (legalMapFull[startPos])return;
+
+  legalMapFull[startPos] = 1;
+
+  for (int dir = 0; dir < 6; dir++)
+  {
+    int dx = dxs[dir];
+    int dy = dys[dir];
+    for (int dist = 1; dist <= 7; dist++)// 7 = (4+5+4+1)/2
+    {
+      int x2 = startX + 2 * dist * dx;
+      int y2 = startY + 2 * dist * dy;
+      if (x2<0||x2>=17||y2<0||y2>=17)break;
+      int pos2 = y2 * 17 + x2;
+      if (boardForLegalMap[pos2] != C_EMPTY)continue;
+      int x1 = startX + dist * dx;
+      int y1 = startY + dist * dy;
+      int pos1 = y1 * 17 + x1;
+      if (boardForLegalMap[pos1] == C_BLACK || boardForLegalMap[pos1] == C_WHITE)
+      {
+        setLegalMapIter(x2, y2, boardForLegalMap, legalMapFull);
+      }
+    }
+  }
+
+}
 void Board::setLegalMap()
 {
   Loc chosenLoc = midLocs[0];
@@ -147,10 +191,41 @@ void Board::setLegalMap()
     clearLegalMap();
     return;
   }
+  Color boardForLegalMap[17 * 17] = { C_BANLOC };
+  bool legalMapFull[17 * 17] = { false };
 
-  legalMap[chosenLoc] = true;
-  setLegalMapIter(chosenLoc, chosenLoc);
+  //real board area
+
+  //9x9
+  for (int x = 0; x < 9; x++)
+  for (int y = 0; y < 9; y++)
+  {
+    Loc loc = Location::getLoc(x, y, x_size);
+    boardForLegalMap[x + 4 + 17 * (y + 4)] = colors[loc];
+  }
+  //four small corners
+  for (int x = 0; x < 4; x++)
+  for (int y = 0; y < 4 - x; y++)
+  {
+    boardForLegalMap[12-x + 17 * (3-y)] = C_EMPTY;
+    boardForLegalMap[3-x + 17 * (12-y)] = C_EMPTY;
+    boardForLegalMap[4+x + 17 * (13+y)] = C_EMPTY;
+    boardForLegalMap[13+x + 17 * (4+y)] = C_EMPTY;
+  }
+
+  int chosenPos = locToLegalMapPos(chosenLoc);
+  boardForLegalMap[chosenPos] = C_EMPTY;
+  setLegalMapIter(chosenPos%17,chosenPos/17,boardForLegalMap,legalMapFull);
+
+  for (int x = 0; x < 9; x++)
+    for (int y = 0; y < 9; y++)
+    {
+      int pos = x + 4 + 17 * (y + 4);
+      Loc loc = Location::getLoc(x, y, x_size);
+      legalMap[loc]=legalMapFull[pos];
+    }
   legalMap[chosenLoc] = false;
+
   for (int i = 0; i < 6; i++)
   {
     Loc loc = chosenLoc + adj_offsets[i];
@@ -160,49 +235,6 @@ void Board::setLegalMap()
 
 }
 
-void Board::setLegalMapIter(Loc startLoc,Loc firstLoc)
-{
-  bool isFirst = startLoc == firstLoc;
-  if (!isOnBoard(startLoc))return;
-  if (isFirst)
-  {
-    if (colors[startLoc] != nextPla)
-    {
-      cout << "colors[startLoc] != chosenColor";
-      return;
-    }
-  }
-  else if (colors[startLoc] != C_EMPTY)
-  {
-    return;
-  }
-  if (!isFirst&&legalMap[startLoc])return;
-  //	cout << Location::toString(startLoc, *this) << endl;
-  legalMap[startLoc] = 1;
-  for (Loc loc = 0; loc<MAX_ARR_SIZE; loc++)
-  {
-    if (colors[loc] != C_BLACK && colors[loc] != C_WHITE)
-      continue;
-    if (loc == firstLoc)
-      continue;
-
-    int x1 = Location::getX(loc, x_size);
-    int x0 = Location::getX(startLoc, x_size);
-    int y1 = Location::getY(loc, x_size);
-    int y0 = Location::getY(startLoc, x_size);
-    int x2 = 2 * x1 - x0;
-    int y2 = 2 * y1 - y0;
-    if (x2 < 0 || x2 >= x_size || y2 < 0 || y2 >= y_size)
-      continue;
-    Loc loc2 = Location::getLoc(x2, y2, x_size);
-    if (loc2 == firstLoc)
-      continue;
-    if (loc2 == startLoc)
-      continue;
-    setLegalMapIter(loc2, firstLoc);
-  }
-
-}
 void Board::init(int xS, int yS)
 {
   assert(IS_ZOBRIST_INITALIZED);
@@ -241,40 +273,18 @@ void Board::init(int xS, int yS)
 
   Location::getAdjacentOffsets(adj_offsets,x_size);
 
-  if (y_size != 17 || x_size != y_size )
+  if (y_size != 9 || x_size != y_size )
   {
-    cout << "size != 17 is not supported for TiaoQi_KongTiao";
+    cout << "size != 9 is not supported for TiaoQi_KongTiao";
     return;
   }
 
-  for (int x = 0; x < 17; x++)
-    for (int y = 0; y < 17; y++)
-    {
-      setStone(Location::getLoc(x, y, x_size),C_BANLOC);
-    }
-
-  //real board area
-  
-  //9x9
-  for (int x = 0; x < 9; x++)
-    for (int y = 0; y < 9; y++)
-    {
-      setStone(Location::getLoc(x+4, y+4, x_size),C_EMPTY);
-    }
-  //four small corners and initial stones
   for (int x = 0; x < 4; x++)
-    for (int y = 0; y < 4 - x; y++)
+    for (int y = 0; y < 4-x; y++)
     {
-      setStone(Location::getLoc(x+4, y+4, x_size),C_WHITE);
-      setStone(Location::getLoc(12-x, 12-y, x_size),C_BLACK);
-
-      setStone(Location::getLoc(12-x, 3-y, x_size),C_EMPTY);
-      setStone(Location::getLoc(3-x, 12-y, x_size),C_EMPTY);
-      setStone(Location::getLoc(x+13, y+4, x_size),C_EMPTY);
-      setStone(Location::getLoc(x+4, y+13, x_size),C_EMPTY);
+      setStone(Location::getLoc(x, y, x_size),C_WHITE);
+      setStone(Location::getLoc(x_size-x-1, y_size-y-1, x_size),C_BLACK);
     }
-
-
 }
 
 void Board::initHash()
@@ -471,7 +481,7 @@ int Board::scoreEarlyStageForBlack() const
   for (int x = 0; x < 9; x++)
     for (int y = 0; y < 9; y++)
     {
-      Color color = colors[Location::getLoc(x+4, y+4, x_size)];
+      Color color = colors[Location::getLoc(x, y, x_size)];
       if (color == C_BLACK)
       {
         int dist = 9 + 9 - x - y - 2;
@@ -496,7 +506,7 @@ int Board::stonesInHome(Player pla) const
     for (int x = 0; x < 4; x++)
       for (int y = 0; y < 4 - x; y++)
       {
-        if (colors[Location::getLoc(12-x,12-y, x_size)] == C_BLACK)count++;
+        if (colors[Location::getLoc(8-x,8-y, x_size)] == C_BLACK)count++;
       }
   }
   else if (pla == C_WHITE)
@@ -504,7 +514,7 @@ int Board::stonesInHome(Player pla) const
     for (int x = 0; x < 4; x++)
       for (int y = 0; y < 4 - x; y++)
       {
-        if (colors[Location::getLoc(4+x, 4+y, x_size)] == C_WHITE)count++;
+        if (colors[Location::getLoc(x, y, x_size)] == C_WHITE)count++;
       }
   }
   return count;
