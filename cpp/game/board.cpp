@@ -139,20 +139,14 @@ void Board::clearLegalMap()
   }
 }
 
-static int locToLegalMapPos(Loc loc)
-{
-  int x = Location::getX(loc, 9);
-  int y = Location::getY(loc, 9);
-  return x + y * 17;
-}
 
 static const int dxs[6] = { 1, -1, 0, 0, 1, -1 };
 static const int dys[6] = { 0, 0,1, -1, -1, 1 };
 
-static void setLegalMapIter(int startX,int startY,Color* boardForLegalMap, bool* legalMapFull)
+static void setLegalMapIter(int startX,int startY,const Color* boardForLegalMap, bool* legalMapFull)
 {
   if (startX<0||startX>=17||startY<0||startY>=17)return;
-  int startPos = startX + startY & 17;
+  int startPos = startX + startY * 17;
   if (boardForLegalMap[startPos] != C_EMPTY)
   {
     return;
@@ -176,9 +170,25 @@ static void setLegalMapIter(int startX,int startY,Color* boardForLegalMap, bool*
         int x2 = startX + 2 * dist * dx;
         int y2 = startY + 2 * dist * dy;
         if (x2 < 0 || x2 >= 17 || y2 < 0 || y2 >= 17)break;
+
+        bool hasBarrier = false;
+        for (int t = 1; t < dist; t++)
+        {
+          int xt = x1 + t * dx;
+          int yt = y1 + t * dy;
+          int pos_t = yt * 17 + xt;
+          if (boardForLegalMap[pos_t] != C_EMPTY)
+          {
+            hasBarrier = true;
+            break;
+          }
+        }
+        if (hasBarrier)
+          break;
+
         int pos2 = y2 * 17 + x2;
-        if (boardForLegalMap[pos2] != C_EMPTY)break;
-        setLegalMapIter(x2, y2, boardForLegalMap, legalMapFull);
+        if (boardForLegalMap[pos2] == C_EMPTY)
+          setLegalMapIter(x2, y2, boardForLegalMap, legalMapFull);
         break;
       }
       else if (boardForLegalMap[pos1] != C_EMPTY)
@@ -195,8 +205,14 @@ void Board::setLegalMap()
     clearLegalMap();
     return;
   }
-  Color boardForLegalMap[17 * 17] = { C_BANLOC };
-  bool legalMapFull[17 * 17] = { false };
+  Color boardForLegalMap[17 * 17];
+  bool legalMapFull[17 * 17];
+
+  for (int i = 0; i < 17 * 17; i++)
+  {
+    boardForLegalMap[i] = C_BANLOC;
+    legalMapFull[i] = false;
+  }
 
   //real board area
 
@@ -217,9 +233,10 @@ void Board::setLegalMap()
     boardForLegalMap[13+x + 17 * (4+y)] = C_EMPTY;
   }
 
-  int chosenPos = locToLegalMapPos(chosenLoc);
-  boardForLegalMap[chosenPos] = C_EMPTY;
-  setLegalMapIter(chosenPos%17,chosenPos/17,boardForLegalMap,legalMapFull);
+  int chosenX = 4 + Location::getX(chosenLoc, x_size);
+  int chosenY = 4 + Location::getY(chosenLoc, x_size);
+  boardForLegalMap[chosenX + 17 * chosenY] = C_EMPTY;
+  setLegalMapIter(chosenX,chosenY,boardForLegalMap,legalMapFull);
 
   for (int x = 0; x < 9; x++)
     for (int y = 0; y < 9; y++)
