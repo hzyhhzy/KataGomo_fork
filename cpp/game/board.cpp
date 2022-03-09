@@ -167,18 +167,22 @@ static void setLegalMapIter(int startX,int startY,Color* boardForLegalMap, bool*
     int dy = dys[dir];
     for (int dist = 1; dist <= 7; dist++)// 7 = (4+5+4+1)/2
     {
-      int x2 = startX + 2 * dist * dx;
-      int y2 = startY + 2 * dist * dy;
-      if (x2<0||x2>=17||y2<0||y2>=17)break;
-      int pos2 = y2 * 17 + x2;
-      if (boardForLegalMap[pos2] != C_EMPTY)continue;
       int x1 = startX + dist * dx;
       int y1 = startY + dist * dy;
+      if (x1<0||x1>=17||y1<0||y1>=17)break;
       int pos1 = y1 * 17 + x1;
       if (boardForLegalMap[pos1] == C_BLACK || boardForLegalMap[pos1] == C_WHITE)
       {
+        int x2 = startX + 2 * dist * dx;
+        int y2 = startY + 2 * dist * dy;
+        if (x2 < 0 || x2 >= 17 || y2 < 0 || y2 >= 17)break;
+        int pos2 = y2 * 17 + x2;
+        if (boardForLegalMap[pos2] != C_EMPTY)break;
         setLegalMapIter(x2, y2, boardForLegalMap, legalMapFull);
+        break;
       }
+      else if (boardForLegalMap[pos1] != C_EMPTY)
+        break;
     }
   }
 
