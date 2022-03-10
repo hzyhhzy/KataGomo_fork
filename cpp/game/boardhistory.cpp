@@ -353,7 +353,7 @@ void BoardHistory::maybeFinishGame(Board& board,Player lastPla,Loc lastLoc)
     int blackScore = board.scoreEarlyStageForBlack();
     if (blackScore > 0)setWinner(C_BLACK);
     else if (blackScore < 0)setWinner(C_WHITE);
-    else setWinner(C_EMPTY);
+    else setWinner(C_BLACK);
     return;
   }
 #else
