@@ -480,7 +480,7 @@ int Board::stonesFinished(Player pla) const
     for (int x = 0; x < 4; x++)
       for (int y = 0; y < 4 - x; y++)
       {
-        if (colors[Location::getLoc(x+4, y+4, x_size)] == C_BLACK)count++;
+        if (colors[Location::getLoc(x, y, x_size)] == C_BLACK)count++;
       }
   }
   else if (pla == C_WHITE)
@@ -488,7 +488,7 @@ int Board::stonesFinished(Player pla) const
     for (int x = 0; x < 4; x++)
       for (int y = 0; y < 4 - x; y++)
       {
-        if (colors[Location::getLoc(12-x, 12-y, x_size)] == C_WHITE)count++;
+        if (colors[Location::getLoc(8-x, 8-y, x_size)] == C_WHITE)count++;
       }
   }
   return count;
