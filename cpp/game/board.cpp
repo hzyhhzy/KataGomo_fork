@@ -194,8 +194,8 @@ int32_t Board::getMovePriority(Color pla, Loc loc) const
     return MAX_MOVE_PRIORITY;
   if (!isOnBoard(loc) || colors[loc] != C_EMPTY)
     return 0;
-  if (stage == 1 && midLocs[0] == loc)
-    return 0;
+  //if (stage == 1 && midLocs[0] == loc)
+  //  return 0;
 
   Color opp = getOpp(pla);
 
@@ -205,12 +205,12 @@ int32_t Board::getMovePriority(Color pla, Loc loc) const
   int32_t convTotal = 0;
   int x0 = Location::getX(loc, x_size);
   int y0 = Location::getY(loc, x_size);
-  for (int dy = -2; dy++; dy <= 2)
+  for (int dy = -2; dy <= 2; dy++)
   {
     int y = y0 + dy;
     if (y < 0)continue;
     if (y >= y_size)break;
-    for (int dx = -2; dx++; dx <= 2)
+    for (int dx = -2; dx <= 2; dx++)
     {
       int x = x0 + dx;
       if (x < 0)continue;
@@ -219,11 +219,11 @@ int32_t Board::getMovePriority(Color pla, Loc loc) const
       Loc loc1 = Location::getLoc(x, y, x_size);
       Color color = colors[loc1];
       if (color == pla)
-        convTotal += priorityConvWeights[5 * 5 * 1 + 5 * y + x];
+        convTotal += priorityConvWeights[5 * 5 * 1 + 5 * (dy+2) + dx+2];
       else if (color == opp)
-        convTotal += priorityConvWeights[5 * 5 * 2 + 5 * y + x];
+        convTotal += priorityConvWeights[5 * 5 * 2 + 5 * (dy+2) + dx+2];
       else if (color == C_EMPTY)
-        convTotal += priorityConvWeights[5 * 5 * 0 + 5 * y + x];
+        convTotal += priorityConvWeights[5 * 5 * 0 + 5 * (dy+2) + dx+2];
       else ASSERT_UNREACHABLE;
     }
   }
@@ -306,7 +306,7 @@ int Board::getMaxConnectLengthAndWinLoc(Color pla, Loc& bestLoc) const
         {
           Loc loc = loc0 + len * adj;
           Color color = colors[loc];
-          if (color == pla)continue;
+          if (color == pla||loc==midLocs[0])continue;
           else if (color == C_EMPTY)
           {
             if (emptyNum >= 2 || ((stage==1||maxConLen==5) && emptyNum >= 1))
@@ -403,12 +403,12 @@ bool Board::isLegal(Loc loc, Player pla, bool isMultiStoneSuicideLegal) const
   else if (stage == 1)//第二步
   {
     return colors[loc] == C_EMPTY &&
-      midLocs[0] != loc;
+      midLocs[0] != loc &&
       getMovePriority(pla, loc) <= lastMovePriority;
   }
 
   ASSERT_UNREACHABLE;
-
+  return false;
 }
 
 bool Board::isEmpty() const {
@@ -505,6 +505,7 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
   }
   else if (stage == 1)//第二步
   {
+    lastMovePriority = MAX_MOVE_PRIORITY;
     if (isOnBoard(loc))
       setStone(loc, pla);
     Loc loc1 = midLocs[0];
@@ -516,6 +517,10 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
     pos_hash ^= ZOBRIST_STAGENUM_HASH[0];
     pos_hash ^= ZOBRIST_STAGELOC_HASH[midLocs[0]][0];
     midLocs[0] = Board::NULL_LOC;
+
+    nextPla = getOpp(nextPla);
+    pos_hash ^= ZOBRIST_NEXTPLA_HASH[getOpp(nextPla)];
+    pos_hash ^= ZOBRIST_NEXTPLA_HASH[nextPla];
   }
   else ASSERT_UNREACHABLE;
 }
@@ -598,6 +603,7 @@ void Board::checkConsistency() const {
   {
     if (getMovePriority(nextPla, midLocs[0]) != lastMovePriority)
     {
+      cout << getMovePriority(nextPla, midLocs[0]) << " " << lastMovePriority << endl;
       throw StringError(errLabel + "lastMovePriority not match");
     }
   }

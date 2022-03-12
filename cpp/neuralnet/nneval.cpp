@@ -727,7 +727,12 @@ void NNEvaluator::evaluate(
         ASSERT_UNREACHABLE;
 
       if (!board.isLegal(winLoc, nextPlayer, true))
+      {
+        Board::printBoard(cout, board, winLoc, NULL);
+        cout << "stage=" << board.stage << endl;
         throw StringError("winLoc not legal");
+
+      }
 
       for(int i = 0; i<policySize; i++) {
         Loc loc = NNPos::posToLoc(i,xSize,ySize,nnXLen,nnYLen);

@@ -235,12 +235,14 @@ bool BoardHistory::isLegal(const Board& board, Loc moveLoc, Player movePla) cons
   return true;
 }
 
-
 bool BoardHistory::isLegalTolerant(const Board& board, Loc moveLoc, Player movePla) const {
-  bool multiStoneSuicideLegal = true; //Tolerate suicide regardless of rules
-  if(!board.isLegal(moveLoc,movePla,multiStoneSuicideLegal))
+  if (moveLoc == Board::PASS_LOC)
+    return true;
+  if (!board.isOnBoard(moveLoc))
     return false;
-  return true;
+  if (board.colors[moveLoc] == C_EMPTY)
+    return true;
+  return false;
 }
 
 bool BoardHistory::makeBoardMoveTolerant(Board& board, Loc moveLoc, Player movePla) {
@@ -279,11 +281,19 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
 
 void BoardHistory::maybeFinishGame(Board& board,Player lastPla,Loc lastLoc)
 {
+  Loc tmploc;
+  if (board.getMaxConnectLengthAndWinLoc(lastPla, tmploc) == 6)
+  {
+    setWinner(lastPla);
+    return;
+  }
+
   if (lastLoc == Board::PASS_LOC)
   {
     setWinner(getOpp(lastPla));
+    return;
   }
-  //if (board.numStonesOnBoard() >= board.x_size * board.y_size)setWinner(C_EMPTY);
+  if (board.numStonesOnBoard() >= board.x_size * board.y_size-3)setWinner(C_EMPTY);
 }
 
 

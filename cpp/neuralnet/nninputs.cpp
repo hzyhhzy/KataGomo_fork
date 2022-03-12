@@ -687,7 +687,7 @@ void NNInputs::fillRowV7(
         int32_t movePriority = board.getMovePriority(nextPlayer, loc);
         if (!(movePriority >= 0))
         {
-          throw StringError("NNInput: movePriority out of range");
+          throw StringError("NNInput: movePriority out of range small");
         }
         for (int i = 0; i < MovePriorChannelNum; i++)
         {
@@ -697,7 +697,7 @@ void NNInputs::fillRowV7(
         }
         if (movePriority != 0)
         {
-          throw StringError("NNInput: movePriority out of range");
+          throw StringError("NNInput: movePriority out of range big");
         }
       }
 
