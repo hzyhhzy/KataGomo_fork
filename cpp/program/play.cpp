@@ -941,6 +941,7 @@ struct SearchLimitsThisMove {
 static SearchLimitsThisMove getSearchLimitsThisMove(
   const Search* toMoveBot, Player pla, const PlaySettings& playSettings, Rand& gameRand,
   const vector<double>& historicalMctsWinLossValues,
+  const vector<double>& historicalMctsDrawValues,
   bool clearBotBeforeSearch,
   const OtherGameProperties& otherGameProps
 ) {
@@ -1000,15 +1001,23 @@ static SearchLimitsThisMove getSearchLimitsThisMove(
     if(historicalMctsWinLossValues.size() >= playSettings.reduceVisitsThresholdLookback) {
       double minWinLossValue = 1e20;
       double maxWinLossValue = -1e20;
+      double minDrawValue = 1.0;
       for(int j = 0; j<playSettings.reduceVisitsThresholdLookback; j++) {
         double winLossValue = historicalMctsWinLossValues[historicalMctsWinLossValues.size()-1-j];
         if(winLossValue < minWinLossValue)
           minWinLossValue = winLossValue;
         if(winLossValue > maxWinLossValue)
           maxWinLossValue = winLossValue;
+
+        if (historicalMctsDrawValues.size() != historicalMctsWinLossValues.size())
+          throw StringError("historicalMctsDrawValues.size() != historicalMctsWinLossValues.size()");
+
+        double drawValue = historicalMctsDrawValues[historicalMctsDrawValues.size() - 1 - j];
+        if (drawValue < minDrawValue)
+          minDrawValue = drawValue;
       }
       assert(playSettings.reduceVisitsThreshold >= 0.0);
-      double signedMostExtreme = std::max(minWinLossValue,-maxWinLossValue);
+      double signedMostExtreme = std::max(std::max(minWinLossValue,-maxWinLossValue),minDrawValue);
       assert(signedMostExtreme <= 1.000001);
       if(signedMostExtreme > 1.0)
         signedMostExtreme = 1.0;
@@ -1347,7 +1356,7 @@ FinishedGameData* Play::runGame(
 
   ClockTimer timer;
 
-  bool drawEarlyEndGame = gameRand.nextBool(0.9);
+  bool drawEarlyEndGame = false;
 
   //Main play loop
   for(int i = 0; i<maxMovesPerGame; i++) {
@@ -1359,7 +1368,7 @@ FinishedGameData* Play::runGame(
     Search* toMoveBot = pla == P_BLACK ? botB : botW;
 
     SearchLimitsThisMove limits = getSearchLimitsThisMove(
-      toMoveBot, pla, playSettings, gameRand, historicalMctsWinLossValues, clearBotBeforeSearch, otherGameProps
+      toMoveBot, pla, playSettings, gameRand, historicalMctsWinLossValues, historicalMctsDrawrate, clearBotBeforeSearch, otherGameProps
     );
     Loc loc;
     if(playSettings.recordTimePerMove) {
