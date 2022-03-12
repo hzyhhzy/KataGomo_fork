@@ -15,6 +15,8 @@
 
 //早期如果随机撒子，学不会，所以需要特殊处理
 //#define EARLYSTAGE
+#define KONGTIAO //空跳
+#define HUIRAO //回绕
 
 #ifndef COMPILE_MAX_BOARD_LEN
 #define COMPILE_MAX_BOARD_LEN 9

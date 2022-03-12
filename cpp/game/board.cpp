@@ -147,10 +147,7 @@ static void setLegalMapIter(int startX,int startY,const Color* boardForLegalMap,
 {
   if (startX<0||startX>=17||startY<0||startY>=17)return;
   int startPos = startX + startY * 17;
-  if (boardForLegalMap[startPos] != C_EMPTY)
-  {
-    return;
-  }
+
   if (legalMapFull[startPos])return;
 
   legalMapFull[startPos] = 1;
@@ -159,7 +156,12 @@ static void setLegalMapIter(int startX,int startY,const Color* boardForLegalMap,
   {
     int dx = dxs[dir];
     int dy = dys[dir];
-    for (int dist = 1; dist <= 7; dist++)// 7 = (4+5+4+1)/2
+#ifdef KONGTIAO
+    const int MAX_JUMP_DIST = 7;
+#else 
+    const int MAX_JUMP_DIST = 1;
+#endif
+    for (int dist = 1; dist <= MAX_JUMP_DIST; dist++)// 7 = (4+5+4+1)/2
     {
       int x1 = startX + dist * dx;
       int y1 = startY + dist * dy;
@@ -235,7 +237,9 @@ void Board::setLegalMap()
 
   int chosenX = 4 + Location::getX(chosenLoc, x_size);
   int chosenY = 4 + Location::getY(chosenLoc, x_size);
+#ifdef HUIRAO
   boardForLegalMap[chosenX + 17 * chosenY] = C_EMPTY;
+#endif
   setLegalMapIter(chosenX,chosenY,boardForLegalMap,legalMapFull);
 
   for (int x = 0; x < 9; x++)
