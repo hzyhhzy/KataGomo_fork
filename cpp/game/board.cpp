@@ -305,8 +305,15 @@ int Board::getMaxConnectLengthAndWinLoc(Color pla, Loc& bestLoc) const
         for (int len = 0; len < 6; len++)
         {
           Loc loc = loc0 + len * adj;
+          if (!isOnBoard(loc))
+          {
+            emptyNum = 3;
+            break;
+          }
           Color color = colors[loc];
-          if (color == pla||loc==midLocs[0])continue;
+          if (loc == midLocs[0])
+            color = pla;
+          if (color == pla)continue;
           else if (color == C_EMPTY)
           {
             if (emptyNum >= 2 || ((stage==1||maxConLen==5) && emptyNum >= 1))
@@ -324,7 +331,8 @@ int Board::getMaxConnectLengthAndWinLoc(Color pla, Loc& bestLoc) const
           }
         }
 
-        if (emptyNum > 2)continue;//nothing
+        if (emptyNum > 2)
+          continue;//nothing
         else if (emptyNum == 2)//four
         {
           if (maxConLen <= 4)
@@ -334,6 +342,7 @@ int Board::getMaxConnectLengthAndWinLoc(Color pla, Loc& bestLoc) const
             {
               Loc emptyLoc = emptyLocs[i];
               int32_t priority=getMovePriority(pla, emptyLoc);
+              //cout << Location::toString(emptyLoc, x_size, y_size) << " " << priority << endl;
               if (priority > maxPriority)
               {
                 maxPriority = priority;
@@ -357,7 +366,7 @@ int Board::getMaxConnectLengthAndWinLoc(Color pla, Loc& bestLoc) const
           {
             Loc emptyLoc = emptyLocs[0];
             int32_t priority=getMovePriority(pla, emptyLoc);
-            if (priority < lastMovePriority)continue;//illegal
+            //if (priority > lastMovePriority)continue;//illegal
             if (priority < maxPriority)
             {
               maxPriority = priority;

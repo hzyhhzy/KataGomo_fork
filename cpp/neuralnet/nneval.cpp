@@ -730,6 +730,12 @@ void NNEvaluator::evaluate(
       {
         Board::printBoard(cout, board, winLoc, NULL);
         cout << "stage=" << board.stage << endl;
+        if (board.stage == 1)
+        {
+          cout << "lastmove=" << Location::toString(board.midLocs[0], board) << endl;
+          cout << "lastmoveP=" << board.lastMovePriority << endl;
+          cout << "thismoveP=" << board.getMovePriority(nextPlayer,winLoc)<< endl;
+        }
         throw StringError("winLoc not legal");
 
       }
