@@ -656,6 +656,11 @@ void NNInputs::fillRowV7(
     posStride = 1;
   }
 
+  const int MovePriorChannelNum = 13;
+  static_assert(Board::MAX_MOVE_PRIORITY == (1 << MovePriorChannelNum) - 1,"if MAX_MOVE_PRIORITY is changed, nninput need change");
+  const int MovePriorStartChannel = 4;
+  static_assert(MovePriorChannelNum + MovePriorStartChannel <= NUM_FEATURES_SPATIAL_V7,"No enough input channels. Model need to be changed");
+
   for(int y = 0; y<ySize; y++) {
     for(int x = 0; x<xSize; x++) {
       int pos = NNPos::xyToPos(x,y,nnXLen);
@@ -672,47 +677,48 @@ void NNInputs::fillRowV7(
         setRowBin(rowBin,pos,1, 1.0f, posStride, featureStride);
       else if(stone == opp)
         setRowBin(rowBin,pos,2, 1.0f, posStride, featureStride);
-      else if(stone == C_BANLOC)
+
+      //mainly for stage==1
+      if(board.isLegal(loc,nextPlayer,true))
         setRowBin(rowBin,pos,3, 1.0f, posStride, featureStride);
 
+      if (board.stage == 0)
+      {
+        int32_t movePriority = board.getMovePriority(nextPlayer, loc);
+        if (!(movePriority >= 0))
+        {
+          throw StringError("NNInput: movePriority out of range");
+        }
+        for (int i = 0; i < MovePriorChannelNum; i++)
+        {
+          if (movePriority % 2 == 1)
+            setRowBin(rowBin, pos, i + MovePriorStartChannel, 1.0f, posStride, featureStride);
+          movePriority /= 2;
+        }
+        if (movePriority != 0)
+        {
+          throw StringError("NNInput: movePriority out of range");
+        }
+      }
+
     }
   }
 
-  //mid state
-  if (board.stage == 0)//选子
-  {
-    //do nothing
-  }
-  else if (board.stage == 1)//挪子
+
+  if (board.stage == 1)//第二步
   {
     rowGlobal[0] = 1.0f;
-    Loc chosenMove = board.midLocs[0];
-    if (!board.isOnBoard(chosenMove))
+
+    //还没放到棋盘的那个棋子也输入
+    Loc loc1 = board.midLocs[0];
+    if (board.isOnBoard(loc1))
     {
-      std::cout << "nninput: chosen move not on board ";
-    }
-    else
-    {
-      int pos = NNPos::locToPos(chosenMove, board.x_size, nnXLen, nnYLen);
-      setRowBin(rowBin,pos,4, 1.0f, posStride, featureStride);
+      int pos = NNPos::locToPos(loc1, board.x_size, nnXLen, nnYLen);
+      //神经网络不需要区分还没落的子和已经落的子，因为告诉它哪些点legal了
+      setRowBin(rowBin, pos, 1, 1.0f, posStride, featureStride);
     }
   }
-  else if (board.stage == 2)//放障碍
-  {
-    rowGlobal[1] = 1.0f;
-    Loc chosenMove = board.midLocs[1];
-    if (!board.isOnBoard(chosenMove))
-    {
-      std::cout << "nninput: chosen move not on board ";
-    }
-    else
-    {
-      int pos = NNPos::locToPos(chosenMove, board.x_size, nnXLen, nnYLen);
-      setRowBin(rowBin,pos,5, 1.0f, posStride, featureStride);
-    }
-  }
-
-
+  
 
 
 

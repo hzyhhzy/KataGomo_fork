@@ -13,7 +13,7 @@
 
 
 #ifndef COMPILE_MAX_BOARD_LEN
-#define COMPILE_MAX_BOARD_LEN 8
+#define COMPILE_MAX_BOARD_LEN 19
 #endif
 
 //TYPES AND CONSTANTS-----------------------------------------------------------------
@@ -21,7 +21,7 @@
 
 //每一步棋分为几个阶段
 //例如：象棋类分为“选子”和“选落点”2步，六子棋分为2步，amazons分为3步，也有一些棋不定步数
-static const int STAGE_NUM_EACH_PLA = 3;
+static const int STAGE_NUM_EACH_PLA = 2;
 
 struct Board;
 
@@ -118,6 +118,8 @@ struct Board
   static constexpr int MAX_PLAY_SIZE = MAX_LEN * MAX_LEN;  //Maximum number of playable spaces
   static constexpr int MAX_ARR_SIZE = (MAX_LEN+1)*(MAX_LEN+2)+1; //Maximum size of arrays needed
 
+  static const int32_t MAX_MOVE_PRIORITY = (1<<13) - 1;
+
   //Location used to indicate an invalid spot on the board.
   static constexpr Loc NULL_LOC = 0;
   //Location used to indicate a pass move is desired.
@@ -134,7 +136,8 @@ struct Board
   static Hash128 ZOBRIST_PLAYER_HASH[4];
   static const Hash128 ZOBRIST_GAME_IS_OVER;
 
-  //Structs-------
+  //conv weights for move priority
+  static const int32_t priorityConvWeights[3 * 5 * 5];// [C,H,W]
 
   //Constructors---------------------------------
   Board();  //Create Board of size (DEFAULT_LEN,DEFAULT_LEN)
@@ -145,7 +148,11 @@ struct Board
 
   bool isLegal(Loc loc, Player pla, bool isMultiStoneSuicideLegal) const;
 
-  
+  //计算每个选点的优先值，第一步的优先值不得小于第二步
+  int32_t getMovePriority(Color pla, Loc loc) const;
+
+  //计算最长连接长度，只考虑4,5,6。同时返回取胜落点
+  int getMaxConnectLengthAndWinLoc(Color pla, Loc& bestLoc) const;
 
   bool isOnBoard(Loc loc) const;
   //Is this board empty?
@@ -200,8 +207,11 @@ struct Board
   int stage;
 
   //一步内每一阶段的选点
-  //例如：象棋类midLoc[0]是选择的棋子，midLoc[1]是落点
+  //例如：象棋类midLoc[0]是选择的棋子，midLoc[1]是落点（最后一步可省略）
   Loc midLocs[STAGE_NUM_EACH_PLA];
+
+  //上一步的MovePriority(保证下一步的MovePriority不大于上一步)
+  int32_t lastMovePriority;
 
   /* PointList empty_list; //List of all empty locations on board */
 
@@ -212,7 +222,7 @@ struct Board
 
   private:
   void init(int xS, int yS);
-  bool isQueenMove(Loc locSrc, Loc locDst) const;
+  
 
   friend std::ostream& operator<<(std::ostream& out, const Board& board);
 

@@ -718,10 +718,34 @@ void NNEvaluator::evaluate(
     float maxPolicy = -1e25f;
     bool isLegal[NNPos::MAX_NN_POLICY_SIZE];
     int legalCount = 0;
-    for(int i = 0; i<policySize; i++) {
-      Loc loc = NNPos::posToLoc(i,xSize,ySize,nnXLen,nnYLen);
-      isLegal[i] = history.isLegal(board,loc,nextPlayer);
+
+    Loc winLoc;
+    int maxConLen = board.getMaxConnectLengthAndWinLoc(nextPlayer, winLoc);
+    if (winLoc != Board::NULL_LOC)
+    {
+      if (maxConLen < 4 || (maxConLen < 5 && board.stage == 1) || maxConLen >= 6)
+        ASSERT_UNREACHABLE;
+
+      if (!board.isLegal(winLoc, nextPlayer, true))
+        throw StringError("winLoc not legal");
+
+      for(int i = 0; i<policySize; i++) {
+        Loc loc = NNPos::posToLoc(i,xSize,ySize,nnXLen,nnYLen);
+        isLegal[i] = false;
+      }
+      isLegal[NNPos::locToPos(winLoc, xSize, nnXLen, nnYLen)] = true;
+
     }
+    else
+    {
+      for(int i = 0; i<policySize; i++) {
+        Loc loc = NNPos::posToLoc(i,xSize,ySize,nnXLen,nnYLen);
+        isLegal[i] = history.isLegal(board,loc,nextPlayer);
+      }
+    }
+
+
+
 
 
     for(int i = 0; i<policySize; i++) {

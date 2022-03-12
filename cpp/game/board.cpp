@@ -28,6 +28,30 @@ Hash128 Board::ZOBRIST_NEXTPLA_HASH[4];
 const Hash128 Board::ZOBRIST_GAME_IS_OVER = //Based on sha256 hash of Board::ZOBRIST_GAME_IS_OVER
   Hash128(0xb6f9e465597a77eeULL, 0xf1d583d960a4ce7fULL);
 
+
+const int32_t Board::priorityConvWeights[3 * 5 * 5] =
+{
+  2,2,2,2,2,
+  2,2,2,2,2,
+  2,2,1,2,2,
+  2,2,2,2,2,
+  2,2,2,2,2,//empty
+
+   71, 173, 281, 173,  71,
+  173, 409, 541, 409, 173,
+  281, 541,   1, 541, 281,
+  173, 409, 541, 409, 173,
+   71, 173, 281, 173,  71,//nextpla
+
+   29, 113, 229, 113,  29,
+  113, 349, 463, 349, 113,
+  229, 463,   1, 463, 229,
+  113, 349, 463, 349, 113,
+   29, 113, 229, 113,  29 //opp
+
+};
+//max=6953 < 2^11
+
 //LOCATION--------------------------------------------------------------------------------
 Loc Location::getLoc(int x, int y, int x_size)
 {
@@ -119,6 +143,7 @@ Board::Board(const Board& other)
   nextPla = other.nextPla;
   stage = other.stage;
   memcpy(midLocs, other.midLocs, sizeof(Loc) * STAGE_NUM_EACH_PLA);
+  lastMovePriority = other.lastMovePriority;
 }
 
 void Board::init(int xS, int yS)
@@ -143,81 +168,68 @@ void Board::init(int xS, int yS)
     }
   }
 
+  //只有第一步的时候，midLocs[0]==NULL_LOC && stage==1
   for (int i = 0; i < STAGE_NUM_EACH_PLA; i++)
   {
     midLocs[i] = Board::NULL_LOC;
   }
   nextPla = C_BLACK;
-  stage = 0;
 
-  pos_hash = ZOBRIST_SIZE_X_HASH[x_size] ^ ZOBRIST_SIZE_Y_HASH[y_size] ^ ZOBRIST_NEXTPLA_HASH[nextPla] ^ ZOBRIST_STAGENUM_HASH[stage];
+  //黑棋第一步只能走一个子，所以stage=1
+  stage = 1;
+  lastMovePriority = MAX_MOVE_PRIORITY;
+
+  pos_hash = ZOBRIST_SIZE_X_HASH[x_size] ^ ZOBRIST_SIZE_Y_HASH[y_size] ^ ZOBRIST_NEXTPLA_HASH[nextPla] ^ ZOBRIST_STAGENUM_HASH[stage] ^ ZOBRIST_STAGELOC_HASH[midLocs[0]][0];
 
 
 
   Location::getAdjacentOffsets(adj_offsets,x_size);
 
-  if (x_size == 10 && y_size == 10)
-  {
-    setStone(Location::getLoc(3, 0, x_size), C_BLACK);
-    setStone(Location::getLoc(6, 0, x_size), C_BLACK);
-    setStone(Location::getLoc(0, 3, x_size), C_BLACK);
-    setStone(Location::getLoc(9, 3, x_size), C_BLACK);
-    setStone(Location::getLoc(3, 9, x_size), C_WHITE);
-    setStone(Location::getLoc(6, 9, x_size), C_WHITE);
-    setStone(Location::getLoc(0, 6, x_size), C_WHITE);
-    setStone(Location::getLoc(9, 6, x_size), C_WHITE);
-  }
-  else if (x_size == 8 && y_size == 8)
-  {
-    setStone(Location::getLoc(2, 0, x_size), C_BLACK);
-    setStone(Location::getLoc(5, 0, x_size), C_BLACK);
-    setStone(Location::getLoc(0, 2, x_size), C_BLACK);
-    setStone(Location::getLoc(7, 2, x_size), C_BLACK);
-    setStone(Location::getLoc(2, 7, x_size), C_WHITE);
-    setStone(Location::getLoc(5, 7, x_size), C_WHITE);
-    setStone(Location::getLoc(0, 5, x_size), C_WHITE);
-    setStone(Location::getLoc(7, 5, x_size), C_WHITE);
-  }
-  else{
-    std::cout << "Boardsize must be 10x10";
-    return;
-  }
 
 }
 
-bool Board::isQueenMove(Loc locSrc, Loc locDst) const
+int32_t Board::getMovePriority(Color pla, Loc loc) const
 {
-  if (!isOnBoard(locSrc))return false;
-  if (!isOnBoard(locDst))return false;
-  if(colors[locSrc]==C_EMPTY)return false;
-  if(colors[locDst]!=C_EMPTY)return false;
-  if (locSrc == locDst)return false;
+  if (loc == NULL_LOC)//only first move
+    return MAX_MOVE_PRIORITY;
+  if (!isOnBoard(loc) || colors[loc] != C_EMPTY)
+    return 0;
+  if (stage == 1 && midLocs[0] == loc)
+    return 0;
 
-  int x1 = Location::getX(locSrc, x_size);
-  int y1 = Location::getY(locSrc, x_size);
-  int x2 = Location::getX(locDst, x_size);
-  int y2 = Location::getY(locDst, x_size);
-  int dx = x2 - x1, dy = y2 - y1;
+  Color opp = getOpp(pla);
 
-  if (dx != 0 && dy != 0 && dx != dy && dx != -dy)
-    return false;
-
-  int d = std::max(std::max(dx, -dx), std::max(dy, -dy));
-
-  if (dx > 0)dx = 1;
-  else if (dx < 0)dx = -1;
-  if (dy > 0)dy = 1;
-  else if (dy < 0)dy = -1;
-
-  for (int i = 1; i < d; i++)
+  //卷积
+  //棋子多的地方权值高
+  //至少为1
+  int32_t convTotal = 0;
+  int x0 = Location::getX(loc, x_size);
+  int y0 = Location::getY(loc, x_size);
+  for (int dy = -2; dy++; dy <= 2)
   {
-    int x = x1 + i * dx;
-    int y = y1 + i * dy;
-    Loc loc = Location::getLoc(x, y, x_size);
-    if (colors[loc] != C_EMPTY)
-      return false;
+    int y = y0 + dy;
+    if (y < 0)continue;
+    if (y >= y_size)break;
+    for (int dx = -2; dx++; dx <= 2)
+    {
+      int x = x0 + dx;
+      if (x < 0)continue;
+      if (x >= x_size)break;
+
+      Loc loc1 = Location::getLoc(x, y, x_size);
+      Color color = colors[loc1];
+      if (color == pla)
+        convTotal += priorityConvWeights[5 * 5 * 1 + 5 * y + x];
+      else if (color == opp)
+        convTotal += priorityConvWeights[5 * 5 * 2 + 5 * y + x];
+      else if (color == C_EMPTY)
+        convTotal += priorityConvWeights[5 * 5 * 0 + 5 * y + x];
+      else ASSERT_UNREACHABLE;
+    }
   }
-  return true;
+
+
+  return convTotal;
 }
 
 void Board::initHash()
@@ -275,6 +287,95 @@ Hash128 Board::getSitHash(Player pla) const {
   return h;
 }
 
+int Board::getMaxConnectLengthAndWinLoc(Color pla, Loc& bestLoc) const
+{
+  int maxConLen = 0;
+  int maxPriority = 0;//连四取最大，连五取最小
+  bestLoc = NULL_LOC;
+
+  for(int y0=0;y0<y_size;y0++)
+    for (int x0 = 0; x0 < x_size; x0++)
+    {
+      Loc loc0 = Location::getLoc(x0, y0, x_size);
+      for (int dir = 0; dir < 4; dir++)
+      {
+        short adj = adj_offsets[dir * 2];
+        int emptyNum = 0;
+        Loc emptyLocs[2] = { NULL_LOC,NULL_LOC };
+        for (int len = 0; len < 6; len++)
+        {
+          Loc loc = loc0 + len * adj;
+          Color color = colors[loc];
+          if (color == pla)continue;
+          else if (color == C_EMPTY)
+          {
+            if (emptyNum >= 2 || ((stage==1||maxConLen==5) && emptyNum >= 1))
+            {
+              emptyNum = 3;
+              break;
+            }
+            emptyLocs[emptyNum] = loc;
+            emptyNum++;
+          }
+          else
+          {
+            emptyNum = 3;
+            break;
+          }
+        }
+
+        if (emptyNum > 2)continue;//nothing
+        else if (emptyNum == 2)//four
+        {
+          if (maxConLen <= 4)
+          {
+            maxConLen = 4;
+            for (int i = 0; i < 2; i++)
+            {
+              Loc emptyLoc = emptyLocs[i];
+              int32_t priority=getMovePriority(pla, emptyLoc);
+              if (priority > maxPriority)
+              {
+                maxPriority = priority;
+                bestLoc = emptyLoc;
+              }
+            }
+          }
+          else continue;
+        }
+        else if (emptyNum == 1)//five
+        {
+          if (maxConLen < 5)
+          {
+            maxConLen = 5;
+            Loc emptyLoc = emptyLocs[0];
+            int32_t priority=getMovePriority(pla, emptyLoc);
+            maxPriority = priority;
+            bestLoc = emptyLoc;
+          }
+          else if (maxConLen == 5)
+          {
+            Loc emptyLoc = emptyLocs[0];
+            int32_t priority=getMovePriority(pla, emptyLoc);
+            if (priority < lastMovePriority)continue;//illegal
+            if (priority < maxPriority)
+            {
+              maxPriority = priority;
+              bestLoc = emptyLoc;
+            }
+          }
+          else continue;
+        }
+        else if (emptyNum == 0)//win
+        {
+          bestLoc = NULL_LOC;
+          return 6;
+        }
+      }
+    }
+  return maxConLen;
+}
+
 bool Board::isOnBoard(Loc loc) const {
   return loc >= 0 && loc < MAX_ARR_SIZE && colors[loc] != C_WALL;
 }
@@ -295,20 +396,15 @@ bool Board::isLegal(Loc loc, Player pla, bool isMultiStoneSuicideLegal) const
   if (!isOnBoard(loc))
     return false;
 
-  //TODO: Add some logic
-  if (stage == 0)//选子
+  if (stage == 0)//第一步
   {
-    return colors[loc] == pla;
+    return colors[loc] == C_EMPTY;
   }
-  else if (stage == 1)//落子
+  else if (stage == 1)//第二步
   {
-    Loc chosenMove = midLocs[0];
-    return isQueenMove(chosenMove, loc);
-  }
-  else if (stage == 2)//放障碍
-  {
-    Loc chosenMove = midLocs[1];
-    return isQueenMove(chosenMove, loc);
+    return colors[loc] == C_EMPTY &&
+      midLocs[0] != loc;
+      getMovePriority(pla, loc) <= lastMovePriority;
   }
 
   ASSERT_UNREACHABLE;
@@ -395,47 +491,31 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
   {
     std::cout << "Error next player ";
   }
-  if (stage == 0)//选子
+  if (stage == 0)//第一步
   {
+    lastMovePriority = getMovePriority(pla, loc);
+
     stage = 1;
     pos_hash ^= ZOBRIST_STAGENUM_HASH[0];
     pos_hash ^= ZOBRIST_STAGENUM_HASH[1];
 
     midLocs[0] = loc;
     pos_hash ^= ZOBRIST_STAGELOC_HASH[loc][0];
-  }
-  else if (stage == 1)//挪子
-  {
-    stage = 2;
-    pos_hash ^= ZOBRIST_STAGENUM_HASH[1];
-    pos_hash ^= ZOBRIST_STAGENUM_HASH[2];
 
-    midLocs[1] = loc;
-    pos_hash ^= ZOBRIST_STAGELOC_HASH[loc][1];
-
-    if (!isOnBoard(loc))return;
-    Loc chosenLoc = midLocs[0];
-    setStone(chosenLoc, C_EMPTY);
-    setStone(loc, nextPla);
   }
-  else if (stage == 2)//放障碍
+  else if (stage == 1)//第二步
   {
-    nextPla = getOpp(nextPla);
-    pos_hash ^= ZOBRIST_NEXTPLA_HASH[getOpp(nextPla)];
-    pos_hash ^= ZOBRIST_NEXTPLA_HASH[nextPla];
+    if (isOnBoard(loc))
+      setStone(loc, pla);
+    Loc loc1 = midLocs[0];
+    if (isOnBoard(loc1))
+      setStone(loc1, pla);
 
     stage = 0;
-    pos_hash ^= ZOBRIST_STAGENUM_HASH[2];
+    pos_hash ^= ZOBRIST_STAGENUM_HASH[1];
     pos_hash ^= ZOBRIST_STAGENUM_HASH[0];
-
-    for (int i = 0; i < STAGE_NUM_EACH_PLA - 1; i++)
-    {
-      pos_hash ^= ZOBRIST_STAGELOC_HASH[midLocs[i]][i];
-      midLocs[i] = Board::NULL_LOC;
-    }
-
-    if (loc == PASS_LOC)return;
-    Board::setStone(loc, C_BANLOC);
+    pos_hash ^= ZOBRIST_STAGELOC_HASH[midLocs[0]][0];
+    midLocs[0] = Board::NULL_LOC;
   }
   else ASSERT_UNREACHABLE;
 }
@@ -506,6 +586,21 @@ void Board::checkConsistency() const {
     throw StringError(errLabel + "Pos hash does not match expected");
   }
 
+  if (stage == 1 && midLocs[0] == NULL_LOC)
+  {
+    if (numStonesOnBoard() != 0)
+    {
+      throw StringError(errLabel + "midLocs[0] == NULL_LOC when not first move");
+    }
+  }
+
+  if (stage == 1)
+  {
+    if (getMovePriority(nextPla, midLocs[0]) != lastMovePriority)
+    {
+      throw StringError(errLabel + "lastMovePriority not match");
+    }
+  }
 
   short tmpAdjOffsets[8];
   Location::getAdjacentOffsets(tmpAdjOffsets,x_size);
