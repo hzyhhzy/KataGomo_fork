@@ -169,6 +169,9 @@ static void setLegalMapIter(int startX,int startY,const Color* boardForLegalMap,
       int pos1 = y1 * 17 + x1;
       if (boardForLegalMap[pos1] == C_BLACK || boardForLegalMap[pos1] == C_WHITE)
       {
+        //只有一种情况：空跳且禁止回绕，这样初始棋子还在棋盘上，但是不能跳过初始棋子
+        if (legalMapFull[pos1])break;
+
         int x2 = startX + 2 * dist * dx;
         int y2 = startY + 2 * dist * dy;
         if (x2 < 0 || x2 >= 17 || y2 < 0 || y2 >= 17)break;
