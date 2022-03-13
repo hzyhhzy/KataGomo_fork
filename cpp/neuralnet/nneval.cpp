@@ -721,12 +721,13 @@ void NNEvaluator::evaluate(
 
     Loc winLoc;
     int maxConLen = board.getMaxConnectLengthAndWinLoc(nextPlayer, winLoc);
-    if (winLoc != Board::NULL_LOC)
+    if (winLoc != Board::NULL_LOC && board.isLegal(winLoc, nextPlayer, true))
     {
       if (maxConLen < 4 || (maxConLen < 5 && board.stage == 1) || maxConLen >= 6)
         ASSERT_UNREACHABLE;
 
-      if (!board.isLegal(winLoc, nextPlayer, true))
+      //this may happen when using side position
+      /*if (!board.isLegal(winLoc, nextPlayer, true))
       {
         Board::printBoard(cout, board, winLoc, NULL);
         cout << "stage=" << board.stage << endl;
@@ -739,7 +740,7 @@ void NNEvaluator::evaluate(
         throw StringError("winLoc not legal");
 
       }
-
+      */
       for(int i = 0; i<policySize; i++) {
         Loc loc = NNPos::posToLoc(i,xSize,ySize,nnXLen,nnYLen);
         isLegal[i] = false;

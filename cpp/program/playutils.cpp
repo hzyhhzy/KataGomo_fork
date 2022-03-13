@@ -192,9 +192,7 @@ void PlayUtils::initializeGameUsingPolicy(
   NNResultBuf buf;
 
   //This gives us about 15 moves on average for 19x19.
-  int numInitialMovesToPlay = 2* (int)floor(gameRand.nextExponential() * (board.x_size * board.y_size * proportionOfBoardArea/2))-1;
-  if (numInitialMovesToPlay < 0)numInitialMovesToPlay = 0;
-
+  int numInitialMovesToPlay = (int)floor(gameRand.nextExponential() * (board.x_size * board.y_size * proportionOfBoardArea));
   assert(numInitialMovesToPlay >= 0);
   for(int i = 0; i<numInitialMovesToPlay; i++) {
     Loc loc = getGameInitializationMove(botB, botW, board, hist, pla, buf, gameRand, temperature);
