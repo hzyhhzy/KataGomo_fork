@@ -304,7 +304,7 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     maxBoardYSize = std::max(maxBoardYSize, pos.board.y_size);
   }
 
-  noResultStdev = cfg.contains("noResultStdev") ? cfg.getDouble("noResultStdev",0.0,1.0) : 0.0;
+  noResultStdev = cfg.contains("noResultStdev") ? cfg.getDouble("noResultStdev",0.0,5.0) : 0.0;
   drawRandRadius = cfg.contains("drawRandRadius") ? cfg.getDouble("drawRandRadius",0.0,1.0) : 0.0;
 }
 
@@ -340,10 +340,8 @@ void GameInitializer::createGame(
   createGameSharedUnsynchronized(board,pla,hist,extraBlackAndKomi,initialPosition,playSettings,otherGameProps,startPosSample);
 
   if(noResultStdev > 1e-30) {
-    double mean = params.noResultUtilityForWhite;
-    params.noResultUtilityForWhite = mean + noResultStdev * rand.nextGaussianTruncated(3.0);
-    while(params.noResultUtilityForWhite < -1.0 || params.noResultUtilityForWhite > 1.0)
-      params.noResultUtilityForWhite = mean + noResultStdev * rand.nextGaussianTruncated(3.0);
+    double mean = atanh(0.9999*params.noResultUtilityForWhite);
+    params.noResultUtilityForWhite =tanh(mean + noResultStdev * rand.nextGaussian());
   }
   if(drawRandRadius > 1e-30) {
     double mean = params.drawEquivalentWinsForWhite;
