@@ -12,190 +12,47 @@
 using namespace std;
 
 
-
-static Loc getRandomNearbyMove(Board& board, Rand& gameRand,double avgDist)
-{
-  int xsize = board.x_size, ysize = board.y_size;
-  if (board.isEmpty())
-  {
-    int x = gameRand.nextUInt(xsize - 2) + 1, y = gameRand.nextUInt(ysize - 2) + 1;
-    Loc loc = Location::getLoc(x, y, xsize);
-    return loc;
-  }
-  vector<double> prob(xsize*ysize, 0);
-  for (int x1 = 0; x1 < xsize; x1++)for (int y1 = 0; y1< ysize; y1++)
-  {
-    Loc loc = Location::getLoc(x1, y1, xsize);
-    if (board.colors[loc] == C_EMPTY)continue;
-    for (int x2 = 0; x2 < xsize; x2++)for (int y2 = 0; y2 < ysize; y2++)
-    {
-      Loc loc2 = Location::getLoc(x2, y2, xsize);
-      if (board.colors[loc2] != C_EMPTY)continue;
-      double prob_increase = pow((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1) + avgDist * avgDist, -1.5);
-      prob[y2*xsize + x2] += prob_increase;
-    }
-
-  }
-
-  double totalProb = 0;
-  for (int x = 0; x < xsize; x++)for (int y = 0; y < ysize; y++)
-  {
-    totalProb += prob[y*xsize + x];
-  }
-
-  for (int x = 0; x < xsize; x++)for (int y = 0; y < ysize; y++)
-  {
-    prob[y * xsize + x] /= totalProb;
-  }
-
-  double randomDouble = gameRand.nextDouble() - 1e-8;
-
-  double probSum = 0;
-  for (int x = 0; x < xsize; x++)for (int y = 0; y < ysize; y++)
-  {
-    probSum += prob[y*xsize + x];
-    if (probSum >= randomDouble)
-    {
-      return Location::getLoc(x, y, xsize);
-    }
-  }
-
-  ASSERT_UNREACHABLE;
-}
-static double getBoardValue(Search* botB, Search* botW, const Board& board, const BoardHistory& hist, Player nextPlayer)
-{
-  NNEvaluator* nnEval = (nextPlayer == P_BLACK ? botB : botW)->nnEvaluator;
-  MiscNNInputParams nnInputParams;
-  NNResultBuf buf;
-  nnEval->evaluate(board, hist, nextPlayer, nnInputParams, buf,  false, false);
-  std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
-  double value = nnOutput->whiteWinProb - nnOutput->whiteLossProb;
-  if (nextPlayer == C_BLACK)return -value;
-  else return value;
-}
-static Loc getBalanceMove(Search* botB, Search* botW, const Board& board, const BoardHistory& hist, Player nextPlayer, Rand& gameRand,bool forSelfplay)
-{
-  int xsize = board.x_size, ysize = board.y_size;
-  vector<double> prob(xsize*ysize, 0);
-  double maxProb=0;
-  for (int x = 0; x < xsize; x++)for (int y = 0; y < ysize; y++)
-  {
-    Loc loc = Location::getLoc(x, y, xsize);
-
-    if (!board.isLegal(loc, nextPlayer, true))continue;
-    
-    Board boardCopy(board);
-    BoardHistory histCopy(hist);
-
-
-    histCopy.makeBoardMoveAssumeLegal(boardCopy, loc, nextPlayer);
-    if (histCopy.isGameFinished)continue;
-
-    double value = getBoardValue(botB,botW,boardCopy,histCopy,getOpp(nextPlayer));
-
-    double p = forSelfplay?pow(1 - value * value, 2):pow(1 - value * value, 6);
-    maxProb = std::max(maxProb, p);
-    prob[y*xsize + x] = p;
-
-  }
-  if (gameRand.nextBool(1 - maxProb) && gameRand.nextBool(0.995))
-  {
-    return Board::NULL_LOC;
-  }
-
-  double totalProb = 0;
-  for (int x = 0; x < xsize; x++)for (int y = 0; y < ysize; y++)
-  {
-    totalProb += prob[y*xsize + x];
-  }
-  for (int x = 0; x < xsize; x++)for (int y = 0; y < ysize; y++)
-  {
-    prob[y * xsize + x] /= totalProb;
-  }
-
-  double randomDouble = gameRand.nextDouble() - 1e-8;
-
-  double probSum = 0;
-  for (int x = 0; x < xsize; x++)for (int y = 0; y < ysize; y++)
-  {
-    probSum += prob[y*xsize + x];
-    if (probSum >= randomDouble)
-    {
-      return Location::getLoc(x, y, xsize);
-    }
-  }
-  
-  ASSERT_UNREACHABLE;
-}
-static bool tryInitializeBalancedRandomOpening(
-  Search* botB, Search* botW, Board& board,BoardHistory& hist, Player& nextPlayer,
-  Rand& gameRand,bool forSelfplay) 
-{
-  Board boardCopy(board);
-  BoardHistory histCopy(hist);
-  Player nextPlayerCopy = nextPlayer;
-
-  static const double randomMoveNumProb[] = { 35,30,25,20,15,10,5,1};//NoVC/VC0
-  static const int maxRandomMoveNum = sizeof(randomMoveNumProb)/sizeof(double);
-
-  static const double avgRandomDistFactor = 1.0;
-
-  double randomMoveNumProbTotal = 0;
-  for (int i = 0; i < maxRandomMoveNum; i++)randomMoveNumProbTotal += randomMoveNumProb[i];
-  double randomMoveNumProbSum = 0;
-  double randomMoveNumProbRandomDouble = gameRand.nextDouble() * randomMoveNumProbTotal - 1e-7;
-  int randomMoveNum = -1;
-  for (int i = 0; i < maxRandomMoveNum; i++)
-  {
-    randomMoveNumProbSum += randomMoveNumProb[i];
-    if (randomMoveNumProbSum >= randomMoveNumProbRandomDouble)
-    {
-      randomMoveNum = i;
-      break;
-    }
-  }
-  if (randomMoveNum == -1)ASSERT_UNREACHABLE;
-
-  double avgDist = gameRand.nextExponential() * avgRandomDistFactor;
-  for (int i = 0; i < randomMoveNum; i++)
-  {
-    Loc randomLoc = getRandomNearbyMove(boardCopy, gameRand, avgDist);
-    histCopy.makeBoardMoveAssumeLegal(boardCopy, randomLoc, nextPlayerCopy);
-    if (histCopy.isGameFinished)return false;
-    nextPlayerCopy = getOpp(nextPlayerCopy);
-
-  }
-  Loc balancedMove = getBalanceMove(botB, botW, boardCopy, histCopy, nextPlayerCopy, gameRand,forSelfplay);
-  if (balancedMove==Board::NULL_LOC)return false;
-  histCopy.makeBoardMoveAssumeLegal(boardCopy, balancedMove, nextPlayerCopy);
-  if (histCopy.isGameFinished)return false;
-  nextPlayerCopy = getOpp(nextPlayerCopy);
-
-
-  board = boardCopy;
-  hist = histCopy;
-  nextPlayer = nextPlayerCopy;
-  return true;
-
-}
 static void initializeBalancedRandomOpening(
   Search* botB, Search* botW, Board& board, BoardHistory& hist, Player& nextPlayer,
   Rand& gameRand,bool forSelfplay) 
 {
-  static const int maxTryTimes = 100;
-  int tryTimes = 0;
-  while (!tryInitializeBalancedRandomOpening(
-    botB, botW, board,hist,nextPlayer,
-    gameRand,forSelfplay))
-  {
-    tryTimes++;
-    if (tryTimes > maxTryTimes)
+  std::string openingStrs[] = {
+    ". . . . . . . . . . . . . . . "
+    ". . . . . . . . . . . . . . . "
+    ". . . . . . . . . . . . . . . "
+    ". . . . . . . . . . . . . . . "
+    ". . . . . . . . . . . . . . . "
+    ". . . . . . . . . x . . . . . "
+    ". . . . . . x o o . . . . . . "
+    ". . . . . . . x . . . . . . . "
+    ". . . . . . . . o . . . . . . "
+    ". . . . . . . . . . . . . . . "
+    ". . . . . . . . . . . . . . . "
+    ". . . . . . . . . . . . . . . "
+    ". . . . . . . . . . . . . . . "
+    ". . . . . . . . . . . . . . . "
+    ". . . . . . . . . . . . . . . "
+  
+  };
+
+  const int numOpenings = sizeof(openingStrs)/sizeof(string);
+  int openingID = gameRand.nextUInt(numOpenings);
+  for (int y = 0; y < board.y_size; y++)
+    for (int x = 0; x < board.x_size; x++)
     {
-      tryTimes = 0;
-      cout << "Reached max trying times for finding balanced openings"  << endl;
-      break;
+      int pos = x + y * board.x_size;
+      char c = openingStrs[openingID][2 * pos];
+      Color color = c == 'x' ? C_BLACK : c == 'o' ? C_WHITE : C_EMPTY;
+      Loc loc = Location::getLoc(x, y, board.x_size);
+      if (color!=C_EMPTY&&board.isLegal(loc, color, false))hist.makeBoardMoveAssumeLegal(board,loc, color);
     }
-  }
+
+  if (board.numPlaStonesOnBoard(C_BLACK) > board.numPlaStonesOnBoard(C_WHITE))
+    nextPlayer = C_WHITE;
+  else
+    nextPlayer = C_BLACK;
+
+
 
 }
 
