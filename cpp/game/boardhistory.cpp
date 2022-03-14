@@ -237,15 +237,16 @@ bool BoardHistory::isLegal(const Board& board, Loc moveLoc, Player movePla) cons
 
 
 bool BoardHistory::isLegalTolerant(const Board& board, Loc moveLoc, Player movePla) const {
-  bool multiStoneSuicideLegal = true; //Tolerate suicide regardless of rules
-  if(!board.isLegal(moveLoc,movePla,multiStoneSuicideLegal))
+  if (moveLoc == Board::PASS_LOC)
+    return true;
+  if (!board.isOnBoard(moveLoc))
     return false;
-  return true;
+  return board.colors[moveLoc] == C_EMPTY;
 }
 
 bool BoardHistory::makeBoardMoveTolerant(Board& board, Loc moveLoc, Player movePla) {
-  bool multiStoneSuicideLegal = true; //Tolerate suicide regardless of rules
-  if(!board.isLegal(moveLoc,movePla,multiStoneSuicideLegal))
+  
+  if(!isLegalTolerant(board,moveLoc,movePla))
     return false;
   makeBoardMoveAssumeLegal(board,moveLoc,movePla);
   return true;
