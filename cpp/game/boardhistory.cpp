@@ -183,17 +183,8 @@ void BoardHistory::setKomi(float newKomi) {
 
 
 
-float BoardHistory::whiteKomiAdjustmentForDraws(double drawEquivalentWinsForWhite) const {
-  //We fold the draw utility into the komi, for input into things like the neural net.
-  //Basically we model it as if the final score were jittered by a uniform draw from [-0.5,0.5].
-  //E.g. if komi from self perspective is 7 and a draw counts as 0.75 wins and 0.25 losses,
-  //then komi input should be as if it was 7.25, which in a jigo game when jittered by 0.5 gives white 75% wins and 25% losses.
-  float drawAdjustment = rules.gameResultWillBeInteger() ? (float)(drawEquivalentWinsForWhite - 0.5) : 0.0f;
-  return drawAdjustment;
-}
-
-float BoardHistory::currentSelfKomi(Player pla, double drawEquivalentWinsForWhite) const {
-  float whiteKomiAdjusted =  rules.komi + whiteKomiAdjustmentForDraws(drawEquivalentWinsForWhite);
+float BoardHistory::currentSelfKomi(Player pla) const {
+  float whiteKomiAdjusted = rules.komi;
 
   if(pla == P_WHITE)
     return whiteKomiAdjusted;
@@ -310,14 +301,14 @@ void BoardHistory::maybeFinishGame(Board& board,Player lastPla,Loc lastLoc)
 }
 
 
-Hash128 BoardHistory::getSituationRulesHash(const Board& board, const BoardHistory& hist, Player nextPlayer, double drawEquivalentWinsForWhite) {
+Hash128 BoardHistory::getSituationRulesHash(const Board& board, const BoardHistory& hist, Player nextPlayer, double noResultUtilityForWhite) {
  
   //Note that board.pos_hash also incorporates the size of the board.
   Hash128 hash = board.pos_hash;
   hash ^= Board::ZOBRIST_PLAYER_HASH[nextPlayer];
 
 
-  float selfKomi = hist.currentSelfKomi(nextPlayer,drawEquivalentWinsForWhite);
+  float selfKomi = hist.currentSelfKomi(nextPlayer);
 
   //Discretize the komi for the purpose of matching hash
   int64_t komiDiscretized = (int64_t)(selfKomi*256.0f);
@@ -326,7 +317,13 @@ Hash128 BoardHistory::getSituationRulesHash(const Board& board, const BoardHisto
   hash.hash1 ^= Hash::basicLCong(komiHash);
 
   //Fold in the ko, scoring, and suicide rules
-  hash ^= Rules::ZOBRIST_BASIC_RULE_HASH[hist.rules.basicRule];
+  hash ^= getPassnumHash(hist);
+  hash ^= getRulesHash(hist.rules);
 
   return hash;
+}
+
+Hash128 BoardHistory::getRulesHash(Rules rule)
+{
+  return Hash128();
 }

@@ -261,7 +261,7 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     allowedBasicRules.push_back(Rules::parseBasicRule(allowedBasicRuleStrs[i]));
 
   if(allowedBasicRules.size() <= 0)
-    throw IOError("taxRules must have at least one value in " + cfg.getFileName());
+    throw IOError("basicRules must have at least one value in " + cfg.getFileName());
 
   allowedBSizes = cfg.getInts("bSizes", 2, Board::MAX_LEN);
   allowedBSizeRelProbs = cfg.getDoubles("bSizeRelProbs",0.0,1e100);
@@ -487,14 +487,6 @@ void GameInitializer::createGame(
     params.noResultUtilityForWhite = mean + noResultStdev * rand.nextGaussianTruncated(3.0);
     while(params.noResultUtilityForWhite < -1.0 || params.noResultUtilityForWhite > 1.0)
       params.noResultUtilityForWhite = mean + noResultStdev * rand.nextGaussianTruncated(3.0);
-  }
-  if(drawRandRadius > 1e-30) {
-    double mean = params.drawEquivalentWinsForWhite;
-    if(mean < 0.0 || mean > 1.0)
-      throw StringError("GameInitializer: params.drawEquivalentWinsForWhite not within [0,1]: " + Global::doubleToString(mean));
-    params.drawEquivalentWinsForWhite = mean + drawRandRadius * (rand.nextDouble() * 2 - 1);
-    while(params.drawEquivalentWinsForWhite < 0.0 || params.drawEquivalentWinsForWhite > 1.0)
-      params.drawEquivalentWinsForWhite = mean + drawRandRadius * (rand.nextDouble() * 2 - 1);
   }
 }
 
@@ -1751,7 +1743,7 @@ FinishedGameData* Play::runGame(
       //Although in practice actually the training normally weights by having a result or not, so it doesn't matter what we fill.
     }
     else if (hist.isGameFinished) {
-      finalValueTargets.win = (float)ScoreValue::whiteWinsOfWinner(hist.winner, botSpecB.baseParams.drawEquivalentWinsForWhite);
+      finalValueTargets.win = (float)ScoreValue::whiteWinsOfWinner(hist.winner, 0.5);
       finalValueTargets.loss = 1.0f - finalValueTargets.win;
       finalValueTargets.noResult = 0.0f;
       finalValueTargets.score = 0.0f;

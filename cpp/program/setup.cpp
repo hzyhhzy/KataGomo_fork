@@ -404,9 +404,6 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("noResultUtilityForWhite"+idxStr)) params.noResultUtilityForWhite = cfg.getDouble("noResultUtilityForWhite"+idxStr, -1.0, 1.0);
     else if(cfg.contains("noResultUtilityForWhite"))   params.noResultUtilityForWhite = cfg.getDouble("noResultUtilityForWhite",        -1.0, 1.0);
     else                                               params.noResultUtilityForWhite = 0.0;
-    if(cfg.contains("drawEquivalentWinsForWhite"+idxStr)) params.drawEquivalentWinsForWhite = cfg.getDouble("drawEquivalentWinsForWhite"+idxStr, 0.0, 1.0);
-    else if(cfg.contains("drawEquivalentWinsForWhite"))   params.drawEquivalentWinsForWhite = cfg.getDouble("drawEquivalentWinsForWhite",        0.0, 1.0);
-    else                                                  params.drawEquivalentWinsForWhite = 0.5;
 
     if(cfg.contains("dynamicScoreCenterZeroWeight"+idxStr)) params.dynamicScoreCenterZeroWeight = cfg.getDouble("dynamicScoreCenterZeroWeight"+idxStr, 0.0, 1.0);
     else if(cfg.contains("dynamicScoreCenterZeroWeight"))   params.dynamicScoreCenterZeroWeight = cfg.getDouble("dynamicScoreCenterZeroWeight",        0.0, 1.0);

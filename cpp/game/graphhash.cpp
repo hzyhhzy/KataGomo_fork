@@ -1,8 +1,8 @@
 #include "../game/graphhash.h"
 
-Hash128 GraphHash::getStateHash(const BoardHistory& hist, Player nextPlayer, double drawEquivalentWinsForWhite) {
+Hash128 GraphHash::getStateHash(const BoardHistory& hist, Player nextPlayer, double noResultUtilityForWhite) {
   const Board& board = hist.getRecentBoard(0);
-  Hash128 hash = BoardHistory::getSituationRulesHash(board, hist, nextPlayer, drawEquivalentWinsForWhite);
+  Hash128 hash = BoardHistory::getSituationRulesHash(board, hist, nextPlayer, noResultUtilityForWhite);
 
   // Fold in whether the game is over or not
   if(hist.isGameFinished)
@@ -16,13 +16,13 @@ Hash128 GraphHash::getStateHash(const BoardHistory& hist, Player nextPlayer, dou
   return hash;
 }
 
-Hash128 GraphHash::getGraphHash(Hash128 prevGraphHash, const BoardHistory& hist, Player nextPlayer, int repBound, double drawEquivalentWinsForWhite) {
+Hash128 GraphHash::getGraphHash(Hash128 prevGraphHash, const BoardHistory& hist, Player nextPlayer, int repBound, double noResultUtilityForWhite) {
   (void)prevGraphHash;
   (void)repBound;
-  return getStateHash(hist,nextPlayer,drawEquivalentWinsForWhite);
+  return getStateHash(hist,nextPlayer,noResultUtilityForWhite);
 }
 
-Hash128 GraphHash::getGraphHashFromScratch(const BoardHistory& histOrig, Player nextPlayer, int repBound, double drawEquivalentWinsForWhite) {
+Hash128 GraphHash::getGraphHashFromScratch(const BoardHistory& histOrig, Player nextPlayer, int repBound, double noResultUtilityForWhite) {
  // BoardHistory hist = histOrig.copyToInitial();
  // Board board = hist.getRecentBoard(0);
  // Hash128 graphHash = Hash128();
@@ -37,7 +37,7 @@ Hash128 GraphHash::getGraphHashFromScratch(const BoardHistory& histOrig, Player 
  //   BoardHistory::getSituationRulesAndKoHash(histOrig.getRecentBoard(0), histOrig, nextPlayer, drawEquivalentWinsForWhite)
  // );
   (void)repBound;
-  Hash128 graphHash = getGraphHash(Hash128(), histOrig, nextPlayer, repBound, drawEquivalentWinsForWhite);
+  Hash128 graphHash = getGraphHash(Hash128(), histOrig, nextPlayer, repBound, noResultUtilityForWhite);
   return graphHash;
 }
 

@@ -8,11 +8,26 @@
 
 struct Rules {
 
-  //taxRule不删只是为了给之后新增规则留下个模板
   static const int BASICRULE_FREESTYLE = 0;
   static const int BASICRULE_STANDARD = 1;
   static const int BASICRULE_RENJU = 2;
   int basicRule;
+
+  static const int VCNRULE_NONE = 0;
+  static const int VCNRULE_VC1_B = 1;
+  static const int VCNRULE_VC2_B = 2;
+  static const int VCNRULE_VC3_B = 3;
+  static const int VCNRULE_VC4_B = 4;
+  static const int VCNRULE_VC1_W = 11;
+  static const int VCNRULE_VC2_W = 12;
+  static const int VCNRULE_VC3_W = 13;
+  static const int VCNRULE_VC4_W = 14;
+  static_assert(VCNRULE_VC1_W == VCNRULE_VC1_B + 10,"Ensure VCNRule%10==N, VCNRule/10+1==color"); 
+  int VCNRule;
+
+  bool firstPassWin;//和棋的时候，先pass的获胜
+
+  int maxMoves;//达到最大步数直接和棋，0不限制
 
 
   float komi;
@@ -23,6 +38,9 @@ struct Rules {
   Rules();
   Rules(
     int basicRule,
+    int VCNRule,
+    bool firstPassWin,
+    int maxMoves,
     float komi
   );
   ~Rules();
@@ -30,14 +48,16 @@ struct Rules {
   bool operator==(const Rules& other) const;
   bool operator!=(const Rules& other) const;
 
-  bool equalsIgnoringKomi(const Rules& other) const;
-  bool gameResultWillBeInteger() const;
+  static std::set<std::string> basicRuleStrings();
+  static std::set<std::string> VCNRuleStrings();
 
   static Rules getTrompTaylorish();
 
-  static std::set<std::string> basicRuleStrings();
-  static int parseBasicRule(const std::string& s);
+  static int parseBasicRule(std::string s);
   static std::string writeBasicRule(int basicRule);
+
+  static int parseVCNRule(std::string s);
+  static std::string writeVCNRule(int VCNRule);
 
   static bool komiIsIntOrHalfInt(float komi);
 
@@ -50,8 +70,6 @@ struct Rules {
 
   friend std::ostream& operator<<(std::ostream& out, const Rules& rules);
   std::string toString() const;
-  std::string toStringNoKomi() const;
-  std::string toStringNoKomiMaybeNice() const;
   std::string toJsonString() const;
   std::string toJsonStringNoKomi() const;
   std::string toJsonStringNoKomiMaybeOmitStuff() const;
@@ -60,6 +78,9 @@ struct Rules {
   nlohmann::json toJsonNoKomiMaybeOmitStuff() const;
 
   static const Hash128 ZOBRIST_BASIC_RULE_HASH[3];
+  static const Hash128 ZOBRIST_VCNRULE_HASH_BASE;
+  static const Hash128 ZOBRIST_FIRSTPASSWIN_HASH;
+  static const Hash128 ZOBRIST_MAXMOVES_HASH_BASE;
 
 private:
   nlohmann::json toJsonHelper(bool omitKomi, bool omitDefaults) const;

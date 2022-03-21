@@ -1196,9 +1196,9 @@ int MainCmds::gtp(const vector<string>& args) {
   //Defaults to 7.5 komi, gtp will generally override this
   const bool loadKomiFromCfg = false;
   Rules initialRules = Setup::loadSingleRules(cfg,loadKomiFromCfg);
-  logger.write("Using " + initialRules.toStringNoKomiMaybeNice() + " rules initially, unless GTP/GUI overrides this");
+  logger.write("Using " + initialRules.toString() + " rules initially, unless GTP/GUI overrides this");
   if(startupPrintMessageToStderr && !loggingToStderr) {
-    cerr << "Using " + initialRules.toStringNoKomiMaybeNice() + " rules initially, unless GTP/GUI overrides this" << endl;
+    cerr << "Using " + initialRules.toString() + " rules initially, unless GTP/GUI overrides this" << endl;
   }
   bool isForcingKomi = false;
   float forcedKomi = 0;
@@ -1507,9 +1507,9 @@ int MainCmds::gtp(const vector<string>& args) {
           responseIsError = true;
           response = error;
         }
-        logger.write("Changed rules to " + newRules.toStringNoKomiMaybeNice());
+        logger.write("Changed rules to " + newRules.toString());
         if(!loggingToStderr)
-          cerr << "Changed rules to " + newRules.toStringNoKomiMaybeNice() << endl;
+          cerr << "Changed rules to " + newRules.toString() << endl;
       }
     }
 
@@ -1537,9 +1537,9 @@ int MainCmds::gtp(const vector<string>& args) {
             responseIsError = true;
             response = error;
           }
-          logger.write("Changed rules to " + newRules.toStringNoKomiMaybeNice());
+          logger.write("Changed rules to " + newRules.toString());
           if(!loggingToStderr)
-            cerr << "Changed rules to " + newRules.toStringNoKomiMaybeNice() << endl;
+            cerr << "Changed rules to " + newRules.toString() << endl;
         }
       }
     }
@@ -1581,9 +1581,9 @@ int MainCmds::gtp(const vector<string>& args) {
           responseIsError = true;
           response = error;
         }
-        logger.write("Changed rules to " + newRules.toStringNoKomiMaybeNice());
+        logger.write("Changed rules to " + newRules.toString());
         if(!loggingToStderr)
-          cerr << "Changed rules to " + newRules.toStringNoKomiMaybeNice() << endl;
+          cerr << "Changed rules to " + newRules.toString() << endl;
       }
     }
 

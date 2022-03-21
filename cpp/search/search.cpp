@@ -918,7 +918,7 @@ void Search::computeRootValues() {
 
   //If we're using graph search, we recompute the graph hash from scratch at the start of search.
   if(searchParams.useGraphSearch)
-    rootGraphHash = GraphHash::getGraphHashFromScratch(rootHistory, rootPla, searchParams.graphSearchRepBound, searchParams.drawEquivalentWinsForWhite);
+    rootGraphHash = GraphHash::getGraphHashFromScratch(rootHistory, rootPla, searchParams.graphSearchRepBound, searchParams.noResultUtilityForWhite);
   else
     rootGraphHash = Hash128();
 
@@ -978,7 +978,7 @@ bool Search::playoutDescend(
       return true;
     }
     else {
-      double winLossValue = 2.0 * ScoreValue::whiteWinsOfWinner(thread.history.winner, searchParams.drawEquivalentWinsForWhite) - 1;
+      double winLossValue = 2.0 * ScoreValue::whiteWinsOfWinner(thread.history.winner, 0.5) - 1;
       double noResultValue = 0.0;
       double scoreMean = thread.history.finalWhiteMinusBlackScore;
       double scoreMeanSq = thread.history.finalWhiteMinusBlackScore*thread.history.finalWhiteMinusBlackScore;
@@ -1104,7 +1104,7 @@ bool Search::playoutDescend(
       thread.pla = getOpp(thread.pla);
       if(searchParams.useGraphSearch)
         thread.graphHash = GraphHash::getGraphHash(
-          thread.graphHash, thread.history, thread.pla, searchParams.graphSearchRepBound, searchParams.drawEquivalentWinsForWhite
+          thread.graphHash, thread.history, thread.pla, searchParams.graphSearchRepBound, searchParams.noResultUtilityForWhite
         );
 
       //If conservative pass, passing from the root is always non-terminal
@@ -1161,7 +1161,7 @@ bool Search::playoutDescend(
       thread.pla = getOpp(thread.pla);
       if(searchParams.useGraphSearch)
         thread.graphHash = GraphHash::getGraphHash(
-          thread.graphHash, thread.history, thread.pla, searchParams.graphSearchRepBound, searchParams.drawEquivalentWinsForWhite
+          thread.graphHash, thread.history, thread.pla, searchParams.graphSearchRepBound, searchParams.noResultUtilityForWhite
         );
     }
 
