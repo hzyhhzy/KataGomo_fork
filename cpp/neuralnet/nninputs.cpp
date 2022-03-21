@@ -619,7 +619,7 @@ void NNInputs::fillRowV7(
 
 
   bool hasForbiddenFeature = nnInputParams.useForbiddenInput&&hist.rules.basicRule == Rules::BASICRULE_RENJU;
-  rowGlobal[5] = hasForbiddenFeature;
+  rowGlobal[6] = hasForbiddenFeature;
 
   CForbiddenPointFinder fpf(board.x_size);
   if (hasForbiddenFeature)
