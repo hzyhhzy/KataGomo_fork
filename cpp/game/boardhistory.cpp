@@ -11,6 +11,8 @@ BoardHistory::BoardHistory()
    initialBoard(),
    initialPla(P_BLACK),
    initialTurnNumber(0),
+   blackPassNum(0),
+   whitePassNum(0),
    recentBoards(),
    currentRecentBoardIdx(0),
    presumedNextMovePla(P_BLACK),
@@ -28,6 +30,8 @@ BoardHistory::BoardHistory(const Board& board, Player pla, const Rules& r)
    initialBoard(),
    initialPla(),
    initialTurnNumber(0),
+   blackPassNum(0),
+   whitePassNum(0),
    recentBoards(),
    currentRecentBoardIdx(0),
    presumedNextMovePla(pla),
@@ -44,6 +48,8 @@ BoardHistory::BoardHistory(const BoardHistory& other)
    initialBoard(other.initialBoard),
    initialPla(other.initialPla),
    initialTurnNumber(other.initialTurnNumber),
+   blackPassNum(other.blackPassNum),
+   whitePassNum(other.whitePassNum),
    recentBoards(),
    currentRecentBoardIdx(other.currentRecentBoardIdx),
    presumedNextMovePla(other.presumedNextMovePla),
@@ -63,6 +69,8 @@ BoardHistory& BoardHistory::operator=(const BoardHistory& other)
   initialBoard = other.initialBoard;
   initialPla = other.initialPla;
   initialTurnNumber = other.initialTurnNumber;
+  blackPassNum = other.blackPassNum;
+  whitePassNum = other.whitePassNum;
   std::copy(other.recentBoards, other.recentBoards+NUM_RECENT_BOARDS, recentBoards);
   currentRecentBoardIdx = other.currentRecentBoardIdx;
   presumedNextMovePla = other.presumedNextMovePla;
@@ -82,6 +90,8 @@ BoardHistory::BoardHistory(BoardHistory&& other) noexcept
   initialBoard(other.initialBoard),
   initialPla(other.initialPla),
   initialTurnNumber(other.initialTurnNumber),
+  blackPassNum(other.blackPassNum),
+  whitePassNum(other.whitePassNum),
   recentBoards(),
   currentRecentBoardIdx(other.currentRecentBoardIdx),
   presumedNextMovePla(other.presumedNextMovePla),
@@ -98,6 +108,8 @@ BoardHistory& BoardHistory::operator=(BoardHistory&& other) noexcept
   initialBoard = other.initialBoard;
   initialPla = other.initialPla;
   initialTurnNumber = other.initialTurnNumber;
+  blackPassNum = other.blackPassNum;
+  whitePassNum = other.whitePassNum;
   std::copy(other.recentBoards, other.recentBoards+NUM_RECENT_BOARDS, recentBoards);
   currentRecentBoardIdx = other.currentRecentBoardIdx;
   presumedNextMovePla = other.presumedNextMovePla;
@@ -118,6 +130,8 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r) {
   initialBoard = board;
   initialPla = pla;
   initialTurnNumber = 0;
+  blackPassNum = 0;
+  whitePassNum = 0;
 
   //This makes it so that if we ask for recent boards with a lookback beyond what we have a history for,
   //we simply return copies of the starting board.
@@ -196,6 +210,11 @@ float BoardHistory::currentSelfKomi(Player pla) const {
   }
 }
 
+int BoardHistory::getMovenum() const
+{
+  return initialTurnNumber+moveHistory.size();
+}
+
 void BoardHistory::setWinnerByResignation(Player pla) {
   isGameFinished = true;
   isScored = false;
@@ -257,6 +276,13 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   //Otherwise handle regular moves
   board.playMoveAssumeLegal(moveLoc,movePla);
 
+  if (moveLoc == Board::PASS_LOC)
+  {
+    if (movePla == C_BLACK)
+      blackPassNum++;
+    if (movePla == C_WHITE)
+      whitePassNum++;
+  }
   
 
   //Update recent boards
@@ -271,12 +297,54 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
 
 void BoardHistory::maybeFinishGame(Board& board,Player lastPla,Loc lastLoc)
 {
+
+  if ((rules.maxMoves != 0 || rules.VCNRule != Rules::VCNRULE_NOVC) && rules.firstPassWin)
+  {
+    throw StringError("BoardHistory::maybeFinishGame This rule is not supported");
+  }
+
+
+  Player opp = getOpp(lastPla);
+  int myPassNum = lastPla == C_BLACK ? blackPassNum : whitePassNum;
+  int oppPassNum = lastPla == C_WHITE ? blackPassNum : whitePassNum;
+
   if (lastLoc == Board::PASS_LOC)
   {
-    setWinner(getOpp(lastPla));
-    return;
+    if (rules.VCNRule == Rules::VCNRULE_NOVC)
+    {
+      if (oppPassNum > 0)
+      {
+        if (!rules.firstPassWin)//常规和棋
+        {
+          setWinner(C_EMPTY); return;
+        }
+        else//对方先pass
+        {
+          setWinner(opp); return;
+        }
+      }
+    }
+    else
+    {
+      static_assert(Rules::VCNRULE_VC1_W == Rules::VCNRULE_VC1_B + 10,"Ensure VCNRule%10==N, VCNRule/10+1==color"); 
+      Color VCside = 1 + rules.VCNRule / 10;
+      int VClevel = rules.VCNRule % 10;
+
+      if(VCside==lastPla)//VCN不允许己方pass
+      {
+        setWinner(opp); return;
+      }
+      else//pass次数足够则判胜
+      {
+        if (myPassNum >= 6 - VClevel)
+        {
+          setWinner(lastPla); return;
+        }
+      }
+    }
   }
-  if (rules.basicRule==Rules::BASICRULE_RENJU && lastPla == C_BLACK)
+
+  if (rules.basicRule==Rules::BASICRULE_RENJU && lastPla == C_BLACK)//禁手判定
   {
     if (board.isForbiddenAlreadyPlayed(lastLoc))
     {
@@ -284,6 +352,8 @@ void BoardHistory::maybeFinishGame(Board& board,Player lastPla,Loc lastLoc)
       return;
     }
   }
+
+  //连五判定
   bool isSixWin =
     rules.basicRule==Rules::BASICRULE_FREESTYLE ? true :
     rules.basicRule==Rules::BASICRULE_STANDARD ? false :
@@ -293,10 +363,22 @@ void BoardHistory::maybeFinishGame(Board& board,Player lastPla,Loc lastLoc)
     setWinner(lastPla);
     return;
   }
-  if (board.numStonesOnBoard() >= board.x_size * board.y_size - 10)
+
+  //maxmoves判定
+  if (rules.maxMoves!=0 && getMovenum()>=rules.maxMoves)
   {
-    setWinner(C_EMPTY);
-    return;
+    if (rules.VCNRule == Rules::VCNRULE_NOVC)
+    {
+      setWinner(C_EMPTY);
+      return;
+    }
+    else //和棋判进攻方负
+    {
+      static_assert(Rules::VCNRULE_VC1_W == Rules::VCNRULE_VC1_B + 10,"Ensure VCNRule%10==N, VCNRule/10+1==color"); 
+      Color VCside = 1 + rules.VCNRule / 10;
+      setWinner(getOpp(VCside));
+      return;
+    }
   }
 }
 
@@ -317,13 +399,27 @@ Hash128 BoardHistory::getSituationRulesHash(const Board& board, const BoardHisto
   hash.hash1 ^= Hash::basicLCong(komiHash);
 
   //Fold in the ko, scoring, and suicide rules
-  hash ^= getPassnumHash(hist);
-  hash ^= getRulesHash(hist.rules);
+  hash ^= hist.getPassnumHash();
+  hash ^= hist.getRulesHash();
 
   return hash;
 }
 
-Hash128 BoardHistory::getRulesHash(Rules rule)
+Hash128 BoardHistory::getPassnumHash() const
 {
-  return Hash128();
+  Hash128 hash=Hash128();
+  hash ^= Hash128::mixInt(Rules::ZOBRIST_PASSNUM_B_HASH_BASE, blackPassNum);
+  hash ^= Hash128::mixInt(Rules::ZOBRIST_PASSNUM_W_HASH_BASE, whitePassNum);
+  return hash;
+}
+
+Hash128 BoardHistory::getRulesHash() const
+{
+  Hash128 hash=Hash128();
+  hash ^= Rules::ZOBRIST_BASIC_RULE_HASH[rules.basicRule];
+  hash ^= Hash128::mixInt(Rules::ZOBRIST_VCNRULE_HASH_BASE,rules.VCNRule);
+  hash ^= Hash128::mixInt(Rules::ZOBRIST_MAXMOVES_HASH_BASE,rules.maxMoves);
+  if(rules.firstPassWin)
+    hash ^= Rules::ZOBRIST_FIRSTPASSWIN_HASH;
+  return hash;
 }

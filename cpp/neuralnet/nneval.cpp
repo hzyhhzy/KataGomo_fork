@@ -654,9 +654,11 @@ void NNEvaluator::evaluate(
         throw StringError("Cannot reuse an nnResultBuf with different dimensions or model version");
     }
 
-    static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
+    static_assert(NNModelVersion::latestInputsVersionImplemented == 101, "");
     if(inputsVersion == 7)
       NNInputs::fillRowV7(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
+    else if(inputsVersion == 101)
+        NNInputs::fillRowV101(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
     else
       ASSERT_UNREACHABLE;
   }
@@ -719,7 +721,6 @@ void NNEvaluator::evaluate(
     float maxPolicy = -1e25f;
     bool isLegal[NNPos::MAX_NN_POLICY_SIZE];
     int legalCount = 0;
-    //if(false)
     if (nnInputParams.resultbeforenn.myOnlyLoc == Board::NULL_LOC)
     {
       for (int i = 0; i < policySize; i++) {
@@ -733,6 +734,7 @@ void NNEvaluator::evaluate(
         isLegal[i] = false;
       }
       isLegal[NNPos::locToPos(nnInputParams.resultbeforenn.myOnlyLoc, xSize, nnXLen, nnYLen)] = true;
+      isLegal[NNPos::locToPos(Board::PASS_LOC, xSize, nnXLen, nnYLen)] = true;
     }
 
 
@@ -787,8 +789,8 @@ void NNEvaluator::evaluate(
 
     //Fix up the value as well. Note that the neural net gives us back the value from the perspective
     //of the player so we need to negate that to make it the white value.
-    static_assert(NNModelVersion::latestModelVersionImplemented == 10, "");
-    if(modelVersion >= 4 && modelVersion <= 10) {
+    static_assert(NNModelVersion::latestModelVersionImplemented == 101, "");
+    if(modelVersion >= 4 && modelVersion <= 101) {
       double winProb;
       double lossProb;
       double noResultProb;
@@ -914,7 +916,7 @@ void NNEvaluator::evaluate(
 
   //Postprocess ownermap
   if(buf.result->whiteOwnerMap != NULL) {
-    if(modelVersion >= 3 && modelVersion <= 10) {
+    if(modelVersion >= 3 && modelVersion <= 101) {
       for(int pos = 0; pos<nnXLen*nnYLen; pos++) {
         int y = pos / nnXLen;
         int x = pos % nnXLen;

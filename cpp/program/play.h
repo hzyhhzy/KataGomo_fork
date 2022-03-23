@@ -97,7 +97,6 @@ class GameInitializer {
     const Sgf::PositionSample* startPosSample
   );
 
-  Rules randomizeBasicRules(Rules rules, Rand& randToUse) const;
 
   //Only sample the space of possible rules
   Rules createRules();
@@ -126,6 +125,10 @@ class GameInitializer {
 
   std::vector<std::string> allowedBasicRuleStrs;
   std::vector<int> allowedBasicRules;
+  std::vector<std::string> allowedVCNRuleStrs;
+  std::vector<int> allowedVCNRules;
+  std::vector<bool> allowedFirstPassWinRules;
+  double moveLimitProb;
 
   std::vector<int> allowedBSizes;
   std::vector<double> allowedBSizeRelProbs;

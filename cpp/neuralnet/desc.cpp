@@ -1134,13 +1134,17 @@ void ModelDesc::loadFromFileMaybeGZipped(const string& fileName, ModelDesc& desc
 
 
 Rules ModelDesc::getSupportedRules(const Rules& desiredRules, bool& supported) const {
-  static_assert(NNModelVersion::latestModelVersionImplemented == 10, "");
+  static_assert(NNModelVersion::latestModelVersionImplemented == 101, "");
   Rules rules = desiredRules;
   supported = true;
   if(version <= 6) {
       supported = false;
   }
   else if(version <= 10) {
+    supported = (rules.firstPassWin == false) && (rules.VCNRule == Rules::VCNRULE_NOVC) && (rules.maxMoves == 0);
+  }
+  else if(version <= 101) {
+    supported = !((desiredRules.maxMoves != 0 || desiredRules.VCNRule != Rules::VCNRULE_NOVC) && desiredRules.firstPassWin);
   }
   else {
     ASSERT_UNREACHABLE;

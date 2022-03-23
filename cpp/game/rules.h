@@ -13,7 +13,7 @@ struct Rules {
   static const int BASICRULE_RENJU = 2;
   int basicRule;
 
-  static const int VCNRULE_NONE = 0;
+  static const int VCNRULE_NOVC = 0;
   static const int VCNRULE_VC1_B = 1;
   static const int VCNRULE_VC2_B = 2;
   static const int VCNRULE_VC3_B = 3;
@@ -81,6 +81,8 @@ struct Rules {
   static const Hash128 ZOBRIST_VCNRULE_HASH_BASE;
   static const Hash128 ZOBRIST_FIRSTPASSWIN_HASH;
   static const Hash128 ZOBRIST_MAXMOVES_HASH_BASE;
+  static const Hash128 ZOBRIST_PASSNUM_B_HASH_BASE;
+  static const Hash128 ZOBRIST_PASSNUM_W_HASH_BASE;
 
 private:
   nlohmann::json toJsonHelper(bool omitKomi, bool omitDefaults) const;

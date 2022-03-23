@@ -15,6 +15,8 @@
 //8 = V7 features, unbalanced training, button go, lead and variance time
 //9 = V7 features, shortterm value error
 //10 = V7 features, shortterm value error done more properly
+// 
+//101 = 10 + more features
 
 static void fail(int modelVersion) {
   throw StringError("NNModelVersion: Model version not currently implemented or supported: " + Global::intToString(modelVersion));
@@ -22,8 +24,8 @@ static void fail(int modelVersion) {
 
 static_assert(NNModelVersion::oldestModelVersionImplemented == 3, "");
 static_assert(NNModelVersion::oldestInputsVersionImplemented == 3, "");
-static_assert(NNModelVersion::latestModelVersionImplemented == 10, "");
-static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
+static_assert(NNModelVersion::latestModelVersionImplemented == 101, "");
+static_assert(NNModelVersion::latestInputsVersionImplemented == 101, "");
 
 int NNModelVersion::getInputsVersion(int modelVersion) {
   if(modelVersion == 3 || modelVersion == 4)
@@ -36,6 +38,8 @@ int NNModelVersion::getInputsVersion(int modelVersion) {
     return 6;
   else if(modelVersion == 8 || modelVersion == 9 || modelVersion == 10)
     return 7;
+  else if(modelVersion == 101)
+    return 101;
 
   fail(modelVersion);
   return -1;
@@ -44,6 +48,8 @@ int NNModelVersion::getInputsVersion(int modelVersion) {
 int NNModelVersion::getNumSpatialFeatures(int modelVersion) {
   if(modelVersion == 8 || modelVersion == 9 || modelVersion == 10)
     return NNInputs::NUM_FEATURES_SPATIAL_V7;
+  else if(modelVersion == 101)
+    return NNInputs::NUM_FEATURES_SPATIAL_V101;
 
   fail(modelVersion);
   return -1;
@@ -52,6 +58,8 @@ int NNModelVersion::getNumSpatialFeatures(int modelVersion) {
 int NNModelVersion::getNumGlobalFeatures(int modelVersion) {
   if(modelVersion == 8 || modelVersion == 9 || modelVersion == 10)
     return NNInputs::NUM_FEATURES_GLOBAL_V7;
+  else if(modelVersion == 101)
+    return NNInputs::NUM_FEATURES_GLOBAL_V101;
 
   fail(modelVersion);
   return -1;

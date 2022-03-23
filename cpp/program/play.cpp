@@ -263,6 +263,20 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
   if(allowedBasicRules.size() <= 0)
     throw IOError("basicRules must have at least one value in " + cfg.getFileName());
 
+  allowedVCNRuleStrs = cfg.getStrings("VCNRules", Rules::VCNRuleStrings());
+
+  for(size_t i = 0; i < allowedVCNRuleStrs.size(); i++)
+    allowedVCNRules.push_back(Rules::parseVCNRule(allowedVCNRuleStrs[i]));
+
+  if(allowedVCNRules.size() <= 0)
+    throw IOError("VCNRules must have at least one value in " + cfg.getFileName());
+
+  allowedFirstPassWinRules = cfg.getBools("firstPassWinRules");
+  if(allowedFirstPassWinRules.size() <= 0)
+    throw IOError("firstPassWinRules must have at least one value in " + cfg.getFileName());
+
+  moveLimitProb=cfg.contains("moveLimitProb") ? cfg.getDouble("moveLimitProb",0.0,1.0) : 0.0;
+
   allowedBSizes = cfg.getInts("bSizes", 2, Board::MAX_LEN);
   allowedBSizeRelProbs = cfg.getDoubles("bSizeRelProbs",0.0,1e100);
 
@@ -490,12 +504,6 @@ void GameInitializer::createGame(
   }
 }
 
-Rules GameInitializer::randomizeBasicRules(Rules rules, Rand& randToUse) const {
-  rules.basicRule = allowedBasicRules[randToUse.nextUInt(allowedBasicRules.size())];
-
-
-  return rules;
-}
 
 bool GameInitializer::isAllowedBSize(int xSize, int ySize) {
   if(!contains(allowedBSizes,xSize))
@@ -531,6 +539,11 @@ Rules GameInitializer::createRules() {
 Rules GameInitializer::createRulesUnsynchronized() {
   Rules rules;
   rules.basicRule = allowedBasicRules[rand.nextUInt(allowedBasicRules.size())];
+  rules.VCNRule = allowedVCNRules[rand.nextUInt(allowedVCNRules.size())];
+  if (rules.VCNRule == Rules::VCNRULE_NOVC)
+    rules.firstPassWin = allowedFirstPassWinRules[rand.nextUInt(allowedFirstPassWinRules.size())];
+  else
+    rules.firstPassWin = false;
   return rules;
 }
 
@@ -573,6 +586,7 @@ void GameInitializer::createGameSharedUnsynchronized(
 
   Rules rules = createRulesUnsynchronized();
 
+  
   const Sgf::PositionSample* posSample = NULL;
   if(startPosSample != NULL)
     posSample = startPosSample;
@@ -629,6 +643,14 @@ void GameInitializer::createGameSharedUnsynchronized(
   else {
     int xSize = allowedBSizes[xSizeIdx];
     int ySize = allowedBSizes[ySizeIdx];
+    if (!hist.rules.firstPassWin && rand.nextBool(moveLimitProb))
+    {
+      int maxMoves = rand.nextExponential()*30+30-rand.nextExponential()*10;
+      if (maxMoves > xSize * ySize - 5)maxMoves = 0;
+      if (maxMoves < 5)maxMoves = 0;
+      rules.maxMoves = maxMoves;
+    }
+
     board = Board(xSize,ySize);
     pla = P_BLACK;
     hist.clear(board,pla,rules);

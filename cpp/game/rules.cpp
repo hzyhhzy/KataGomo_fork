@@ -9,7 +9,7 @@ using json = nlohmann::json;
 
 Rules::Rules() {
   basicRule = BASICRULE_FREESTYLE;
-  VCNRule = VCNRULE_NONE;
+  VCNRule = VCNRULE_NOVC;
   firstPassWin = false;
   maxMoves = 0;
   komi = 0.0f;
@@ -84,7 +84,7 @@ string Rules::writeBasicRule(int basicRule) {
 
 int Rules::parseVCNRule(string s) {
   s=Global::toLower(s);
-  if(s == "novc") return Rules::VCNRULE_NONE;
+  if(s == "novc") return Rules::VCNRULE_NOVC;
   else if(s == "vc1b") return Rules::VCNRULE_VC1_B;
   else if(s == "vc2b") return Rules::VCNRULE_VC2_B;
   else if(s == "vc3b") return Rules::VCNRULE_VC3_B;
@@ -101,7 +101,7 @@ int Rules::parseVCNRule(string s) {
 }
 
 string Rules::writeVCNRule(int VCNRule) {
-  if(VCNRule == Rules::VCNRULE_NONE) return string("NOVC");
+  if(VCNRule == Rules::VCNRULE_NOVC) return string("NOVC");
   if(VCNRule == Rules::VCNRULE_VC1_B) return string("VC1B");
   if(VCNRule == Rules::VCNRULE_VC2_B) return string("VC2B");
   if(VCNRule == Rules::VCNRULE_VC3_B) return string("VCTB");
@@ -255,3 +255,7 @@ const Hash128 Rules::ZOBRIST_FIRSTPASSWIN_HASH = Hash128(0x082b14fef06c9716ULL, 
 const Hash128 Rules::ZOBRIST_VCNRULE_HASH_BASE = Hash128(0x0dbdfa4e0ec7459cULL, 0xcc360848cf5d7c49ULL);
 
 const Hash128 Rules::ZOBRIST_MAXMOVES_HASH_BASE = Hash128(0x8aba00580c378fe8ULL, 0x7f6c1210e74fb440ULL);
+
+const Hash128 Rules::ZOBRIST_PASSNUM_B_HASH_BASE = Hash128(0x5a881a894f189de8ULL, 0x80adfc5ab8789990ULL);
+
+const Hash128 Rules::ZOBRIST_PASSNUM_W_HASH_BASE = Hash128(0x0d9c957db399f5b2ULL, 0xbf7a532d567346b6ULL);

@@ -28,6 +28,8 @@ struct BoardHistory {
   int currentRecentBoardIdx;
   Player presumedNextMovePla;
 
+  int blackPassNum;
+  int whitePassNum;
 
 
 
@@ -73,6 +75,8 @@ struct BoardHistory {
 
   float currentSelfKomi(Player pla) const;
 
+  int getMovenum() const;
+
   //Returns a reference a recent board state, where 0 is the current board, 1 is 1 move ago, etc.
   //Requires that numMovesAgo < NUM_RECENT_BOARDS
   const Board& getRecentBoard(int numMovesAgo) const;
@@ -104,13 +108,13 @@ struct BoardHistory {
   //Compute a hash that takes into account the full situation, the rules, discretized komi, and any immediate ko prohibitions.
   static Hash128 getSituationRulesHash(const Board& board, const BoardHistory& hist, Player nextPlayer, double noResultUtilityForWhite);
 
-  //pass hash
-  static Hash128 getPassnumHash(const BoardHistory& hist);
-
-  //rule hash
-  static Hash128 getRulesHash(Rules rule);
 
 private:
+  //pass hash
+  Hash128 getPassnumHash() const;
+
+  //rule hash
+  Hash128 getRulesHash() const;
 };
 
 
