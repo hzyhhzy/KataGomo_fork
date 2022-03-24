@@ -135,8 +135,19 @@ static bool tryInitializeBalancedRandomOpening(
   BoardHistory histCopy(hist);
   Player nextPlayerCopy = nextPlayer;
 
-  static const double randomMoveNumProb[] = { 35,30,25,20,15,10,5,1};
-  static const int maxRandomMoveNum = sizeof(randomMoveNumProb)/sizeof(double);
+  vector<float> randomMoveNumProb{ 35,30,25,20,15,10,5,1,0,0,0,0 };
+
+  if (hist.rules.VCNRule == Rules::VCNRULE_VC1_B)
+    randomMoveNumProb = vector<float>{ 0.1,0.1,25,20,15,10,5,1,0,0,0,0 };
+  else if (hist.rules.VCNRule == Rules::VCNRULE_VC1_W)
+    randomMoveNumProb = vector<float>{ 0.1,0.1,0.1,20,15,10,5,1,0,0,0,0 };
+  else if (hist.rules.VCNRule == Rules::VCNRULE_VC2_B)
+    randomMoveNumProb = vector<float>{ 0.1, 0.1, 0.1, 0.1, 35,30,25,20,15,10,5,1 };
+  else if (hist.rules.VCNRule == Rules::VCNRULE_VC2_W)
+    randomMoveNumProb = vector<float>{ 0.1, 0.1, 0.1, 0.1, 0.1,30,25,20,15,10,5,1 };
+  else cout << Rules::writeVCNRule(hist.rules.VCNRule) << " does not support balanced openings init" << endl;
+
+  int maxRandomMoveNum = randomMoveNumProb.size();
 
   static const double avgRandomDistFactor = 1.0;
 
@@ -647,9 +658,9 @@ void GameInitializer::createGameSharedUnsynchronized(
     int ySize = allowedBSizes[ySizeIdx];
     if (!rules.firstPassWin && rand.nextBool(moveLimitProb))
     {
-      int maxMoves = rand.nextExponential()*30+30-rand.nextExponential()*10;
+      int maxMoves = rand.nextExponential()*30+30-rand.nextExponential()*5;
       if (maxMoves > xSize * ySize - 5)maxMoves = 0;
-      if (maxMoves < 5)maxMoves = 0;
+      if (maxMoves < 10)maxMoves = 0;
       rules.maxMoves = maxMoves;
     }
 
