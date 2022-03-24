@@ -380,9 +380,9 @@ void TrainingWriteBuffers::addRow(
       NNInputs::fillRowV7(board, hist, nextPlayer, nnInputParams, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
     }
     else if(inputsVersion == 101) {
-      assert(NNInputs::NUM_FEATURES_SPATIAL_V7 == numBinaryChannels);
-      assert(NNInputs::NUM_FEATURES_GLOBAL_V7 == numGlobalChannels);
-      NNInputs::fillRowV7(board, hist, nextPlayer, nnInputParams, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
+      assert(NNInputs::NUM_FEATURES_SPATIAL_V101 == numBinaryChannels);
+      assert(NNInputs::NUM_FEATURES_GLOBAL_V101 == numGlobalChannels);
+      NNInputs::fillRowV101(board, hist, nextPlayer, nnInputParams, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
     }
     else
       ASSERT_UNREACHABLE;
