@@ -135,9 +135,11 @@ static bool tryInitializeBalancedRandomOpening(
   BoardHistory histCopy(hist);
   Player nextPlayerCopy = nextPlayer;
 
-  vector<float> randomMoveNumProb{ 35,30,25,20,15,10,5,1,0,0,0,0 };
+  vector<float> randomMoveNumProb;
 
-  if (hist.rules.VCNRule == Rules::VCNRULE_VC1_B)
+  if (hist.rules.VCNRule == Rules::VCNRULE_NOVC)
+    randomMoveNumProb = vector<float>{ 35,30,25,20,15,10,5,1,0,0,0,0 };
+  else if (hist.rules.VCNRule == Rules::VCNRULE_VC1_B)
     randomMoveNumProb = vector<float>{ 0.1,0.1,25,20,15,10,5,1,0,0,0,0 };
   else if (hist.rules.VCNRule == Rules::VCNRULE_VC1_W)
     randomMoveNumProb = vector<float>{ 0.1,0.1,0.1,20,15,10,5,1,0,0,0,0 };
