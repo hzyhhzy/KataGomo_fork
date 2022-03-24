@@ -113,6 +113,27 @@ string Rules::writeVCNRule(int VCNRule) {
   return string("UNKNOWN");
 }
 
+
+
+Color Rules::vcSide() const
+{
+  static_assert(VCNRULE_VC1_W == VCNRULE_VC1_B + 10,"Ensure VCNRule%10==N, VCNRule/10+1==color"); 
+  if (VCNRule == VCNRULE_NOVC)
+    return C_EMPTY;
+  return 1 + VCNRule / 10;
+  
+}
+
+int Rules::vcLevel() const
+{
+  static_assert(VCNRULE_VC1_W == VCNRULE_VC1_B + 10,"Ensure VCNRule%10==N, VCNRule/10+1==color");  
+  if (VCNRule == VCNRULE_NOVC)
+    return -1;
+  return VCNRule % 10;
+
+}
+
+
 ostream& operator<<(ostream& out, const Rules& rules) {
   out << "basicrule" << Rules::writeBasicRule(rules.basicRule);
   out << "vcnrule" << Rules::writeVCNRule(rules.VCNRule);

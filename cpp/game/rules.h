@@ -22,7 +22,6 @@ struct Rules {
   static const int VCNRULE_VC2_W = 12;
   static const int VCNRULE_VC3_W = 13;
   static const int VCNRULE_VC4_W = 14;
-  static_assert(VCNRULE_VC1_W == VCNRULE_VC1_B + 10,"Ensure VCNRule%10==N, VCNRule/10+1==color"); 
   int VCNRule;
 
   bool firstPassWin;//和棋的时候，先pass的获胜
@@ -67,6 +66,11 @@ struct Rules {
   static bool tryParseRulesWithoutKomi(const std::string& str, Rules& buf, float komi);
 
   static Rules updateRules(const std::string& key, const std::string& value, Rules priorRules);
+
+  Color vcSide() const;
+  int vcLevel() const;
+
+
 
   friend std::ostream& operator<<(std::ostream& out, const Rules& rules);
   std::string toString() const;

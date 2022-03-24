@@ -326,9 +326,8 @@ void BoardHistory::maybeFinishGame(Board& board,Player lastPla,Loc lastLoc)
     }
     else
     {
-      static_assert(Rules::VCNRULE_VC1_W == Rules::VCNRULE_VC1_B + 10,"Ensure VCNRule%10==N, VCNRule/10+1==color"); 
-      Color VCside = 1 + rules.VCNRule / 10;
-      int VClevel = rules.VCNRule % 10;
+      Color VCside = rules.vcSide();
+      int VClevel = rules.vcLevel();
 
       if(VCside==lastPla)//VCN不允许己方pass
       {
@@ -375,7 +374,7 @@ void BoardHistory::maybeFinishGame(Board& board,Player lastPla,Loc lastLoc)
     else //和棋判进攻方负
     {
       static_assert(Rules::VCNRULE_VC1_W == Rules::VCNRULE_VC1_B + 10,"Ensure VCNRule%10==N, VCNRule/10+1==color"); 
-      Color VCside = 1 + rules.VCNRule / 10;
+      Color VCside = rules.vcSide();
       setWinner(getOpp(VCside));
       return;
     }

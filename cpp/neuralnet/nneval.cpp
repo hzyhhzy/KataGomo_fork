@@ -752,6 +752,15 @@ void NNEvaluator::evaluate(
         maxPolicy = policyValue;
     }
 
+    //对手VCN，增大己方pass概率
+    if (history.rules.vcSide() == getOpp(nextPlayer))
+    {
+      int passPos = NNPos::locToPos(Board::PASS_LOC, xSize, nnXLen, nnYLen);
+      float minPassPolicyExp = maxPolicy - 2.0;
+      if (policy[passPos] < minPassPolicyExp)
+        policy[passPos] = minPassPolicyExp;
+    }
+
     assert(legalCount > 0);
 
     float policySum = 0.0f;

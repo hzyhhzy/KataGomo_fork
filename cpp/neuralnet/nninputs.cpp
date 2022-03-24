@@ -899,9 +899,8 @@ void NNInputs::fillRowV101(
 
   if (hist.rules.VCNRule != Rules::VCNRULE_NOVC)
   {
-    static_assert(Rules::VCNRULE_VC1_W == Rules::VCNRULE_VC1_B + 10, "Ensure VCNRule%10==N, VCNRule/10+1==color");
-    Color VCside = 1 + hist.rules.VCNRule / 10;
-    int VClevel = hist.rules.VCNRule % 10;
+    Color VCside = hist.rules.vcSide();
+    int VClevel = hist.rules.vcLevel();
     int realVClevel = VClevel + myPassNum + oppPassNum;
     if (realVClevel >= 1 && realVClevel <= 5)
     {
