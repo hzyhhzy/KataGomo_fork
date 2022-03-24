@@ -7,8 +7,12 @@
 //------------------------
 
 static double cpuctExploration(double totalChildWeight, const SearchParams& searchParams) {
-  return searchParams.cpuctExploration +
+  if(searchParams.cpuctExplorationLog>=0)
+    return searchParams.cpuctExploration +
     searchParams.cpuctExplorationLog * log((totalChildWeight + searchParams.cpuctExplorationBase) / searchParams.cpuctExplorationBase);
+  else
+    return searchParams.cpuctExploration*
+    pow((totalChildWeight + searchParams.cpuctExplorationBase) / searchParams.cpuctExplorationBase, -searchParams.cpuctExplorationLog);
 }
 
 //Tiny constant to add to numerator of puct formula to make it positive

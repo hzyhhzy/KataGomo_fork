@@ -418,8 +418,8 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("cpuctExploration"+idxStr)) params.cpuctExploration = cfg.getDouble("cpuctExploration"+idxStr, 0.0, 10.0);
     else if(cfg.contains("cpuctExploration"))   params.cpuctExploration = cfg.getDouble("cpuctExploration",        0.0, 10.0);
     else                                        params.cpuctExploration = 1.0;
-    if(cfg.contains("cpuctExplorationLog"+idxStr)) params.cpuctExplorationLog = cfg.getDouble("cpuctExplorationLog"+idxStr, 0.0, 10.0);
-    else if(cfg.contains("cpuctExplorationLog"))   params.cpuctExplorationLog = cfg.getDouble("cpuctExplorationLog",        0.0, 10.0);
+    if(cfg.contains("cpuctExplorationLog"+idxStr)) params.cpuctExplorationLog = cfg.getDouble("cpuctExplorationLog"+idxStr, -10.0, 10.0);
+    else if(cfg.contains("cpuctExplorationLog"))   params.cpuctExplorationLog = cfg.getDouble("cpuctExplorationLog",        -10.0, 10.0);
     else                                           params.cpuctExplorationLog = 0.45;
     if(cfg.contains("cpuctExplorationBase"+idxStr)) params.cpuctExplorationBase = cfg.getDouble("cpuctExplorationBase"+idxStr, 10.0, 100000.0);
     else if(cfg.contains("cpuctExplorationBase"))   params.cpuctExplorationBase = cfg.getDouble("cpuctExplorationBase",        10.0, 100000.0);
