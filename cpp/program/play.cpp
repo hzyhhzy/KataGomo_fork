@@ -73,7 +73,7 @@ static double getBoardValue(Search* botB, Search* botW, const Board& board, cons
   if (nextPlayer == C_BLACK)return -value;
   else return value;
 }
-static Loc getBalanceMove(Search* botB, Search* botW, const Board& board, const BoardHistory& hist, Player nextPlayer, Rand& gameRand,bool forSelfplay)
+static Loc getBalanceMove(Search* botB, Search* botW, const Board& board, const BoardHistory& hist, Player nextPlayer, Rand& gameRand,bool forSelfplay,double rejectProb)
 {
   int xsize = board.x_size, ysize = board.y_size;
   vector<double> prob(xsize*ysize, 0);
@@ -98,7 +98,7 @@ static Loc getBalanceMove(Search* botB, Search* botW, const Board& board, const 
     prob[y*xsize + x] = p;
 
   }
-  if (gameRand.nextBool(1 - maxProb) && gameRand.nextBool(0.995))
+  if (gameRand.nextBool(1 - maxProb) && gameRand.nextBool(rejectProb))
   {
     return Board::NULL_LOC;
   }
@@ -129,13 +129,13 @@ static Loc getBalanceMove(Search* botB, Search* botW, const Board& board, const 
 }
 static bool tryInitializeBalancedRandomOpening(
   Search* botB, Search* botW, Board& board,BoardHistory& hist, Player& nextPlayer,
-  Rand& gameRand,bool forSelfplay) 
+  Rand& gameRand,bool forSelfplay,double rejectProb) 
 {
   Board boardCopy(board);
   BoardHistory histCopy(hist);
   Player nextPlayerCopy = nextPlayer;
 
-  static const double randomMoveNumProb[] = { 35,30,25,20,15,10,5,1};//NoVC/VC0
+  static const double randomMoveNumProb[] = { 35,30,25,20,15,10,5,1};
   static const int maxRandomMoveNum = sizeof(randomMoveNumProb)/sizeof(double);
 
   static const double avgRandomDistFactor = 1.0;
@@ -165,7 +165,7 @@ static bool tryInitializeBalancedRandomOpening(
     nextPlayerCopy = getOpp(nextPlayerCopy);
 
   }
-  Loc balancedMove = getBalanceMove(botB, botW, boardCopy, histCopy, nextPlayerCopy, gameRand,forSelfplay);
+  Loc balancedMove = getBalanceMove(botB, botW, boardCopy, histCopy, nextPlayerCopy, gameRand,forSelfplay,rejectProb);
   if (balancedMove==Board::NULL_LOC)return false;
   histCopy.makeBoardMoveAssumeLegal(boardCopy, balancedMove, nextPlayerCopy);
   if (histCopy.isGameFinished)return false;
@@ -182,18 +182,20 @@ static void initializeBalancedRandomOpening(
   Search* botB, Search* botW, Board& board, BoardHistory& hist, Player& nextPlayer,
   Rand& gameRand,bool forSelfplay) 
 {
-  static const int maxTryTimes = 100;
+  static const int maxTryTimes = 20;
   int tryTimes = 0;
+  double rejectProb = 0.995;
   while (!tryInitializeBalancedRandomOpening(
     botB, botW, board,hist,nextPlayer,
-    gameRand,forSelfplay))
+    gameRand,forSelfplay,rejectProb))
   {
     tryTimes++;
     if (tryTimes > maxTryTimes)
     {
       tryTimes = 0;
       cout << "Reached max trying times for finding balanced openings"  << endl;
-      break;
+      cout << "Rule="<<hist.rules.toString();
+      rejectProb = 0.8;
     }
   }
 
