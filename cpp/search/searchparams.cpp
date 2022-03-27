@@ -66,6 +66,7 @@ SearchParams::SearchParams()
    nodeTableShardsPowerOfTwo(16),
    numVirtualLossesPerThread(3.0),
    numThreads(1),
+  finishGameSearchDelayMicroseconds(0),
    maxVisits(((int64_t)1) << 50),
    maxPlayouts(((int64_t)1) << 50),
    maxTime(1.0e20),

@@ -101,6 +101,8 @@ struct SearchParams {
   int64_t maxPlayouts; //Max number of playouts from the root to think for, not counting earlier playouts from tree reuse
   double maxTime; //Max number of seconds to think for
 
+  int64_t finishGameSearchDelayMicroseconds;//如果搜索搜到游戏结束，暂停这么长时间以保证速度不会太快
+
   //Same caps but when pondering
   int64_t maxVisitsPondering;
   int64_t maxPlayoutsPondering;

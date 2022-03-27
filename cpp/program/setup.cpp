@@ -392,6 +392,7 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("numSearchThreads"+idxStr)) params.numThreads = cfg.getInt("numSearchThreads"+idxStr, 1, 4096);
     else                                        params.numThreads = cfg.getInt("numSearchThreads",        1, 4096);
 
+
     if(cfg.contains("winLossUtilityFactor"+idxStr)) params.winLossUtilityFactor = cfg.getDouble("winLossUtilityFactor"+idxStr, 0.0, 1.0);
     else if(cfg.contains("winLossUtilityFactor"))   params.winLossUtilityFactor = cfg.getDouble("winLossUtilityFactor",        0.0, 1.0);
     else                                            params.winLossUtilityFactor = 1.0;
@@ -644,6 +645,10 @@ vector<SearchParams> Setup::loadParams(
     else if(cfg.contains("futileVisitsThreshold"))   params.futileVisitsThreshold = cfg.getDouble("futileVisitsThreshold",0.01,1.0);
     else                                             params.futileVisitsThreshold = 0.0;
 
+
+    if(cfg.contains("finishGameSearchDelayMicroseconds"+idxStr)) params.finishGameSearchDelayMicroseconds = cfg.getInt64("finishGameSearchDelayMicroseconds"+idxStr, 0,10000000);
+    else if(cfg.contains("finishGameSearchDelayMicroseconds"))   params.finishGameSearchDelayMicroseconds = cfg.getInt64("finishGameSearchDelayMicroseconds",        0,10000000);
+    else                                        params.finishGameSearchDelayMicroseconds = 0;
 
     paramss.push_back(params);
   }
