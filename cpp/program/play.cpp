@@ -83,7 +83,7 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
   komiMean = cfg.contains("komiMean") ? cfg.getFloat("komiMean",Rules::MIN_USER_KOMI,Rules::MAX_USER_KOMI) : 7.5f;
   komiStdev = cfg.contains("komiStdev") ? cfg.getFloat("komiStdev",0.0f,60.0f) : 0.0f;
   komiBigStdevProb = cfg.contains("komiBigStdevProb") ? cfg.getDouble("komiBigStdevProb",0.0,1.0) : 0.0;
-  komiBigStdev = cfg.contains("komiBigStdev") ? cfg.getFloat("komiBigStdev",0.0f,60.0f) : 10.0f;
+  komiBigStdev = cfg.contains("komiBigStdev") ? cfg.getFloat("komiBigStdev",0.0f,1000.0f) : 10.0f;
   komiAuto = cfg.contains("komiAuto") ? cfg.getBool("komiAuto") : false;
 
   forkCompensateKomiProb = cfg.contains("forkCompensateKomiProb") ? cfg.getDouble("forkCompensateKomiProb",0.0,1.0) :0.0;

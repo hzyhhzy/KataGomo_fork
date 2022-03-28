@@ -279,15 +279,34 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
 
 void BoardHistory::maybeFinishGame(Board& board,Player lastPla,Loc lastLoc)
 {
+  //贴n目：白棋可以走n个子，如果走完后黑棋还能走则黑胜，黑棋不能走了和棋
+  //贴n+0.5目：白棋可以走n个子，如果走完后黑棋还能走则黑胜，黑棋不能走了白胜
+  if (lastPla == C_WHITE)
+  {
+    if (lastLoc == Board::PASS_LOC)
+      setWinner(getOpp(lastPla));
+    return;
+  }
+  assert(lastPla == C_BLACK);
+
+  int whiteStones = board.numPlaStonesOnBoard(C_WHITE);
+  int maxWhiteStones = floor(rules.komi);
+  bool halfKomi = rules.komi - maxWhiteStones > 0;
   if (lastLoc == Board::PASS_LOC)
   {
-    setWinner(getOpp(lastPla));
+    if(whiteStones>=maxWhiteStones && (!halfKomi))
+      setWinner(C_EMPTY);
+    else
+      setWinner(getOpp(lastPla));
+    return;
   }
-  if (board.getMovePriorityAssumeLegal(lastPla, lastLoc, true) == MP_WIN)
+  else
   {
-    setWinner(lastPla);
+    if(whiteStones>=maxWhiteStones)
+      setWinner(lastPla);
+    return;
   }
-  if (board.numStonesOnBoard() >= board.x_size * board.y_size)setWinner(C_EMPTY);
+  
 }
 
 

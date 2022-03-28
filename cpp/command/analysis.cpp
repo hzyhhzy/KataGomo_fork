@@ -774,8 +774,8 @@ int MainCmds::analysis(const vector<string>& args) {
       if(input.find("komi") != input.end()) {
         double komi;
         static_assert(Rules::MIN_USER_KOMI == -150.0f, "");
-        static_assert(Rules::MAX_USER_KOMI == 150.0f, "");
-        const char* msg = "Must be a integer or half-integer from -150.0 to 150.0";
+        static_assert(Rules::MAX_USER_KOMI == 1500.0f, "");
+        const char* msg = "Must be a integer or half-integer from -150.0 to 1500.0";
         bool suc = parseDouble(input, "komi", komi, Rules::MIN_USER_KOMI, Rules::MAX_USER_KOMI, msg);
         if(!suc)
           continue;

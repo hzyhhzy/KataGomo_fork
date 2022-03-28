@@ -198,11 +198,25 @@ bool Board::isLegal(Loc loc, Player pla, bool isMultiStoneSuicideLegal) const
   (void)isMultiStoneSuicideLegal;
   if(pla != P_BLACK && pla != P_WHITE)
     return false;
-  return loc == PASS_LOC || (
-    loc >= 0 &&
-    loc < MAX_ARR_SIZE &&
-    (colors[loc] == C_EMPTY)
-  );
+  if (loc == PASS_LOC)
+    return true;
+  if(!(loc >= 0 &&loc < MAX_ARR_SIZE &&(colors[loc] == C_EMPTY)))
+    return false;
+
+
+  if (pla == C_BLACK)
+  {
+    if (stonenum == 0)return true;
+    for (int i = 0; i < 8; i++)
+    {
+      Loc loc1 = loc + adj_offsets[i];
+      if (colors[loc1] == C_BLACK)
+        return true;
+    }
+  }
+  else return true;
+
+  return false;
 }
 
 
@@ -345,6 +359,15 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
     return;
   }
 
+  if (pla == C_BLACK)
+  {
+    for (int i = 0; i < 8; i++)
+    {
+      Loc loc1 = loc + adj_offsets[i];
+      if (colors[loc1] == C_BLACK)
+        setStone(loc1, C_EMPTY);
+    }
+  }
   setStone(loc, pla);
 }
 

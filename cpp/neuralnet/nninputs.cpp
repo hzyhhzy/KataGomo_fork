@@ -676,52 +676,16 @@ void NNInputs::fillRowV7(
     }
   }
 
+  rowGlobal[0] = nextPlayer == C_BLACK ? 1 : -1;
+  rowGlobal[1] = board.stonenum == 0;
   
-  //Hide history from the net if a pass would end things and we're behaving as if a pass won't.
-  //Or if the game is in fact over right now!
-  bool hideHistory = true;
-  //  hist.isGameFinished;
-
-  //Features 9,10,11,12,13
-  if(!hideHistory) {
-    const vector<Move>& moveHistory = hist.moveHistory;
-    size_t moveHistoryLen = moveHistory.size();
-    int numTurnsThisPhase = moveHistoryLen ;
-
-    if(numTurnsThisPhase >= 1 && moveHistory[moveHistoryLen-1].pla == opp) {
-      Loc prev1Loc = moveHistory[moveHistoryLen-1].loc;
-      if(prev1Loc == Board::PASS_LOC)
-        rowGlobal[0] = 1.0;
-      else if(prev1Loc != Board::NULL_LOC) {
-        int pos = NNPos::locToPos(prev1Loc,xSize,nnXLen,nnYLen);
-        setRowBin(rowBin,pos,9, 1.0f, posStride, featureStride);
-      }
-      if(numTurnsThisPhase >= 2 && moveHistory[moveHistoryLen-2].pla == pla) {
-        Loc prev2Loc = moveHistory[moveHistoryLen-2].loc;
-        if(prev2Loc == Board::PASS_LOC)
-          rowGlobal[1] = 1.0;
-        else if(prev2Loc != Board::NULL_LOC) {
-          int pos = NNPos::locToPos(prev2Loc,xSize,nnXLen,nnYLen);
-          setRowBin(rowBin,pos,10, 1.0f, posStride, featureStride);
-        }
-      }
-    }
-  }
-
-
-  //Global features.
-  //The first 2 of them were set already above to flag which of the past 5 moves were passes.
-
-  //Tax
-  if(hist.rules.taxRule == Rules::TAX_NONE) {}
-  else if(hist.rules.taxRule == Rules::TAX_SEKI)
-    rowGlobal[15] = 1.0f;
-  else if(hist.rules.taxRule == Rules::TAX_ALL) {\
-    rowGlobal[15] = 2.0f;
-  }
-  else
-    ASSERT_UNREACHABLE;
-
+  int movenumChannelBias = nextPlayer == C_BLACK ? 2: 7;
+  float remainMovenum = hist.rules.komi - board.numPlaStonesOnBoard(C_WHITE);
+  rowGlobal[movenumChannelBias + 0] = exp(-remainMovenum / 2.0);
+  rowGlobal[movenumChannelBias + 1] = exp(-remainMovenum / 6.0);
+  rowGlobal[movenumChannelBias + 2] = exp(-remainMovenum / 20.0);
+  rowGlobal[movenumChannelBias + 3] = exp(-remainMovenum / 60.0);
+  rowGlobal[movenumChannelBias + 4] = remainMovenum / 20.0;
 
 
   //Used for handicap play
