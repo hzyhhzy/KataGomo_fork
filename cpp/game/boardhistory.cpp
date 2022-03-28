@@ -222,7 +222,7 @@ void BoardHistory::setWinner(Player pla)
   isResignation = false;
   winner = pla;
   finalWhiteMinusBlackScore = 0.0f;
-  if (pla == C_EMPTY)isNoResult = true;
+  //if (pla == C_EMPTY)isNoResult = true;
 }
 
 

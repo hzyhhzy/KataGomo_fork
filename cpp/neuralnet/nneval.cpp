@@ -720,23 +720,9 @@ void NNEvaluator::evaluate(
     int legalCount = 0;
 
 
-    bool haveWinLoc = false;
-
-    for(int i = 0; i<policySize; i++) {
-      Loc loc = NNPos::posToLoc(i,xSize,ySize,nnXLen,nnYLen);
-      if (board.getMovePriority(nextPlayer, loc, true, false)==MP_WIN)
-      {
-        isLegal[i] = true;
-        haveWinLoc = true;
-      }
-    }
-
-    if (!haveWinLoc)
-    {
-      for (int i = 0; i < policySize; i++) {
-        Loc loc = NNPos::posToLoc(i, xSize, ySize, nnXLen, nnYLen);
-        isLegal[i] = history.isLegal(board, loc, nextPlayer);
-      }
+    for (int i = 0; i < policySize; i++) {
+      Loc loc = NNPos::posToLoc(i, xSize, ySize, nnXLen, nnYLen);
+      isLegal[i] = history.isLegal(board, loc, nextPlayer);
     }
 
 

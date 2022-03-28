@@ -679,13 +679,14 @@ void NNInputs::fillRowV7(
   rowGlobal[0] = nextPlayer == C_BLACK ? 1 : -1;
   rowGlobal[1] = board.stonenum == 0;
   
-  int movenumChannelBias = nextPlayer == C_BLACK ? 2: 7;
+  int movenumChannelBias = nextPlayer == C_BLACK ? 2: 8;
   float remainMovenum = hist.rules.komi - board.numPlaStonesOnBoard(C_WHITE);
   rowGlobal[movenumChannelBias + 0] = exp(-remainMovenum / 2.0);
   rowGlobal[movenumChannelBias + 1] = exp(-remainMovenum / 6.0);
   rowGlobal[movenumChannelBias + 2] = exp(-remainMovenum / 20.0);
   rowGlobal[movenumChannelBias + 3] = exp(-remainMovenum / 60.0);
-  rowGlobal[movenumChannelBias + 4] = remainMovenum / 20.0;
+  rowGlobal[movenumChannelBias + 4] = exp(-remainMovenum / 200.0);
+  rowGlobal[movenumChannelBias + 5] = remainMovenum / 20.0;
 
 
   //Used for handicap play

@@ -1299,6 +1299,11 @@ FinishedGameData* Play::runGame(
     }
   };
 
+  Loc centerloc = Location::getCenterLoc(board);
+  hist.makeBoardMoveAssumeLegal(board, centerloc, C_BLACK);
+  pla = C_WHITE;
+
+
   if(playSettings.initGamesWithPolicy && otherGameProps.allowPolicyInit) {
     double proportionOfBoardArea = otherGameProps.isSgfPos ? playSettings.startPosesPolicyInitAreaProp : playSettings.policyInitAreaProp;
     if(proportionOfBoardArea > 0) {

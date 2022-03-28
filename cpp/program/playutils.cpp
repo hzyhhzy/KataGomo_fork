@@ -67,7 +67,7 @@ void PlayUtils::setKomiWithNoise(const ExtraBlackAndKomi& extraBlackAndKomi, Boa
   assert(Rules::komiIsIntOrHalfInt(komi));
   if(!extraBlackAndKomi.allowInteger && komi == (int)komi)
     komi += rand.nextBool(0.5) ? (-0.5f) : (0.5f);
-  if (komi < 1)komi = 2 - komi;
+  if (komi < 8)komi = 16 - komi;
   hist.setKomi(komi);
 }
 
@@ -230,7 +230,7 @@ double PlayUtils::getHackedLCBForWinrate(const Search* search, const AnalysisDat
 
 float PlayUtils::roundAndClipKomi(double unrounded, const Board& board, bool looseClipping) {
   //Just in case, make sure komi is reasonable
-  float range = looseClipping ? 40.0f + board.x_size * board.y_size : 40.0f + 0.5f * board.x_size * board.y_size;
+  float range = board.x_size * board.y_size-10;
   if(unrounded < -range)
     unrounded = -range;
   if(unrounded > range)

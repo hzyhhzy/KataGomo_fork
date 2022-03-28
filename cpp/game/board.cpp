@@ -62,8 +62,6 @@ Loc Location::getMirrorLoc(Loc loc, int x_size, int y_size) {
 }
 
 Loc Location::getCenterLoc(int x_size, int y_size) {
-  if(x_size % 2 == 0 || y_size % 2 == 0)
-    return Board::NULL_LOC;
   return getLoc(x_size / 2, y_size / 2, x_size);
 }
 
