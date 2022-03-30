@@ -681,6 +681,10 @@ void NNInputs::fillRowV7(
   
   int movenumChannelBias = nextPlayer == C_BLACK ? 2: 8;
   float remainMovenum = hist.rules.komi - board.numPlaStonesOnBoard(C_WHITE);
+  if (remainMovenum < 0)
+  {
+    cout << "NNInput:remainMovenum < 0"<<endl;
+  }
   rowGlobal[movenumChannelBias + 0] = exp(-remainMovenum / 2.0);
   rowGlobal[movenumChannelBias + 1] = exp(-remainMovenum / 6.0);
   rowGlobal[movenumChannelBias + 2] = exp(-remainMovenum / 20.0);

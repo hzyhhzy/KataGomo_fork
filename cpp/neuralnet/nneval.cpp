@@ -725,7 +725,7 @@ void NNEvaluator::evaluate(
       isLegal[i] = history.isLegal(board, loc, nextPlayer);
     }
 
-
+    bool foundInfPolicy = false;
     for(int i = 0; i<policySize; i++) {
       float policyValue;
       if(isLegal[i]) {
@@ -734,7 +734,11 @@ void NNEvaluator::evaluate(
       }
       else
         policyValue = -1e30f;
-
+      if (!isfinite(policyValue))
+      {
+        policyValue = 0;
+        foundInfPolicy = true;
+      }
       policy[i] = policyValue;
       if(policyValue > maxPolicy)
         maxPolicy = policyValue;
@@ -748,10 +752,10 @@ void NNEvaluator::evaluate(
       policySum += policy[i];
     }
 
-    if(!isfinite(policySum)) {
+    if(foundInfPolicy) {
       cout << "Got nonfinite for policy sum" << endl;
       history.printDebugInfo(cout,board);
-      throw StringError("Got nonfinite for policy sum");
+      //throw StringError("Got nonfinite for policy sum");
     }
 
     //Somehow all legal moves rounded to 0 probability
@@ -848,7 +852,16 @@ void NNEvaluator::evaluate(
                << " " << lead << " " << varTimeLeft
                << " " << shorttermWinlossError << " " << shorttermScoreError
                << endl;
-          throw StringError("Got nonfinite for nneval value");
+          winProb=0.5;
+          lossProb=0.5;
+          noResultProb=0.0;
+          scoreMean=0;
+          scoreMeanSq=0;
+          lead=0;
+          varTimeLeft=0;
+          shorttermWinlossError=0;
+          shorttermScoreError=0;
+          //throw StringError("Got nonfinite for nneval value");
         }
       }
 
