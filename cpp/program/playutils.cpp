@@ -154,8 +154,8 @@ Loc PlayUtils::getGameInitializationMove(
   int nnYLen = nnOutput->nnYLen;
   assert(nnXLen >= board.x_size);
   assert(nnYLen >= board.y_size);
-  assert(nnXLen > 0 && nnXLen < 100); //Just a sanity check to make sure no other crazy values have snuck in
-  assert(nnYLen > 0 && nnYLen < 100); //Just a sanity check to make sure no other crazy values have snuck in
+  assert(nnXLen > 0 && nnXLen < 1000); //Just a sanity check to make sure no other crazy values have snuck in
+  assert(nnYLen > 0 && nnYLen < 1000); //Just a sanity check to make sure no other crazy values have snuck in
   int policySize = NNPos::getPolicySize(nnXLen,nnYLen);
   for(int movePos = 0; movePos<policySize; movePos++) {
     Loc moveLoc = NNPos::posToLoc(movePos,board.x_size,board.y_size,nnXLen,nnYLen);

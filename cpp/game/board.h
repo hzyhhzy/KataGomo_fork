@@ -13,7 +13,7 @@
 
 
 #ifndef COMPILE_MAX_BOARD_LEN
-#define COMPILE_MAX_BOARD_LEN 69
+#define COMPILE_MAX_BOARD_LEN 101
 #endif
 
 //TYPES AND CONSTANTS-----------------------------------------------------------------
