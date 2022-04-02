@@ -65,7 +65,7 @@ void PlayUtils::setKomiWithNoise(const ExtraBlackAndKomi& extraBlackAndKomi, Boa
   komi = roundKomiWithLinearProb(komi,rand);
   komi = roundAndClipKomi(komi, hist.getRecentBoard(0), false);
   assert(Rules::komiIsIntOrHalfInt(komi));
-  if(!extraBlackAndKomi.allowInteger && komi == (int)komi)
+  if((BORDER_TO_BLACK||(!extraBlackAndKomi.allowInteger)) && komi == (int)komi)
     komi += rand.nextBool(0.5) ? (-0.5f) : (0.5f);
   if (komi < 8)komi = 16 - komi;
   hist.setKomi(komi);

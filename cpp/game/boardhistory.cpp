@@ -216,13 +216,15 @@ void BoardHistory::setWinnerByResignation(Player pla) {
 
 void BoardHistory::setWinner(Player pla)
 {
+
+
   isGameFinished = true;
   isScored = true;
-  isNoResult = false;
+  isNoResult = pla==C_WALL;
   isResignation = false;
   winner = pla;
   finalWhiteMinusBlackScore = 0.0f;
-  //if (pla == C_EMPTY)isNoResult = true;
+  if (pla == C_WALL)winner = C_EMPTY;
 }
 
 
@@ -279,32 +281,72 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
 
 void BoardHistory::maybeFinishGame(Board& board,Player lastPla,Loc lastLoc)
 {
-  //贴n目：白棋可以走n个子，如果走完后黑棋还能走则黑胜，黑棋不能走了和棋
-  //贴n+0.5目：白棋可以走n个子，如果走完后黑棋还能走则黑胜，黑棋不能走了白胜
-  if (lastPla == C_WHITE)
+  if (BORDER_TO_BLACK)
   {
-    if (lastLoc == Board::PASS_LOC)
-      setWinner(getOpp(lastPla));
-    return;
-  }
-  assert(lastPla == C_BLACK);
+    //贴n目：禁止整数贴目
+    //贴n+0.5目：在白棋走第n+1个子之前，如果黑棋碰到边界则黑棋胜，如果黑棋pass则黑负，如果白棋即将下第n+1个子则和棋
+    if (lastPla == C_WHITE)
+    {
+      if (lastLoc == Board::PASS_LOC)
+        setWinner(getOpp(lastPla));
+      return;
+    }
+    assert(lastPla == C_BLACK);
 
-  int whiteStones = board.numPlaStonesOnBoard(C_WHITE);
-  int maxWhiteStones = floor(rules.komi);
-  bool halfKomi = rules.komi - maxWhiteStones > 0;
-  if (lastLoc == Board::PASS_LOC)
-  {
-    if(whiteStones>=maxWhiteStones && (!halfKomi))
-      setWinner(C_EMPTY);
-    else
+    int whiteStones = board.numPlaStonesOnBoard(C_WHITE);
+    int maxWhiteStones = floor(rules.komi);
+    bool halfKomi = rules.komi - maxWhiteStones > 0;
+    if (!halfKomi)
+      cout << "BORDER_TO_BLACK only support half komi";
+
+    if (lastLoc == Board::PASS_LOC)
+    {
       setWinner(getOpp(lastPla));
-    return;
+      return;
+    }
+    else
+    {
+      int x = Location::getX(lastLoc,board.x_size);
+      int y = Location::getY(lastLoc,board.x_size);
+      if (x == 0 || x == board.x_size - 1 || y == 0 || y == board.y_size - 1)
+      {
+        setWinner(lastPla);
+        return;
+      }
+      if (whiteStones >= maxWhiteStones)
+        setWinner(C_WALL);
+      return;
+    }
   }
   else
   {
-    if(whiteStones>=maxWhiteStones)
-      setWinner(lastPla);
-    return;
+    //贴n目：白棋可以走n个子，如果走完后黑棋还能走则黑胜，黑棋不能走了和棋
+    //贴n+0.5目：白棋可以走n个子，如果走完后黑棋还能走则黑胜，黑棋不能走了白胜
+    if (lastPla == C_WHITE)
+    {
+      if (lastLoc == Board::PASS_LOC)
+        setWinner(getOpp(lastPla));
+      return;
+    }
+    assert(lastPla == C_BLACK);
+
+    int whiteStones = board.numPlaStonesOnBoard(C_WHITE);
+    int maxWhiteStones = floor(rules.komi);
+    bool halfKomi = rules.komi - maxWhiteStones > 0;
+    if (lastLoc == Board::PASS_LOC)
+    {
+      if (whiteStones >= maxWhiteStones && (!halfKomi))
+        setWinner(C_EMPTY);
+      else
+        setWinner(getOpp(lastPla));
+      return;
+    }
+    else
+    {
+      if (whiteStones >= maxWhiteStones)
+        setWinner(lastPla);
+      return;
+    }
   }
   
 }

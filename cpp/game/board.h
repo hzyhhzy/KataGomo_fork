@@ -12,6 +12,12 @@
 #include "../external/nlohmann_json/json.hpp"
 
 
+// false把边界视为墙，规定步数内围不住则判黑胜
+// true如果黑棋达到边界则获胜，规定步数内围不住判和棋
+#define BORDER_TO_BLACK false
+
+
+
 #ifndef COMPILE_MAX_BOARD_LEN
 #define COMPILE_MAX_BOARD_LEN 101
 #endif
