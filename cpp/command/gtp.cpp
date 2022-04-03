@@ -416,6 +416,13 @@ struct GTPEngine {
     bot->setParams(params);
     bot->clearSearch();
   }
+  void setNoResultUtilityForWhite(double x) {
+    if (x > 1)x = 1;
+    if (x < -1)x = -1;
+    params.noResultUtilityForWhite = x;
+    bot->setParams(params);
+    bot->clearSearch();
+  }
   void setNumSearchThreads(int numThreads) {
     params.numThreads = numThreads;
     bot->setParams(params);
@@ -1451,25 +1458,19 @@ int MainCmds::gtp(const vector<string>& args) {
       engine->clearBoard();
     }
 
-    else if(command == "komi") {
+    else if(command == "komi") { //”√”⁄NoResultUtilityForWhite£¨≥˝“‘10
       float newKomi = 0;
       if(pieces.size() != 1 || !Global::tryStringToFloat(pieces[0],newKomi)) {
         responseIsError = true;
         response = "Expected single float argument for komi but got '" + Global::concat(pieces," ") + "'";
       }
       //GTP spec says that we should accept any komi, but we're going to ignore that.
-      else if(isnan(newKomi) || newKomi < Rules::MIN_USER_KOMI || newKomi > Rules::MAX_USER_KOMI) {
+      else if(isnan(newKomi) || newKomi < -10 || newKomi > 10) {
         responseIsError = true;
         response = "unacceptable komi";
       }
-      else if(!Rules::komiIsIntOrHalfInt(newKomi)) {
-        responseIsError = true;
-        response = "komi must be an integer or half-integer";
-      }
       else {
-        if(isForcingKomi)
-          newKomi = forcedKomi;
-        engine->updateKomiIfNew(newKomi);
+        engine->setNoResultUtilityForWhite(newKomi / 10.0);
         //In case the controller tells us komi every move, restart pondering afterward.
         maybeStartPondering = engine->bot->getRootHist().moveHistory.size() > 0;
       }
@@ -2304,7 +2305,143 @@ int MainCmds::gtp(const vector<string>& args) {
       engine->stopAndWait();
     }
 
-    else {
+    else if(command == "maxmoves"||command == "mm") //Maxmoves settings
+    {
+      int tmp;
+      if (pieces.size() != 1 || (!Global::tryStringToInt(pieces[0], tmp)))
+      {
+        responseIsError = true;
+        response = "Expected one integer arguments for maxmoves but got '" + Global::concat(pieces," ") + "'";
+      }
+      else
+      {
+        Rules currentRules = engine->getCurrentRules();
+        Rules newRules;
+        bool parseSuccess = false;
+        try {
+          newRules = Rules::updateRules("maxmoves", pieces[0], currentRules);
+          parseSuccess = true;
+        }
+        catch (const StringError& err) {
+          responseIsError = true;
+          response = err.what();
+        }
+        if (parseSuccess) {
+          string error;
+          bool suc = engine->setRulesNotIncludingKomi(newRules, error);
+          if (!suc) {
+            responseIsError = true;
+            response = error;
+          }
+          logger.write("Changed rules to " + newRules.toString());
+          if (!loggingToStderr)
+            cerr << "Changed rules to " + newRules.toString() << endl;
+        }
+      }
+    }
+    else if(command == "firstpasswin"||command == "fpw") //Maxmoves settings
+    {
+      int tmp;
+      if (pieces.size() != 1 || (pieces[0]!="on"&&pieces[0]!="off"&&pieces[0]!="true"&&pieces[0]!="false"&&pieces[0]!="open"&&pieces[0]!="close"))
+      {
+        responseIsError = true;
+        response = "Expected one arguments for firstpasswin but got '" + Global::concat(pieces," ") + "'";
+      }
+      else
+      {
+        Rules currentRules = engine->getCurrentRules();
+        Rules newRules;
+
+        string fpw = "false";
+        if (pieces[0] == "on" || pieces[0] == "open" || pieces[0] == "true")
+          fpw = "true";
+
+        bool parseSuccess = false;
+        try {
+          newRules = Rules::updateRules("firstpasswin", fpw, currentRules);
+          parseSuccess = true;
+        }
+        catch (const StringError& err) {
+          responseIsError = true;
+          response = err.what();
+        }
+        if (parseSuccess) {
+          string error;
+          bool suc = engine->setRulesNotIncludingKomi(newRules, error);
+          if (!suc) {
+            responseIsError = true;
+            response = error;
+          }
+          logger.write("Changed rules to " + newRules.toString());
+          if (!loggingToStderr)
+            cerr << "Changed rules to " + newRules.toString() << endl;
+        }
+      }
+    }
+    else if(Rules::basicRuleStrings().count(command)) //Is Command a basic rule?
+    {
+      if(pieces.size() != 0) {
+        responseIsError = true;
+        response = "Expected zero arguments for BasicRule but got '" + Global::concat(pieces," ") + "'";
+      }
+      else {
+        Rules currentRules = engine->getCurrentRules();
+        Rules newRules;
+        bool parseSuccess = false;
+        try {
+          newRules = Rules::updateRules("basicrule", command, currentRules);
+          parseSuccess = true;
+        }
+        catch (const StringError& err) {
+          responseIsError = true;
+          response = err.what();
+        }
+        if (parseSuccess) {
+          string error;
+          bool suc = engine->setRulesNotIncludingKomi(newRules, error);
+          if (!suc) {
+            responseIsError = true;
+            response = error;
+          }
+          logger.write("Changed rules to " + newRules.toString());
+          if (!loggingToStderr)
+            cerr << "Changed rules to " + newRules.toString() << endl;
+        }
+      }
+    }
+    else if(Rules::VCNRuleStrings().count(command)) //Is Command a VCN rule?
+    {
+      if(pieces.size() != 0) {
+        responseIsError = true;
+        response = "Expected zero arguments for VCNrule but got '" + Global::concat(pieces," ") + "'";
+      }
+      else {
+        Rules currentRules = engine->getCurrentRules();
+        Rules newRules;
+        bool parseSuccess = false;
+        try {
+          newRules = Rules::updateRules("vcnrule", command, currentRules);
+          parseSuccess = true;
+        }
+        catch (const StringError& err) {
+          responseIsError = true;
+          response = err.what();
+        }
+        if (parseSuccess) {
+          string error;
+          bool suc = engine->setRulesNotIncludingKomi(newRules, error);
+          if (!suc) {
+            responseIsError = true;
+            response = error;
+          }
+          logger.write("Changed rules to " + newRules.toString());
+          if (!loggingToStderr)
+            cerr << "Changed rules to " + newRules.toString() << endl;
+        }
+      }
+    }
+    else
+    {
       responseIsError = true;
       response = "unknown command";
     }
