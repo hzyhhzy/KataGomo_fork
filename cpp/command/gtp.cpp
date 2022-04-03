@@ -2378,7 +2378,7 @@ int MainCmds::gtp(const vector<string>& args) {
         }
       }
     }
-    else if(Rules::basicRuleStrings().count(command)) //Is Command a basic rule?
+    else if(Rules::basicRuleStrings().count(Global::toUpper(command))) //Is Command a basic rule?
     {
       if(pieces.size() != 0) {
         responseIsError = true;
@@ -2409,7 +2409,7 @@ int MainCmds::gtp(const vector<string>& args) {
         }
       }
     }
-    else if(Rules::VCNRuleStrings().count(command)) //Is Command a VCN rule?
+    else if(Rules::VCNRuleStrings().count(Global::toUpper(command))) //Is Command a VCN rule?
     {
       if(pieces.size() != 0) {
         responseIsError = true;

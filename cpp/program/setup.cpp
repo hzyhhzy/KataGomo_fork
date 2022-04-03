@@ -686,7 +686,7 @@ Rules Setup::loadSingleRules(
     rules = Rules::parseRules(cfg.getString("rules"));
   }
   else {
-    float komi = 7.5f;
+    float komi = 0.0f;
 
     rules.komi = komi;
 
