@@ -12,6 +12,168 @@
 using namespace std;
 
 
+//Lib openings
+struct Opening
+{
+  bool isCenter;// Or Corner
+  double prob;
+  int movenum;
+  vector<pair<int, int>> moves;// <1000,1000> = PASS
+  Player startPla;
+};
+bool haveLoadOpenings = false;
+bool noOpeningsFile[3] = { false,false,false };
+vector<Opening> openingss[3];//三个规则
+static void loadOpenings()
+{
+  for (int basicRule = 0; basicRule <= 2; basicRule++)
+  {
+    if (haveLoadOpenings || noOpeningsFile[basicRule])continue;
+    noOpeningsFile[basicRule] = true;
+    string filename = "openingsGomoku.txt";
+    if (basicRule == Rules::BASICRULE_RENJU)
+      filename = "openingsRenju.txt";
+    ifstream ifs(filename);
+    if (!ifs.good())
+    {
+      continue;
+    }
+    double probTotal = 0;
+    int numCornerOpenings;
+    ifs >> numCornerOpenings;
+    if (numCornerOpenings < 0 || numCornerOpenings>1000000)return;
+    for (int i = 0; i < numCornerOpenings; i++)
+    {
+      Opening op;
+      op.isCenter = false;
+      ifs >> op.prob;
+      if (op.prob < 0)
+      {
+        cout << "Bad opening file";
+        return;
+      }
+      probTotal += op.prob;
+      ifs >> op.movenum;
+      if (op.movenum % 2 == 0)op.startPla = P_BLACK;
+      else op.startPla = P_WHITE;
+      for (int j = 0; j < op.movenum; j++)
+      {
+        int x, y;
+        ifs >> x >> y;
+        if (!op.isCenter)
+        {
+          x--; y--;
+          if (x < 0 || y < 0)
+          {
+            cout << "Bad opening file";
+            return;
+          }
+        }
+        op.moves.push_back(pair<int, int>(x, y));
+      }
+      openingss[basicRule].push_back(op);
+
+    }
+    int numCenterOpenings;
+    ifs >> numCenterOpenings;
+    if (numCenterOpenings < 0 || numCenterOpenings>1000000)return;
+    for (int i = 0; i < numCenterOpenings; i++)
+    {
+      Opening op;
+      op.isCenter = true;
+      ifs >> op.prob;
+      probTotal += op.prob;
+      ifs >> op.movenum;
+      if (op.movenum % 2 == 0)op.startPla = P_BLACK;
+      else op.startPla = P_WHITE;
+      for (int j = 0; j < op.movenum; j++)
+      {
+        int x, y;
+        ifs >> x >> y;
+        if (!op.isCenter)
+        {
+          x--; y--;
+          if (x < 0 || y < 0)
+          {
+            cout << "Bad opening file";
+            return;
+          }
+        }
+        op.moves.push_back(pair<int, int>(x, y));
+      }
+      openingss[basicRule].push_back(op);
+    }
+    int openingsNum = numCenterOpenings + numCornerOpenings;
+    assert(openingsNum = openings.size());
+    for (int i = 0; i < openingsNum; i++)
+    {
+      openingss[basicRule][i].prob /= probTotal;
+    }
+    noOpeningsFile[basicRule] = false;
+    cout << "Successfully load " << openingsNum << " openings for "<<Rules::writeBasicRule(basicRule) << endl;
+  }
+  haveLoadOpenings = true;
+}
+
+static void getRandomLibOpening(Rand& rand,BoardHistory& hist, Board& board, Player& startPla)
+{
+  if (!haveLoadOpenings)
+  {
+    cout << "getRandomOpening() but have not load openings"<<endl;
+    return;
+  }
+  if (noOpeningsFile[hist.rules.basicRule])
+  {
+    return;
+  }
+  if(board.x_size!=15 || board.y_size!=15)
+  {
+    cout << "getRandomOpening() this opening lib only support 15x15 board"<<endl;
+    return;
+  }
+  if(board.numStonesOnBoard()!=0)
+  {
+    cout << "getRandomOpening() Board not empty"<<endl;
+    return;
+  }
+
+  auto& openings = openingss[hist.rules.basicRule];
+
+  int halfSizeX = board.x_size / 2;
+  int halfSizeY = board.y_size / 2;
+  double opIdxDouble = rand.nextDouble();
+  int opIdx = -1;
+  double probTotal = 0;
+  for (int i = 0; i < openings.size(); i++)
+  {
+    probTotal += openings[i].prob;
+    if (opIdxDouble < probTotal)
+    {
+      opIdx = i;
+      break;
+    }
+  }
+  if (opIdx == -1)
+  {
+    cout << "Failed to get an opening" << endl;
+    return;
+  }
+  Opening& op = openings[opIdx];
+  startPla = op.startPla;
+  for (int i = 0; i < op.movenum; i++)
+  {
+    int x = op.isCenter ? halfSizeX + op.moves[i].first : op.moves[i].first;
+    int y = op.isCenter ? halfSizeY + op.moves[i].second : op.moves[i].second;
+    if (i % 2 == 0)
+    {
+      hist.makeBoardMoveAssumeLegal(board, Location::getLoc(x, y, board.x_size), P_BLACK);
+    }
+    else 
+      hist.makeBoardMoveAssumeLegal(board, Location::getLoc(x, y, board.x_size), P_WHITE);
+  }
+}
+
+
 
 static Loc getRandomNearbyMove(Board& board, Rand& gameRand,double avgDist)
 {
@@ -302,6 +464,8 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
   if(cfg.contains("komiMean") && (cfg.contains("komiAuto") && cfg.getBool("komiAuto")))
     throw IOError("Must specify only one of komiMean=<komi value> or komiAuto=True in config");
 
+
+
   komiMean = cfg.contains("komiMean") ? cfg.getFloat("komiMean",Rules::MIN_USER_KOMI,Rules::MAX_USER_KOMI) : 0.0f;
   komiStdev = cfg.contains("komiStdev") ? cfg.getFloat("komiStdev",0.0f,60.0f) : 0.0f;
   komiBigStdevProb = cfg.contains("komiBigStdevProb") ? cfg.getDouble("komiBigStdevProb",0.0,1.0) : 0.0;
@@ -478,6 +642,8 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
 
   noResultStdev = cfg.contains("noResultStdev") ? cfg.getDouble("noResultStdev",0.0,1.0) : 0.0;
   drawRandRadius = cfg.contains("drawRandRadius") ? cfg.getDouble("drawRandRadius",0.0,1.0) : 0.0;
+
+  loadOpenings();
 }
 
 GameInitializer::~GameInitializer()
@@ -1529,9 +1695,20 @@ FinishedGameData* Play::runGame(
     }
   };
 
-  if (gameRand.nextBool(0.99))
+  double balanceOpeningProb = playSettings.forSelfPlay ? 0.99 : 1.0;
+
+  if (gameRand.nextBool(balanceOpeningProb))
   {
-    initializeBalancedRandomOpening(botB, botW, board, hist, pla, gameRand,playSettings.forSelfPlay);
+    if (board.numStonesOnBoard() != 0)
+      cout << "board not empty when initialize opening" << endl;
+    else
+    {
+      if (gameRand.nextBool(playSettings.libOpeningProb))
+        getRandomLibOpening(gameRand, hist, board, pla);
+
+      if (board.numStonesOnBoard() == 0)//no lib opening
+        initializeBalancedRandomOpening(botB, botW, board, hist, pla, gameRand, playSettings.forSelfPlay);
+    }
   }
 
   if(playSettings.initGamesWithPolicy && otherGameProps.allowPolicyInit) {

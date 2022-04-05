@@ -4,6 +4,10 @@
 #include "../core/config_parser.h"
 
 struct PlaySettings {
+
+  //使用开局库的比例，其他的使用随机撒子法
+  double libOpeningProb;
+
   //Play a bunch of mostly policy-distributed moves at the start to initialize a game.
   bool initGamesWithPolicy;
   double policyInitProp; //Avg number of moves is this * board area

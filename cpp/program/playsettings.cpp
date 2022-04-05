@@ -1,7 +1,7 @@
 #include "../program/playsettings.h"
 
 PlaySettings::PlaySettings()
-  :initGamesWithPolicy(false),policyInitProp(0.0),startPosesPolicyInitProp(0.0),
+  :libOpeningProb(0.0), initGamesWithPolicy(false),policyInitProp(0.0),startPosesPolicyInitProp(0.0),
    compensateAfterPolicyInitProb(0.0),sidePositionProb(0.0),
    policyInitAreaTemperature(1.0),
    compensateKomiVisits(20),estimateLeadVisits(10),estimateLeadProb(0.0),
@@ -27,6 +27,8 @@ PlaySettings PlaySettings::loadForMatch(ConfigParser& cfg) {
   playSettings.resignConsecTurns = cfg.getInt("resignConsecTurns",1,100);
   playSettings.compensateKomiVisits = cfg.contains("compensateKomiVisits") ? cfg.getInt("compensateKomiVisits",1,10000) : 100;
   playSettings.initGamesWithPolicy =  cfg.contains("initGamesWithPolicy") ? cfg.getBool("initGamesWithPolicy") : false;
+  playSettings.libOpeningProb=cfg.contains("libOpeningProb") ? cfg.getDouble("libOpeningProb",0.0,1.0) : 0.0;
+
   if(playSettings.initGamesWithPolicy) {
     playSettings.policyInitProp = cfg.getDouble("policyInitProp",0.0,100.0);
     playSettings.startPosesPolicyInitProp = cfg.contains("startPosesPolicyInitProp") ? cfg.getDouble("startPosesPolicyInitProp",0.0,100.0) : 0.0;
@@ -40,6 +42,7 @@ PlaySettings PlaySettings::loadForMatch(ConfigParser& cfg) {
 PlaySettings PlaySettings::loadForGatekeeper(ConfigParser& cfg) {
   PlaySettings playSettings;
   playSettings.allowResignation = cfg.getBool("allowResignation");
+  playSettings.libOpeningProb=cfg.contains("libOpeningProb") ? cfg.getDouble("libOpeningProb",0.0,1.0) : 0.0;
   playSettings.resignThreshold = cfg.getDouble("resignThreshold",-1.0,0.0); //Threshold on [-1,1], regardless of winLossUtilityFactor
   playSettings.resignConsecTurns = cfg.getInt("resignConsecTurns",1,100);
   playSettings.compensateKomiVisits = cfg.contains("compensateKomiVisits") ? cfg.getInt("compensateKomiVisits",1,10000) : 100;
@@ -48,6 +51,7 @@ PlaySettings PlaySettings::loadForGatekeeper(ConfigParser& cfg) {
 
 PlaySettings PlaySettings::loadForSelfplay(ConfigParser& cfg) {
   PlaySettings playSettings;
+  playSettings.libOpeningProb=cfg.contains("libOpeningProb") ? cfg.getDouble("libOpeningProb",0.0,1.0) : 0.0;
   playSettings.initGamesWithPolicy = cfg.getBool("initGamesWithPolicy");
   playSettings.policyInitProp = cfg.contains("policyInitProp") ? cfg.getDouble("policyInitProp",0.0,100.0) : 15.0;
   playSettings.startPosesPolicyInitProp = cfg.contains("startPosesPolicyInitProp") ? cfg.getDouble("startPosesPolicyInitProp",0.0,100.0) : 15.0;
