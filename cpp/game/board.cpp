@@ -147,7 +147,7 @@ void Board::init(int xS, int yS)
   {
     midLocs[i] = Board::NULL_LOC;
   }
-  nextPla = C_BLACK;
+  nextPla = C_WHITE;
   stage = 0;
 
   pos_hash = ZOBRIST_SIZE_X_HASH[x_size] ^ ZOBRIST_SIZE_Y_HASH[y_size] ^ ZOBRIST_NEXTPLA_HASH[nextPla] ^ ZOBRIST_STAGENUM_HASH[stage];
@@ -356,39 +356,14 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
   {
     std::cout << "Error next player ";
   }
-  if (stage == 0)//я║вс
-  {
-    stage = 1;
-    pos_hash ^= ZOBRIST_STAGENUM_HASH[0];
-    pos_hash ^= ZOBRIST_STAGENUM_HASH[1];
-
-    midLocs[0] = loc;
-    pos_hash ^= ZOBRIST_STAGELOC_HASH[loc][0];
-  }
-  else if (stage == 1)//е╡вс
+  if (stage == 0)
   {
     stage = 0;
-    pos_hash ^= ZOBRIST_STAGENUM_HASH[1];
-    pos_hash ^= ZOBRIST_STAGENUM_HASH[0];
-
-    if (isOnBoard(loc))
-    {
-      Loc chosenLoc = midLocs[0];
-      setStone(chosenLoc, C_EMPTY);
-      setStone(loc, nextPla);
-    }
-
-    for (int i = 0; i < STAGE_NUM_EACH_PLA - 1; i++)
-    {
-      pos_hash ^= ZOBRIST_STAGELOC_HASH[midLocs[i]][i];
-      midLocs[i] = Board::NULL_LOC;
-    }
+    todo
 
 
 
-    nextPla = getOpp(nextPla);
-    pos_hash ^= ZOBRIST_NEXTPLA_HASH[getOpp(nextPla)];
-    pos_hash ^= ZOBRIST_NEXTPLA_HASH[nextPla];
+    nextPla = C_WHITE;
 
 
 
@@ -399,9 +374,7 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
 
 Player Board::nextnextPla() const
 {
-  if (stage == STAGE_NUM_EACH_PLA - 1)
-    return getOpp(nextPla);
-  else return nextPla;
+  return P_WHITE;
 }
 
 
@@ -516,7 +489,6 @@ char PlayerIO::colorToChar(Color c)
   case C_BLACK: return 'X';
   case C_WHITE: return 'O';
   case C_EMPTY: return '.';
-  case C_BANLOC: return 'B';
   default:  return '#';
   }
 }

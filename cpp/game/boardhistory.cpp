@@ -13,7 +13,8 @@ BoardHistory::BoardHistory()
    initialTurnNumber(0),
    recentBoards(),
    currentRecentBoardIdx(0),
-   presumedNextMovePla(P_BLACK),
+   currentScore(0),
+   presumedNextMovePla(P_WHITE),
    isGameFinished(false),winner(C_EMPTY),finalWhiteMinusBlackScore(0.0f),
    isScored(false),isNoResult(false),isResignation(false)
 {
@@ -30,6 +31,7 @@ BoardHistory::BoardHistory(const Board& board, Player pla, const Rules& r)
    initialTurnNumber(0),
    recentBoards(),
    currentRecentBoardIdx(0),
+  currentScore(0),
    presumedNextMovePla(pla),
    isGameFinished(false),winner(C_EMPTY),finalWhiteMinusBlackScore(0.0f),
    isScored(false),isNoResult(false),isResignation(false)
@@ -46,6 +48,7 @@ BoardHistory::BoardHistory(const BoardHistory& other)
    initialTurnNumber(other.initialTurnNumber),
    recentBoards(),
    currentRecentBoardIdx(other.currentRecentBoardIdx),
+  currentScore(other.currentScore),
    presumedNextMovePla(other.presumedNextMovePla),
    isGameFinished(other.isGameFinished),winner(other.winner),finalWhiteMinusBlackScore(other.finalWhiteMinusBlackScore),
    isScored(other.isScored),isNoResult(other.isNoResult),isResignation(other.isResignation)
@@ -65,6 +68,7 @@ BoardHistory& BoardHistory::operator=(const BoardHistory& other)
   initialTurnNumber = other.initialTurnNumber;
   std::copy(other.recentBoards, other.recentBoards+NUM_RECENT_BOARDS, recentBoards);
   currentRecentBoardIdx = other.currentRecentBoardIdx;
+  currentScore = other.currentScore;
   presumedNextMovePla = other.presumedNextMovePla;
   isGameFinished = other.isGameFinished;
   winner = other.winner;
@@ -84,6 +88,7 @@ BoardHistory::BoardHistory(BoardHistory&& other) noexcept
   initialTurnNumber(other.initialTurnNumber),
   recentBoards(),
   currentRecentBoardIdx(other.currentRecentBoardIdx),
+  currentScore(other.currentScore),
   presumedNextMovePla(other.presumedNextMovePla),
   isGameFinished(other.isGameFinished),winner(other.winner),finalWhiteMinusBlackScore(other.finalWhiteMinusBlackScore),
   isScored(other.isScored),isNoResult(other.isNoResult),isResignation(other.isResignation)
@@ -100,6 +105,7 @@ BoardHistory& BoardHistory::operator=(BoardHistory&& other) noexcept
   initialTurnNumber = other.initialTurnNumber;
   std::copy(other.recentBoards, other.recentBoards+NUM_RECENT_BOARDS, recentBoards);
   currentRecentBoardIdx = other.currentRecentBoardIdx;
+  currentScore = other.currentScore;
   presumedNextMovePla = other.presumedNextMovePla;
   isGameFinished = other.isGameFinished;
   winner = other.winner;
@@ -125,6 +131,7 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r) {
     recentBoards[i] = board;
   currentRecentBoardIdx = 0;
 
+  currentScore = 0;
   presumedNextMovePla = pla;
 
   isGameFinished = false;
@@ -214,15 +221,15 @@ void BoardHistory::setWinnerByResignation(Player pla) {
   finalWhiteMinusBlackScore = 0.0f;
 }
 
-void BoardHistory::setWinner(Player pla)
+void BoardHistory::setScore(double score)
 {
   isGameFinished = true;
   isScored = true;
   isNoResult = false;
   isResignation = false;
-  winner = pla;
-  finalWhiteMinusBlackScore = 0.0f;
-  if (pla == C_EMPTY)isNoResult = true;
+  winner = C_WHITE;
+  finalWhiteMinusBlackScore = score;
+  isNoResult = false;
 }
 
 

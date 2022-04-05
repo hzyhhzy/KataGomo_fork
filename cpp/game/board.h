@@ -19,9 +19,11 @@
 //TYPES AND CONSTANTS-----------------------------------------------------------------
 
 
+static const double scoreScale = 200; //得分是什么量级
+
 //每一步棋分为几个阶段
 //例如：象棋类分为“选子”和“选落点”2步，六子棋分为2步，amazons分为3步，也有一些棋不定步数
-static const int STAGE_NUM_EACH_PLA = 2;
+static const int STAGE_NUM_EACH_PLA = 1;
 
 struct Board;
 
@@ -46,9 +48,10 @@ static constexpr Player P_WHITE = 2;
 static constexpr Color C_EMPTY = 0;
 static constexpr Color C_BLACK = 1;
 static constexpr Color C_WHITE = 2;
-static constexpr Color C_WALL = 3;
-static constexpr Color C_BANLOC = 4;
-static constexpr int NUM_BOARD_COLORS = 5;
+static constexpr Color C_STONES[5] = { 1,2,3,4,5 };
+
+static constexpr Color C_WALL = 6;
+static constexpr int NUM_BOARD_COLORS = 7;
 
 static inline Color getOpp(Color c)
 {return c ^ 3;}
