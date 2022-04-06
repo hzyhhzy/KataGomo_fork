@@ -104,7 +104,7 @@ static void loadOpenings()
       openingss[basicRule].push_back(op);
     }
     int openingsNum = numCenterOpenings + numCornerOpenings;
-    assert(openingsNum = openings.size());
+    assert(openingsNum = openingss[basicRule].size());
     for (int i = 0; i < openingsNum; i++)
     {
       openingss[basicRule][i].prob /= probTotal;
@@ -224,9 +224,9 @@ static Loc getRandomNearbyMove(Board& board, Rand& gameRand,double avgDist)
 
   ASSERT_UNREACHABLE;
 }
-static double getBoardValue(Search* botB, Search* botW, const Board& board, const BoardHistory& hist, Player nextPlayer)
+static double getBoardValue(Search* bot, const Board& board, const BoardHistory& hist, Player nextPlayer)
 {
-  NNEvaluator* nnEval = (nextPlayer == P_BLACK ? botB : botW)->nnEvaluator;
+  NNEvaluator* nnEval = bot->nnEvaluator;
   MiscNNInputParams nnInputParams;
   NNResultBuf buf;
   nnEval->evaluate(board, hist, nextPlayer, nnInputParams, buf,  false, false);
@@ -253,7 +253,8 @@ static Loc getBalanceMove(Search* botB, Search* botW, const Board& board, const 
     histCopy.makeBoardMoveAssumeLegal(boardCopy, loc, nextPlayer);
     if (histCopy.isGameFinished)continue;
 
-    double value = getBoardValue(botB,botW,boardCopy,histCopy,getOpp(nextPlayer));
+    Search* bot = gameRand.nextBool(0.5) ? botB : botW;
+    double value = getBoardValue(bot,boardCopy,histCopy,getOpp(nextPlayer));
 
     double p = forSelfplay?pow(1 - value * value, 2):pow(1 - value * value, 6);
     maxProb = std::max(maxProb, p);
