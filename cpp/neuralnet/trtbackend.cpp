@@ -1345,7 +1345,7 @@ void NeuralNet::getOutput(
     }
 
     int numScoreValueChannels = inputBuffers->singleScoreValueResultElts;
-    if(version >= 9) {
+    if(version >= 9 && version != 98) {
       assert(numScoreValueChannels == 6);
       output->whiteScoreMean = inputBuffers->scoreValueResults[row * numScoreValueChannels];
       output->whiteScoreMeanSq = inputBuffers->scoreValueResults[row * numScoreValueChannels + 1];
