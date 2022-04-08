@@ -1143,6 +1143,9 @@ Rules ModelDesc::getSupportedRules(const Rules& desiredRules, bool& supported) c
   else if(version <= 10) {
     supported = (rules.firstPassWin == false) && (rules.VCNRule == Rules::VCNRULE_NOVC) && (rules.maxMoves == 0);
   }
+  else if(version <= 98) {
+    supported = (rules.firstPassWin == false) && (rules.VCNRule == Rules::VCNRULE_NOVC) && (rules.maxMoves == 0);
+  }
   else if(version <= 101) {
     supported = !((desiredRules.maxMoves != 0 || desiredRules.VCNRule != Rules::VCNRULE_NOVC) && desiredRules.firstPassWin);
   }

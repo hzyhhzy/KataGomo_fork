@@ -655,10 +655,14 @@ void NNEvaluator::evaluate(
     }
 
     static_assert(NNModelVersion::latestInputsVersionImplemented == 101, "");
-    if(inputsVersion == 7)
+    if(inputsVersion == 97)
+      NNInputs::fillRowV7OLD(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
+    else if(inputsVersion == 7)
       NNInputs::fillRowV7(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
+    else if(inputsVersion == 10)
+      NNInputs::fillRowV10(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
     else if(inputsVersion == 101)
-        NNInputs::fillRowV101(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
+      NNInputs::fillRowV101(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
     else
       ASSERT_UNREACHABLE;
   }
@@ -799,7 +803,7 @@ void NNEvaluator::evaluate(
     //Fix up the value as well. Note that the neural net gives us back the value from the perspective
     //of the player so we need to negate that to make it the white value.
     static_assert(NNModelVersion::latestModelVersionImplemented == 101, "");
-    if(modelVersion >= 4 && modelVersion <= 101) {
+    if(modelVersion >= 8 && modelVersion <= 101) {
       double winProb;
       double lossProb;
       double noResultProb;
@@ -925,7 +929,7 @@ void NNEvaluator::evaluate(
 
   //Postprocess ownermap
   if(buf.result->whiteOwnerMap != NULL) {
-    if(modelVersion >= 3 && modelVersion <= 101) {
+    if(modelVersion >= 8 && modelVersion <= 101) {
       for(int pos = 0; pos<nnXLen*nnYLen; pos++) {
         int y = pos / nnXLen;
         int x = pos % nnXLen;
