@@ -256,7 +256,7 @@ static Loc getBalanceMove(Search* botB, Search* botW, const Board& board, const 
     Search* bot = gameRand.nextBool(0.5) ? botB : botW;
     double value = getBoardValue(bot,boardCopy,histCopy,getOpp(nextPlayer));
 
-    double p = forSelfplay?pow(1 - value * value, 2):pow(1 - value * value, 6);
+    double p = forSelfplay?pow(1 - value * value, 4):pow(1 - value * value, 10);
     maxProb = std::max(maxProb, p);
     prob[y*xsize + x] = p;
 
@@ -287,7 +287,18 @@ static Loc getBalanceMove(Search* botB, Search* botW, const Board& board, const 
       return Location::getLoc(x, y, xsize);
     }
   }
-  
+
+
+  //some rare conditions, random play.
+  cout << "probSum=" << probSum << " in getBalanceMove()" << endl;
+  while (1)
+  {
+    int x = gameRand.nextUInt(xsize);
+    int y = gameRand.nextUInt(ysize);
+    Loc loc=Location::getLoc(x, y, xsize);
+    if (board.isLegal(loc, nextPlayer, true))
+      return loc;
+  }
   ASSERT_UNREACHABLE;
 }
 static bool tryInitializeBalancedRandomOpening(

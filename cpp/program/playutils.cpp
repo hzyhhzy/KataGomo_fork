@@ -195,7 +195,7 @@ void PlayUtils::initializeGameUsingPolicy(
   //随机撒一个子顶policy init 2步
   const double randomInitMovenumEquToPolicyInit = 2.0;
   double movenum = board.numStonesOnBoard();
-  int numInitialMovesToPlay = (int)floor(gameRand.nextExponential() * avgMovenum - randomInitMovenumEquToPolicyInit*movenum);
+  int numInitialMovesToPlay = (int)floor(gameRand.nextExponential() * (avgMovenum - randomInitMovenumEquToPolicyInit*movenum));
   if (numInitialMovesToPlay < 0)numInitialMovesToPlay = 0;
   assert(numInitialMovesToPlay >= 0);
   for(int i = 0; i<numInitialMovesToPlay; i++) {
