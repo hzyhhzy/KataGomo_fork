@@ -882,7 +882,7 @@ ValueHeadDesc::ValueHeadDesc(istream& in, int vrsn, bool binaryFloats) {
       name +
       Global::strprintf(": sv3Mul.inChannels (%d) != v2Mul.outChannels (%d)", sv3Mul.inChannels, v2Mul.outChannels));
 
-  if(version >= 9) {
+  if(version >= 9 && version != 98) {
     if(sv3Mul.outChannels != 6)
       throw StringError(name + Global::strprintf(": sv3Mul.outChannels (%d) != 6", sv3Mul.outChannels));
     if(sv3Bias.numChannels != 6)
@@ -963,7 +963,7 @@ ModelDesc::ModelDesc(istream& in, bool binaryFloats) {
 
   if(version < 0)
     throw StringError("This neural net has an invalid version, you probably specified the wrong file. Supposed model version: " + Global::intToString(version));
-  if(version < 3)
+  if(version < 8)
     throw StringError("This neural net is from an extremely old version of KataGo and is no longer supported by the engine. Model version: " + Global::intToString(version));
   if(version > NNModelVersion::latestModelVersionImplemented)
     throw StringError("This neural net requires a newer KataGo version. Obtain a newer KataGo at https://github.com/lightvector/KataGo. Model version: " + Global::intToString(version));
@@ -1137,16 +1137,16 @@ Rules ModelDesc::getSupportedRules(const Rules& desiredRules, bool& supported) c
   static_assert(NNModelVersion::latestModelVersionImplemented == 101, "");
   Rules rules = desiredRules;
   supported = true;
-  if(version <= 6) {
+  if(version <= 7) {
       supported = false;
   }
   else if(version <= 10) {
     supported = (rules.firstPassWin == false) && (rules.VCNRule == Rules::VCNRULE_NOVC) && (rules.maxMoves == 0);
   }
-  else if(version <= 98) {
+  else if(version == 98) {
     supported = (rules.firstPassWin == false) && (rules.VCNRule == Rules::VCNRULE_NOVC) && (rules.maxMoves == 0);
   }
-  else if(version <= 101) {
+  else if(version == 101) {
     supported = !((desiredRules.maxMoves != 0 || desiredRules.VCNRule != Rules::VCNRULE_NOVC) && desiredRules.firstPassWin);
   }
   else {
