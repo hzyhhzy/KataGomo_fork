@@ -760,7 +760,7 @@ void NNEvaluator::evaluate(
     if (history.rules.vcSide() == getOpp(nextPlayer))
     {
       int passPos = NNPos::locToPos(Board::PASS_LOC, xSize, nnXLen, nnYLen);
-      float minPassPolicyExp = maxPolicy - 2.0;
+      float minPassPolicyExp = maxPolicy - 3.5;
       if (policy[passPos] < minPassPolicyExp)
         policy[passPos] = minPassPolicyExp;
     }
