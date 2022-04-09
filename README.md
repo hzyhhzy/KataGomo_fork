@@ -1,2 +1,5 @@
 ***Engine based on Katago TensorRT+GraphSearch***   
-# Îå×ÓÆåĞÂÒıÇæ£¨ÕıÔÚĞ´£©
+# å·²æ”¾å¼ƒ Deprecated    
+æœ€æ–°ä»£ç è§ "GomDevVCN" åˆ†æ”¯    
+See "GomDevVCN" branch    
+https://github.com/hzyhhzy/KataGo/tree/GomDevVCN   
