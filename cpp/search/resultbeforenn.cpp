@@ -12,7 +12,9 @@ ResultBeforeNN::ResultBeforeNN()
 
 void ResultBeforeNN::init(const Board& board, const BoardHistory& hist, Color nextPlayer,bool hasVCF)
 {
-  if (inited&&(calculatedVCF || (!hasVCF)))return;
+  assert(!(hist.rules.VCNRule != Rules::VCNRULE_NOVC && hist.rules.maxMoves != 0), "ResultBeforeNN::init() can not support VCN and maxMoves simutaneously");
+  bool willCalculateVCF = hasVCF && hist.rules.maxMoves == 0;
+  if (inited&&(calculatedVCF || (!willCalculateVCF)))return;
   inited = true;
 
   Color opp = getOpp(nextPlayer);
@@ -43,15 +45,51 @@ void ResultBeforeNN::init(const Board& board, const BoardHistory& hist, Color ne
         myLifeFourLoc = loc;
       }
     }
-  //I have no five, opp has no four
+
+  if (hist.rules.VCNRule != Rules::VCNRULE_NOVC)
+  {
+    int vcLevel = hist.rules.vcLevel()+ hist.blackPassNum + hist.whitePassNum;;
+    Color vcSide = hist.rules.vcSide();
+    if (vcSide == nextPlayer)
+    {
+      if (vcLevel == 5)
+      {
+        winner = opp;
+        myOnlyLoc = Board::NULL_LOC;
+        return;
+      }
+    }
+    else if (vcSide == opp)
+    {
+      if (vcLevel == 5)
+      {
+        winner = nextPlayer;
+        myOnlyLoc = Board::PASS_LOC;
+        return;
+      }
+      else if (vcLevel == 4)
+      {
+        if (!oppHasFour)
+        {
+          winner = nextPlayer;
+          myOnlyLoc = Board::PASS_LOC;
+          return;
+        }
+      }
+    }
+  }
+
+
+  //I have life four, opp has no four
   if (IHaveLifeFour&&(!oppHasFour))
   {
-    winner = nextPlayer;
+    int remainMovenum= hist.rules.maxMoves==0? 10000 : hist.rules.maxMoves-hist.getMovenum();
+    if(remainMovenum>=3)winner = nextPlayer;
     myOnlyLoc = myLifeFourLoc;
     return;
   }
 
-  if (!hasVCF)return;
+  if (!willCalculateVCF)return;
 
   //check VCF
   calculatedVCF = true;

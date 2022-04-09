@@ -1147,7 +1147,11 @@ Rules ModelDesc::getSupportedRules(const Rules& desiredRules, bool& supported) c
     supported = (rules.firstPassWin == false) && (rules.VCNRule == Rules::VCNRULE_NOVC) && (rules.maxMoves == 0);
   }
   else if(version == 101) {
-    supported = !((desiredRules.maxMoves != 0 || desiredRules.VCNRule != Rules::VCNRULE_NOVC) && desiredRules.firstPassWin);
+    //two of "maxmoves,VCN,firstPassWin" at the same time is not supported
+    bool a = desiredRules.maxMoves != 0;
+    bool b = desiredRules.VCNRule != Rules::VCNRULE_NOVC;
+    bool c = desiredRules.firstPassWin;
+    supported = !((a&&b)||(b&&c)||(a&&c));
   }
   else {
     ASSERT_UNREACHABLE;

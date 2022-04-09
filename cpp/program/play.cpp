@@ -836,7 +836,7 @@ void GameInitializer::createGameSharedUnsynchronized(
   else {
     int xSize = allowedBSizes[xSizeIdx];
     int ySize = allowedBSizes[ySizeIdx];
-    if (!rules.firstPassWin && rand.nextBool(moveLimitProb))
+    if (!rules.firstPassWin && rules.VCNRule==Rules::VCNRULE_NOVC && rand.nextBool(moveLimitProb))
     {
       int maxMoves = rand.nextExponential()*30+30-rand.nextExponential()*5;
       if (maxMoves > xSize * ySize - 5)maxMoves = 0;

@@ -993,6 +993,7 @@ void NNInputs::fillRowV101(
   //5       无禁/无禁六不胜0，有禁黑-1，有禁白1
   //6       是否使用禁手特征（两种无禁恒为0）
   //7~12    自己和对手的VCF（是否使用vcf，vcf的结果是什么）
+  //38      胜点是否是pass（仅可能用于vcn防守方）
 
   //13  非VCN模式：和棋胜率，1.0是和棋己方胜，-1.0是和棋对方胜
   //    VCN模式：0
@@ -1024,7 +1025,7 @@ void NNInputs::fillRowV101(
   // 34  exp(-(maxmoves-moves)/15.0)
   // 35  exp(-(maxmoves-moves)/5.0)
   // 36  exp(-(maxmoves-moves)/1.5)
-
+  // 37 2*((maxmoves-moves)%2)-1
 
 
   bool hasForbiddenFeature = nnInputParams.useForbiddenInput && hist.rules.basicRule == Rules::BASICRULE_RENJU;
@@ -1088,9 +1089,14 @@ void NNInputs::fillRowV101(
     const ResultBeforeNN& resultbeforenn = nnInputParams.resultbeforenn;
     if (board.isOnBoard(resultbeforenn.myOnlyLoc))
       setRowBin(rowBin, NNPos::locToPos(resultbeforenn.myOnlyLoc, board.x_size, nnXLen, nnYLen), 5, 1.0f, posStride, featureStride);
+    else if (resultbeforenn.myOnlyLoc == Board::PASS_LOC)
+      rowGlobal[38] = 1.0;
+
+    if (resultbeforenn.winner == nextPlayer)rowGlobal[7] = 1.0;//can win by five/lifeFour/vcf
+
     if (resultbeforenn.calculatedVCF)
     {
-      if (resultbeforenn.winner == nextPlayer)rowGlobal[7] = 1.0;//can win by five/lifeFour/vcf
+      if (resultbeforenn.winner == nextPlayer);//can win by five/lifeFour/vcf
       else if (resultbeforenn.myVCFresult == 2)rowGlobal[8] = 1.0;//cannot vcf
       else if (resultbeforenn.myVCFresult == 3)rowGlobal[9] = 1.0;//at least no short vcf
       else ASSERT_UNREACHABLE;
@@ -1177,6 +1183,7 @@ void NNInputs::fillRowV101(
     rowGlobal[34] = exp(-(maxmoves-movenum)/15.0);
     rowGlobal[35] = exp(-(maxmoves-movenum)/5.0);
     rowGlobal[36] = exp(-(maxmoves-movenum)/1.5);
+    rowGlobal[37] = 2*((int(maxmoves-movenum))%2)-1;
 
 
   }
