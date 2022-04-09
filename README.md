@@ -1,5 +1,10 @@
 ***2022.1 Engine based on Katago TensorRT+GraphSearch***   
 
+***Updated on 2022.4.9***   
+
+Gomoku/Renju: "GomDevVCN" branch   
+https://github.com/hzyhhzy/KataGo/tree/GomDevVCN      
+
 TODO:   
 先做改动小的，再做改动大的   
 
@@ -27,28 +32,31 @@ TODO:
 | 3.0 不打算做的                                         |                |
 | 3.0.2 重力四子棋                                       |                | aborted      | 以前做过，训练了很长时间           |
 | 3.1 五子棋系列(各种规则)                               |                | -            |
-| 3.1.0 主线(无禁,有禁,无禁六不胜)                       | GomDev         | **training** | 以后会跑分布式                     |
-| 3.1.1 兼容旧权重                                       | GomCompat      | -            | 
+| 3.1.0 主线(无禁,有禁,无禁六不胜)                       | GomDevVCN      | **training** | 100b256f，以后会跑分布式           |
 | 3.1.2 禁点五子棋                                       | GomBanLoc      | finished     |
-| 3.2 连五的个数                                         | fivecount      | **training** |
+| 3.2 连五的个数                                         | fivecount      | finished     |
 | 3.3 反 n 子棋                                          | AntiGomoku     | finished     |
 | 3.4 Hex                                                | Hex2022        | finished     |
 | 3.4.1 反 Hex                                           | Hex2022        | finished     |
 | 3.5 等差数列 6 子棋                                    | EquDifGomoku   | finished     |
-| 3.6 Angels and Devils game                             |                | todo         |
-| 3.7 每一步必须在上一步的附近某些位置，满足某些条件获胜 |                | todo         |
+| 3.6 Angels and Devils game                             | AngelProblem   | finished     |
+| 3.7 每一步必须在上一步的附近某些位置，满足某些条件获胜 |                | -            |
+| 3.7.1 一种特殊四子棋                                   | con4type1      | finished     |
 | 3.8 Reversi(奥赛罗，翻转棋)，反 Reversi                | Reversi2022    | finished     | 为了在botzone上打榜，还是做了      |
 |                                                        |
 | 4.一次走两步的棋，或者挪子的棋                         | Amazons        | -            | 把 Amazons 分支作为基础分支        |
 | 4.0 国象，中象                                         |                | aborted      | 别人做过，且效果不好，所以不做     |
-| 4.1 六子棋(Connect6)                                   |                | todo         |
-| 4.2 中国跳棋                                           |                | todo         |
-| 4.3 Amazons(亚马逊棋)                                  | Amazons        | Finished     |
-| 4.4 Breakthrough                                       |                | todo         |
-| 4.5 Ataxx(同化棋)                                      | Ataxx          | Finished     |
+| 4.1 六子棋(Connect6)                                   | Connect6       | **training** |
+| 4.2 中国跳棋                                           | tiaoqi         | finished     |
+| 4.3 Amazons(亚马逊棋)                                  | Amazons        | finished     |
+| 4.4 Breakthrough                                       | breakthrough   | finished     |
+| 4.5 Ataxx(同化棋)                                      | Ataxx          | finished     |
 | 4.6 各种极简象棋变种                                   |                | todo         |
 |                                                        |
-| 5.完全信息，但是有随机性                               |                | todo         |
+| 5.单人游戏                                             | -              |              |
+| 5.1 消消乐                                             | xiaoxiaole     | todo         |
+|                                                        |
+| 6.完全信息，但是有随机性                               |                | todo         |
 
 
 
