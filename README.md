@@ -1,5 +1,7 @@
 ***Engine based on Katago TensorRT+GraphSearch***   
-# Îå×ÓÆåĞÂÒıÇæ     
-¼ÓÈëVCN£¬ºÍÆåÏÈpassÊ¤£¬ÏŞÖÆ²½ÊıÕâÈı¸ö¹¦ÄÜ    
-Ö®ºóµÄ¸üĞÂÈ«ÔÚÕâ¸ö·ÖÖ§   
-100b256f½«»áÊ¹ÓÃÕâ¸ö·ÖÖ§½øĞĞÅÜÆ×ÑµÁ·   
+# äº”å­æ£‹æ–°å¼•æ“ Gomoku/Renju New Engine        
+åŠ å…¥VCNï¼Œå’Œæ£‹å…ˆpassèƒœï¼Œé™åˆ¶æ­¥æ•°è¿™ä¸‰ä¸ªåŠŸèƒ½    
+
+ä¹‹åçš„æ›´æ–°å…¨åœ¨è¿™ä¸ªåˆ†æ”¯ All updates will be only in this branch     
+
+100b256få°†ä¼šä½¿ç”¨è¿™ä¸ªåˆ†æ”¯è¿›è¡Œè·‘è°±è®­ç»ƒ 100b256f training will start on this branch          
