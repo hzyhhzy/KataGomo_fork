@@ -12,7 +12,8 @@ ResultBeforeNN::ResultBeforeNN()
 
 void ResultBeforeNN::init(const Board& board, const BoardHistory& hist, Color nextPlayer,bool hasVCF)
 {
-  assert(!(hist.rules.VCNRule != Rules::VCNRULE_NOVC && hist.rules.maxMoves != 0), "ResultBeforeNN::init() can not support VCN and maxMoves simutaneously");
+  if(hist.rules.VCNRule != Rules::VCNRULE_NOVC && hist.rules.maxMoves != 0)
+    throw StringError("ResultBeforeNN::init() can not support VCN and maxMoves simutaneously");
   bool willCalculateVCF = hasVCF && hist.rules.maxMoves == 0;
   if (inited&&(calculatedVCF || (!willCalculateVCF)))return;
   inited = true;
