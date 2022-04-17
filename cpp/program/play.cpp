@@ -289,9 +289,10 @@ static Loc getBalanceMove(Search* botB, Search* botW, const Board& board, const 
   }
 
 
-  //some rare conditions, random play.
-  cout << "probSum=" << probSum << " in getBalanceMove()" << endl;
-  while (1)
+  //some rare conditions, return NULL_LOC.
+  cout << "totalProb=" << totalProb << ", probSum=" << probSum << " in getBalanceMove(), Rule=" << hist.rules.toString() << endl;
+  return Board::NULL_LOC;
+  /*while (1)
   {
     int x = gameRand.nextUInt(xsize);
     int y = gameRand.nextUInt(ysize);
@@ -299,7 +300,7 @@ static Loc getBalanceMove(Search* botB, Search* botW, const Board& board, const 
     if (board.isLegal(loc, nextPlayer, true))
       return loc;
   }
-  ASSERT_UNREACHABLE;
+  ASSERT_UNREACHABLE;*/
 }
 static bool tryInitializeBalancedRandomOpening(
   Search* botB, Search* botW, Board& board,BoardHistory& hist, Player& nextPlayer,
@@ -380,8 +381,7 @@ static void initializeBalancedRandomOpening(
     if (tryTimes > maxTryTimes)
     {
       tryTimes = 0;
-      cout << "Reached max trying times for finding balanced openings"  << endl;
-      cout << "Rule="<<hist.rules.toString();
+      cout << "Reached max trying times for finding balanced openings, Rule="<<hist.rules.toString()<<endl;
       rejectProb = 0.8;
     }
   }
