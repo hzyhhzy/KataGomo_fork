@@ -218,6 +218,9 @@ MovePriority Board::getMovePriority(Player pla, Loc loc, bool isSixWin, bool isP
 }
 MovePriority Board::getMovePriorityAssumeLegal(Player pla, Loc loc, bool isSixWin)const
 {
+#if RULE==STANDARD
+  isSixWin = false;
+#endif
   if (loc == PASS_LOC)return MP_NORMAL;
   MovePriority MP = MP_NORMAL;
   for (int i = 0; i < 4; i++)
