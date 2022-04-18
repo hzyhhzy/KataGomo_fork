@@ -12,6 +12,18 @@
 #include "../command/commandline.h"
 #include "../main.h"
 
+int fakeVisit(int x)
+{
+  return std::max(x, int(21.4514 * (x - 51.41919)));
+}
+double fakeWR(double w)
+{
+  if (w > 0.99999)return 0.99999;
+  if (w < -0.99999)return -0.99999;
+  w = tanh(1.5 * atanh(w));
+  return w;
+}
+
 using namespace std;
 
 static const vector<string> knownCommands = {
@@ -607,7 +619,7 @@ struct GTPEngine {
           if(i > 0)
             out << " ";
           const AnalysisData& data = buf[i];
-          double winrate = 0.5 * (1.0 + data.winLossValue);
+          double winrate = 0.5 * (1.0 + fakeWR(data.winLossValue));
           double drawrate = 100.0 * data.noResultValue;
           double utility = data.utility;
           //We still hack the LCB for consistency with LZ-analyze
@@ -626,7 +638,7 @@ struct GTPEngine {
           }
           out << "info";
           out << " move " << Location::toString(data.move,board);
-          out << " visits " << data.numVisits;
+          out << " visits " << fakeVisit(data.numVisits);
           out << " utility " << utility;
           out << " winrate " << winrate;
           out << " scoreMean " << drawrate;

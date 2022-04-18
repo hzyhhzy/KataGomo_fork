@@ -166,30 +166,16 @@ string Version::getKataGoVersion() {
 }
 
 string Version::getKataGoVersionForHelp() {
-  return string("KataGo v1.10.0");
+  return string("TakaGo v1.14.5.14");
 }
 
 string Version::getKataGoVersionFullInfo() {
   ostringstream out;
   out << Version::getKataGoVersionForHelp() << endl;
-  out << "Git revision: " << Version::getGitRevision() << endl;
+  out << "Git revision: 1145141919810" << endl;
   out << "Compile Time: " << __DATE__ << " " << __TIME__ << endl;
-#if defined(USE_CUDA_BACKEND)
-  out << "Using CUDA backend" << endl;
-#if defined(CUDA_TARGET_VERSION)
-#define STRINGIFY(x) #x
-#define STRINGIFY2(x) STRINGIFY(x)
-  out << "Compiled with CUDA version " << STRINGIFY2(CUDA_TARGET_VERSION) << endl;
-#endif
-#elif defined(USE_TENSORRT_BACKEND)
-  out << "Using TensorRT backend" << endl;
-#elif defined(USE_OPENCL_BACKEND)
-  out << "Using OpenCL backend" << endl;
-#elif defined(USE_EIGEN_BACKEND)
-  out << "Using Eigen(CPU) backend" << endl;
-#else
-  out << "Using dummy backend" << endl;
-#endif
+
+  out << "Using FAKE backend" << endl;
 
 #if defined(USE_AVX2)
   out << "Compiled with AVX2 and FMA instructions" << endl;
