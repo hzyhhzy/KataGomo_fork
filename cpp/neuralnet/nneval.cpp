@@ -732,7 +732,7 @@ void NNEvaluator::evaluate(
         isLegal[i] = history.isLegal(board, loc, nextPlayer);
         if (modelVersion == 98 && nextPlayer == C_BLACK && isLegal[i] )
         {
-          isLegal[i] = board.isForbidden(loc);
+          isLegal[i] = ! board.isForbidden(loc);
         }
       }
     }
