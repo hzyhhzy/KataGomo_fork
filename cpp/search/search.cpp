@@ -967,7 +967,10 @@ bool Search::playoutDescend(
     //Avoid running "too fast", by making sure that a leaf evaluation takes roughly the same time as a genuine nn eval
     //This stops a thread from building a silly number of visits to distort MCTS statistics while other threads are stuck on the GPU.
     if (searchParams.finishGameSearchDelayMicroseconds > 0)
-      std::this_thread::sleep_for(std::chrono::microseconds(searchParams.finishGameSearchDelayMicroseconds));
+    {
+      uint64_t usToDelay = thread.rand.nextUInt64(searchParams.finishGameSearchDelayMicroseconds * 2);
+      std::this_thread::sleep_for(std::chrono::microseconds(usToDelay));
+    }
     nnEvaluator->waitForNextNNEvalIfAny();
     if(thread.history.isNoResult) {
       double winLossValue = 0.0;
