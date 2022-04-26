@@ -84,7 +84,12 @@ static void maybeApplyWideRootNoise(
   }
 }
 
-
+inline double noResultUtilityDecrease(double x, double d, Color color)
+{
+  if (color == C_BLACK)
+    x = -x;
+  return x-tanh(atanh(x * 0.999999) - d);
+}
 double Search::getExploreSelectionValueOfChild(
   const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
   Loc moveLoc,
@@ -99,6 +104,7 @@ double Search::getExploreSelectionValueOfChild(
   int32_t childVirtualLosses = child->virtualLosses.load(std::memory_order_acquire);
   int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
   double utilityAvg = child->stats.utilityAvg.load(std::memory_order_acquire);
+  double noResultValueAvg = child->stats.noResultValueAvg.load(std::memory_order_acquire);
   //double scoreMeanAvg = child->stats.scoreMeanAvg.load(std::memory_order_acquire);
   //double scoreMeanSqAvg = child->stats.scoreMeanSqAvg.load(std::memory_order_acquire);
   double childWeight = child->stats.getChildWeight(childEdgeVisits,childVisits);
@@ -111,7 +117,7 @@ double Search::getExploreSelectionValueOfChild(
   if(childVisits <= 0 || childWeight <= 0.0)
     childUtility = fpuValue;
   else {
-    childUtility = utilityAvg;
+    childUtility = utilityAvg-noResultValueAvg*noResultUtilityDecrease(searchParams.noResultUtilityForWhite,searchParams.noResultUtilityReduce,parent.nextPla);
 
   }
 
@@ -361,7 +367,7 @@ void Search::selectBestChildToDescend(
       moveLoc,
       totalChildWeight,childEdgeVisits,fpuValue,
       parentUtility,parentWeightPerVisit,parentUtilityStdevFactor,
-      isDuringSearch,antiMirror,maxChildWeight,&thread
+      isDuringSearch,antiMirror,maxChildWeight, &thread
     );
     if(selectionValue > maxSelectionValue) {
       // if(child->state.load(std::memory_order_seq_cst) == SearchNode::STATE_EVALUATING) {
