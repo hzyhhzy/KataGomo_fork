@@ -87,7 +87,7 @@ static void maybeApplyWideRootNoise(
 inline double noResultUtilityDecrease(double x, double d, Color color)
 {
   if (color == C_BLACK)
-    x = -x;
+    d = -d;
   return x-tanh(atanh(x * 0.999999) - d);
 }
 double Search::getExploreSelectionValueOfChild(
