@@ -193,9 +193,24 @@ Rules Rules::updateRules(const string& k, const string& v, Rules oldRules) {
   string key = Global::toLower( Global::trim(k));
   string value = Global::trim(Global::toUpper(v));
   if(key == "basicrule") rules.basicRule = Rules::parseBasicRule(value);
-  else if(key == "vcnrule") rules.VCNRule = Rules::parseVCNRule(value);
-  else if(key == "firstpasswin") rules.firstPassWin =Global::stringToBool(value);
-  else if(key == "maxmoves") rules.maxMoves =Global::stringToInt(value);
+  else if (key == "vcnrule")
+  {
+    rules.firstPassWin = false;
+    rules.maxMoves = 0;
+    rules.VCNRule = Rules::parseVCNRule(value);
+  }
+  else if (key == "firstpasswin")
+  {
+    rules.VCNRule = VCNRULE_NOVC;
+    rules.maxMoves = 0; 
+    rules.firstPassWin = Global::stringToBool(value);
+  }
+  else if (key == "maxmoves")
+  {
+    rules.firstPassWin = false;
+    rules.VCNRule = VCNRULE_NOVC;
+    rules.maxMoves = Global::stringToInt(value);
+  }
   else throw IOError("Unknown rules option: " + key);
   return rules;
 }
