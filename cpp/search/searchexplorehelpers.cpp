@@ -117,7 +117,9 @@ double Search::getExploreSelectionValueOfChild(
   if(childVisits <= 0 || childWeight <= 0.0)
     childUtility = fpuValue;
   else {
-    childUtility = utilityAvg-noResultValueAvg*noResultUtilityDecrease(searchParams.noResultUtilityForWhite,searchParams.noResultUtilityReduce,parent.nextPla);
+    double parentNoResultValueAvg=parent.stats.noResultValueAvg.load(std::memory_order_acquire);
+    double d=searchParams.noResultUtilityReduce*(1-parentNoResultValueAvg);
+    childUtility = utilityAvg-noResultValueAvg*noResultUtilityDecrease(searchParams.noResultUtilityForWhite,d,parent.nextPla);
 
   }
 
