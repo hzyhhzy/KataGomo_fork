@@ -80,6 +80,8 @@ void ResultBeforeNN::init(const Board& board, const BoardHistory& hist, Color ne
     }
   }
 
+  //opp has four
+  if (oppHasFour)return;
 
   //I have life four, opp has no four
   if (IHaveLifeFour&&(!oppHasFour))

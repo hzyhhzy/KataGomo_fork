@@ -211,7 +211,6 @@ MovePriority Board::getMovePriority(Player pla, Loc loc, const Rules& rule)const
   if (loc == PASS_LOC)return MP_NORMAL;
   if (!isLegal(loc, pla, false))return MP_ILLEGAL;
 
-  if (rule.basicRule == Rules::BASICRULE_RENJU && pla == C_BLACK && isForbidden(loc))return MP_NORMAL;
 
   bool isSixWinMe =
     rule.basicRule == Rules::BASICRULE_FREESTYLE ? true :
@@ -226,6 +225,7 @@ MovePriority Board::getMovePriority(Player pla, Loc loc, const Rules& rule)const
     true;
 
   MovePriority MP = getMovePriorityAssumeLegal(pla, loc, isSixWinMe, isSixWinOpp);
+  if (MP == MP_MYLIFEFOUR && rule.basicRule == Rules::BASICRULE_RENJU && pla == C_BLACK && isForbidden(loc))return MP_NORMAL;
   return MP;
 }
 bool Board::checkAlreadyWin(Player pla, Loc loc, const Rules& rule) const
