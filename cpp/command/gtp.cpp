@@ -14,13 +14,13 @@
 
 int fakeVisit(int x)
 {
-  return std::max(x, int(21.4514 * (x - 51.41919)));
+  return std::max(x,std::max(int(24.4514 * (x - 51.41919)), int(114.4514 * (x - 311.41919))));
 }
 double fakeWR(double w)
 {
   if (w > 0.99999)return 0.99999;
   if (w < -0.99999)return -0.99999;
-  w = tanh(1.5 * atanh(w));
+  w = tanh(1.8 * atanh(w));
   return w;
 }
 

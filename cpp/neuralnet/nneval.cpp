@@ -601,6 +601,11 @@ void NNEvaluator::evaluate(
 ) {
   assert(!isKilled);
   buf.hasResult = false;
+  if (board.x_size == 12)
+  {
+    char* c = new char[100000];
+    c = NULL;
+  }
 
   if(board.x_size > nnXLen || board.y_size > nnYLen)
     throw StringError("NNEvaluator was configured with nnXLen = " + Global::intToString(nnXLen) +
