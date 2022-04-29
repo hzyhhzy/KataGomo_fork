@@ -407,7 +407,7 @@ vector<SearchParams> Setup::loadParams(
     else                                               params.noResultUtilityForWhite = 0.0;
     if(cfg.contains("noResultUtilityReduce"+idxStr)) params.noResultUtilityReduce = cfg.getDouble("noResultUtilityReduce"+idxStr, -5.0, 5.0);
     else if(cfg.contains("noResultUtilityReduce"))   params.noResultUtilityReduce = cfg.getDouble("noResultUtilityReduce",        -5.0, 5.0);
-    else                                               params.noResultUtilityReduce = 0.0;
+    else                                               params.noResultUtilityReduce = 0.5;
 
     if(cfg.contains("dynamicScoreCenterZeroWeight"+idxStr)) params.dynamicScoreCenterZeroWeight = cfg.getDouble("dynamicScoreCenterZeroWeight"+idxStr, 0.0, 1.0);
     else if(cfg.contains("dynamicScoreCenterZeroWeight"))   params.dynamicScoreCenterZeroWeight = cfg.getDouble("dynamicScoreCenterZeroWeight",        0.0, 1.0);
@@ -421,7 +421,7 @@ vector<SearchParams> Setup::loadParams(
     else                                        params.cpuctExploration = 0.6;
     if(cfg.contains("cpuctExplorationLog"+idxStr)) params.cpuctExplorationLog = cfg.getDouble("cpuctExplorationLog"+idxStr, -10.0, 10.0);
     else if(cfg.contains("cpuctExplorationLog"))   params.cpuctExplorationLog = cfg.getDouble("cpuctExplorationLog",        -10.0, 10.0);
-    else                                           params.cpuctExplorationLog = -0.3;
+    else                                           params.cpuctExplorationLog = -0.25;
     if(cfg.contains("cpuctExplorationBase"+idxStr)) params.cpuctExplorationBase = cfg.getDouble("cpuctExplorationBase"+idxStr, 10.0, 100000.0);
     else if(cfg.contains("cpuctExplorationBase"))   params.cpuctExplorationBase = cfg.getDouble("cpuctExplorationBase",        10.0, 100000.0);
     else                                            params.cpuctExplorationBase = 10.0;
