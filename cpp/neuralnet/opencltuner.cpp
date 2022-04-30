@@ -2622,7 +2622,7 @@ void OpenCLTuner::autoTuneEverything(
   string gpuName = allDeviceInfos[gpuIdxForTuning].name;
 
   //Just hardcodedly tune all the models that KataGo's main run uses.
-  static_assert(NNModelVersion::latestModelVersionImplemented == 10, "");
+  static_assert(NNModelVersion::latestModelVersionImplemented == 101, "");
   vector<ModelInfoForTuning> modelInfos;
   {
     ModelInfoForTuning modelInfo;
@@ -2688,6 +2688,61 @@ void OpenCLTuner::autoTuneEverything(
     modelInfo.regularNumChannels = 224;
     modelInfo.gpoolNumChannels = 96;
     modelInfo.version = 10;
+    modelInfos.push_back(modelInfo);
+  }
+  {
+    ModelInfoForTuning modelInfo;
+    modelInfo.maxConvChannels1x1 = 96;
+    modelInfo.maxConvChannels3x3 = 96;
+    modelInfo.trunkNumChannels = 96;
+    modelInfo.midNumChannels = 96;
+    modelInfo.regularNumChannels = 64;
+    modelInfo.gpoolNumChannels = 32;
+    modelInfo.version = 101;
+    modelInfos.push_back(modelInfo);
+  }
+  {
+    ModelInfoForTuning modelInfo;
+    modelInfo.maxConvChannels1x1 = 128;
+    modelInfo.maxConvChannels3x3 = 128;
+    modelInfo.trunkNumChannels = 128;
+    modelInfo.midNumChannels = 128;
+    modelInfo.regularNumChannels = 96;
+    modelInfo.gpoolNumChannels = 32;
+    modelInfo.version = 101;
+    modelInfos.push_back(modelInfo);
+  }
+  {
+    ModelInfoForTuning modelInfo;
+    modelInfo.maxConvChannels1x1 = 192;
+    modelInfo.maxConvChannels3x3 = 192;
+    modelInfo.trunkNumChannels = 192;
+    modelInfo.midNumChannels = 192;
+    modelInfo.regularNumChannels = 128;
+    modelInfo.gpoolNumChannels = 64;
+    modelInfo.version = 101;
+    modelInfos.push_back(modelInfo);
+  }
+  {
+    ModelInfoForTuning modelInfo;
+    modelInfo.maxConvChannels1x1 = 256;
+    modelInfo.maxConvChannels3x3 = 256;
+    modelInfo.trunkNumChannels = 256;
+    modelInfo.midNumChannels = 256;
+    modelInfo.regularNumChannels = 192;
+    modelInfo.gpoolNumChannels = 64;
+    modelInfo.version = 101;
+    modelInfos.push_back(modelInfo);
+  }
+  {
+    ModelInfoForTuning modelInfo;
+    modelInfo.maxConvChannels1x1 = 320;
+    modelInfo.maxConvChannels3x3 = 320;
+    modelInfo.trunkNumChannels = 320;
+    modelInfo.midNumChannels = 320;
+    modelInfo.regularNumChannels = 224;
+    modelInfo.gpoolNumChannels = 96;
+    modelInfo.version = 101;
     modelInfos.push_back(modelInfo);
   }
 
