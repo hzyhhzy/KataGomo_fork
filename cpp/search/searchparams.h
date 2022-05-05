@@ -12,6 +12,7 @@ struct SearchParams {
   double dynamicScoreCenterZeroWeight; //Adjust dynamic score center this proportion of the way towards zero, capped at a reasonable amount.
   double dynamicScoreCenterScale; //Adjust dynamic score scale. 1.0 indicates that score is cared about roughly up to board sizeish.
   double noResultUtilityForWhite; //Utility of having a no-result game (simple ko rules or nonterminating territory encore)
+  double noResultUtilityReduce;
   double drawEquivalentWinsForWhite; //Consider a draw to be this many wins and one minus this many losses.
 
   //Search tree exploration parameters
