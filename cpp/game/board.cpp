@@ -276,12 +276,6 @@ int Board::connectionLengthOneDirection(Player pla, Loc loc, short adj, bool isS
     else if (colors[tmploc] == C_EMPTY)
     {
       isLife = true;
-      if (!isSixWin)
-      {
-
-        tmploc += adj;
-        if (isOnBoard(tmploc) && colors[tmploc] == pla)isLife = false;
-      }
       break;
     }
     else break;
