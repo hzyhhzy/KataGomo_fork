@@ -552,7 +552,7 @@ void PlayUtils::printGenmoveLog(ostream& out, const AsyncBot* bot, const NNEvalu
 }
 
 Rules PlayUtils::genRandomRules(Rand& rand) {
-  vector<int> allowedBasicRules = { Rules::BASICRULE_FREESTYLE, Rules::BASICRULE_STANDARD, Rules::BASICRULE_RENJU };
+  vector<int> allowedBasicRules = { Rules::BASICRULE_FREESTYLE, Rules::BASICRULE_STANDARD};
 
   Rules rules;
   rules.basicRule = allowedBasicRules[rand.nextUInt(allowedBasicRules.size())];

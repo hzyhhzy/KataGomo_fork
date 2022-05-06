@@ -210,9 +210,8 @@ string GTPConfig::makeConfig(
   };
 
 
-  if(rules.basicRule == Rules::BASICRULE_FREESTYLE)      replace("$$BASIC_RULE", "basicRule = FREESTYLE  # options: FREESTYLE, STANDARD, RENJU");
-  else if(rules.basicRule == Rules::BASICRULE_STANDARD) replace("$$BASIC_RULE", "basicRule = STANDARD  # options: FREESTYLE, STANDARD, RENJU");
-  else if(rules.basicRule == Rules::BASICRULE_RENJU)  replace("$$BASIC_RULE", "basicRule = RENJU  # options: FREESTYLE, STANDARD, RENJU");
+  if(rules.basicRule == Rules::BASICRULE_FREESTYLE)      replace("$$BASIC_RULE", "basicRule = FREESTYLE  # options: FREESTYLE, STANDARD");
+  else if(rules.basicRule == Rules::BASICRULE_STANDARD) replace("$$BASIC_RULE", "basicRule = STANDARD  # options: FREESTYLE, STANDARD");
   else { ASSERT_UNREACHABLE; }
 
   if(maxVisits < ((int64_t)1 << 50)) replace("$$MAX_VISITS", "maxVisits = " + Global::int64ToString(maxVisits));

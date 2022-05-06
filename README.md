@@ -1,7 +1,4 @@
 ***Engine based on Katago TensorRT+GraphSearch***   
-# 五子棋新引擎 Gomoku/Renju New Engine        
-加入VCN，和棋先pass胜，限制步数这三个功能    
-
-之后的更新全在这个分支 All updates will be only in this branch     
-
-100b256f将会使用这个分支进行跑谱训练 100b256f training will start on this branch          
+# Caro, a special rule or Gomoku
+Caro rule: oxxxxxo is not win    
+In this repo, wxxxxxo is not a win. 21x21 board when wxxxxxo is not a win is similar to 19x19 board when wxxxxxo is a win.        

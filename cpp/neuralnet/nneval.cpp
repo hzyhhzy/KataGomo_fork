@@ -655,13 +655,7 @@ void NNEvaluator::evaluate(
     }
 
     static_assert(NNModelVersion::latestInputsVersionImplemented == 101, "");
-    if(inputsVersion == 97)
-      NNInputs::fillRowV7OLD(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
-    else if(inputsVersion == 7)
-      NNInputs::fillRowV7(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
-    else if(inputsVersion == 10)
-      NNInputs::fillRowV10(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
-    else if(inputsVersion == 101)
+    if(inputsVersion == 101)
       NNInputs::fillRowV101(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
     else
       ASSERT_UNREACHABLE;
@@ -730,10 +724,6 @@ void NNEvaluator::evaluate(
       for (int i = 0; i < policySize; i++) {
         Loc loc = NNPos::posToLoc(i, xSize, ySize, nnXLen, nnYLen);
         isLegal[i] = history.isLegal(board, loc, nextPlayer);
-        if (modelVersion == 98 && nextPlayer == C_BLACK && isLegal[i] )
-        {
-          isLegal[i] = ! board.isForbidden(loc);
-        }
       }
     }
     else//assume all other moves are illegal

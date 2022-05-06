@@ -1,5 +1,5 @@
 #include "../game/board.h"
-#include "../forbiddenPoint/ForbiddenPointFinder.h"
+#include "../core/global.h"
 /*
  * board.cpp
  * Originally from an unreleased project back in 2010, modified since.
@@ -215,17 +215,9 @@ MovePriority Board::getMovePriority(Player pla, Loc loc, const Rules& rule)const
   bool isSixWinMe =
     rule.basicRule == Rules::BASICRULE_FREESTYLE ? true :
     rule.basicRule == Rules::BASICRULE_STANDARD ? false :
-    rule.basicRule == Rules::BASICRULE_RENJU ? (pla == C_WHITE) :
     true;
 
-  bool isSixWinOpp =
-    rule.basicRule == Rules::BASICRULE_FREESTYLE ? true :
-    rule.basicRule == Rules::BASICRULE_STANDARD ? false :
-    rule.basicRule == Rules::BASICRULE_RENJU ? (pla == C_BLACK) :
-    true;
-
-  MovePriority MP = getMovePriorityAssumeLegal(pla, loc, isSixWinMe, isSixWinOpp);
-  if (MP == MP_MYLIFEFOUR && rule.basicRule == Rules::BASICRULE_RENJU && pla == C_BLACK && isForbidden(loc))return MP_NORMAL;
+  MovePriority MP = getMovePriorityAssumeLegal(pla, loc, isSixWinMe);
   return MP;
 }
 bool Board::checkAlreadyWin(Player pla, Loc loc, const Rules& rule) const
@@ -235,42 +227,38 @@ bool Board::checkAlreadyWin(Player pla, Loc loc, const Rules& rule) const
   bool isSixWinMe =
     rule.basicRule == Rules::BASICRULE_FREESTYLE ? true :
     rule.basicRule == Rules::BASICRULE_STANDARD ? false :
-    rule.basicRule == Rules::BASICRULE_RENJU ? (pla == C_WHITE) :
     true;
 
   bool isSixWinOpp =
     rule.basicRule == Rules::BASICRULE_FREESTYLE ? true :
     rule.basicRule == Rules::BASICRULE_STANDARD ? false :
-    rule.basicRule == Rules::BASICRULE_RENJU ? (pla == C_BLACK) :
     true;
 
-  MovePriority MP = getMovePriorityAssumeLegal(pla, loc, isSixWinMe, isSixWinOpp);
+  MovePriority MP = getMovePriorityAssumeLegal(pla, loc, isSixWinMe);
   return MP==MP_FIVE;
 }
-MovePriority Board::getMovePriorityAssumeLegal(Player pla, Loc loc, bool isSixWinMe, bool isSixWinOpp)const
+MovePriority Board::getMovePriorityAssumeLegal(Player pla, Loc loc, bool isSixWinMe)const
 {
   if (loc == PASS_LOC)return MP_NORMAL;
   MovePriority MP = MP_NORMAL;
   for (int i = 0; i < 4; i++)
   {
-    MovePriority tmpMP = getMovePriorityOneDirectionAssumeLegal(pla, loc, isSixWinMe, isSixWinOpp, i);
+    MovePriority tmpMP = getMovePriorityOneDirectionAssumeLegal(pla, loc, isSixWinMe,i);
     if (tmpMP < MP)MP = tmpMP;
   }
   return MP;
 }
-MovePriority Board::getMovePriorityOneDirectionAssumeLegal(Player pla, Loc loc, bool isSixWinMe, bool isSixWinOpp, int adjID) const
+MovePriority Board::getMovePriorityOneDirectionAssumeLegal(Player pla, Loc loc, bool isSixWinMe, int adjID) const
 {
   assert(adjID >= 0 && adjID < 4);
   Player opp = getOpp(pla);
   short adj = adj_offsets[2*adjID];
-  bool isMyLife1, isMyLife2, isOppLife1, isOppLife2;
+  bool isMyLife1, isMyLife2;
   int myConNum = connectionLengthOneDirection(pla, loc, adj, isSixWinMe, isMyLife1) + connectionLengthOneDirection(pla, loc, -adj, isSixWinMe, isMyLife2) + 1;
-  int oppConNum = connectionLengthOneDirection(opp, loc, adj, isSixWinOpp, isOppLife1) + connectionLengthOneDirection(opp, loc, -adj, isSixWinOpp, isOppLife2) + 1;
-  if (myConNum == 5 || (myConNum > 5 && isSixWinMe))return MP_FIVE;
-  if (oppConNum == 5 || (oppConNum > 5 && isSixWinOpp))return MP_OPPOFOUR;
+  if (myConNum > 5)return isSixWinMe ? MP_FIVE : MP_NORMAL;
+  else if (myConNum == 5) return isMyLife1 || isMyLife2;
 
 
-  if (myConNum == 4 && isMyLife1&&isMyLife2)return MP_MYLIFEFOUR;
   return MP_NORMAL;
 
 }
@@ -405,84 +393,6 @@ void Board::removeSingleStone(Loc loc)
   colors[loc] = C_EMPTY;
   pos_hash ^= ZOBRIST_BOARD_HASH[loc][pla];
 }
-bool Board::isForbidden(Loc loc) const
-{
-  if (loc == PASS_LOC)
-  {
-    return false;
-  }
-  if (!(loc >= 0 &&
-    loc < MAX_ARR_SIZE &&
-    (colors[loc] == C_EMPTY)))return false;
-  if (x_size == y_size)
-  {
-    int x = Location::getX(loc, x_size);
-    int y = Location::getY(loc, x_size);
-    int nearbyBlack = 0;
-    //x++; y++;
-    for (int i = std::max(x - 2, 0); i <= std::min(x + 2, x_size - 1); i++)
-      for (int j = std::max(y - 2, 0); j <= std::min(y + 2, y_size - 1); j++)
-      {
-        int xd = i - x;
-        int yd = j - y;
-        xd = xd > 0 ? xd : -xd;
-        yd = yd > 0 ? yd : -yd;
-        if (((xd + yd) != 3) && (colors[Location::getLoc(i, j, x_size)] == C_BLACK))nearbyBlack++;
-      }
-
-    if (nearbyBlack >= 2)
-    {
-      CForbiddenPointFinder fpf(x_size);
-      for (int x = 0; x < x_size; x++)
-        for (int y = 0; y < y_size; y++)
-        {
-          fpf.SetStone(x, y, colors[Location::getLoc(x, y, x_size)]);
-        }
-      if (fpf.isForbiddenNoNearbyCheck(Location::getX(loc, x_size), Location::getY(loc, x_size)))return true;
-    }
-  }
-  return false;
-}
-bool Board::isForbiddenAlreadyPlayed(Loc loc) const
-{
-  if (loc == PASS_LOC)
-  {
-    return false;
-  }
-  if (!(loc >= 0 &&
-    loc < MAX_ARR_SIZE &&
-    (colors[loc] == C_BLACK)))return false;
-  if (x_size == y_size)
-  {
-    int x = Location::getX(loc, x_size);
-    int y = Location::getY(loc, x_size);
-    int nearbyBlack = 0;
-    //x++; y++;
-    for (int i = std::max(x - 2, 0); i <= std::min(x + 2, x_size - 1); i++)
-      for (int j = std::max(y - 2, 0); j <= std::min(y + 2, y_size - 1); j++)
-      {
-        int xd = i - x;
-        int yd = j - y;
-        xd = xd > 0 ? xd : -xd;
-        yd = yd > 0 ? yd : -yd;
-        if (((xd + yd) != 3) && (colors[Location::getLoc(i, j, x_size)] == C_BLACK))nearbyBlack++;
-      }
-
-    if (nearbyBlack >= 3)
-    {
-      CForbiddenPointFinder fpf(x_size);
-      for (int x = 0; x < x_size; x++)
-        for (int y = 0; y < y_size; y++)
-        {
-          fpf.SetStone(x, y, colors[Location::getLoc(x, y, x_size)]);
-        }
-      fpf.SetStone(Location::getX(loc, x_size), Location::getY(loc, x_size), C_EMPTY);
-      if (fpf.isForbiddenNoNearbyCheck(Location::getX(loc, x_size), Location::getY(loc, x_size)))return true;
-    }
-  }
-  return false;
-}
-
 
 int Location::distance(Loc loc0, Loc loc1, int x_size) {
   int dx = getX(loc1,x_size) - getX(loc0,x_size);

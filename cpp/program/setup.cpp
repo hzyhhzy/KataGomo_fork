@@ -595,14 +595,6 @@ vector<SearchParams> Setup::loadParams(
     else                                  params.antiMirror = false;
 
 
-    if(cfg.contains("useVCFInput"+idxStr)) params.useVCFInput = cfg.getBool("useVCFInput"+idxStr);
-    else if(cfg.contains("useVCFInput"))   params.useVCFInput = cfg.getBool("useVCFInput");
-    else                                  params.useVCFInput = true;
-
-    if(cfg.contains("useForbiddenInput"+idxStr)) params.useForbiddenInput = cfg.getBool("useForbiddenInput"+idxStr);
-    else if(cfg.contains("useForbiddenInput"))   params.useForbiddenInput = cfg.getBool("useForbiddenInput");
-    else                                  params.useForbiddenInput = true;
-
     if(cfg.contains("subtreeValueBiasFactor"+idxStr)) params.subtreeValueBiasFactor = cfg.getDouble("subtreeValueBiasFactor"+idxStr, 0.0, 1.0);
     else if(cfg.contains("subtreeValueBiasFactor")) params.subtreeValueBiasFactor = cfg.getDouble("subtreeValueBiasFactor", 0.0, 1.0);
     else params.subtreeValueBiasFactor = 0.0;

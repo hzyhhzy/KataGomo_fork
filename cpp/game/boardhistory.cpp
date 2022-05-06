@@ -343,20 +343,7 @@ void BoardHistory::maybeFinishGame(Board& board,Player lastPla,Loc lastLoc)
     }
   }
 
-  if (rules.basicRule==Rules::BASICRULE_RENJU && lastPla == C_BLACK)//禁手判定
-  {
-    if (board.isForbiddenAlreadyPlayed(lastLoc))
-    {
-      setWinner(getOpp(lastPla));
-      return;
-    }
-  }
-
   //连五判定
-  bool isSixWin =
-    rules.basicRule==Rules::BASICRULE_FREESTYLE ? true :
-    rules.basicRule==Rules::BASICRULE_STANDARD ? false :
-    rules.basicRule==Rules::BASICRULE_RENJU ? (lastPla == C_BLACK ? false : true):true;
   if (board.checkAlreadyWin(lastPla, lastLoc, rules))
   {
     setWinner(lastPla);

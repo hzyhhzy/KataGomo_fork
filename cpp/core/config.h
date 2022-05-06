@@ -3,12 +3,6 @@
 //#define CHANGE_FORBIDDEN_POLICY   //set policy target of forbidden points to nonzero
 //#define FORGOMOCUP                //CPU only and single thread
 
-//有多大比例的训练数据是带着vcf的
-#define TRAINING_DATA_VCF_PROB 0.9
-
-//训练数据带着禁手特征的概率
-#define TRAINING_DATA_FORBIDDEN_FEATURE_PROB 0.5
-
 
 
 

@@ -365,31 +365,14 @@ void TrainingWriteBuffers::addRow(
     if(!isSidePosition)
       nnInputParams.playoutDoublingAdvantage = getOpp(nextPlayer) == data.playoutDoublingAdvantagePla ? -data.playoutDoublingAdvantage : data.playoutDoublingAdvantage;
 
-    nnInputParams.useForbiddenInput = rand.nextBool(TRAINING_DATA_FORBIDDEN_FEATURE_PROB);
-    nnInputParams.useVCFInput = rand.nextBool(TRAINING_DATA_VCF_PROB)&&hist.rules.maxMoves==0;
     nnInputParams.initResultbeforenn(board, hist, nextPlayer);
 
     bool inputsUseNHWC = false;
     float* rowBin = binaryInputNCHWUnpacked;
     float* rowGlobal = globalInputNC.data + curRows * numGlobalChannels;
     static_assert(NNModelVersion::latestInputsVersionImplemented == 101, "");
-
-    if(inputsVersion == 97) {
-      assert(NNInputs::NUM_FEATURES_SPATIAL_V7OLD == numBinaryChannels);
-      assert(NNInputs::NUM_FEATURES_GLOBAL_V7OLD == numGlobalChannels);
-      NNInputs::fillRowV7OLD(board, hist, nextPlayer, nnInputParams, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
-    }
-    else if(inputsVersion == 7) {
-      assert(NNInputs::NUM_FEATURES_SPATIAL_V7 == numBinaryChannels);
-      assert(NNInputs::NUM_FEATURES_GLOBAL_V7 == numGlobalChannels);
-      NNInputs::fillRowV7(board, hist, nextPlayer, nnInputParams, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
-    }
-    else if(inputsVersion == 10) {
-      assert(NNInputs::NUM_FEATURES_SPATIAL_V10 == numBinaryChannels);
-      assert(NNInputs::NUM_FEATURES_GLOBAL_V10 == numGlobalChannels);
-      NNInputs::fillRowV10(board, hist, nextPlayer, nnInputParams, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
-    }
-    else if(inputsVersion == 101) {
+    
+    if(inputsVersion == 101) {
       assert(NNInputs::NUM_FEATURES_SPATIAL_V101 == numBinaryChannels);
       assert(NNInputs::NUM_FEATURES_GLOBAL_V101 == numGlobalChannels);
       NNInputs::fillRowV101(board, hist, nextPlayer, nnInputParams, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);

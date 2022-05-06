@@ -71,14 +71,12 @@ int Rules::parseBasicRule(string s) {
   s=Global::toUpper(s);
   if(s == "FREESTYLE") return Rules::BASICRULE_FREESTYLE;
   else if(s == "STANDARD") return Rules::BASICRULE_STANDARD;
-  else if(s == "RENJU") return Rules::BASICRULE_RENJU;
   else throw IOError("Rules::parseBasicRule: Invalid basic rule: " + s);
 }
 
 string Rules::writeBasicRule(int basicRule) {
   if(basicRule == Rules::BASICRULE_FREESTYLE) return string("FREESTYLE");
   if(basicRule == Rules::BASICRULE_STANDARD) return string("STANDARD");
-  if(basicRule == Rules::BASICRULE_RENJU) return string("RENJU");
   return string("UNKNOWN");
 }
 

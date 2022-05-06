@@ -1,6 +1,4 @@
 #include "../neuralnet/nninputs.h"
-#include "../vcfsolver/VCFsolver.h"
-#include "../forbiddenPoint/ForbiddenPointFinder.h"
 using namespace std;
 
 int NNPos::xyToPos(int x, int y, int nnXLen) {
@@ -530,10 +528,6 @@ Hash128 NNInputs::getHash(
   if(hist.isGameFinished)
     hash ^= Board::ZOBRIST_GAME_IS_OVER;
 
-  if (nnInputParams.useVCFInput)
-    hash ^= MiscNNInputParams::ZOBRIST_USE_VCF;
-  if (nnInputParams.useForbiddenInput)
-    hash ^= MiscNNInputParams::ZOBRIST_USE_FORBIDDEN_FEATURE;
 
   //Fold in asymmetric playout indicator
   if(nnInputParams.playoutDoublingAdvantage != 0) {
@@ -563,386 +557,7 @@ Hash128 NNInputs::getHash(
 
   return hash;
 }
-//===========================================================================================
-//INPUTSVERSION 7OLD
-//===========================================================================================
 
-
-void NNInputs::fillRowV7OLD(
-  const Board& board, const BoardHistory& hist, Player nextPlayer,
-  const MiscNNInputParams& nnInputParams,
-  int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
-) {
-  assert(nnXLen <= NNPos::MAX_BOARD_LEN);
-  assert(nnYLen <= NNPos::MAX_BOARD_LEN);
-  assert(board.x_size <= nnXLen);
-  assert(board.y_size <= nnYLen);
-  std::fill(rowBin,rowBin+NUM_FEATURES_SPATIAL_V7OLD*nnXLen*nnYLen,false);
-  std::fill(rowGlobal,rowGlobal+NUM_FEATURES_GLOBAL_V7OLD,0.0f);
-
-  Player pla = nextPlayer;
-  Player opp = getOpp(pla);
-  int xSize = board.x_size;
-  int ySize = board.y_size;
-
-  int featureStride;
-  int posStride;
-  if(useNHWC) {
-    featureStride = 1;
-    posStride = NNInputs::NUM_FEATURES_SPATIAL_V7OLD;
-  }
-  else {
-    featureStride = nnXLen * nnYLen;
-    posStride = 1;
-  }
-
-  //为了兼容旧版本，输入层的顺序很乱
-
-  //bf
-  //0       onBoard
-  //1       己方棋子
-  //2       对方棋子
-  //3       己方黑棋禁手（有bug）
-  //4       对方黑棋禁手（有bug）
-
-  //gf
-  //5       黑-1，白1
-
-
-
-
-  bool hasForbiddenFeature = nnInputParams.useForbiddenInput&&hist.rules.basicRule == Rules::BASICRULE_RENJU;
-
-  CForbiddenPointFinder fpf(board.x_size);
-  if (hasForbiddenFeature)
-  {
-
-    for (int x = 0; x < board.x_size; x++)
-      for (int y = 0; y < board.y_size; y++)
-      {
-        fpf.SetStone(x, y, board.colors[Location::getLoc(x, y, board.x_size)]);
-      }
-  }
-
-
-
-  for (int y = 0; y < ySize; y++) {
-    for (int x = 0; x < xSize; x++) {
-      int pos = NNPos::xyToPos(x, y, nnXLen);
-      Loc loc = Location::getLoc(x, y, xSize);
-
-      //Feature 0 - on board
-      setRowBin(rowBin, pos, 0, 1.0f, posStride, featureStride);
-
-      Color stone = board.colors[loc];
-
-      //Features 1,2 - pla,opp stone
-      if (stone == pla)
-        setRowBin(rowBin, pos, 1, 1.0f, posStride, featureStride);
-      else if (stone == opp)
-        setRowBin(rowBin, pos, 2, 1.0f, posStride, featureStride);
-
-
-      if (hasForbiddenFeature)
-      {
-        //训练的时候就是写的fpf.isForbidden(x, x)，为了保证与训练时完全一致，就保留了这个bug
-        if (pla == C_BLACK)
-        {
-          if (fpf.isForbidden(x, x)) setRowBin(rowBin, pos, 3, 1.0f, posStride, featureStride);
-        }
-        else if (pla == C_WHITE)
-        {
-
-          if (fpf.isForbidden(x, x)) setRowBin(rowBin, pos, 4, 1.0f, posStride, featureStride);
-
-        }
-      }
-    }
-  }
-
-  rowGlobal[5] = (nextPlayer == P_BLACK ? -1 : 1);
-
-
-
-}
-
-//===========================================================================================
-//INPUTSVERSION 7
-//===========================================================================================
-
-
-void NNInputs::fillRowV7(
-  const Board& board, const BoardHistory& hist, Player nextPlayer,
-  const MiscNNInputParams& nnInputParams,
-  int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
-) {
-  assert(nnXLen <= NNPos::MAX_BOARD_LEN);
-  assert(nnYLen <= NNPos::MAX_BOARD_LEN);
-  assert(board.x_size <= nnXLen);
-  assert(board.y_size <= nnYLen);
-  std::fill(rowBin,rowBin+NUM_FEATURES_SPATIAL_V7*nnXLen*nnYLen,false);
-  std::fill(rowGlobal,rowGlobal+NUM_FEATURES_GLOBAL_V7,0.0f);
-
-  Player pla = nextPlayer;
-  Player opp = getOpp(pla);
-  int xSize = board.x_size;
-  int ySize = board.y_size;
-
-  int featureStride;
-  int posStride;
-  if(useNHWC) {
-    featureStride = 1;
-    posStride = NNInputs::NUM_FEATURES_SPATIAL_V7;
-  }
-  else {
-    featureStride = nnXLen * nnYLen;
-    posStride = 1;
-  }
-
-  //为了兼容旧版本，输入层的顺序很乱
-
-  //bf
-  //0       onBoard
-  //1       己方棋子
-  //2       对方棋子
-  //3       己方黑棋禁手
-  //4       对方黑棋禁手
-  //5       胜点（如果有）
-
-  //gf
-  //5       黑-1，白1
-  //7~10    自己和对手的VCF（是否使用vcf，vcf的结果是什么）
-  //11      和棋胜率，1.0是和棋己方胜，-1.0是和棋对方胜
-  //15,16   PDA
-
-
-
-
-  bool hasForbiddenFeature = nnInputParams.useForbiddenInput&&hist.rules.basicRule == Rules::BASICRULE_RENJU;
-
-  CForbiddenPointFinder fpf(board.x_size);
-  if (hasForbiddenFeature)
-  {
-
-    for (int x = 0; x < board.x_size; x++)
-      for (int y = 0; y < board.y_size; y++)
-      {
-        fpf.SetStone(x, y, board.colors[Location::getLoc(x, y, board.x_size)]);
-      }
-  }
-
-
-
-  for (int y = 0; y < ySize; y++) {
-    for (int x = 0; x < xSize; x++) {
-      int pos = NNPos::xyToPos(x, y, nnXLen);
-      Loc loc = Location::getLoc(x, y, xSize);
-
-      //Feature 0 - on board
-      setRowBin(rowBin, pos, 0, 1.0f, posStride, featureStride);
-
-      Color stone = board.colors[loc];
-
-      //Features 1,2 - pla,opp stone
-      if (stone == pla)
-        setRowBin(rowBin, pos, 1, 1.0f, posStride, featureStride);
-      else if (stone == opp)
-        setRowBin(rowBin, pos, 2, 1.0f, posStride, featureStride);
-
-
-      if (hasForbiddenFeature)
-      {
-        if (pla == C_BLACK)
-        {
-          if (fpf.isForbidden(x, y)) setRowBin(rowBin, pos, 3, 1.0f, posStride, featureStride);
-        }
-        else if (pla == C_WHITE)
-        {
-
-          if (fpf.isForbidden(x, y)) setRowBin(rowBin, pos, 4, 1.0f, posStride, featureStride);
-
-        }
-      }
-    }
-  }
-
-  rowGlobal[5] = (nextPlayer == P_BLACK ? -1 : 1);
-  if (nnInputParams.useVCFInput)
-  {
-    const ResultBeforeNN& resultbeforenn = nnInputParams.resultbeforenn;
-    if (board.isOnBoard(resultbeforenn.myOnlyLoc))
-      setRowBin(rowBin, NNPos::locToPos(resultbeforenn.myOnlyLoc, board.x_size, nnXLen, nnYLen), 5, 1.0f, posStride, featureStride);
-    if (resultbeforenn.calculatedVCF)
-    {
-      if (resultbeforenn.winner == nextPlayer)rowGlobal[7] = 1.0;//can win by five/lifeFour/vcf
-      else if (resultbeforenn.myVCFresult == 2)rowGlobal[8] = 1.0;//cannot vcf
-      else if (resultbeforenn.myVCFresult == 3);//at least no short vcf
-      else ASSERT_UNREACHABLE;
-      if (resultbeforenn.oppVCFresult == 1)rowGlobal[9] = 1.0;//opp can vcf
-      else if (resultbeforenn.oppVCFresult == 2)rowGlobal[10] = 1.0;//opp cannot vcf
-      else if (resultbeforenn.oppVCFresult == 3);//at least no short vcf
-      else ASSERT_UNREACHABLE;
-    }
-    
-  }
-
-  rowGlobal[11] = nextPlayer == P_BLACK ?  - nnInputParams.noResultUtilityForWhite : nnInputParams.noResultUtilityForWhite;
-
-
-  //Used for handicap play
-  //Parameter 15 is used because there's actually a discontinuity in how training behavior works when this is
-  //nonzero, no matter how slightly.
-  if(nnInputParams.playoutDoublingAdvantage != 0) {
-    rowGlobal[15] = 1.0;
-    rowGlobal[16] = (float)(0.5 * nnInputParams.playoutDoublingAdvantage);
-  }
-
-
-  
-
-}
-
-//===========================================================================================
-//INPUTSVERSION 10
-//===========================================================================================
-
-
-void NNInputs::fillRowV10(
-  const Board& board, const BoardHistory& hist, Player nextPlayer,
-  const MiscNNInputParams& nnInputParams,
-  int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
-) {
-  assert(nnXLen <= NNPos::MAX_BOARD_LEN);
-  assert(nnYLen <= NNPos::MAX_BOARD_LEN);
-  assert(board.x_size <= nnXLen);
-  assert(board.y_size <= nnYLen);
-  std::fill(rowBin,rowBin+NUM_FEATURES_SPATIAL_V10*nnXLen*nnYLen,false);
-  std::fill(rowGlobal,rowGlobal+NUM_FEATURES_GLOBAL_V10,0.0f);
-
-  Player pla = nextPlayer;
-  Player opp = getOpp(pla);
-  int xSize = board.x_size;
-  int ySize = board.y_size;
-
-  int featureStride;
-  int posStride;
-  if(useNHWC) {
-    featureStride = 1;
-    posStride = NNInputs::NUM_FEATURES_SPATIAL_V10;
-  }
-  else {
-    featureStride = nnXLen * nnYLen;
-    posStride = 1;
-  }
-
-  //为了兼容旧版本，输入层的顺序很乱
-
-  //bf
-  //0       onBoard
-  //1       己方棋子
-  //2       对方棋子
-  //3       己方黑棋禁手
-  //4       对方黑棋禁手
-  //5       胜点（如果有）
-
-  //gf
-  //3       无禁/有禁0，无禁六不胜1
-  //4       无禁/无禁六不胜0，有禁1
-  //5       无禁/无禁六不胜0，有禁黑-1，有禁白1
-  //6       是否使用禁手特征（两种无禁恒为0）
-  //7~12    自己和对手的VCF（是否使用vcf，vcf的结果是什么）
-  //13      和棋胜率，1.0是和棋己方胜，-1.0是和棋对方胜
-  //15,16   PDA
-
-
-
-
-  bool hasForbiddenFeature = nnInputParams.useForbiddenInput&&hist.rules.basicRule == Rules::BASICRULE_RENJU;
-  rowGlobal[6] = hasForbiddenFeature;
-
-  CForbiddenPointFinder fpf(board.x_size);
-  if (hasForbiddenFeature)
-  {
-
-    for (int x = 0; x < board.x_size; x++)
-      for (int y = 0; y < board.y_size; y++)
-      {
-        fpf.SetStone(x, y, board.colors[Location::getLoc(x, y, board.x_size)]);
-      }
-  }
-
-
-
-  for (int y = 0; y < ySize; y++) {
-    for (int x = 0; x < xSize; x++) {
-      int pos = NNPos::xyToPos(x, y, nnXLen);
-      Loc loc = Location::getLoc(x, y, xSize);
-
-      //Feature 0 - on board
-      setRowBin(rowBin, pos, 0, 1.0f, posStride, featureStride);
-
-      Color stone = board.colors[loc];
-
-      //Features 1,2 - pla,opp stone
-      if (stone == pla)
-        setRowBin(rowBin, pos, 1, 1.0f, posStride, featureStride);
-      else if (stone == opp)
-        setRowBin(rowBin, pos, 2, 1.0f, posStride, featureStride);
-
-
-      if (hasForbiddenFeature)
-      {
-        if (pla == C_BLACK)
-        {
-          if (fpf.isForbidden(x, y)) setRowBin(rowBin, pos, 3, 1.0f, posStride, featureStride);
-        }
-        else if (pla == C_WHITE)
-        {
-
-          if (fpf.isForbidden(x, y)) setRowBin(rowBin, pos, 4, 1.0f, posStride, featureStride);
-
-        }
-      }
-    }
-  }
-
-  rowGlobal[3] = hist.rules.basicRule == Rules::BASICRULE_STANDARD;
-  rowGlobal[4] = hist.rules.basicRule == Rules::BASICRULE_RENJU;
-  rowGlobal[5] = hist.rules.basicRule == Rules::BASICRULE_RENJU ?
-    (nextPlayer == P_BLACK ? -1 : 1) :
-    0.0;
-  if (nnInputParams.useVCFInput)
-  {
-    const ResultBeforeNN& resultbeforenn = nnInputParams.resultbeforenn;
-    if (board.isOnBoard(resultbeforenn.myOnlyLoc))
-      setRowBin(rowBin, NNPos::locToPos(resultbeforenn.myOnlyLoc, board.x_size, nnXLen, nnYLen), 5, 1.0f, posStride, featureStride);
-    if (resultbeforenn.calculatedVCF)
-    {
-      if (resultbeforenn.winner == nextPlayer)rowGlobal[7] = 1.0;//can win by five/lifeFour/vcf
-      else if (resultbeforenn.myVCFresult == 2)rowGlobal[8] = 1.0;//cannot vcf
-      else if (resultbeforenn.myVCFresult == 3)rowGlobal[11] = 1.0;//at least no short vcf
-      else ASSERT_UNREACHABLE;
-      if (resultbeforenn.oppVCFresult == 1)rowGlobal[9] = 1.0;//opp can vcf
-      else if (resultbeforenn.oppVCFresult == 2)rowGlobal[10] = 1.0;//opp cannot vcf
-      else if (resultbeforenn.oppVCFresult == 3)rowGlobal[12] = 1.0;//at least no short vcf
-      else ASSERT_UNREACHABLE;
-    }
-
-  }
-
-  rowGlobal[13] = nextPlayer == P_BLACK ?  - nnInputParams.noResultUtilityForWhite : nnInputParams.noResultUtilityForWhite;
-
-
-  //Used for handicap play
-  //Parameter 15 is used because there's actually a discontinuity in how training behavior works when this is
-  //nonzero, no matter how slightly.
-  if(nnInputParams.playoutDoublingAdvantage != 0) {
-    rowGlobal[15] = 1.0;
-    rowGlobal[16] = (float)(0.5 * nnInputParams.playoutDoublingAdvantage);
-  }
-
-
-}
 
 //===========================================================================================
 //INPUTSVERSION 101
@@ -989,10 +604,7 @@ void NNInputs::fillRowV101(
 
   //gf
   //3       无禁/有禁0，无禁六不胜1
-  //4       无禁/无禁六不胜0，有禁1
-  //5       无禁/无禁六不胜0，有禁黑-1，有禁白1
-  //6       是否使用禁手特征（两种无禁恒为0）
-  //7~12    自己和对手的VCF（是否使用vcf，vcf的结果是什么）
+  //7       胜点
   //38      胜点是否是pass（仅可能用于vcn防守方）
 
   //13  非VCN模式：和棋胜率，1.0是和棋己方胜，-1.0是和棋对方胜
@@ -1028,18 +640,6 @@ void NNInputs::fillRowV101(
   // 37 2*((maxmoves-moves)%2)-1
 
 
-  bool hasForbiddenFeature = nnInputParams.useForbiddenInput && hist.rules.basicRule == Rules::BASICRULE_RENJU;
-
-  CForbiddenPointFinder fpf(board.x_size);
-  if (hasForbiddenFeature)
-  {
-
-    for (int x = 0; x < board.x_size; x++)
-      for (int y = 0; y < board.y_size; y++)
-      {
-        fpf.SetStone(x, y, board.colors[Location::getLoc(x, y, board.x_size)]);
-      }
-  }
 
 
 
@@ -1060,53 +660,16 @@ void NNInputs::fillRowV101(
         setRowBin(rowBin, pos, 2, 1.0f, posStride, featureStride);
 
 
-      if (hasForbiddenFeature)
-      {
-        if (pla == C_BLACK)
-        {
-          if (fpf.isForbidden(x, y)) setRowBin(rowBin, pos, 3, 1.0f, posStride, featureStride);
-        }
-        else if (pla == C_WHITE)
-        {
-
-          if (fpf.isForbidden(x, y)) setRowBin(rowBin, pos, 4, 1.0f, posStride, featureStride);
-
-        }
-      }
     }
   }
 
   rowGlobal[3] = hist.rules.basicRule == Rules::BASICRULE_STANDARD;
-  rowGlobal[4] = hist.rules.basicRule == Rules::BASICRULE_RENJU;
-  rowGlobal[5] = hist.rules.basicRule == Rules::BASICRULE_RENJU ?
-    (nextPlayer == P_BLACK ? -1 : 1) :
-    0.0;
 
-  rowGlobal[6] = hasForbiddenFeature;
+  if (board.isOnBoard(nnInputParams.resultbeforenn.myOnlyLoc))
+    setRowBin(rowBin, NNPos::locToPos(nnInputParams.resultbeforenn.myOnlyLoc, board.x_size, nnXLen, nnYLen), 5, 1.0f, posStride, featureStride);
+  else if (nnInputParams.resultbeforenn.myOnlyLoc == Board::PASS_LOC)
+    rowGlobal[38] = 1.0;
 
-  if (nnInputParams.useVCFInput)
-  {
-    const ResultBeforeNN& resultbeforenn = nnInputParams.resultbeforenn;
-    if (board.isOnBoard(resultbeforenn.myOnlyLoc))
-      setRowBin(rowBin, NNPos::locToPos(resultbeforenn.myOnlyLoc, board.x_size, nnXLen, nnYLen), 5, 1.0f, posStride, featureStride);
-    else if (resultbeforenn.myOnlyLoc == Board::PASS_LOC)
-      rowGlobal[38] = 1.0;
-
-    if (resultbeforenn.winner == nextPlayer)rowGlobal[7] = 1.0;//can win by five/lifeFour/vcf
-
-    if (resultbeforenn.calculatedVCF)
-    {
-      if (resultbeforenn.winner == nextPlayer);//can win by five/lifeFour/vcf
-      else if (resultbeforenn.myVCFresult == 2)rowGlobal[8] = 1.0;//cannot vcf
-      else if (resultbeforenn.myVCFresult == 3)rowGlobal[9] = 1.0;//at least no short vcf
-      else ASSERT_UNREACHABLE;
-      if (resultbeforenn.oppVCFresult == 1)rowGlobal[10] = 1.0;//opp can vcf
-      else if (resultbeforenn.oppVCFresult == 2)rowGlobal[11] = 1.0;//opp cannot vcf
-      else if (resultbeforenn.oppVCFresult == 3)rowGlobal[12] = 1.0;//at least no short vcf
-      else ASSERT_UNREACHABLE;
-    }
-
-  }
 
 
 

@@ -10,7 +10,6 @@ struct Rules {
 
   static const int BASICRULE_FREESTYLE = 0;
   static const int BASICRULE_STANDARD = 1;
-  static const int BASICRULE_RENJU = 2;
   int basicRule;
 
   static const int VCNRULE_NOVC = 0;

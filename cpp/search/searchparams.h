@@ -84,8 +84,6 @@ struct SearchParams {
   float nnPolicyTemperature; //Scale neural net policy probabilities by this temperature, applies everywhere in the tree
   bool antiMirror; //Enable anti-mirroring logic
 
-  bool useVCFInput;//whether calculate VCF
-  bool useForbiddenInput;//whether use forbiddenPoints feature
 
   double subtreeValueBiasFactor; //Dynamically adjust neural net utilties based on empirical stats about their errors in search
   int32_t subtreeValueBiasTableNumShards; //Number of shards for subtreeValueBiasFactor for initial hash lookup and mutexing

@@ -31,8 +31,6 @@ static void loadOpenings()
     if (haveLoadOpenings || noOpeningsFile[basicRule])continue;
     noOpeningsFile[basicRule] = true;
     string filename = "openingsGomoku.txt";
-    if (basicRule == Rules::BASICRULE_RENJU)
-      filename = "openingsRenju.txt";
     ifstream ifs(filename);
     if (!ifs.good())
     {

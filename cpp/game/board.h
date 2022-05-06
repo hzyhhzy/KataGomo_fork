@@ -23,9 +23,6 @@ struct Board;
 typedef char MovePriority;
 static const MovePriority MP_NORMAL = 126;
 static const MovePriority MP_FIVE = 1;
-static const MovePriority MP_OPPOFOUR = 2;
-static const MovePriority MP_MYLIFEFOUR = 3;
-static const MovePriority MP_VCF = 4;
 static const MovePriority MP_USELESS = 127;
 static const MovePriority MP_ILLEGAL = -1;
 
@@ -124,14 +121,12 @@ struct Board
   Board& operator=(const Board&) = default;
 
   bool isLegal(Loc loc, Player pla, bool isMultiStoneSuicideLegal) const;
-  bool isForbidden(Loc loc) const;
-  bool isForbiddenAlreadyPlayed(Loc loc) const;
 
   MovePriority getMovePriority(Player pla, Loc loc, const Rules& rule)const;
   bool checkAlreadyWin(Player pla, Loc loc, const Rules& rule)const;
 private:
-  MovePriority getMovePriorityAssumeLegal(Player pla, Loc loc, bool isSixWinMe, bool isSixWinOpp)const;
-  MovePriority getMovePriorityOneDirectionAssumeLegal(Player pla, Loc loc, bool isSixWinMe, bool isSixWinOpp, int adjID)const;
+  MovePriority getMovePriorityAssumeLegal(Player pla, Loc loc, bool isSixWinMe)const;
+  MovePriority getMovePriorityOneDirectionAssumeLegal(Player pla, Loc loc, bool isSixWinMe, int adjID)const;
   int connectionLengthOneDirection(Player pla, Loc loc, short adj, bool isSixWin, bool& isLife)const;
 public:
 
