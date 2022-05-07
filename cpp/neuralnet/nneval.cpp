@@ -730,7 +730,7 @@ void NNEvaluator::evaluate(
       for (int i = 0; i < policySize; i++) {
         Loc loc = NNPos::posToLoc(i, xSize, ySize, nnXLen, nnYLen);
         isLegal[i] = history.isLegal(board, loc, nextPlayer);
-        if (modelVersion == 98 && nextPlayer == C_BLACK && isLegal[i] )
+        if (modelVersion == 98 && history.rules.basicRule==Rules::BASICRULE_RENJU && nextPlayer == C_BLACK && isLegal[i] )
         {
           isLegal[i] = ! board.isForbidden(loc);
         }
