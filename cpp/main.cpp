@@ -166,7 +166,7 @@ string Version::getKataGoVersion() {
 }
 
 string Version::getKataGoVersionForHelp() {
-  return string("TakaGo v1.14.5.14");
+  return string("TakaGo v1.14.5.14 Fake engine");
 }
 
 string Version::getKataGoVersionFullInfo() {
