@@ -258,11 +258,11 @@ MovePriority Board::getMovePriorityOneDirectionAssumeLegal(Player pla, Loc loc, 
   int myConNum2 = connectionLengthOneDirection(pla, loc, -adj, isSixWinMe, isMyLife2);
   if (isSixWinMe)
   {
-    if (myConNum1 >= 4 || myConNum2 >= 4)return MP_FIVE;
+    if ((myConNum1 >= 4 || myConNum2 >= 4)&&(myConNum1+myConNum2>4||isMyLife1||isMyLife2))return MP_FIVE;
   }
   else
   {
-    if ((myConNum1 == 4 || myConNum2 == 4)&&(myConNum1+myConNum2==4))return MP_FIVE;
+    if ((myConNum1 == 4 || myConNum2 == 4)&&(myConNum1+myConNum2==4)&&(isMyLife1||isMyLife2))return MP_FIVE;
 
   }
 
