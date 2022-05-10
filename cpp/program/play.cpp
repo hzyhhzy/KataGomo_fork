@@ -1705,7 +1705,7 @@ FinishedGameData* Play::runGame(
     }
   };
 
-  double balanceOpeningProb = playSettings.forSelfPlay ? 0.5 : 1.0;
+  double balanceOpeningProb = playSettings.forSelfPlay ? 0.2 : 1.0;
 
   if (gameRand.nextBool(balanceOpeningProb))
   {
