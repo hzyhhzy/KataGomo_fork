@@ -7,6 +7,7 @@ cd train
 while true
 do
     bash shuffle.sh ../data ./ktmp 2 256
-    bash train.sh ../data b100c256 b100c256 256 main
+    CUDA_VISIBLE_DEVICES="0" bash train.sh ../data b100c256 b100c256 256 trainonly
+    CUDA_VISIBLE_DEVICES="0" bash train_lowlr.sh ../data b100c256 b100c256 256 main
     bash export.sh renju100b ../data 0
 done

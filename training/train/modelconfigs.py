@@ -57,6 +57,32 @@ b4c32 = {
   "v2_size":24
 }
 
+b6c64 = {
+  "version":101,
+  "support_japanese_rules":True,
+  "use_fixup":True,
+  "use_scoremean_as_lead":False,
+  "use_initial_conv_3":True,
+  "use_fixed_sbscaling":True,
+  "trunk_num_channels":64,
+  "mid_num_channels":64,
+  "regular_num_channels":48,
+  "dilated_num_channels":48,
+  "gpool_num_channels":16,
+  "block_kind": [
+    ["rconv1","regular"],
+    ["rconv2","regular"],
+    ["rconv3","gpool"],
+    ["rconv4","regular"],
+    ["rconv5","gpool"],
+    ["rconv6","regular"]
+  ],
+  "p1_num_channels":24,
+  "g1_num_channels":24,
+  "v1_num_channels":24,
+  "sbv2_num_channels":32,
+  "v2_size":48
+}
 b6c96 = {
   "version":101,
   "support_japanese_rules":True,
@@ -629,6 +655,7 @@ b100c256 = {
 config_of_name = {
   "b2c16": b2c16,
   "b4c32": b4c32,
+  "b6c64": b6c64,
   "b6c96": b6c96,
   "b6c128": b6c128,
   "b10c128": b10c128,

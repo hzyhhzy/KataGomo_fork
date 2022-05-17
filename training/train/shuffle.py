@@ -267,6 +267,7 @@ class TimeStuff(object):
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(description='Shuffle data files')
   parser.add_argument('dirs', metavar='DIR', nargs='+', help='Directories of training data files')
+  parser.add_argument('-training-type', required=True, help='"train" for tdata, "val" for vdata, "all" for tdata and vdata')
   parser.add_argument('-min-rows', type=int, required=False, help='Minimum training rows to use, default 250k')
   parser.add_argument('-max-rows', type=int, required=False, help='Maximum training rows to use, default unbounded')
   parser.add_argument('-keep-target-rows', type=int, required=False, help='Target number of rows to actually keep in the final data set, default 1.2M')
@@ -287,6 +288,7 @@ if __name__ == '__main__':
 
   args = parser.parse_args()
   dirs = args.dirs
+  training_type=args.training_type
   min_rows = args.min_rows
   max_rows = args.max_rows
   keep_target_rows = args.keep_target_rows
@@ -367,6 +369,10 @@ if __name__ == '__main__':
         raise RuntimeError("Could not load summary file")
 
 
+  if(training_type not in ["all","train","val"]):
+    raise RuntimeError('training-type should be "all","train" or "val" ')
+
+
   all_files = []
   files_with_unknown_num_rows = []
   excluded_count = 0
@@ -375,8 +381,15 @@ if __name__ == '__main__':
     for d in dirs:
       for (path,dirnames,filenames) in os.walk(d, followlinks=True):
         i = 0
+        isVdata="vdata" in path
+        if ((not isVdata) and training_type=="val") or (isVdata and training_type=="train"):
+          continue
         while i < len(dirnames):
           dirname = dirnames[i]
+          isVdata="vdata" in dirname
+          if ((not isVdata) and training_type=="val") or (isVdata and training_type=="train"):
+            i+=1
+            continue
           filename_mtime_num_rowss = summary_data_by_dirpath.get(os.path.abspath(os.path.join(path, dirname)))
           if filename_mtime_num_rowss is not None:
             del dirnames[i]
@@ -580,7 +593,7 @@ if __name__ == '__main__':
       merge_results = pool.starmap(merge_shards, [
         (out_files[idx],num_shards_to_merge,out_tmp_dirs[idx],batch_size,ensure_batch_multiple) for idx in range(len(out_files))
       ])
-    print("Mumber of rows by output file:",flush=True)
+    print("Number of rows by output file:",flush=True)
     print(list(zip(out_files,merge_results)),flush=True)
     sys.stdout.flush()
 

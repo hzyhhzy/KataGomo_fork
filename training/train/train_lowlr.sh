@@ -71,8 +71,8 @@ time python ./train.py \
      -max-epochs-this-instance 1 \
      -sub-epochs 1 \
      -swa-sub-epoch-scale 1 \
-     -lr-scale 1\
-     -samples-per-epoch 1900000 \
+     -lr-scale 0.3\
+     -samples-per-epoch 100000 \
      -multi-gpus 0 \
      $EXTRAFLAG \
      "$@" \

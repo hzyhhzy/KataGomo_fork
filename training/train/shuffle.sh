@@ -38,20 +38,21 @@ echo "Beginning shuffle at" $(date "+%Y-%m-%d %H:%M:%S")
 #set -x
 (
     time python ./shuffle.py \
-         "$BASEDIR"/selfplay/*/tdata/ \
+         "$BASEDIR"/selfplay/ \
          -expand-window-per-row 0.4 \
          -taper-window-exponent 0.65 \
          -out-dir "$BASEDIR"/shuffleddata/$OUTDIRTRAIN \
          -out-tmp-dir "$TMPDIR"/train \
-         -approx-rows-per-out-file 50000 \
+         -approx-rows-per-out-file 25600 \
          -num-processes "$NTHREADS" \
          -batch-size "$BATCHSIZE" \
          -min-rows 70000 \
          -keep-target-rows 2100000 \
+         -training-type train \
          "$@" \
          2>&1 | tee "$BASEDIR"/shuffleddata/$OUTDIR/outtrain.txt &
     time python ./shuffle.py \
-         "$BASEDIR"/selfplay/*/vdata/ \
+         "$BASEDIR"/selfplay/ \
          -min-rows 2100 \
          -max-rows 10000000 \
          -expand-window-per-row 0.4 \
@@ -62,6 +63,7 @@ echo "Beginning shuffle at" $(date "+%Y-%m-%d %H:%M:%S")
          -num-processes "$NTHREADS" \
          -batch-size "$BATCHSIZE" \
          -keep-target-rows 51200 \
+         -training-type val \
          2>&1 | tee "$BASEDIR"/shuffleddata/$OUTDIR/outval.txt &
     wait)
 #set +x
