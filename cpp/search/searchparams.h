@@ -86,6 +86,7 @@ struct SearchParams {
 
   bool useVCFInput;//whether calculate VCF
   bool useForbiddenInput;//whether use forbiddenPoints feature
+  bool disableUnnecessaryPass;  // only allow passes when VCN or FPW or Renju black at the end of the game
 
   double subtreeValueBiasFactor; //Dynamically adjust neural net utilties based on empirical stats about their errors in search
   int32_t subtreeValueBiasTableNumShards; //Number of shards for subtreeValueBiasFactor for initial hash lookup and mutexing

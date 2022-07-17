@@ -41,6 +41,7 @@ struct MiscNNInputParams {
   bool useVCFInput=true;
   bool useForbiddenInput=true;
   ResultBeforeNN resultbeforenn=ResultBeforeNN();
+  bool disableUnnecessaryPass = false; //only allow passes when VCN or FPW or Renju black at the end of the game
   
   void initResultbeforenn(const Board& board, const BoardHistory& hist, Color nextPlayer)
   {

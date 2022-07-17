@@ -603,6 +603,13 @@ vector<SearchParams> Setup::loadParams(
     else if(cfg.contains("useForbiddenInput"))   params.useForbiddenInput = cfg.getBool("useForbiddenInput");
     else                                  params.useForbiddenInput = true;
 
+    if(cfg.contains("disableUnnecessaryPass" + idxStr))
+      params.disableUnnecessaryPass = cfg.getBool("disableUnnecessaryPass" + idxStr);
+    else if(cfg.contains("disableUnnecessaryPass"))
+      params.disableUnnecessaryPass = cfg.getBool("disableUnnecessaryPass");
+    else
+      params.disableUnnecessaryPass = false;
+
     if(cfg.contains("subtreeValueBiasFactor"+idxStr)) params.subtreeValueBiasFactor = cfg.getDouble("subtreeValueBiasFactor"+idxStr, 0.0, 1.0);
     else if(cfg.contains("subtreeValueBiasFactor")) params.subtreeValueBiasFactor = cfg.getDouble("subtreeValueBiasFactor", 0.0, 1.0);
     else params.subtreeValueBiasFactor = 0.0;

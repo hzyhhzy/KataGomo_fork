@@ -745,6 +745,16 @@ void NNEvaluator::evaluate(
       isLegal[NNPos::locToPos(Board::PASS_LOC, xSize, nnXLen, nnYLen)] = true;
     }
 
+    //如果设置了disableUnnecessaryPass，则只允许以下几种情况pass：1.对方vcn  2.fpw模式  3.有禁手黑棋，棋盘只剩下不到10个点可以下
+    if(nnInputParams.disableUnnecessaryPass) {
+      if(history.rules.vcSide() != getOpp(nextPlayer)
+        && !history.rules.firstPassWin 
+        && !(history.rules.basicRule==Rules::BASICRULE_RENJU && nextPlayer==C_BLACK && history.getMovenum()>=board.x_size*board.y_size-10)
+        ) {
+        isLegal[NNPos::locToPos(Board::PASS_LOC, xSize, nnXLen, nnYLen)] = false;
+      }
+    }
+
 
     for(int i = 0; i<policySize; i++) {
       float policyValue;
