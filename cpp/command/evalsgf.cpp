@@ -261,37 +261,6 @@ int MainCmds::evalsgf(const vector<string>& args) {
     }
   }
 
-  // {
-  //   sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
-  //   vector<Move>& moves = sgf->moves;
-
-  //   for(size_t i = 0; i<moves.size(); i++) {
-  //     bool preventEncore = false;
-  //     bool suc = hist.makeBoardMoveTolerant(board,moves[i].loc,moves[i].pla,preventEncore);
-  //     assert(suc);
-  //     nextPla = getOpp(moves[i].pla);
-
-  //     MiscNNInputParams nnInputParams;
-  //     nnInputParams.nnPolicyTemperature = 1.2f;
-  //     NNResultBuf buf;
-  //     bool skipCache = true;
-  //     bool includeOwnerMap = false;
-  //     nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
-
-  //     NNOutput* nnOutput = buf.result.get();
-  //     vector<double> probs;
-  //     for(int y = 0; y<board.y_size; y++) {
-  //       for(int x = 0; x<board.x_size; x++) {
-  //         int pos = NNPos::xyToPos(x,y,nnOutput->nnXLen);
-  //         float prob = nnOutput->policyProbs[pos];
-  //         probs.push_back(prob);
-  //       }
-  //     }
-  //     std::sort(probs.begin(),probs.end());
-  //     cout << probs[probs.size()-1] << " " << probs[probs.size()-2] << " " << probs[probs.size()-3] << endl;
-  //   }
-  //   return 0;
-  // }
 
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
@@ -305,7 +274,6 @@ int MainCmds::evalsgf(const vector<string>& args) {
     nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
 
     cout << "Rules: " << hist.rules << endl;
-    cout << "Encore phase " << hist.encorePhase << endl;
     Board::printBoard(cout, board, Board::NULL_LOC, &(hist.moveHistory));
     buf.result->debugPrint(cout,board);
     return 0;
@@ -330,7 +298,6 @@ int MainCmds::evalsgf(const vector<string>& args) {
   const Search* search = bot->getSearchStopAndWait();
   ostringstream sout;
   sout << "Rules: " << hist.rules << endl;
-  sout << "Encore phase " << hist.encorePhase << endl;
   Board::printBoard(sout, board, Board::NULL_LOC, &(hist.moveHistory));
 
   if(options.branch_.size() > 0) {

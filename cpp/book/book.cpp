@@ -124,7 +124,7 @@ void BookHash::getHashAndSymmetry(const BoardHistory& hist, int repBound, BookHa
 
   for(int symmetry = 0; symmetry < numSymmetries; symmetry++) {
     boardsBySym[symmetry] = SymmetryHelpers::getSymBoard(hist.initialBoard,symmetry);
-    histsBySym[symmetry] = BoardHistory(boardsBySym[symmetry], hist.initialPla, hist.rules, hist.initialEncorePhase);
+    histsBySym[symmetry] = BoardHistory(boardsBySym[symmetry], hist.initialPla, hist.rules);
     accums[symmetry] = Hash128();
   }
 
@@ -734,8 +734,7 @@ Book::Book(
   int symmetryToAlign;
   vector<int> rootSymmetries;
 
-  int initialEncorePhase = 0;
-  BoardHistory initialHist(initialBoard, initialPla, initialRules, initialEncorePhase);
+  BoardHistory initialHist(initialBoard, initialPla, initialRules);
   BookHash::getHashAndSymmetry(initialHist, repBound, rootHash, symmetryToAlign, rootSymmetries, bookVersion);
 
   initialSymmetry = symmetryToAlign;
@@ -754,8 +753,7 @@ BoardHistory Book::getInitialHist() const {
   return getInitialHist(0);
 }
 BoardHistory Book::getInitialHist(int symmetry) const {
-  int initialEncorePhase = 0;
-  return BoardHistory(SymmetryHelpers::getSymBoard(initialBoard,symmetry), initialPla, initialRules, initialEncorePhase);
+  return BoardHistory(SymmetryHelpers::getSymBoard(initialBoard,symmetry), initialPla, initialRules);
 }
 
 size_t Book::size() const {
@@ -1747,9 +1745,6 @@ void Book::exportToHtmlDir(
       return;
     }
 
-    // Omit exporting nodes that are past the normal game end.
-    if(hist.encorePhase > 0)
-      return;
 
     Board board = hist.getRecentBoard(0);
 

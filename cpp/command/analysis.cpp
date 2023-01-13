@@ -142,7 +142,6 @@ int MainCmds::analysis(const vector<string>& args) {
   const int analysisPVLen = cfg.contains("analysisPVLen") ? cfg.getInt("analysisPVLen",1,100) : 15;
   const bool assumeMultipleStartingBlackMovesAreHandicap =
     cfg.contains("assumeMultipleStartingBlackMovesAreHandicap") ? cfg.getBool("assumeMultipleStartingBlackMovesAreHandicap") : true;
-  const bool preventEncore = cfg.contains("preventCleanupPhase") ? cfg.getBool("preventCleanupPhase") : true;
 
   NNEvaluator* nnEval;
   {
@@ -250,7 +249,7 @@ int MainCmds::analysis(const vector<string>& args) {
   };
 
   //Returns false if no analysis was reportable due to there being no root node or search results.
-  auto reportAnalysis = [&preventEncore,&pushToWrite](const AnalyzeRequest* request, const Search* search, bool isDuringSearch) {
+  auto reportAnalysis = [&pushToWrite](const AnalyzeRequest* request, const Search* search, bool isDuringSearch) {
     json ret;
     ret["id"] = request->id;
     ret["turnNumber"] = request->turnNumber;
@@ -258,7 +257,7 @@ int MainCmds::analysis(const vector<string>& args) {
 
     bool success = search->getAnalysisJson(
       request->perspective,
-      request->analysisPVLen, preventEncore, request->includePolicy,
+      request->analysisPVLen, request->includePolicy,
       request->includeOwnership,request->includeOwnershipStdev,
       request->includeMovesOwnership,request->includeMovesOwnershipStdev,
       request->includePVVisits,
@@ -1083,11 +1082,11 @@ int MainCmds::analysis(const vector<string>& args) {
         Loc moveLoc = moveHistory[turnNumber].loc;
         if(movePla != nextPla) {
           board.clearSimpleKoLoc();
-          hist.clear(board,movePla,rules,hist.encorePhase);
+          hist.clear(board,movePla,rules);
           hist.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
         }
 
-        bool suc = hist.makeBoardMoveTolerant(board,moveLoc,movePla,preventEncore);
+        bool suc = hist.makeBoardMoveTolerant(board,moveLoc,movePla);
         if(!suc) {
           reportErrorForId(rbase.id, "moves", "Illegal move " + Global::intToString(turnNumber) + ": " + Location::toString(moveLoc,board));
           foundIllegalMove = true;

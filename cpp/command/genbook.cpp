@@ -155,7 +155,7 @@ int MainCmds::genbook(const vector<string>& args) {
       uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, &seedRand, [&](Sgf::PositionSample& unusedSample, const BoardHistory& sgfHist, const string& comments) {
         (void)unusedSample;
         if(comments.size() > 0 && comments.find("BONUS") != string::npos) {
-          BoardHistory hist(sgfHist.initialBoard, sgfHist.initialPla, rules, sgfHist.initialEncorePhase);
+          BoardHistory hist(sgfHist.initialBoard, sgfHist.initialPla, rules);
           Board board = hist.initialBoard;
           for(size_t i = 0; i<sgfHist.moveHistory.size(); i++) {
             bool suc = hist.makeBoardMoveTolerant(board, sgfHist.moveHistory[i].loc, sgfHist.moveHistory[i].pla);
@@ -557,8 +557,7 @@ int MainCmds::genbook(const vector<string>& args) {
     if(
       targetHist.initialBoard.pos_hash != board.pos_hash ||
       targetHist.initialBoard.ko_loc != board.ko_loc ||
-      targetHist.initialPla != pla ||
-      targetHist.initialEncorePhase != hist.initialEncorePhase
+      targetHist.initialPla != pla 
     ) {
       throw StringError("Target board history to add to book doesn't start from the same position");
     }

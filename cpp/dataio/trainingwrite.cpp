@@ -73,7 +73,6 @@ FinishedGameData::FinishedGameData()
 
    numExtraBlack(0),
    mode(0),
-   beganInEncorePhase(0),
    usedInitialPosition(0),
 
    hasFullData(false),
@@ -130,7 +129,6 @@ void FinishedGameData::printDebug(ostream& out) const {
   out << "hitTurnLimit " << hitTurnLimit << endl;
   out << "numExtraBlack " << numExtraBlack << endl;
   out << "mode " << mode << endl;
-  out << "beganInEncorePhase " << beganInEncorePhase << endl;
   out << "usedInitialPosition " << usedInitialPosition << endl;
   out << "hasFullData " << hasFullData << endl;
   for(int i = 0; i<targetWeightByTurn.size(); i++)
@@ -520,7 +518,7 @@ void TrainingWriteBuffers::addRow(
 
   //Various other data
   rowGlobal[47] = hist.currentSelfKomi(nextPlayer,data.drawEquivalentWinsForWhite);
-  rowGlobal[48] = (hist.encorePhase == 2 || hist.rules.scoringRule == Rules::SCORING_AREA) ? 1.0f : 0.0f;
+  rowGlobal[48] = (hist.rules.scoringRule == Rules::SCORING_AREA) ? 1.0f : 0.0f;
 
   //Earlier neural net metadata
   rowGlobal[49] = data.changedNeuralNets.size() > 0 ? 1.0f : 0.0f;

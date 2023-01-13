@@ -1431,7 +1431,6 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
       return;
     }
 
-    const bool preventEncore = true;
     const vector<Move>& sgfMoves = sgf->moves;
 
     if((int64_t)sgfMoves.size() > maxDepth) {
@@ -1487,7 +1486,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         break;
 
       //Quit out if according to our rules, we already finished the game, or we're somehow in a cleanup phase
-      if(hist.isGameFinished || hist.encorePhase > 0)
+      if(hist.isGameFinished )
         break;
 
       //Quit out if consecutive moves by the same player, to keep the history clean and "normal"
@@ -1499,12 +1498,12 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
       bool suc = hist.isLegal(board,sgfMoves[m].loc,sgfMoves[m].pla);
       if(!suc) {
         //Only log on errors that aren't simply due to ko rules, but quit out regardless
-        suc = hist.makeBoardMoveTolerant(board,sgfMoves[m].loc,sgfMoves[m].pla,preventEncore);
+        suc = hist.makeBoardMoveTolerant(board,sgfMoves[m].loc,sgfMoves[m].pla);
         if(!suc)
           logger.write("Illegal move in " + fileName + " turn " + Global::intToString(m) + " move " + Location::toString(sgfMoves[m].loc, board.x_size, board.y_size));
         break;
       }
-      hist.makeBoardMoveAssumeLegal(board,sgfMoves[m].loc,sgfMoves[m].pla,NULL,preventEncore);
+      hist.makeBoardMoveAssumeLegal(board,sgfMoves[m].loc,sgfMoves[m].pla,NULL);
       nextPla = getOpp(sgfMoves[m].pla);
     }
     boards.push_back(board);
@@ -1683,9 +1682,8 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     Rules rules = gameInit->createRules();
 
     //Now play the rest of the moves out, except the last, which we keep as the potential hintloc
-    int encorePhase = 0;
     Player pla = sample.nextPla;
-    BoardHistory hist(board,pla,rules,encorePhase);
+    BoardHistory hist(board,pla,rules);
     int numSampleMoves = (int)sample.moves.size();
     for(int i = 0; i<numSampleMoves; i++) {
       if(!hist.isLegal(board,sample.moves[i].loc,sample.moves[i].pla))

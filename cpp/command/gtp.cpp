@@ -326,7 +326,6 @@ struct GTPEngine {
   const string nnModelFile;
   const bool assumeMultipleStartingBlackMovesAreHandicap;
   const int analysisPVLen;
-  const bool preventEncore;
 
   const double dynamicPlayoutDoublingAdvantageCapPerOppLead;
   double staticPlayoutDoublingAdvantage;
@@ -367,7 +366,7 @@ struct GTPEngine {
 
   GTPEngine(
     const string& modelFile, SearchParams initialParams, Rules initialRules,
-    bool assumeMultiBlackHandicap, bool prevtEncore,
+    bool assumeMultiBlackHandicap,
     double dynamicPDACapPerOppLead, double staticPDA, bool staticPDAPrecedence,
     double normAvoidRepeatedPatternUtility, double hcapAvoidRepeatedPatternUtility,
     bool avoidDagger,
@@ -379,7 +378,6 @@ struct GTPEngine {
     :nnModelFile(modelFile),
      assumeMultipleStartingBlackMovesAreHandicap(assumeMultiBlackHandicap),
      analysisPVLen(pvLen),
-     preventEncore(prevtEncore),
      dynamicPlayoutDoublingAdvantageCapPerOppLead(dynamicPDACapPerOppLead),
      staticPlayoutDoublingAdvantage(staticPDA),
      staticPDATakesPrecedence(staticPDAPrecedence),
@@ -603,7 +601,7 @@ struct GTPEngine {
 
   bool play(Loc loc, Player pla) {
     assert(bot->getRootHist().rules == currentRules);
-    bool suc = bot->makeMove(loc,pla,preventEncore);
+    bool suc = bot->makeMove(loc,pla);
     if(suc)
       moveHistory.push_back(Move(loc,pla));
     return suc;
@@ -735,23 +733,14 @@ struct GTPEngine {
           cout << " lcb " << round(lcb * 10000.0);
           cout << " order " << data.order;
           cout << " pv ";
-          if(preventEncore && data.pvContainsPass())
-            data.writePVUpToPhaseEnd(cout,board,search->getRootHist(),search->getRootPla());
-          else
-            data.writePV(cout,board);
+          data.writePV(cout,board);
           if(args.showPVVisits) {
             cout << " pvVisits ";
-            if(preventEncore && data.pvContainsPass())
-              data.writePVVisitsUpToPhaseEnd(cout,board,search->getRootHist(),search->getRootPla());
-            else
-              data.writePVVisits(cout);
+            data.writePVVisits(cout);
           }
           if(args.showPVEdgeVisits) {
             cout << " pvEdgeVisits ";
-            if(preventEncore && data.pvContainsPass())
-              data.writePVEdgeVisitsUpToPhaseEnd(cout,board,search->getRootHist(),search->getRootPla());
-            else
-              data.writePVEdgeVisits(cout);
+            data.writePVEdgeVisits(cout);
           }
         }
         cout << endl;
@@ -827,23 +816,14 @@ struct GTPEngine {
             out << " isSymmetryOf " << Location::toString(data.isSymmetryOf,board);
           out << " order " << data.order;
           out << " pv ";
-          if(preventEncore && data.pvContainsPass())
-            data.writePVUpToPhaseEnd(out,board,search->getRootHist(),search->getRootPla());
-          else
-            data.writePV(out,board);
+          data.writePV(out,board);
           if(args.showPVVisits) {
             out << " pvVisits ";
-            if(preventEncore && data.pvContainsPass())
-              data.writePVVisitsUpToPhaseEnd(out,board,search->getRootHist(),search->getRootPla());
-            else
-              data.writePVVisits(out);
+            data.writePVVisits(out);
           }
           if(args.showPVEdgeVisits) {
             out << " pvEdgeVisits ";
-            if(preventEncore && data.pvContainsPass())
-              data.writePVEdgeVisitsUpToPhaseEnd(out,board,search->getRootHist(),search->getRootPla());
-            else
-              data.writePVEdgeVisits(out);
+            data.writePVEdgeVisits(out);
           }
           vector<double> movesOwnership, movesOwnershipStdev;
           if(args.showMovesOwnershipStdev) {
@@ -1098,7 +1078,7 @@ struct GTPEngine {
       response = Location::toString(moveLoc,bot->getRootBoard());
 
     if(!resigned && moveLoc != Board::NULL_LOC && isLegal && playChosenMove) {
-      bool suc = bot->makeMove(moveLoc,pla,preventEncore);
+      bool suc = bot->makeMove(moveLoc,pla);
       if(suc)
         moveHistory.push_back(Move(moveLoc,pla));
       assert(suc);
@@ -1257,8 +1237,7 @@ struct GTPEngine {
 
     //Tromp-taylorish scoring, or finished territory game scoring (including noresult)
     if(hist.isGameFinished && (
-         (hist.rules.scoringRule == Rules::SCORING_AREA && !hist.rules.friendlyPassOk) ||
-         (hist.rules.scoringRule == Rules::SCORING_TERRITORY)
+         (hist.rules.scoringRule == Rules::SCORING_AREA && !hist.rules.friendlyPassOk) )
        )
     ) {
       //For GTP purposes, we treat noResult as a draw since there is no provision for anything else.
@@ -1302,8 +1281,7 @@ struct GTPEngine {
     vector<bool> isAlive;
     //Tromp-taylorish statuses, or finished territory game statuses (including noresult)
     if(hist.isGameFinished && (
-         (hist.rules.scoringRule == Rules::SCORING_AREA && !hist.rules.friendlyPassOk) ||
-         (hist.rules.scoringRule == Rules::SCORING_TERRITORY)
+         (hist.rules.scoringRule == Rules::SCORING_AREA && !hist.rules.friendlyPassOk))
        )
     )
       isAlive = PlayUtils::computeAnticipatedStatusesSimple(board,hist);
@@ -1740,7 +1718,6 @@ int MainCmds::gtp(const vector<string>& args) {
   const int analysisPVLen = cfg.contains("analysisPVLen") ? cfg.getInt("analysisPVLen",1,1000) : 13;
   const bool assumeMultipleStartingBlackMovesAreHandicap =
     cfg.contains("assumeMultipleStartingBlackMovesAreHandicap") ? cfg.getBool("assumeMultipleStartingBlackMovesAreHandicap") : true;
-  const bool preventEncore = cfg.contains("preventCleanupPhase") ? cfg.getBool("preventCleanupPhase") : true;
   const double dynamicPlayoutDoublingAdvantageCapPerOppLead =
     cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead") ? cfg.getDouble("dynamicPlayoutDoublingAdvantageCapPerOppLead",0.0,0.5) : 0.045;
   double staticPlayoutDoublingAdvantage = initialParams.playoutDoublingAdvantage;
@@ -1778,7 +1755,7 @@ int MainCmds::gtp(const vector<string>& args) {
 
   GTPEngine* engine = new GTPEngine(
     nnModelFile,initialParams,initialRules,
-    assumeMultipleStartingBlackMovesAreHandicap,preventEncore,
+    assumeMultipleStartingBlackMovesAreHandicap,
     dynamicPlayoutDoublingAdvantageCapPerOppLead,
     staticPlayoutDoublingAdvantage,staticPDATakesPrecedence,
     normalAvoidRepeatedPatternUtility, handicapAvoidRepeatedPatternUtility,
@@ -2848,7 +2825,7 @@ int MainCmds::gtp(const vector<string>& args) {
             sgfBoard = sgfInitialBoard;
             sgfNextPla = sgfInitialNextPla;
             sgfHist = sgfInitialHist;
-            sgf->playMovesTolerant(sgfBoard,sgfNextPla,sgfHist,moveNumber,preventEncore);
+            sgf->playMovesTolerant(sgfBoard,sgfNextPla,sgfHist,moveNumber);
 
             delete sgf;
             sgf = NULL;

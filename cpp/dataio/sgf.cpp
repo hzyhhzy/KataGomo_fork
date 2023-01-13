@@ -767,7 +767,6 @@ void Sgf::samplePositionIfUniqueHelper(
   //Hash based on position, player, and simple ko
   Hash128 situationHash = board.pos_hash;
   situationHash ^= Board::ZOBRIST_PLAYER_HASH[nextPla];
-  assert(hist.encorePhase == 0);
   if(board.ko_loc != Board::NULL_LOC)
     situationHash ^= Board::ZOBRIST_KO_LOC_HASH[board.ko_loc];
 
@@ -1449,7 +1448,7 @@ void CompactSgf::playMovesAssumeLegal(Board& board, Player& nextPla, BoardHistor
   }
 }
 
-void CompactSgf::playMovesTolerant(Board& board, Player& nextPla, BoardHistory& hist, int64_t turnIdx, bool preventEncore) const {
+void CompactSgf::playMovesTolerant(Board& board, Player& nextPla, BoardHistory& hist, int64_t turnIdx) const {
   if(turnIdx < 0 || turnIdx > (int64_t)moves.size())
     throw StringError(
       Global::strprintf(
@@ -1459,7 +1458,7 @@ void CompactSgf::playMovesTolerant(Board& board, Player& nextPla, BoardHistory& 
     );
 
   for(int64_t i = 0; i<turnIdx; i++) {
-    bool suc = hist.makeBoardMoveTolerant(board,moves[i].loc,moves[i].pla,preventEncore);
+    bool suc = hist.makeBoardMoveTolerant(board,moves[i].loc,moves[i].pla);
     if(!suc)
       throw StringError("Illegal move in " + fileName + " turn " + Global::int64ToString(i) + " move " + Location::toString(moves[i].loc, board.x_size, board.y_size));
     nextPla = getOpp(moves[i].pla);
@@ -1471,9 +1470,9 @@ void CompactSgf::setupBoardAndHistAssumeLegal(const Rules& initialRules, Board& 
   playMovesAssumeLegal(board, nextPla, hist, turnIdx);
 }
 
-void CompactSgf::setupBoardAndHistTolerant(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int64_t turnIdx, bool preventEncore) const {
+void CompactSgf::setupBoardAndHistTolerant(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int64_t turnIdx) const {
   setupInitialBoardAndHist(initialRules, board, nextPla, hist);
-  playMovesTolerant(board, nextPla, hist, turnIdx, preventEncore);
+  playMovesTolerant(board, nextPla, hist, turnIdx);
 }
 
 
@@ -1634,8 +1633,6 @@ void WriteSgf::writeSgf(
     else
       out << "," << "gtype=other";
 
-    if(gameData->beganInEncorePhase != 0)
-      out << "," << "beganInEncorePhase=" << gameData->beganInEncorePhase;
     if(gameData->usedInitialPosition != 0)
       out << "," << "usedInitialPosition=" << gameData->usedInitialPosition;
     if(gameData->playoutDoublingAdvantage != 0)
@@ -1655,7 +1652,7 @@ void WriteSgf::writeSgf(
 
   string comment;
   Board board(initialBoard);
-  BoardHistory hist(board,endHist.initialPla,endHist.rules,endHist.initialEncorePhase);
+  BoardHistory hist(board,endHist.initialPla,endHist.rules);
   for(size_t i = 0; i<endHist.moveHistory.size(); i++) {
     comment.clear();
     out << ";";
