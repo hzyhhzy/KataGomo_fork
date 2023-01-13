@@ -1001,7 +1001,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
           else:
             accumulate_metrics(running_metrics["sums"], running_metrics["weights"], metrics, batch_size, decay=1.0, new_weight=0.0)
         else:
-          accumulate_metrics(running_metrics["sums"], running_metrics["weights"], metrics, batch_size, decay=0.999, new_weight=1.0)
+          accumulate_metrics(running_metrics["sums"], running_metrics["weights"], metrics, batch_size, decay=0.99, new_weight=1.0)
 
 
         if batch_count_this_epoch % print_train_loss_every_batches == 0:

@@ -878,6 +878,37 @@ b18c384nbt = {
   "v2_size":128,
 }
 
+b10c256nbt = {
+  "version":11,
+  "norm_kind":"fixup",
+  "bnorm_epsilon": 1e-4,
+  "bnorm_running_avg_momentum": 0.001,
+  "initial_conv_1x1": False,
+  "trunk_num_channels":256,
+  "mid_num_channels":128,
+  "gpool_num_channels":64,
+  "use_attention_pool":False,
+  "num_attention_pool_heads":4,
+  "block_kind": [
+    ["rconv1","bottlenest2"],
+    ["rconv2","bottlenest2"],
+    ["rconv3","bottlenest2gpool"],
+    ["rconv4","bottlenest2"],
+    ["rconv5","bottlenest2"],
+    ["rconv6","bottlenest2gpool"],
+    ["rconv7","bottlenest2"],
+    ["rconv8","bottlenest2"],
+    ["rconv9","bottlenest2gpool"],
+    ["rconv10","bottlenest2"],
+  ],
+  "p1_num_channels":32,
+  "g1_num_channels":32,
+  "v1_num_channels":64,
+  "sbv2_num_channels":64,
+  "num_scorebeliefs":8,
+  "v2_size":96,
+}
+
 b14c448nbt = {
   "version":11,
   "norm_kind":"fixup",
@@ -1263,6 +1294,67 @@ b20c640nbt = {
   "v2_size":144,
 }
 
+b40c512nbt = {
+  "version":11,
+  "norm_kind":"fixup",
+  "bnorm_epsilon": 1e-4,
+  "bnorm_running_avg_momentum": 0.001,
+  "initial_conv_1x1": False,
+  "trunk_num_channels":512,
+  "mid_num_channels":256,
+  "gpool_num_channels":128,
+  "use_attention_pool":False,
+  "num_attention_pool_heads":4,
+  "block_kind": [
+    ["rconv1","bottlenest2"],
+    ["rconv2","bottlenest2"],
+    ["rconv3","bottlenest2gpool"],
+    ["rconv4","bottlenest2"],
+    ["rconv5","bottlenest2"],
+    ["rconv6","bottlenest2gpool"],
+    ["rconv7","bottlenest2"],
+    ["rconv8","bottlenest2"],
+    ["rconv9","bottlenest2gpool"],
+    ["rconv10","bottlenest2"],
+    ["rconv11","bottlenest2"],
+    ["rconv12","bottlenest2gpool"],
+    ["rconv13","bottlenest2"],
+    ["rconv14","bottlenest2"],
+    ["rconv15","bottlenest2gpool"],
+    ["rconv16","bottlenest2"],
+    ["rconv17","bottlenest2"],
+    ["rconv18","bottlenest2gpool"],
+    ["rconv19","bottlenest2"],
+    ["rconv20","bottlenest2"],
+    ["rconv21","bottlenest2gpool"],
+    ["rconv22","bottlenest2"],
+    ["rconv23","bottlenest2"],
+    ["rconv24","bottlenest2gpool"],
+    ["rconv25","bottlenest2"],
+    ["rconv26","bottlenest2"],
+    ["rconv27","bottlenest2gpool"],
+    ["rconv28","bottlenest2"],
+    ["rconv29","bottlenest2"],
+    ["rconv30","bottlenest2gpool"],
+    ["rconv31","bottlenest2"],
+    ["rconv32","bottlenest2"],
+    ["rconv33","bottlenest2gpool"],
+    ["rconv34","bottlenest2"],
+    ["rconv35","bottlenest2"],
+    ["rconv36","bottlenest2gpool"],
+    ["rconv37","bottlenest2"],
+    ["rconv38","bottlenest2"],
+    ["rconv39","bottlenest2gpool"],
+    ["rconv40","bottlenest2"],
+  ],
+  "p1_num_channels":64,
+  "g1_num_channels":64,
+  "v1_num_channels":96,
+  "sbv2_num_channels":128,
+  "num_scorebeliefs":8,
+  "v2_size":144,
+}
+
 sandbox = {
   "version":11,
   "norm_kind":"fixup",
@@ -1313,8 +1405,6 @@ base_config_of_name = {
   "b10c128": b10c128,
   "b15c192": b15c192,
 
-  # Cheap new arch config, probably maybe around b10c128
-  "b5c192nbt": b5c192nbt,
 
   # Configs not too different in inference cost from b20c256
   "b20c256": b20c256,
@@ -1326,13 +1416,21 @@ base_config_of_name = {
   "b15c384lbt": b15c384lbt,
   "b10c512lbt": b10c512lbt,
   "b12c384llbt": b12c384llbt,
-  "b10c384nbt": b10c384nbt,
   "b10c480nb3t": b10c480nb3t,
   "b7c384lnbt": b7c384lnbt,
   "b5c512nnbt": b5c512nnbt,
 
   # Oddball config
   "b20c384lbt": b20c384lbt,
+
+  # Cheap new arch config, probably maybe around b10c128
+  "b5c192nbt": b5c192nbt,
+
+  # ~b15c192
+  "b10c256nbt": b10c256nbt,
+
+  # ~b20c256
+  "b10c384nbt": b10c384nbt,
 
   # Configs not too different in inference cost from b40c256
   "b30c320": b30c320,
@@ -1347,6 +1445,9 @@ base_config_of_name = {
   "b32c448nbt": b32c448nbt,
   "b28c512nbt": b28c512nbt,
   "b20c640nbt": b20c640nbt,
+
+  # bigger
+  "b40c512nbt": b40c512nbt,
 
   "sandbox": sandbox,
 }
