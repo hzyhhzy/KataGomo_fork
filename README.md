@@ -1,14 +1,9 @@
 ***2023.1.8 Engine based on Katago 1.12 start Modifying***   
-
+   
 | Tasks                                                  | Branch         | Stage        | Notes                              |
 | :----------------------------------------------------- | :------------- | :----------- | :--------------------------------- |
-| 1 Compile and run training                             | Kata2023       | **Doing**    | -                                  |
-| 2 CaptureGo(Remove Go rules)                           | Capture2023    | Todo         | Just to test whether it works      |
-| 3 Black-White board games(Remove Capture)              | BW2023         | Todo         | Using Gomoku as a representative, very easy to be modified to other games   |
-| 3.1 Gomoku                                             | Gom2023        | Todo         | New Katagomo engine                |
-| 4 Chess-like games(Multi-stage moves)                  | Movestone2023  | Todo         | Maybe using Breakthrough or Ataxx as a representative, very easy to be modified to other games    |
-   
-    
+| **(THIS)** 1 Compile and run training                             | Kata2023       | **Finished** | -                                  |
+| **(NEXT)** 2 Chinese Rule Only(Remove JP rules)                   | CNRule2023     | Doing             | Just to test whether it works      |
 	
 	
 	
