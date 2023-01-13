@@ -220,7 +220,6 @@ struct Search {
   //If the move is not legal for the specified player, returns false and does nothing, else returns true
   //In the case where the player was not the expected one moving next, also clears history.
   bool makeMove(Loc moveLoc, Player movePla);
-  bool makeMove(Loc moveLoc, Player movePla, bool preventEncore);
 
   //isLegalTolerant also specially handles players moving multiple times in a row.
   bool isLegalTolerant(Loc moveLoc, Player movePla) const;
@@ -375,7 +374,7 @@ struct Search {
   //Fill json with analysis engine format information about search results
   bool getAnalysisJson(
     const Player perspective,
-    int analysisPVLen, bool preventEncore, bool includePolicy,
+    int analysisPVLen, bool includePolicy,
     bool includeOwnership, bool includeOwnershipStdev, bool includeMovesOwnership, bool includeMovesOwnershipStdev, bool includePVVisits,
     nlohmann::json& ret
   ) const;

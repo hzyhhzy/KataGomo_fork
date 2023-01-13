@@ -72,7 +72,6 @@ struct FinishedGameData {
   //Metadata about how the game was initialized
   int numExtraBlack;
   int mode;
-  int beganInEncorePhase;
   int usedInitialPosition;
   //This differs from numExtraBlack in that numExtraBlack counts number of extra black stones
   //played following the start of startHist, whereas handicapForSgf counts from startBoard.
