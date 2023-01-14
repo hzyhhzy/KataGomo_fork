@@ -116,10 +116,6 @@ double Search::getExploreSelectionValueOfChild(
   else {
     childUtility = utilityAvg;
 
-    //Tiny adjustment for passing
-    double endingScoreBonus = getEndingWhiteScoreBonus(parent,moveLoc);
-    if(endingScoreBonus != 0)
-      childUtility += getScoreUtilityDiff(scoreMeanAvg, scoreMeanSqAvg, endingScoreBonus);
   }
 
   //Virtual losses to direct threads down different paths
@@ -229,11 +225,7 @@ double Search::getReducedPlaySelectionWeight(
     return 0;
 
   //Tiny adjustment for passing
-  double endingScoreBonus = getEndingWhiteScoreBonus(parent,moveLoc);
   double childUtility = utilityAvg;
-  if(endingScoreBonus != 0)
-    childUtility += getScoreUtilityDiff(scoreMeanAvg, scoreMeanSqAvg, endingScoreBonus);
-
   double childWeightWeRetrospectivelyWanted = getExploreSelectionValueInverse(
     bestChildExploreSelectionValue, exploreScaling, nnPolicyProb, childUtility, parent.nextPla
   );

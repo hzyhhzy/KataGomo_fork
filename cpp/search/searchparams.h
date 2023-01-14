@@ -44,7 +44,6 @@ struct SearchParams {
 
   //Graph search
   bool useGraphSearch; //Enable graph search instead of tree search?
-  int graphSearchRepBound; //Rep bound to use for graph search transposition safety. Higher will reduce transpositions but be more safe.
   double graphSearchCatchUpLeakProb; //Chance to perform a visit to deepen a branch anyways despite being behind on visit count.
   //double graphSearchCatchUpProp; //When sufficiently far behind on visits on a transposition, catch up extra by adding up to this fraction of parents visits at once.
 
@@ -77,9 +76,6 @@ struct SearchParams {
   //Mild behavior hackery
   double rootEndingBonusPoints; //Extra bonus (or penalty) to encourage good passing behavior at the end of the game.
   bool rootPruneUselessMoves; //Prune moves that are entirely useless moves that prolong the game.
-  bool conservativePass; //Never assume one's own pass will end the game.
-  bool fillDameBeforePass; //When territory scoring, heuristically discourage passing before filling the dame.
-  Player avoidMYTDaggerHackPla; //Hacky hack to avoid a particular pattern that gives some KG nets some trouble. Should become unnecessary in the future.
   double wideRootNoise; //Explore at the root more widely
 
   double playoutDoublingAdvantage; //Play as if we have this many doublings of playouts vs the opponent

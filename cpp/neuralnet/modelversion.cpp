@@ -21,22 +21,14 @@ static void fail(int modelVersion) {
   throw StringError("NNModelVersion: Model version not currently implemented or supported: " + Global::intToString(modelVersion));
 }
 
-static_assert(NNModelVersion::oldestModelVersionImplemented == 3, "");
-static_assert(NNModelVersion::oldestInputsVersionImplemented == 3, "");
+static_assert(NNModelVersion::oldestModelVersionImplemented == 8, "");
+static_assert(NNModelVersion::oldestInputsVersionImplemented == 7, "");
 static_assert(NNModelVersion::latestModelVersionImplemented == 11, "");
 static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
 
 int NNModelVersion::getInputsVersion(int modelVersion) {
   if(modelVersion >= 8 && modelVersion <= 11)
     return 7;
-  else if(modelVersion == 7)
-    return 6;
-  else if(modelVersion == 6)
-    return 5;
-  else if(modelVersion == 5)
-    return 4;
-  else if(modelVersion == 3 || modelVersion == 4)
-    return 3;
 
   fail(modelVersion);
   return -1;
@@ -45,14 +37,6 @@ int NNModelVersion::getInputsVersion(int modelVersion) {
 int NNModelVersion::getNumSpatialFeatures(int modelVersion) {
   if(modelVersion >= 8 && modelVersion <= 11)
     return NNInputs::NUM_FEATURES_SPATIAL_V7;
-  else if(modelVersion == 7)
-    return NNInputs::NUM_FEATURES_SPATIAL_V6;
-  else if(modelVersion == 6)
-    return NNInputs::NUM_FEATURES_SPATIAL_V5;
-  else if(modelVersion == 5)
-    return NNInputs::NUM_FEATURES_SPATIAL_V4;
-  else if(modelVersion == 3 || modelVersion == 4)
-    return NNInputs::NUM_FEATURES_SPATIAL_V3;
 
   fail(modelVersion);
   return -1;
@@ -61,14 +45,6 @@ int NNModelVersion::getNumSpatialFeatures(int modelVersion) {
 int NNModelVersion::getNumGlobalFeatures(int modelVersion) {
   if(modelVersion >= 8 && modelVersion <= 11)
     return NNInputs::NUM_FEATURES_GLOBAL_V7;
-  else if(modelVersion == 7)
-    return NNInputs::NUM_FEATURES_GLOBAL_V6;
-  else if(modelVersion == 6)
-    return NNInputs::NUM_FEATURES_GLOBAL_V5;
-  else if(modelVersion == 5)
-    return NNInputs::NUM_FEATURES_GLOBAL_V4;
-  else if(modelVersion == 3 || modelVersion == 4)
-    return NNInputs::NUM_FEATURES_GLOBAL_V3;
 
   fail(modelVersion);
   return -1;

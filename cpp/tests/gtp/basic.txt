@@ -1,8 +1,0 @@
-genmove_debug b
-genmove_debug w
-clear_board
-genmove_debug b
-genmove_debug w
-boardsize 9
-genmove_debug b
-showboard

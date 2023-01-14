@@ -618,9 +618,7 @@ void Sgf::iterAllUniquePositions(
   if(nextPla == C_EMPTY)
     nextPla = C_BLACK;
   Rules rules = Rules::getTrompTaylorish();
-  rules.koRule = Rules::KO_SITUATIONAL;
-  rules.multiStoneSuicideLegal = true;
-  BoardHistory hist(board,nextPla,rules,0);
+  BoardHistory hist(board,nextPla,rules);
 
   PositionSample sampleBuf;
   std::vector<std::pair<int64_t,int64_t>> variationTraceNodesBranch;
@@ -659,7 +657,7 @@ void Sgf::iterAllUniquePositionsHelper(
           if(board.colors[buf[j].loc] == C_EMPTY && buf[j].pla != C_EMPTY)
             netStonesAdded++;
         }
-        bool suc = board.setStonesFailIfNoLibs(buf);
+        bool suc = board.setStones(buf);
         if(!suc) {
           ostringstream trace;
           for(size_t s = 0; s < variationTraceNodesBranch.size(); s++) {
@@ -673,7 +671,6 @@ void Sgf::iterAllUniquePositionsHelper(
           );
         }
 
-        board.clearSimpleKoLoc();
         //Clear history any time placements happen, but make sure we track the initial turn number.
         initialTurnNumber += (int)hist.moveHistory.size();
 
@@ -686,7 +683,7 @@ void Sgf::iterAllUniquePositionsHelper(
         if(board.numStonesOnBoard() > initialTurnNumber)
           initialTurnNumber = board.numStonesOnBoard();
 
-        hist.clear(board,nextPla,rules,0);
+        hist.clear(board,nextPla,rules);
       }
       samplePositionIfUniqueHelper(board,hist,nextPla,sampleBuf,initialTurnNumber,uniqueHashes,hashComments,hashParent,flipIfPassOrWFirst,comments,f);
     }
@@ -767,8 +764,6 @@ void Sgf::samplePositionIfUniqueHelper(
   //Hash based on position, player, and simple ko
   Hash128 situationHash = board.pos_hash;
   situationHash ^= Board::ZOBRIST_PLAYER_HASH[nextPla];
-  if(board.ko_loc != Board::NULL_LOC)
-    situationHash ^= Board::ZOBRIST_KO_LOC_HASH[board.ko_loc];
 
   if(hashComments)
     situationHash.hash0 += Hash::simpleHash(comments.c_str());
@@ -778,8 +773,6 @@ void Sgf::samplePositionIfUniqueHelper(
     if(hist.moveHistory.size() > 0) {
       const Board& prevBoard = hist.getRecentBoard(1);
       parentHash = prevBoard.pos_hash;
-      if(prevBoard.ko_loc != Board::NULL_LOC)
-        parentHash ^= Board::ZOBRIST_KO_LOC_HASH[prevBoard.ko_loc];
     }
     //Mix in a blended up hash of the previous board state to avoid zobrist cancellation, also swapping halves
     Hash128 mixed = Hash128(Hash::murmurMix(parentHash.hash1),Hash::splitMix64(parentHash.hash0));
@@ -938,7 +931,7 @@ Sgf::PositionSample Sgf::PositionSample::getColorFlipped() const {
     for(int x = 0; x < other.board.x_size; x++) {
       Loc loc = Location::getLoc(x,y,other.board.x_size);
       if(other.board.colors[loc] == C_BLACK || other.board.colors[loc] == C_WHITE) {
-        bool suc = newBoard.setStoneFailIfNoLibs(loc, getOpp(other.board.colors[loc]));
+        bool suc = newBoard.setStone(loc, getOpp(other.board.colors[loc]));
         assert(suc);
         (void)suc;
       }
@@ -964,7 +957,7 @@ Sgf::PositionSample Sgf::PositionSample::previousPosition(double newWeight) cons
 }
 
 bool Sgf::PositionSample::isEqualForTesting(const Sgf::PositionSample& other, bool checkNumCaptures, bool checkSimpleKo) const {
-  if(!board.isEqualForTesting(other.board,checkNumCaptures,checkSimpleKo))
+  if(!board.isEqualForTesting(other.board))
     return false;
   if(nextPla != other.nextPla)
     return false;
@@ -1427,10 +1420,10 @@ void CompactSgf::setupInitialBoardAndHist(const Rules& initialRules, Board& boar
   }
 
   board = Board(xSize,ySize);
-  bool suc = board.setStonesFailIfNoLibs(placements);
+  bool suc = board.setStones(placements);
   if(!suc)
     throw StringError("setupInitialBoardAndHist: initial board position contains invalid stones or zero-liberty stones");
-  hist = BoardHistory(board,nextPla,initialRules,0);
+  hist = BoardHistory(board,nextPla,initialRules);
 }
 
 void CompactSgf::playMovesAssumeLegal(Board& board, Player& nextPla, BoardHistory& hist, int64_t turnIdx) const {
@@ -1443,7 +1436,7 @@ void CompactSgf::playMovesAssumeLegal(Board& board, Player& nextPla, BoardHistor
     );
 
   for(int64_t i = 0; i<turnIdx; i++) {
-    hist.makeBoardMoveAssumeLegal(board,moves[i].loc,moves[i].pla,NULL);
+    hist.makeBoardMoveAssumeLegal(board,moves[i].loc,moves[i].pla);
     nextPla = getOpp(moves[i].pla);
   }
 }
@@ -1560,15 +1553,6 @@ void WriteSgf::writeSgf(
   out << "PB[" << bName << "]";
   out << "PW[" << wName << "]";
 
-  if(gameData != NULL) {
-    out << "HA[" << gameData->handicapForSgf << "]";
-  }
-  else {
-    BoardHistory histCopy(endHist);
-    //Always use true for computing the handicap value that goes into an sgf
-    histCopy.setAssumeMultipleStartingBlackMovesAreHandicap(true);
-    out << "HA[" << histCopy.computeNumHandicapStones() << "]";
-  }
 
   out << "KM[" << rules.komi << "]";
   out << "RU[" << (tryNicerRulesString ? rules.toStringNoKomiMaybeNice() : rules.toStringNoKomi()) << "]";
@@ -1620,8 +1604,6 @@ void WriteSgf::writeSgf(
       out << "," << "gtype=cleanuptraining";
     else if(gameData->mode == FinishedGameData::MODE_FORK)
       out << "," << "gtype=fork";
-    else if(gameData->mode == FinishedGameData::MODE_HANDICAP)
-      out << "," << "gtype=handicap";
     else if(gameData->mode == FinishedGameData::MODE_SGFPOS)
       out << "," << "gtype=sgfpos";
     else if(gameData->mode == FinishedGameData::MODE_HINTPOS)
@@ -1667,19 +1649,8 @@ void WriteSgf::writeSgf(
       else
         out << "W[";
 
-      bool isPassForKo = hist.isPassForKo(board,loc,pla);
-      if(isPassForKo)
-        writeSgfLoc(out,Board::PASS_LOC,xSize,ySize);
-      else
-        writeSgfLoc(out,loc,xSize,ySize);
-      out << "]";
+      writeSgfLoc(out,loc,xSize,ySize);
 
-      if(isPassForKo) {
-        out << "TR[";
-        writeSgfLoc(out,loc,xSize,ySize);
-        out << "]";
-        comment += "Pass for ko";
-      }
     }
 
     if(gameData != NULL && i >= startTurnIdx) {
@@ -1731,7 +1702,7 @@ void WriteSgf::writeSgf(
     if(comment.length() > 0)
       out << "C[" << comment << "]";
 
-    hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
+    hist.makeBoardMoveAssumeLegal(board,loc,pla);
 
   }
   out << ")";

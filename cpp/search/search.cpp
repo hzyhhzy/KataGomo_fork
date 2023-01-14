@@ -73,18 +73,15 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const strin
    avoidMoveUntilByLocBlack(),avoidMoveUntilByLocWhite(),
    rootSymmetries(),
    rootPruneOnlySymmetries(),
-   rootSafeArea(NULL),
    recentScoreCenter(0.0),
    mirroringPla(C_EMPTY),
    mirrorAdvantage(0.0),
    mirrorCenterSymmetryError(1e10),
-   alwaysIncludeOwnerMap(false),
    searchParams(params),numSearchesBegun(0),searchNodeAge(0),
    plaThatSearchIsFor(C_EMPTY),plaThatSearchIsForLastSearch(C_EMPTY),
    lastSearchNumPlayouts(0),
    effectiveSearchTimeCarriedOver(0.0),
    randSeed(rSeed),
-   rootKoHashTable(NULL),
    valueWeightDistribution(NULL),
    patternBonusTable(NULL),
    externalPatternBonusTable(nullptr),
@@ -111,9 +108,7 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const strin
   assert(nnXLen > 0 && nnXLen <= NNPos::MAX_BOARD_LEN);
   assert(nnYLen > 0 && nnYLen <= NNPos::MAX_BOARD_LEN);
   policySize = NNPos::getPolicySize(nnXLen,nnYLen);
-  rootKoHashTable = new KoHashTable();
 
-  rootSafeArea = new Color[Board::MAX_ARR_SIZE];
 
   valueWeightDistribution = new DistributionTable(
     [](double z) { return FancyMath::tdistpdf(z,VALUE_WEIGHT_DEGREES_OF_FREEDOM); },
@@ -127,15 +122,12 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const strin
   nodeTable = new SearchNodeTable(params.nodeTableShardsPowerOfTwo);
   mutexPool = new MutexPool(nodeTable->mutexPool->getNumMutexes());
 
-  rootHistory.clear(rootBoard,rootPla,Rules(),0);
-  rootKoHashTable->recompute(rootHistory);
+  rootHistory.clear(rootBoard,rootPla,Rules());
 }
 
 Search::~Search() {
   clearSearch();
 
-  delete[] rootSafeArea;
-  delete rootKoHashTable;
   delete valueWeightDistribution;
 
   delete nodeTable;
@@ -169,7 +161,6 @@ void Search::setPosition(Player pla, const Board& board, const BoardHistory& his
   plaThatSearchIsFor = C_EMPTY;
   rootBoard = board;
   rootHistory = history;
-  rootKoHashTable->recompute(rootHistory);
   avoidMoveUntilByLocBlack.clear();
   avoidMoveUntilByLocWhite.clear();
 }
@@ -178,14 +169,9 @@ void Search::setPlayerAndClearHistory(Player pla) {
   clearSearch();
   rootPla = pla;
   plaThatSearchIsFor = C_EMPTY;
-  rootBoard.clearSimpleKoLoc();
   Rules rules = rootHistory.rules;
-  //Preserve this value even when we get multiple moves in a row by some player
-  bool assumeMultipleStartingBlackMovesAreHandicap = rootHistory.assumeMultipleStartingBlackMovesAreHandicap;
-  rootHistory.clear(rootBoard,rootPla,rules,rootHistory.encorePhase);
-  rootHistory.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
+  rootHistory.clear(rootBoard,rootPla,rules);
 
-  rootKoHashTable->recompute(rootHistory);
 
   //If changing the player alone, don't clear these, leave the user's setting - the user may have tried
   //to adjust the player or will be calling runWholeSearchAndGetMove with a different player and will
@@ -222,11 +208,6 @@ void Search::setRootHintLoc(Loc loc) {
   rootHintLoc = loc;
 }
 
-void Search::setAlwaysIncludeOwnerMap(bool b) {
-  if(!alwaysIncludeOwnerMap && b)
-    clearSearch();
-  alwaysIncludeOwnerMap = b;
-}
 
 void Search::setRootSymmetryPruningOnly(const std::vector<int>& v) {
   if(rootPruneOnlySymmetries == v)
@@ -290,8 +271,7 @@ bool Search::isLegalTolerant(Loc moveLoc, Player movePla) const {
   //clear the ko loc - the simple ko loc of a player should not prohibit the opponent playing there!
   if(movePla != rootPla) {
     Board copy = rootBoard;
-    copy.clearSimpleKoLoc();
-    return copy.isLegal(moveLoc,movePla,multiStoneSuicideLegal);
+    return copy.isLegal(moveLoc,movePla);
   }
   else {
     return rootHistory.isLegalTolerant(rootBoard,moveLoc,movePla);
@@ -302,11 +282,8 @@ bool Search::isLegalStrict(Loc moveLoc, Player movePla) const {
   return movePla == rootPla && rootHistory.isLegal(rootBoard,moveLoc,movePla);
 }
 
-bool Search::makeMove(Loc moveLoc, Player movePla) {
-  return makeMove(moveLoc,movePla,false);
-}
 
-bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
+bool Search::makeMove(Loc moveLoc, Player movePla) {
   if(!isLegalTolerant(moveLoc,movePla))
     return false;
 
@@ -371,32 +348,16 @@ bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
     }
   }
 
-  //If the white handicap bonus changes due to the move, we will also need to recompute everything since this is
-  //basically like a change to the komi.
-  float oldWhiteHandicapBonusScore = rootHistory.whiteHandicapBonusScore;
 
-  rootHistory.makeBoardMoveAssumeLegal(rootBoard,moveLoc,rootPla,rootKoHashTable,preventEncore);
+  rootHistory.makeBoardMoveAssumeLegal(rootBoard,moveLoc,rootPla);
   rootPla = getOpp(rootPla);
-  rootKoHashTable->recompute(rootHistory);
 
   //Explicitly clear avoid move arrays when we play a move - user needs to respecify them if they want them.
   avoidMoveUntilByLocBlack.clear();
   avoidMoveUntilByLocWhite.clear();
 
-  //If we're newly inferring some moves as handicap that we weren't before, clear since score will be wrong.
-  if(rootHistory.whiteHandicapBonusScore != oldWhiteHandicapBonusScore)
-    clearSearch();
 
-  //In the case that we are conservativePass and a pass would end the game, need to clear the search.
-  //This is because deeper in the tree, such a node would have been explored as ending the game, but now that
-  //it's a root pass, it needs to be treated as if it no longer ends the game.
-  if(searchParams.conservativePass && rootHistory.passWouldEndGame(rootBoard,rootPla))
-    clearSearch();
 
-  //In the case that we're preventing encore, and the phase would have ended, we also need to clear the search
-  //since the search was conducted on the assumption that we're going into encore now.
-  if(preventEncore && rootHistory.passWouldEndPhase(rootBoard,rootPla))
-    clearSearch();
 
   return true;
 }
@@ -1001,18 +962,6 @@ void Search::recursivelyRecomputeStats(SearchNode& n) {
 
 
 void Search::computeRootValues() {
-  //rootSafeArea is strictly pass-alive groups and strictly safe territory.
-  bool nonPassAliveStones = false;
-  bool safeBigTerritories = false;
-  bool unsafeBigTerritories = false;
-  bool isMultiStoneSuicideLegal = rootHistory.rules.multiStoneSuicideLegal;
-  rootBoard.calculateArea(
-    rootSafeArea,
-    nonPassAliveStones,
-    safeBigTerritories,
-    unsafeBigTerritories,
-    isMultiStoneSuicideLegal
-  );
 
   //Figure out how to set recentScoreCenter
   {
@@ -1047,7 +996,7 @@ void Search::computeRootValues() {
 
   //If we're using graph search, we recompute the graph hash from scratch at the start of search.
   if(searchParams.useGraphSearch)
-    rootGraphHash = GraphHash::getGraphHashFromScratch(rootHistory, rootPla, searchParams.graphSearchRepBound, searchParams.drawEquivalentWinsForWhite);
+    rootGraphHash = GraphHash::getGraphHashFromScratch(rootHistory, rootPla, searchParams.drawEquivalentWinsForWhite);
   else
     rootGraphHash = Hash128();
 
@@ -1234,15 +1183,15 @@ bool Search::playoutDescend(
       assert(childrenCapacity > bestChildIdx);
 
       //Make the move! We need to make the move before we create the node so we can see the new state and get the right graphHash.
-      thread.history.makeBoardMoveAssumeLegal(thread.board,bestChildMoveLoc,thread.pla,rootKoHashTable);
+      thread.history.makeBoardMoveAssumeLegal(thread.board,bestChildMoveLoc,thread.pla);
       thread.pla = getOpp(thread.pla);
       if(searchParams.useGraphSearch)
         thread.graphHash = GraphHash::getGraphHash(
-          thread.graphHash, thread.history, thread.pla, searchParams.graphSearchRepBound, searchParams.drawEquivalentWinsForWhite
+           thread.history, thread.pla, searchParams.drawEquivalentWinsForWhite
         );
 
       //If conservative pass, passing from the root is always non-terminal
-      const bool forceNonTerminal = searchParams.conservativePass && (&node == rootNode) && bestChildMoveLoc == Board::PASS_LOC;
+      const bool forceNonTerminal = false;
       child = allocateOrFindNode(thread, thread.pla, bestChildMoveLoc, forceNonTerminal, thread.graphHash);
       child->virtualLosses.fetch_add(1,std::memory_order_release);
 
@@ -1291,11 +1240,11 @@ bool Search::playoutDescend(
       }
 
       //Make the move!
-      thread.history.makeBoardMoveAssumeLegal(thread.board,bestChildMoveLoc,thread.pla,rootKoHashTable);
+      thread.history.makeBoardMoveAssumeLegal(thread.board,bestChildMoveLoc,thread.pla);
       thread.pla = getOpp(thread.pla);
       if(searchParams.useGraphSearch)
         thread.graphHash = GraphHash::getGraphHash(
-          thread.graphHash, thread.history, thread.pla, searchParams.graphSearchRepBound, searchParams.drawEquivalentWinsForWhite
+          thread.history, thread.pla,searchParams.drawEquivalentWinsForWhite
         );
     }
 

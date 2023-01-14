@@ -19,9 +19,6 @@ namespace PlayUtils {
     Rand& gameRand
   );
 
-  //Set board to empty and place fixed handicap stones, raising an exception if invalid
-  void placeFixedHandicap(Board& board, int n);
-
   ExtraBlackAndKomi chooseExtraBlackAndKomi(
     float base, float stdev, double allowIntegerProb,
     double handicapProb, int numExtraBlackFixed,
@@ -99,33 +96,7 @@ namespace PlayUtils {
 
   double getHackedLCBForWinrate(const Search* search, const AnalysisData& data, Player pla);
 
-  std::vector<double> computeOwnership(
-    Search* bot,
-    const Board& board,
-    const BoardHistory& hist,
-    Player pla,
-    int64_t numVisits
-  );
 
-  //Determine all living and dead stones, if the game were terminated right now and
-  //the rules were interpreted naively and directly.
-  //Returns a vector indexed by board Loc (length Board::MAX_ARR_SIZE).
-  std::vector<bool> computeAnticipatedStatusesSimple(
-    const Board& board,
-    const BoardHistory& hist
-  );
-
-  //Determine all living and dead stones, trying to be clever and use the ownership prediction
-  //of the neural net.
-  //Returns a vector indexed by board Loc (length Board::MAX_ARR_SIZE).
-  std::vector<bool> computeAnticipatedStatusesWithOwnership(
-    Search* bot,
-    const Board& board,
-    const BoardHistory& hist,
-    Player pla,
-    int64_t numVisits,
-    std::vector<double>& ownershipsBuf
-  );
 
 
   struct BenchmarkResults {
@@ -162,22 +133,6 @@ namespace PlayUtils {
 
   Rules genRandomRules(Rand& rand);
 
-  Loc maybeCleanupBeforePass(
-    enabled_t cleanupBeforePass,
-    enabled_t friendlyPass,
-    const Player pla,
-    Loc moveLoc,
-    const AsyncBot* bot
-  );
-
-  Loc maybeFriendlyPass(
-    enabled_t cleanupBeforePass,
-    enabled_t friendlyPass,
-    const Player pla,
-    Loc moveLoc,
-    Search* bot,
-    int64_t numVisits
-  );
 
 }
 

@@ -20,7 +20,6 @@ struct InitialPosition {
   BoardHistory hist;
   Player pla;
   bool isPlainFork;
-  bool isSekiFork;
   bool isHintFork;
 
   InitialPosition();
@@ -32,7 +31,6 @@ struct InitialPosition {
 struct ForkData {
   std::mutex mutex;
   std::vector<const InitialPosition*> forks;
-  std::vector<const InitialPosition*> sekiForks;
   ~ForkData();
 
   void add(const InitialPosition* pos);
@@ -131,16 +129,8 @@ class GameInitializer {
   std::mutex createGameMutex;
   Rand rand;
 
-  std::vector<std::string> allowedKoRuleStrs;
   std::vector<std::string> allowedScoringRuleStrs;
-  std::vector<std::string> allowedTaxRuleStrs;
-  std::vector<bool> allowedMultiStoneSuicideLegals;
-  std::vector<bool> allowedButtons;
-
-  std::vector<int> allowedKoRules;
   std::vector<int> allowedScoringRules;
-  std::vector<int> allowedTaxRules;
-
   std::vector<int> allowedBSizes;
   std::vector<double> allowedBSizeRelProbs;
 
@@ -149,8 +139,6 @@ class GameInitializer {
   float komiMean;
   float komiStdev;
   double komiAllowIntegerProb;
-  double handicapProb;
-  double handicapCompensateKomiProb;
   double forkCompensateKomiProb;
   double sgfCompensateKomiProb;
   double komiBigStdevProb;

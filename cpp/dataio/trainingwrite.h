@@ -70,14 +70,8 @@ struct FinishedGameData {
   bool hitTurnLimit;
 
   //Metadata about how the game was initialized
-  int numExtraBlack;
   int mode;
   int usedInitialPosition;
-  //This differs from numExtraBlack in that numExtraBlack counts number of extra black stones
-  //played following the start of startHist, whereas handicapForSgf counts from startBoard.
-  //So on things like forked handicap games this one will be larger. Also this one does the
-  //whole +1 thing, skipping 1H.
-  int handicapForSgf;
 
   //If false, then we don't have these below vectors and ownership information
   bool hasFullData;
@@ -89,9 +83,6 @@ struct FinishedGameData {
   std::vector<double> searchEntropyByTurn;
   std::vector<ValueTargets> whiteValueTargetsByTurn; //Except this one, we may have some of
   std::vector<NNRawStats> nnRawStatsByTurn;
-  Color* finalFullArea;
-  Color* finalOwnership;
-  bool* finalSekiAreas;
   float* finalWhiteScoring;
 
   std::vector<SidePosition*> sidePositions;
@@ -106,7 +97,6 @@ struct FinishedGameData {
   static constexpr int MODE_NORMAL = 0;
   static constexpr int MODE_CLEANUP_TRAINING = 1;
   static constexpr int MODE_FORK = 2;
-  static constexpr int MODE_HANDICAP = 3;
   static constexpr int MODE_SGFPOS = 4;
   static constexpr int MODE_HINTPOS = 5;
   static constexpr int MODE_HINTFORK = 6;
@@ -245,8 +235,6 @@ struct TrainingWriteBuffers {
     int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
     const NNRawStats& nnRawStats,
     const Board* finalBoard,
-    Color* finalFullArea,
-    Color* finalOwnership,
     float* finalWhiteScoring,
     const std::vector<Board>* posHistForFutureBoards, //can be null
     bool isSidePosition,

@@ -91,8 +91,6 @@ struct Search {
   std::vector<int> rootSymmetries;
   std::vector<int> rootPruneOnlySymmetries;
 
-  //Strictly pass-alive areas in the root board position
-  Color* rootSafeArea;
   //Used to center for dynamic scorevalue
   double recentScoreCenter;
 
@@ -101,7 +99,6 @@ struct Search {
   double mirrorAdvantage; //Number of points the opponent wins by if mirror holds indefinitely.
   double mirrorCenterSymmetryError;
 
-  bool alwaysIncludeOwnerMap;
 
   SearchParams searchParams;
   int64_t numSearchesBegun;
@@ -113,8 +110,6 @@ struct Search {
 
   std::string randSeed;
 
-  //Contains all koHashes of positions/situations up to and including the root
-  KoHashTable* rootKoHashTable;
 
   //Precomputed distribution for downweighting child values based on their values
   DistributionTable* valueWeightDistribution;
@@ -200,7 +195,6 @@ struct Search {
   void setKomiIfNew(float newKomi); //Does not clear history, does clear search unless komi is equal.
   void setRootHintLoc(Loc hintLoc);
   void setAvoidMoveUntilByLoc(const std::vector<int>& bVec, const std::vector<int>& wVec);
-  void setAlwaysIncludeOwnerMap(bool b);
   void setRootSymmetryPruningOnly(const std::vector<int>& rootPruneOnlySymmetries);
   void setParams(SearchParams params);
   void setParamsNoClearing(SearchParams params); //Does not clear search
@@ -314,8 +308,6 @@ struct Search {
   void printPVForMove(std::ostream& out, const SearchNode* node, Loc move, int maxDepth) const;
   void printTree(std::ostream& out, const SearchNode* node, PrintTreeOptions options, Player perspective) const;
   void printRootPolicyMap(std::ostream& out) const;
-  void printRootOwnershipMap(std::ostream& out, Player perspective) const;
-  void printRootEndingScoreValueBonus(std::ostream& out) const;
 
   //Get detailed analysis data, designed for lz-analyze and kata-analyze commands.
   void getAnalysisData(
@@ -347,25 +339,6 @@ struct Search {
     int maxDepth
   ) const;
 
-  //Get the ownership map averaged throughout the search tree.
-  //Must have ownership present on all neural net evals.
-  //Safe to call DURING search, but NOT necessarily safe to call multithreadedly when updating the root position
-  //or changing parameters or clearing search.
-  //If node is not provided, defaults to using the root node.
-  std::vector<double> getAverageTreeOwnership(const SearchNode* node = NULL) const;
-  std::pair<std::vector<double>,std::vector<double>> getAverageAndStandardDeviationTreeOwnership(const SearchNode* node = NULL) const;
-
-  //Same, but applies symmetry and perspective
-  std::vector<double> getAverageTreeOwnership(
-    const Player perspective,
-    const SearchNode* node,
-    int symmetry
- ) const;
-  std::pair<std::vector<double>,std::vector<double>> getAverageAndStandardDeviationTreeOwnership(
-    const Player perspective,
-    const SearchNode* node,
-    int symmetry
-  ) const;
 
 
   std::pair<double,double> getAverageShorttermWLAndScoreError(const SearchNode* node = NULL) const;
@@ -375,7 +348,7 @@ struct Search {
   bool getAnalysisJson(
     const Player perspective,
     int analysisPVLen, bool includePolicy,
-    bool includeOwnership, bool includeOwnershipStdev, bool includeMovesOwnership, bool includeMovesOwnershipStdev, bool includePVVisits,
+    bool includePVVisits,
     nlohmann::json& ret
   ) const;
 
@@ -417,8 +390,6 @@ private:
   //----------------------------------------------------------------------------------------
   bool isAllowedRootMove(Loc moveLoc) const;
   double getPatternBonus(Hash128 patternBonusHash, Player prevMovePla) const;
-  double getEndingWhiteScoreBonus(const SearchNode& parent, Loc moveLoc) const;
-  bool shouldSuppressPass(const SearchNode* n) const;
 
   double interpolateEarly(double halflife, double earlyValue, double value) const;
 
@@ -646,27 +617,6 @@ private:
 
   std::pair<double,double> getAverageShorttermWLAndScoreErrorHelper(const SearchNode* node) const;
 
-  template<typename Func>
-  bool traverseTreeForOwnership(
-    double minProp,
-    double pruneProp,
-    double desiredProp,
-    const SearchNode* node,
-    std::unordered_set<const SearchNode*>& graphPath,
-    Func& averaging
-  ) const;
-  template<typename Func>
-  double traverseTreeForOwnershipChildren(
-    double minProp,
-    double pruneProp,
-    double desiredProp,
-    double thisNodeWeight,
-    const SearchChildPointer* children,
-    double* childWeightBuf,
-    int childrenCapacity,
-    std::unordered_set<const SearchNode*>& graphPath,
-    Func& averaging
-  ) const;
 
 
 };

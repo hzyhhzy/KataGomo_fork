@@ -29,10 +29,6 @@ struct AnalyzeRequest {
   SearchParams params;
   Player perspective;
   int analysisPVLen;
-  bool includeOwnership;
-  bool includeOwnershipStdev;
-  bool includeMovesOwnership;
-  bool includeMovesOwnershipStdev;
   bool includePolicy;
   bool includePVVisits;
 
@@ -898,26 +894,6 @@ int MainCmds::analysis(const vector<string>& args) {
         if(!suc)
           continue;
         rbase.params.rootPolicyTemperatureEarly = rbase.params.rootPolicyTemperature;
-      }
-      if(input.find("includeMovesOwnership") != input.end()) {
-        bool suc = parseBoolean(input, "includeMovesOwnership", rbase.includeMovesOwnership, "Must be a boolean");
-        if(!suc)
-          continue;
-      }
-      if(input.find("includeMovesOwnershipStdev") != input.end()) {
-        bool suc = parseBoolean(input, "includeMovesOwnershipStdev", rbase.includeMovesOwnershipStdev, "Must be a boolean");
-        if(!suc)
-          continue;
-      }
-      if(input.find("includeOwnership") != input.end()) {
-        bool suc = parseBoolean(input, "includeOwnership", rbase.includeOwnership, "Must be a boolean");
-        if(!suc)
-          continue;
-      }
-      if(input.find("includeOwnershipStdev") != input.end()) {
-        bool suc = parseBoolean(input, "includeOwnershipStdev", rbase.includeOwnershipStdev, "Must be a boolean");
-        if(!suc)
-          continue;
       }
       if(input.find("includePolicy") != input.end()) {
         bool suc = parseBoolean(input, "includePolicy", rbase.includePolicy, "Must be a boolean");

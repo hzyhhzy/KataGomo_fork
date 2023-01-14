@@ -94,10 +94,6 @@ void AsyncBot::setRootHintLoc(Loc loc) {
   stopAndWait();
   search->setRootHintLoc(loc);
 }
-void AsyncBot::setAlwaysIncludeOwnerMap(bool b) {
-  stopAndWait();
-  search->setAlwaysIncludeOwnerMap(b);
-}
 void AsyncBot::setParams(SearchParams params) {
   stopAndWait();
   search->setParams(params);

@@ -46,7 +46,6 @@ struct NNResultBuf {
   std::condition_variable clientWaitingForResult;
   std::mutex resultMutex;
   bool hasResult;
-  bool includeOwnerMap;
   int boardXSizeForServer;
   int boardYSizeForServer;
   int rowSpatialSize;
@@ -140,8 +139,7 @@ class NNEvaluator {
     Player nextPlayer,
     const MiscNNInputParams& nnInputParams,
     NNResultBuf& buf,
-    bool skipCache,
-    bool includeOwnerMap
+    bool skipCache
   );
 
   //If there is at least one evaluate ongoing, wait until at least one finishes.

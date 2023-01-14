@@ -13,7 +13,6 @@ namespace TestSearchCommon {
   struct TestSearchOptions {
     int numMovesInARow;
     bool printRootPolicy;
-    bool printOwnership;
     bool printEndingScoreValueBonus;
     bool printPlaySelectionValues;
     bool printRootValues;
@@ -28,7 +27,6 @@ namespace TestSearchCommon {
     TestSearchOptions();
   };
 
-  void printPolicyValueOwnership(const Board& board, const NNResultBuf& buf);
 
   void printBasicStuffAfterSearch(const Board& board, const BoardHistory& hist, const Search* search, PrintTreeOptions options);
 

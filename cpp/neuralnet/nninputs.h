@@ -32,31 +32,16 @@ namespace NNInputs {
 
 struct MiscNNInputParams {
   double drawEquivalentWinsForWhite = 0.5;
-  bool conservativePassAndIsRoot = false;
   double playoutDoublingAdvantage = 0.0;
   float nnPolicyTemperature = 1.0f;
-  bool avoidMYTDaggerHack = false;
   // If no symmetry is specified, it will use default or random based on config, unless node is already cached.
   int symmetry = NNInputs::SYMMETRY_NOTSPECIFIED;
 
-  static const Hash128 ZOBRIST_CONSERVATIVE_PASS;
   static const Hash128 ZOBRIST_PLAYOUT_DOUBLINGS;
   static const Hash128 ZOBRIST_NN_POLICY_TEMP;
-  static const Hash128 ZOBRIST_AVOID_MYTDAGGER_HACK;
 };
 
 namespace NNInputs {
-  const int NUM_FEATURES_SPATIAL_V3 = 22;
-  const int NUM_FEATURES_GLOBAL_V3 = 14;
-
-  const int NUM_FEATURES_SPATIAL_V4 = 22;
-  const int NUM_FEATURES_GLOBAL_V4 = 14;
-
-  const int NUM_FEATURES_SPATIAL_V5 = 13;
-  const int NUM_FEATURES_GLOBAL_V5 = 12;
-
-  const int NUM_FEATURES_SPATIAL_V6 = 22;
-  const int NUM_FEATURES_GLOBAL_V6 = 16;
 
   const int NUM_FEATURES_SPATIAL_V7 = 22;
   const int NUM_FEATURES_GLOBAL_V7 = 19;
@@ -66,35 +51,11 @@ namespace NNInputs {
     const MiscNNInputParams& nnInputParams
   );
 
-  void fillRowV3(
-    const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
-    const MiscNNInputParams& nnInputParams, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
-  );
-  void fillRowV4(
-    const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
-    const MiscNNInputParams& nnInputParams, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
-  );
-  void fillRowV5(
-    const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
-    const MiscNNInputParams& nnInputParams, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
-  );
-  void fillRowV6(
-    const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
-    const MiscNNInputParams& nnInputParams, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
-  );
   void fillRowV7(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
     const MiscNNInputParams& nnInputParams, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
   );
 
-  //If groupTax is specified, for each color region of area, reduce weight on empty spaces equally to reduce the total sum by 2.
-  //(but should handle seki correctly)
-  void fillScoring(
-    const Board& board,
-    const Color* area,
-    bool groupTax,
-    float* scoring
-  );
 }
 
 struct NNOutput {
@@ -125,8 +86,6 @@ struct NNOutput {
 
   int nnXLen;
   int nnYLen;
-  //If not NULL, then this contains a nnXLen*nnYLen-sized map of expected ownership on the board.
-  float* whiteOwnerMap;
 
   //If not NULL, then contains policy with dirichlet noise or any other noise adjustments for this node
   float* noisedPolicyProbs;

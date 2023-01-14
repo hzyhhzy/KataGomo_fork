@@ -1159,33 +1159,7 @@ Rules ModelDesc::getSupportedRules(const Rules& desiredRules, bool& supported) c
   static_assert(NNModelVersion::latestModelVersionImplemented == 11, "");
   Rules rules = desiredRules;
   supported = true;
-  if(version <= 6) {
-    if(rules.koRule == Rules::KO_SIMPLE || rules.koRule == Rules::KO_SPIGHT) {
-      rules.koRule = Rules::KO_SITUATIONAL;
-      supported = false;
-    }
-    if(rules.scoringRule == Rules::SCORING_TERRITORY) {
-      rules.scoringRule = Rules::SCORING_AREA;
-      supported = false;
-    }
-    if(rules.taxRule != Rules::TAX_NONE) {
-      rules.taxRule = Rules::TAX_NONE;
-      supported = false;
-    }
-    if(rules.hasButton) {
-      rules.hasButton = false;
-      supported = false;
-    }
-  }
-  else if(version <= 11) {
-    if(rules.koRule == Rules::KO_SPIGHT) {
-      rules.koRule = Rules::KO_SITUATIONAL;
-      supported = false;
-    }
-    if(rules.hasButton && rules.scoringRule != Rules::SCORING_AREA) {
-      rules.hasButton = false;
-      supported = false;
-    }
+  if(version <= 11) {
   }
   else {
     ASSERT_UNREACHABLE;

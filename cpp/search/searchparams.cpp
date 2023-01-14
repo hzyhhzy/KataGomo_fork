@@ -33,7 +33,6 @@ SearchParams::SearchParams()
    uncertaintyExponent(1.0),
    uncertaintyMaxWeight(8.0),
    useGraphSearch(false),
-   graphSearchRepBound(11),
    graphSearchCatchUpLeakProb(0.0),
    //graphSearchCatchUpProp(0.0),
    rootNoiseEnabled(false),
@@ -57,9 +56,6 @@ SearchParams::SearchParams()
    useNonBuggyLcb(false),
    rootEndingBonusPoints(0.0),
    rootPruneUselessMoves(false),
-   conservativePass(false),
-   fillDameBeforePass(false),
-   avoidMYTDaggerHackPla(C_EMPTY),
    wideRootNoise(0.0),
    playoutDoublingAdvantage(0.0),
    playoutDoublingAdvantagePla(C_EMPTY),
@@ -112,7 +108,6 @@ SearchParams SearchParams::forTestsV1() {
   params.minVisitPropForLCB = 0.15;
   params.rootEndingBonusPoints = 0.5;
   params.rootPruneUselessMoves = true;
-  params.conservativePass = true;
   params.useNonBuggyLcb = true;
   return params;
 }
@@ -133,7 +128,6 @@ SearchParams SearchParams::forTestsV2() {
   params.minVisitPropForLCB = 0.15;
   params.rootEndingBonusPoints = 0.5;
   params.rootPruneUselessMoves = true;
-  params.conservativePass = true;
   params.useNonBuggyLcb = true;
   params.useGraphSearch = true;
   params.fpuParentWeightByVisitedPolicy = true;
@@ -146,7 +140,6 @@ SearchParams SearchParams::forTestsV2() {
   params.cpuctUtilityStdevPrior = 0.40;
   params.cpuctUtilityStdevPriorWeight = 2.0;
   params.cpuctUtilityStdevScale = 0.85;
-  params.fillDameBeforePass = true;
   params.subtreeValueBiasFactor = 0.45;
   params.subtreeValueBiasFreeProp = 0.8;
   params.subtreeValueBiasWeightExponent = 0.85;
@@ -204,7 +197,6 @@ void SearchParams::printParams(std::ostream& out) {
 
 
   PRINTPARAM(useGraphSearch);
-  PRINTPARAM(graphSearchRepBound);
   PRINTPARAM(graphSearchCatchUpLeakProb);
 
 
@@ -237,9 +229,6 @@ void SearchParams::printParams(std::ostream& out) {
 
   PRINTPARAM(rootEndingBonusPoints);
   PRINTPARAM(rootPruneUselessMoves);
-  PRINTPARAM(conservativePass);
-  PRINTPARAM(fillDameBeforePass);
-  std::cout << "avoidMYTDaggerHackPla" << ": " << (int)avoidMYTDaggerHackPla << std::endl;
   PRINTPARAM(wideRootNoise);
 
   PRINTPARAM(playoutDoublingAdvantage);

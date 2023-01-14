@@ -9,7 +9,6 @@ NNResultBuf::NNResultBuf()
   : clientWaitingForResult(),
     resultMutex(),
     hasResult(false),
-    includeOwnerMap(false),
     boardXSizeForServer(0),
     boardYSizeForServer(0),
     rowSpatialSize(0),
@@ -480,21 +479,7 @@ void NNEvaluator::serve(
 
         resultBuf->result->nnXLen = nnXLen;
         resultBuf->result->nnYLen = nnYLen;
-        if(resultBuf->includeOwnerMap) {
-          float* whiteOwnerMap = new float[nnXLen*nnYLen];
-          for(int i = 0; i<nnXLen*nnYLen; i++)
-            whiteOwnerMap[i] = 0.0;
-          for(int y = 0; y<boardYSize; y++) {
-            for(int x = 0; x<boardXSize; x++) {
-              int pos = NNPos::xyToPos(x,y,nnXLen);
-              whiteOwnerMap[pos] = (float)rand.nextGaussian() * 0.20f;
-            }
-          }
-          resultBuf->result->whiteOwnerMap = whiteOwnerMap;
-        }
-        else {
-          resultBuf->result->whiteOwnerMap = NULL;
-        }
+     
 
         //These aren't really probabilities. Win/Loss/NoResult will get softmaxed later
         double whiteWinProb = 0.0 + rand.nextGaussian() * 0.20;
@@ -524,10 +509,6 @@ void NNEvaluator::serve(
         assert(buf.resultBufs[row] != NULL);
         emptyOutput->nnXLen = nnXLen;
         emptyOutput->nnYLen = nnYLen;
-        if(buf.resultBufs[row]->includeOwnerMap)
-          emptyOutput->whiteOwnerMap = new float[nnXLen*nnYLen];
-        else
-          emptyOutput->whiteOwnerMap = NULL;
         outputBuf.push_back(emptyOutput);
       }
 
@@ -606,43 +587,6 @@ static double softPlus(double x) {
     return log(1.0 + exp(x));
 }
 
-static const int daggerPattern[9][8] = {
-  {0,0,0,0,0,0,0,0},
-  {0,0,0,0,0,0,0,0},
-  {0,0,2,1,0,0,0,0},
-  {0,0,2,1,0,0,0,0},
-  {0,0,0,0,0,0,0,0},
-  {0,2,1,0,0,0,0,0},
-  {0,3,0,0,0,0,0,0},
-  {0,0,0,0,0,0,0,0},
-  {0,0,0,0,0,0,0,0},
-};
-static bool daggerMatch(const Board& board, Player nextPla, Loc& banned, int symmetry) {
-  for(int yi = 0; yi < 9; yi++) {
-    for(int xi = 0; xi < 8; xi++) {
-      int y = yi;
-      int x = xi;
-      if((symmetry & 0x1) != 0)
-        std::swap(x,y);
-      if((symmetry & 0x2) != 0)
-        x = board.x_size-1-x;
-      if((symmetry & 0x4) != 0)
-        y = board.y_size-1-y;
-      Loc loc = Location::getLoc(x,y,board.x_size);
-      int m = daggerPattern[yi][xi];
-      if(m == 0 && board.colors[loc] != C_EMPTY)
-        return false;
-      if(m == 1 && board.colors[loc] != nextPla)
-        return false;
-      if(m == 2 && board.colors[loc] != getOpp(nextPla))
-        return false;
-      if(m == 3)
-        banned = loc;
-    }
-  }
-  return true;
-}
-
 
 void NNEvaluator::evaluate(
   Board& board,
@@ -650,8 +594,7 @@ void NNEvaluator::evaluate(
   Player nextPlayer,
   const MiscNNInputParams& nnInputParams,
   NNResultBuf& buf,
-  bool skipCache,
-  bool includeOwnerMap
+  bool skipCache
 ) {
   assert(!isKilled);
   buf.hasResult = false;
@@ -669,21 +612,11 @@ void NNEvaluator::evaluate(
 
   Hash128 nnHash = NNInputs::getHash(board, history, nextPlayer, nnInputParams);
 
-  bool hadResultWithoutOwnerMap = false;
-  shared_ptr<NNOutput> resultWithoutOwnerMap;
   if(nnCacheTable != NULL && !skipCache && nnCacheTable->get(nnHash,buf.result)) {
-    if(!(includeOwnerMap && buf.result->whiteOwnerMap == NULL))
-    {
-      buf.hasResult = true;
-      return;
-    }
-    else {
-      hadResultWithoutOwnerMap = true;
-      resultWithoutOwnerMap = std::move(buf.result);
-      buf.result = nullptr;
-    }
+    
+    buf.hasResult = true;
+    return;
   }
-  buf.includeOwnerMap = includeOwnerMap;
 
   buf.boardXSizeForServer = board.x_size;
   buf.boardYSizeForServer = board.y_size;
@@ -709,15 +642,7 @@ void NNEvaluator::evaluate(
     }
 
     static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
-    if(inputsVersion == 3)
-      NNInputs::fillRowV3(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
-    else if(inputsVersion == 4)
-      NNInputs::fillRowV4(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
-    else if(inputsVersion == 5)
-      NNInputs::fillRowV5(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
-    else if(inputsVersion == 6)
-      NNInputs::fillRowV6(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
-    else if(inputsVersion == 7)
+    if(inputsVersion == 7)
       NNInputs::fillRowV7(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
     else
       ASSERT_UNREACHABLE;
@@ -755,22 +680,7 @@ void NNEvaluator::evaluate(
   //and use those. This avoids recomputing in a randomly different orientation when we just need the ownermap
   //and causing policy weights to be different, which would reduce performance of successive searches in a game
   //by making the successive searches distribute their playouts less coherently and using the cache more poorly.
-  if(hadResultWithoutOwnerMap) {
-    buf.result->whiteWinProb = resultWithoutOwnerMap->whiteWinProb;
-    buf.result->whiteLossProb = resultWithoutOwnerMap->whiteLossProb;
-    buf.result->whiteNoResultProb = resultWithoutOwnerMap->whiteNoResultProb;
-    buf.result->whiteScoreMean = resultWithoutOwnerMap->whiteScoreMean;
-    buf.result->whiteScoreMeanSq = resultWithoutOwnerMap->whiteScoreMeanSq;
-    buf.result->whiteLead = resultWithoutOwnerMap->whiteLead;
-    buf.result->varTimeLeft = resultWithoutOwnerMap->varTimeLeft;
-    buf.result->shorttermWinlossError = resultWithoutOwnerMap->shorttermWinlossError;
-    buf.result->shorttermScoreError = resultWithoutOwnerMap->shorttermScoreError;
-    std::copy(resultWithoutOwnerMap->policyProbs, resultWithoutOwnerMap->policyProbs + NNPos::MAX_NN_POLICY_SIZE, buf.result->policyProbs);
-    buf.result->nnXLen = resultWithoutOwnerMap->nnXLen;
-    buf.result->nnYLen = resultWithoutOwnerMap->nnYLen;
-    assert(buf.result->whiteOwnerMap != NULL);
-  }
-  else {
+  
     float* policy = buf.result->policyProbs;
 
     float nnPolicyInvTemperature = 1.0f / nnInputParams.nnPolicyTemperature;
@@ -786,16 +696,6 @@ void NNEvaluator::evaluate(
       isLegal[i] = history.isLegal(board,loc,nextPlayer);
     }
 
-    if(nnInputParams.avoidMYTDaggerHack && xSize >= 13 && ySize >= 13) {
-      for(int symmetry = 0; symmetry < 8; symmetry++) {
-        Loc banned = Board::NULL_LOC;
-        if(daggerMatch(board, nextPlayer, banned, symmetry)) {
-          if(banned != Board::NULL_LOC) {
-            isLegal[NNPos::locToPos(banned,xSize,nnXLen,nnYLen)] = false;
-          }
-        }
-      }
-    }
 
     for(int i = 0; i<policySize; i++) {
       float policyValue;
@@ -925,17 +825,12 @@ void NNEvaluator::evaluate(
         double shorttermWinlossErrorPreSoftplus = buf.result->shorttermWinlossError;
         double shorttermScoreErrorPreSoftplus = buf.result->shorttermScoreError;
 
-        if(history.rules.koRule != Rules::KO_SIMPLE && history.rules.scoringRule != Rules::SCORING_TERRITORY)
-          noResultLogits -= 100000.0;
 
         //Softmax
         double maxLogits = std::max(std::max(winLogits,lossLogits),noResultLogits);
         winProb = exp(winLogits - maxLogits);
         lossProb = exp(lossLogits - maxLogits);
         noResultProb = exp(noResultLogits - maxLogits);
-
-        if(history.rules.koRule != Rules::KO_SIMPLE && history.rules.scoringRule != Rules::SCORING_TERRITORY)
-          noResultProb = 0.0;
 
         double probSum = winProb + lossProb + noResultProb;
         winProb /= probSum;
@@ -1013,30 +908,8 @@ void NNEvaluator::evaluate(
     else {
       throw StringError("NNEval value postprocessing not implemented for model version");
     }
-  }
+  
 
-  //Postprocess ownermap
-  if(buf.result->whiteOwnerMap != NULL) {
-    if(modelVersion >= 3 && modelVersion <= 11) {
-      for(int pos = 0; pos<nnXLen*nnYLen; pos++) {
-        int y = pos / nnXLen;
-        int x = pos % nnXLen;
-        if(y >= board.y_size || x >= board.x_size)
-          buf.result->whiteOwnerMap[pos] = 0.0f;
-        else {
-          //Similarly as mentioned above, the result we get back from the net is actually not from white's perspective,
-          //but from the player to move, so we need to flip it to make it white at the same time as we tanh it.
-          if(nextPlayer == P_WHITE)
-            buf.result->whiteOwnerMap[pos] = tanh(buf.result->whiteOwnerMap[pos]);
-          else
-            buf.result->whiteOwnerMap[pos] = -tanh(buf.result->whiteOwnerMap[pos]);
-        }
-      }
-    }
-    else {
-      throw StringError("NNEval value postprocessing not implemented for model version");
-    }
-  }
 
 
   //And record the nnHash in the result and put it into the table
