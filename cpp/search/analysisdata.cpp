@@ -211,10 +211,8 @@ int AnalysisData::getPVLenUpToPhaseEnd(const Board& initialBoard, const BoardHis
   Player nextPla = initialPla;
   int j;
   for(j = 0; j<pv.size(); j++) {
-    hist.makeBoardMoveAssumeLegal(board,pv[j],nextPla,NULL);
+    hist.makeBoardMoveAssumeLegal(board,pv[j],nextPla);
     nextPla = getOpp(nextPla);
-    if(hist.encorePhase != initialHist.encorePhase)
-      break;
   }
   return j;
 }
@@ -228,10 +226,8 @@ void AnalysisData::writePVUpToPhaseEnd(std::ostream& out, const Board& initialBo
       out << " ";
     out << Location::toString(pv[j],board);
 
-    hist.makeBoardMoveAssumeLegal(board,pv[j],nextPla,NULL);
+    hist.makeBoardMoveAssumeLegal(board,pv[j],nextPla);
     nextPla = getOpp(nextPla);
-    if(hist.encorePhase != initialHist.encorePhase)
-      break;
   }
 }
 
@@ -245,10 +241,8 @@ void AnalysisData::writePVVisitsUpToPhaseEnd(std::ostream& out, const Board& ini
       out << " ";
     out << pvVisits[j];
 
-    hist.makeBoardMoveAssumeLegal(board,pv[j],nextPla,NULL);
+    hist.makeBoardMoveAssumeLegal(board,pv[j],nextPla);
     nextPla = getOpp(nextPla);
-    if(hist.encorePhase != initialHist.encorePhase)
-      break;
   }
 }
 
@@ -262,9 +256,7 @@ void AnalysisData::writePVEdgeVisitsUpToPhaseEnd(std::ostream& out, const Board&
       out << " ";
     out << pvEdgeVisits[j];
 
-    hist.makeBoardMoveAssumeLegal(board,pv[j],nextPla,NULL);
+    hist.makeBoardMoveAssumeLegal(board,pv[j],nextPla);
     nextPla = getOpp(nextPla);
-    if(hist.encorePhase != initialHist.encorePhase)
-      break;
   }
 }

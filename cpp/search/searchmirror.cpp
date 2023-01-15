@@ -8,6 +8,9 @@
 
 // Updates mirroringPla, mirrorAdvantage, mirrorCenterSymmetryError
 void Search::updateMirroring() {
+
+  assert(false, "anti mirroring is disabled");
+
   mirroringPla = C_EMPTY;
   mirrorAdvantage = 0.0;
   mirrorCenterSymmetryError = 1e10;
@@ -39,7 +42,7 @@ void Search::updateMirroring() {
     if(mirrorCount >= 7.0 + 0.5 * totalCount && mirrorEwms >= 0.45 * totalEwms && lastWasMirror) {
       mirroringPla = getOpp(rootPla);
 
-      mirrorAdvantage = mirroringPla == P_BLACK ? blackExtraPoints - hist.rules.komi : hist.rules.komi - blackExtraPoints;
+      mirrorAdvantage = mirroringPla == P_BLACK ?  - hist.rules.komi : hist.rules.komi ;
     }
 
     if(board.x_size >= 7 && board.y_size >= 7) {

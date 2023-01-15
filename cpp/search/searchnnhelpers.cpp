@@ -14,9 +14,7 @@ void Search::computeRootNNEvaluation(NNResultBuf& nnResultBuf, bool includeOwner
   bool isRoot = true;
   MiscNNInputParams nnInputParams;
   nnInputParams.drawEquivalentWinsForWhite = searchParams.drawEquivalentWinsForWhite;
-  nnInputParams.conservativePassAndIsRoot = searchParams.conservativePass && isRoot;
   nnInputParams.nnPolicyTemperature = searchParams.nnPolicyTemperature;
-  nnInputParams.avoidMYTDaggerHack = searchParams.avoidMYTDaggerHackPla == pla;
   if(searchParams.playoutDoublingAdvantage != 0) {
     Player playoutDoublingAdvantagePla = getPlayoutDoublingAdvantagePla();
     nnInputParams.playoutDoublingAdvantage = (
@@ -26,7 +24,7 @@ void Search::computeRootNNEvaluation(NNResultBuf& nnResultBuf, bool includeOwner
   nnEvaluator->evaluate(
     board, hist, pla,
     nnInputParams,
-    nnResultBuf, skipCache, includeOwnerMap
+    nnResultBuf, skipCache
   );
 }
 
@@ -38,20 +36,16 @@ bool Search::initNodeNNOutput(
   SearchThread& thread, SearchNode& node,
   bool isRoot, bool skipCache, bool isReInit
 ) {
-  bool includeOwnerMap = isRoot || alwaysIncludeOwnerMap;
   bool antiMirrorDifficult = false;
   if(searchParams.antiMirror && mirroringPla != C_EMPTY && mirrorAdvantage >= -0.5 &&
      Location::getCenterLoc(thread.board) != Board::NULL_LOC && thread.board.colors[Location::getCenterLoc(thread.board)] == getOpp(rootPla) &&
      isMirroringSinceSearchStart(thread.history,4) // skip recent 4 ply to be a bit tolerant
-  ) {
-    includeOwnerMap = true;
+  ) { 
     antiMirrorDifficult = true;
   }
   MiscNNInputParams nnInputParams;
   nnInputParams.drawEquivalentWinsForWhite = searchParams.drawEquivalentWinsForWhite;
-  nnInputParams.conservativePassAndIsRoot = searchParams.conservativePass && isRoot;
   nnInputParams.nnPolicyTemperature = searchParams.nnPolicyTemperature;
-  nnInputParams.avoidMYTDaggerHack = searchParams.avoidMYTDaggerHackPla == thread.pla;
   if(searchParams.playoutDoublingAdvantage != 0) {
     Player playoutDoublingAdvantagePla = getPlayoutDoublingAdvantagePla();
     nnInputParams.playoutDoublingAdvantage = (
@@ -71,7 +65,7 @@ bool Search::initNodeNNOutput(
       nnEvaluator->evaluate(
         thread.board, thread.history, thread.pla,
         nnInputParams,
-        thread.nnResultBuf, skipCacheThisIteration, includeOwnerMap
+        thread.nnResultBuf, skipCacheThisIteration
       );
       ptrs.push_back(std::move(thread.nnResultBuf.result));
     }
@@ -81,7 +75,7 @@ bool Search::initNodeNNOutput(
     nnEvaluator->evaluate(
       thread.board, thread.history, thread.pla,
       nnInputParams,
-      thread.nnResultBuf, skipCache, includeOwnerMap
+      thread.nnResultBuf, skipCache
     );
     result = new std::shared_ptr<NNOutput>(std::move(thread.nnResultBuf.result));
   }

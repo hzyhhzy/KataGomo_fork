@@ -75,8 +75,6 @@ Hash128 LocalPatternHasher::getHash(const Board& board, Loc loc, Player pla) con
         int x2 = dx + xCenter;
         int xy2 = y2 * xSize + x2;
         hash ^= zobristLocalPattern[(int)board.colors[loc2] * xSize * ySize + xy2];
-        if((board.colors[loc2] == P_BLACK || board.colors[loc2] == P_WHITE) && board.getNumLiberties(loc2) == 1)
-          hash ^= zobristAtari[xy2];
       }
     }
   }
@@ -132,8 +130,6 @@ Hash128 LocalPatternHasher::getHashWithSym(const Board& board, Loc loc, Player p
           symColor = (int)board.colors[loc2];
 
         hash ^= zobristLocalPattern[symColor * xSize * ySize + symXY2];
-        if((board.colors[loc2] == P_BLACK || board.colors[loc2] == P_WHITE) && board.getNumLiberties(loc2) == 1)
-          hash ^= zobristAtari[symXY2];
       }
     }
   }

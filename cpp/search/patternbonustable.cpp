@@ -51,7 +51,7 @@ Hash128 PatternBonusTable::getHash(Player pla, Loc moveLoc, const Board& board) 
   //We don't want to over-trigger this on a ko that repeats the same pattern over and over
   //So we just disallow this on ko fight
   //Also no bonuses for passing.
-  if(moveLoc == Board::NULL_LOC || moveLoc == Board::PASS_LOC || board.wouldBeKoCapture(moveLoc,pla))
+  if(moveLoc == Board::NULL_LOC || moveLoc == Board::PASS_LOC )
     return Hash128();
 
   Hash128 hash = patternHasher.getHash(board,moveLoc,pla);
@@ -86,7 +86,7 @@ void PatternBonusTable::addBonus(Player pla, Loc moveLoc, const Board& board, do
   //We don't want to over-trigger this on a ko that repeats the same pattern over and over
   //So we just disallow this on ko fight
   //Also no bonuses for passing.
-  if(moveLoc == Board::NULL_LOC || moveLoc == Board::PASS_LOC || board.wouldBeKoCapture(moveLoc,pla))
+  if(moveLoc == Board::NULL_LOC || moveLoc == Board::PASS_LOC )
     return;
 
   Hash128 hash = patternHasher.getHashWithSym(board,moveLoc,pla,symmetry,flipColors);
@@ -117,7 +117,7 @@ void PatternBonusTable::addBonusForGameMoves(const BoardHistory& game, double bo
 void PatternBonusTable::addBonusForGameMoves(const BoardHistory& game, double bonus, Player onlyPla) {
   std::set<Hash128> hashesThisGame;
   Board board = game.initialBoard;
-  BoardHistory hist(board, game.initialPla, game.rules, game.initialEncorePhase);
+  BoardHistory hist(board, game.initialPla, game.rules);
   for(size_t i = 0; i<game.moveHistory.size(); i++) {
     Player pla = game.moveHistory[i].pla;
     Loc loc = game.moveHistory[i].loc;
