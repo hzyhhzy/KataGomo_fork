@@ -152,7 +152,7 @@ int MainCmds::genbook(const vector<string>& args) {
     bool flipIfPassOrWFirst = false;
     Rand seedRand("bonusByHash");
     sgf->iterAllUniquePositions(
-      uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, &seedRand, [&](Sgf::PositionSample& unusedSample, const BoardHistory& sgfHist, const string& comments) {
+      uniqueHashes, hashComments, hashParent, &seedRand, [&](Sgf::PositionSample& unusedSample, const BoardHistory& sgfHist, const string& comments) {
         (void)unusedSample;
         if(comments.size() > 0 && comments.find("BONUS") != string::npos) {
           BoardHistory hist(sgfHist.initialBoard, sgfHist.initialPla, rules);
@@ -181,7 +181,7 @@ int MainCmds::genbook(const vector<string>& args) {
       throw StringError("Board size in config does not match the board size of the bonus file");
     vector<Move> placements;
     sgf->getPlacements(placements,boardSizeX,boardSizeY);
-    bool suc = bonusInitialBoard.setStonesFailIfNoLibs(placements);
+    bool suc = bonusInitialBoard.setStones(placements);
     if(!suc)
       throw StringError("Invalid placements in sgf");
     bonusInitialPla = sgf->getFirstPlayerColor();
@@ -234,7 +234,7 @@ int MainCmds::genbook(const vector<string>& args) {
       throw StringError("Book parameters do not match");
     }
     if(bonusFile != "") {
-      if(!bonusInitialBoard.isEqualForTesting(book->getInitialHist().getRecentBoard(0), false, false))
+      if(!bonusInitialBoard.isEqualForTesting(book->getInitialHist().getRecentBoard(0)))
         throw StringError(
           "Book initial board and initial board in bonus sgf file do not match\n" +
           Board::toStringSimple(book->getInitialHist().getRecentBoard(0),'\n') + "\n" +
@@ -556,7 +556,6 @@ int MainCmds::genbook(const vector<string>& args) {
     // Run some basic error checking
     if(
       targetHist.initialBoard.pos_hash != board.pos_hash ||
-      targetHist.initialBoard.ko_loc != board.ko_loc ||
       targetHist.initialPla != pla 
     ) {
       throw StringError("Target board history to add to book doesn't start from the same position");
@@ -565,7 +564,7 @@ int MainCmds::genbook(const vector<string>& args) {
 
     for(auto& move: targetHist.moveHistory) {
       // Make sure we don't walk off the edge under this ruleset.
-      if(hist.isGameFinished || hist.isPastNormalPhaseEnd) {
+      if(hist.isGameFinished) {
         logger.write("Skipping trace variation at this book hash " + node.hash().toString() + " since game over");
         node.canExpand() = false;
         break;
@@ -603,8 +602,7 @@ int MainCmds::genbook(const vector<string>& args) {
           nnInputParams.symmetry = sym;
           NNResultBuf buf;
           bool skipCache = true; //Always ignore cache so that we use the desired symmetry
-          bool includeOwnerMap = false;
-          nnEval->evaluate(board,hist,pla,nnInputParams,buf,skipCache,includeOwnerMap);
+          nnEval->evaluate(board,hist,pla,nnInputParams,buf,skipCache);
           ptrs.push_back(std::move(buf.result));
         }
         std::shared_ptr<NNOutput> result(new NNOutput(ptrs));
@@ -712,7 +710,7 @@ int MainCmds::genbook(const vector<string>& args) {
     }
 
     // Terminal node!
-    if(hist.isGameFinished || hist.isPastNormalPhaseEnd) {
+    if(hist.isGameFinished) {
       std::lock_guard<std::mutex> lock(bookMutex);
       node.canExpand() = false;
       return;

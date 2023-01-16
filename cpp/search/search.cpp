@@ -74,9 +74,6 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const strin
    rootSymmetries(),
    rootPruneOnlySymmetries(),
    recentScoreCenter(0.0),
-   mirroringPla(C_EMPTY),
-   mirrorAdvantage(0.0),
-   mirrorCenterSymmetryError(1e10),
    searchParams(params),numSearchesBegun(0),searchNodeAge(0),
    plaThatSearchIsFor(C_EMPTY),plaThatSearchIsForLastSearch(C_EMPTY),
    lastSearchNumPlayouts(0),
@@ -575,7 +572,7 @@ void Search::beginSearch(bool pondering) {
   computeRootValues();
 
   //Prepare value bias table if we need it
-  if(searchParams.subtreeValueBiasFactor != 0 && subtreeValueBiasTable == NULL && !(searchParams.antiMirror && mirroringPla != C_EMPTY))
+  if(searchParams.subtreeValueBiasFactor != 0 && subtreeValueBiasTable == NULL)
     subtreeValueBiasTable = new SubtreeValueBiasTable(searchParams.subtreeValueBiasTableNumShards);
 
   //Refresh pattern bonuses if needed
@@ -981,8 +978,7 @@ void Search::computeRootValues() {
     //Grab a neural net evaluation for the current position and use that as the center
     if(!foundExpectedScoreFromTree) {
       NNResultBuf nnResultBuf;
-      bool includeOwnerMap = true;
-      computeRootNNEvaluation(nnResultBuf,includeOwnerMap);
+      computeRootNNEvaluation(nnResultBuf);
       expectedScore = nnResultBuf.result->whiteScoreMean;
     }
 
@@ -1000,16 +996,7 @@ void Search::computeRootValues() {
   else
     rootGraphHash = Hash128();
 
-  Player opponentWasMirroringPla = mirroringPla;
-  //Update mirroringPla, mirrorAdvantage, mirrorCenterSymmetryError
-  updateMirroring();
 
-  //Clear search if opponent mirror status changed, so that our tree adjusts appropriately
-  if(opponentWasMirroringPla != mirroringPla) {
-    clearSearch();
-    delete subtreeValueBiasTable;
-    subtreeValueBiasTable = NULL;
-  }
 }
 
 
@@ -1045,26 +1032,16 @@ bool Search::playoutDescend(
     //Avoid running "too fast", by making sure that a leaf evaluation takes roughly the same time as a genuine nn eval
     //This stops a thread from building a silly number of visits to distort MCTS statistics while other threads are stuck on the GPU.
     nnEvaluator->waitForNextNNEvalIfAny();
-    if(thread.history.isNoResult) {
-      double winLossValue = 0.0;
-      double noResultValue = 1.0;
-      double scoreMean = 0.0;
-      double scoreMeanSq = 0.0;
-      double lead = 0.0;
-      double weight = (searchParams.useUncertainty && nnEvaluator->supportsShorttermError()) ? searchParams.uncertaintyMaxWeight : 1.0;
-      addLeafValue(node, winLossValue, noResultValue, scoreMean, scoreMeanSq, lead, weight, true, false);
-      return true;
-    }
-    else {
-      double winLossValue = 2.0 * ScoreValue::whiteWinsOfWinner(thread.history.winner, searchParams.drawEquivalentWinsForWhite) - 1;
-      double noResultValue = 0.0;
+   
+      double winLossValue = thread.history.winner == C_WHITE ? 1.0 : thread.history.winner == C_BLACK ? -1.0 : 0.0;
+      double noResultValue = thread.history.winner == C_EMPTY ? 1.0 : 0.0;
       double scoreMean = ScoreValue::whiteScoreDrawAdjust(thread.history.finalWhiteMinusBlackScore,searchParams.drawEquivalentWinsForWhite,thread.history);
       double scoreMeanSq = ScoreValue::whiteScoreMeanSqOfScoreGridded(thread.history.finalWhiteMinusBlackScore,searchParams.drawEquivalentWinsForWhite);
       double lead = scoreMean;
       double weight = (searchParams.useUncertainty && nnEvaluator->supportsShorttermError()) ? searchParams.uncertaintyMaxWeight : 1.0;
       addLeafValue(node, winLossValue, noResultValue, scoreMean, scoreMeanSq, lead, weight, true, false);
       return true;
-    }
+    
   }
 
   int nodeState = node.state.load(std::memory_order_acquire);

@@ -93,7 +93,7 @@ double Search::getExploreSelectionValueOfChild(
   double exploreScaling,
   double totalChildWeight, int64_t childEdgeVisits, double fpuValue,
   double parentUtility, double parentWeightPerVisit,
-  bool isDuringSearch, bool antiMirror, double maxChildWeight, SearchThread* thread
+  bool isDuringSearch, double maxChildWeight, SearchThread* thread
 ) const {
   (void)parentUtility;
   int movePos = getPos(moveLoc);
@@ -166,10 +166,6 @@ double Search::getExploreSelectionValueOfChild(
     if(searchParams.wideRootNoise > 0.0 && nnPolicyProb >= 0) {
       maybeApplyWideRootNoise(childUtility, nnPolicyProb, searchParams, thread, parent);
     }
-  }
-  if(isDuringSearch && antiMirror && nnPolicyProb >= 0) {
-    maybeApplyAntiMirrorPolicy(nnPolicyProb, moveLoc, parentPolicyProbs, parent.nextPla, thread);
-    maybeApplyAntiMirrorForcedExplore(childUtility, parentUtility, moveLoc, parentPolicyProbs, childWeight, totalChildWeight, parent.nextPla, thread, parent);
   }
 
   return getExploreSelectionValue(exploreScaling,nnPolicyProb,childWeight,childUtility,parent.nextPla);
@@ -346,7 +342,6 @@ void Search::selectBestChildToDescend(
   );
 
   std::fill(posesWithChildBuf,posesWithChildBuf+NNPos::MAX_NN_POLICY_SIZE,false);
-  bool antiMirror = searchParams.antiMirror && mirroringPla != C_EMPTY && isMirroringSinceSearchStart(thread.history,0);
 
   double exploreScaling = getExploreScaling(totalChildWeight, parentUtilityStdevFactor);
 
@@ -368,7 +363,7 @@ void Search::selectBestChildToDescend(
       exploreScaling,
       totalChildWeight,childEdgeVisits,fpuValue,
       parentUtility,parentWeightPerVisit,
-      isDuringSearch,antiMirror,maxChildWeight,&thread
+      isDuringSearch,maxChildWeight,&thread
     );
     if(selectionValue > maxSelectionValue) {
       // if(child->state.load(std::memory_order_seq_cst) == SearchNode::STATE_EVALUATING) {
@@ -418,9 +413,6 @@ void Search::selectBestChildToDescend(
     if(nnPolicyProb < 0)
       continue;
 
-    if(antiMirror) {
-      maybeApplyAntiMirrorPolicy(nnPolicyProb, moveLoc, policyProbs, node.nextPla, &thread);
-    }
 
     if(nnPolicyProb > bestNewNNPolicyProb) {
       bestNewNNPolicyProb = nnPolicyProb;

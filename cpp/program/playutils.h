@@ -21,7 +21,7 @@ namespace PlayUtils {
 
   ExtraBlackAndKomi chooseExtraBlackAndKomi(
     float base, float stdev, double allowIntegerProb,
-    double handicapProb, int numExtraBlackFixed,
+    int numExtraBlackFixed,
     double bigStdevProb, float bigStdev,
     double biggerStdevProb, float biggerStdev,
     double sqrtBoardArea, Rand& rand
@@ -58,7 +58,7 @@ namespace PlayUtils {
   );
   void initializeGameUsingPolicy(
     Search* botB, Search* botW, Board& board, BoardHistory& hist, Player& pla,
-    Rand& gameRand, bool doEndGameIfAllPassAlive,
+    Rand& gameRand, 
     double proportionOfBoardArea, double temperature
   );
 

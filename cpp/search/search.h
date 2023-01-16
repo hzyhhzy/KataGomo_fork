@@ -94,11 +94,6 @@ struct Search {
   //Used to center for dynamic scorevalue
   double recentScoreCenter;
 
-  //If the opponent is mirroring, then the color of that opponent, for countering mirroring
-  Player mirroringPla;
-  double mirrorAdvantage; //Number of points the opponent wins by if mirror holds indefinitely.
-  double mirrorCenterSymmetryError;
-
 
   SearchParams searchParams;
   int64_t numSearchesBegun;
@@ -396,31 +391,6 @@ private:
   // LCB helpers
   void getSelfUtilityLCBAndRadius(const SearchNode& parent, const SearchNode* child, int64_t edgeVisits, Loc moveLoc, double& lcbBuf, double& radiusBuf) const;
 
-  //----------------------------------------------------------------------------------------
-  // Mirror handling logic
-  // searchmirror.cpp
-  //----------------------------------------------------------------------------------------
-  void updateMirroring();
-  bool isMirroringSinceSearchStart(const BoardHistory& threadHistory, int skipRecent) const;
-  void maybeApplyAntiMirrorPolicy(
-    float& nnPolicyProb,
-    const Loc moveLoc,
-    const float* policyProbs,
-    const Player movePla,
-    const SearchThread* thread
-  ) const;
-  void maybeApplyAntiMirrorForcedExplore(
-    double& childUtility,
-    const double parentUtility,
-    const Loc moveLoc,
-    const float* policyProbs,
-    const double thisChildWeight,
-    const double totalChildWeight,
-    const Player movePla,
-    const SearchThread* thread,
-    const SearchNode& parent
-  ) const;
-  void hackNNOutputForMirror(std::shared_ptr<NNOutput>& result) const;
 
   //----------------------------------------------------------------------------------------
   // Recursive graph-walking and thread pooling
@@ -458,7 +428,7 @@ private:
   // Neural net queries
   // searchnnhelpers.cpp
   //----------------------------------------------------------------------------------------
-  void computeRootNNEvaluation(NNResultBuf& nnResultBuf, bool includeOwnerMap);
+  void computeRootNNEvaluation(NNResultBuf& nnResultBuf);
   bool initNodeNNOutput(
     SearchThread& thread, SearchNode& node,
     bool isRoot, bool skipCache, bool isReInit
@@ -494,7 +464,7 @@ private:
     double exploreScaling,
     double totalChildWeight, int64_t childEdgeVisits, double fpuValue,
     double parentUtility, double parentWeightPerVisit,
-    bool isDuringSearch, bool antiMirror, double maxChildWeight, SearchThread* thread
+    bool isDuringSearch, double maxChildWeight, SearchThread* thread
   ) const;
   double getNewExploreSelectionValue(
     const SearchNode& parent,

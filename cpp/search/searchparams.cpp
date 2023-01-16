@@ -61,7 +61,6 @@ SearchParams::SearchParams()
    playoutDoublingAdvantagePla(C_EMPTY),
    avoidRepeatedPatternUtility(0.0),
    nnPolicyTemperature(1.0f),
-   antiMirror(false),
    subtreeValueBiasFactor(0.0),
    subtreeValueBiasTableNumShards(65536),
    subtreeValueBiasFreeProp(0.8),
@@ -237,7 +236,6 @@ void SearchParams::printParams(std::ostream& out) {
   PRINTPARAM(avoidRepeatedPatternUtility);
 
   PRINTPARAM(nnPolicyTemperature);
-  PRINTPARAM(antiMirror);
 
   PRINTPARAM(subtreeValueBiasFactor);
   PRINTPARAM(subtreeValueBiasTableNumShards);

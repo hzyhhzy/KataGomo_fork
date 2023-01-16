@@ -498,7 +498,6 @@ void TrainingWriteBuffers::addRow(
   int8_t* rowScoreDistr = scoreDistrN.data + curRows * scoreDistrLen;
   int8_t* rowOwnership = valueTargetsNCHW.data + curRows * VALUE_SPATIAL_TARGET_NUM_CHANNELS * posArea;
 
-    assert(finalFullArea != NULL);
     assert(finalBoard != NULL);
 
     rowGlobal[27] = 1.0f;
@@ -511,9 +510,6 @@ void TrainingWriteBuffers::addRow(
     for(int i = 0; i<posArea*2; i++)
       rowOwnership[i] = 0;
 
-    //Fill ownership info
-    for(int i = 0; i < posArea * 2; i++)
-      rowOwnership[i] = 0;
 
     //Fill score vector "onehot"-like
     for(int i = 0; i<scoreDistrLen; i++)
@@ -812,11 +808,8 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
     else if(data.endHist.winner == P_WHITE)
       assert(lastTargets.win == 1.0f && lastTargets.loss == 0.0f && lastTargets.noResult == 0.0f);
     else
-      assert(lastTargets.noResult == 0.0f);
+      assert(lastTargets.noResult == 1.0f);
 
-    assert(data.finalFullArea != NULL);
-    assert(data.finalOwnership != NULL);
-    assert(data.finalSekiAreas != NULL);
     assert(data.finalWhiteScoring != NULL);
     assert(!data.endHist.isResignation);
   }

@@ -48,20 +48,6 @@ evalsgf : Utility/debug tool, analyze a single position of a game from an SGF fi
 
 testgpuerror : Print the average error of the neural net between current config and fp32 config.
 
-runtests : Test important board algorithms and datastructures
-runnnlayertests : Test a few subcomponents of the current neural net backend
-
-runnnontinyboardtest : Run neural net on a tiny board and dump result to stdout
-runnnsymmetriestest : Run neural net on a hardcoded rectangle board and dump symmetries result
-runownershiptests : Run neural net search on some hardcoded positions and print avg ownership
-
-runoutputtests : Run a bunch of things and dump details to stdout
-runsearchtests : Run a bunch of things using a neural net and dump details to stdout
-runsearchtestsv3 : Run a bunch more things using a neural net and dump details to stdout
-runsearchtestsv8 : Run a bunch more things using a neural net and dump details to stdout
-runsearchtestsv9 : Run a bunch more things using a neural net and dump details to stdout
-runselfplayinittests : Run some tests involving selfplay training init using a neural net and dump details to stdout
-runsekitrainwritetests : Run some tests involving seki train output
 
 )%%" << endl;
 }
@@ -92,42 +78,6 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::selfplay(subArgs);
   else if(subcommand == "testgpuerror")
     return MainCmds::testgpuerror(subArgs);
-  else if(subcommand == "runtests")
-    return MainCmds::runtests(subArgs);
-  else if(subcommand == "runnnlayertests")
-    return MainCmds::runnnlayertests(subArgs);
-  else if(subcommand == "runnnontinyboardtest")
-    return MainCmds::runnnontinyboardtest(subArgs);
-  else if(subcommand == "runnnsymmetriestest")
-    return MainCmds::runnnsymmetriestest(subArgs);
-  else if(subcommand == "runownershiptests")
-    return MainCmds::runownershiptests(subArgs);
-  else if(subcommand == "runoutputtests")
-    return MainCmds::runoutputtests(subArgs);
-  else if(subcommand == "runsearchtests")
-    return MainCmds::runsearchtests(subArgs);
-  else if(subcommand == "runsearchtestsv3")
-    return MainCmds::runsearchtestsv3(subArgs);
-  else if(subcommand == "runsearchtestsv8")
-    return MainCmds::runsearchtestsv8(subArgs);
-  else if(subcommand == "runsearchtestsv9")
-    return MainCmds::runsearchtestsv9(subArgs);
-  else if(subcommand == "runselfplayinittests")
-    return MainCmds::runselfplayinittests(subArgs);
-  else if(subcommand == "runselfplayinitstattests")
-    return MainCmds::runselfplayinitstattests(subArgs);
-  else if(subcommand == "runsekitrainwritetests")
-    return MainCmds::runsekitrainwritetests(subArgs);
-  else if(subcommand == "runnnonmanyposestest")
-    return MainCmds::runnnonmanyposestest(subArgs);
-  else if(subcommand == "runnnbatchingtest")
-    return MainCmds::runnnbatchingtest(subArgs);
-  else if(subcommand == "runtinynntests")
-    return MainCmds::runtinynntests(subArgs);
-  else if(subcommand == "runnnevalcanarytests")
-    return MainCmds::runnnevalcanarytests(subArgs);
-  else if(subcommand == "runconfigtests")
-    return MainCmds::runconfigtests(subArgs);
   else if(subcommand == "samplesgfs")
     return MainCmds::samplesgfs(subArgs);
   else if(subcommand == "dataminesgfs")
@@ -144,12 +94,6 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::demoplay(subArgs);
   else if(subcommand == "sampleinitializations")
     return MainCmds::sampleinitializations(subArgs);
-  else if(subcommand == "runbeginsearchspeedtest")
-    return MainCmds::runbeginsearchspeedtest(subArgs);
-  else if(subcommand == "runownershipspeedtest")
-    return MainCmds::runownershipspeedtest(subArgs);
-  else if(subcommand == "runsleeptest")
-    return MainCmds::runsleeptest(subArgs);
   else if(subcommand == "printclockinfo")
     return MainCmds::printclockinfo(subArgs);
   else if(subcommand == "sandbox")

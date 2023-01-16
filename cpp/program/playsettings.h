@@ -14,7 +14,6 @@ struct PlaySettings {
 
   //Temperature to use for placing handicap stones and for initializing the board position
   double policyInitAreaTemperature;
-  double handicapTemperature;
 
   //Use this many visits in a short search to estimate the score, for adjusting komi
   int compensateKomiVisits;
@@ -30,8 +29,6 @@ struct PlaySettings {
   int earlyForkGameMaxChoices; //Fork between the favorite of this many random legal moves, at maximum
   int forkGameMaxChoices; //Fork between the favorite of this many random legal moves, at maximum
 
-  //Hack to make learning of seki easier - fork positions with different rules when we have sekis
-  double sekiForkHackProb;
   //Hack to improve learning of very weird komi and very lopsided positions
   bool fancyKomiVarying;
 
@@ -71,7 +68,6 @@ struct PlaySettings {
   bool forSelfPlay;
 
   //Asymmetric playouts training
-  double handicapAsymmetricPlayoutProb; //Probability of asymmetric playouts on handicap games
   double normalAsymmetricPlayoutProb; //Probability of asymmetric playouts on normal games
   double maxAsymmetricRatio;
   double minAsymmetricCompensateKomiProb; //Minimum probability to make game fair if asymmetric (other probs will also override)

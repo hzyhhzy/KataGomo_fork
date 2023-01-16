@@ -22,6 +22,7 @@ Hash128 Board::ZOBRIST_SIZE_X_HASH[MAX_LEN+1];
 Hash128 Board::ZOBRIST_SIZE_Y_HASH[MAX_LEN+1];
 Hash128 Board::ZOBRIST_BOARD_HASH[MAX_ARR_SIZE][4];
 Hash128 Board::ZOBRIST_PLAYER_HASH[4];
+Hash128 Board::ZOBRIST_MOVENUM_HASH[MAX_ARR_SIZE];
 Hash128 Board::ZOBRIST_BOARD_HASH2[MAX_ARR_SIZE][4];
 const Hash128 Board::ZOBRIST_GAME_IS_OVER = //Based on sha256 hash of Board::ZOBRIST_GAME_IS_OVER
   Hash128(0xb6f9e465597a77eeULL, 0xf1d583d960a4ce7fULL);
@@ -56,11 +57,6 @@ bool Location::isAdjacent(Loc loc0, Loc loc1, int x_size)
   return loc0 == loc1 - (x_size+1) || loc0 == loc1 - 1 || loc0 == loc1 + 1 || loc0 == loc1 + (x_size+1);
 }
 
-Loc Location::getMirrorLoc(Loc loc, int x_size, int y_size) {
-  if(loc == Board::NULL_LOC || loc == Board::PASS_LOC)
-    return loc;
-  return getLoc(x_size-1-getX(loc,x_size),y_size-1-getY(loc,x_size),x_size);
-}
 
 Loc Location::getCenterLoc(int x_size, int y_size) {
   if(x_size % 2 == 0 || y_size % 2 == 0)
@@ -111,6 +107,8 @@ Board::Board(const Board& other)
 
   memcpy(colors, other.colors, sizeof(Color)*MAX_ARR_SIZE);
 
+  movenum = other.movenum;
+  stonenum = other.stonenum;
   pos_hash = other.pos_hash;
 
   memcpy(adj_offsets, other.adj_offsets, sizeof(short)*8);
@@ -127,6 +125,9 @@ void Board::init(int xS, int yS)
 
   for(int i = 0; i < MAX_ARR_SIZE; i++)
     colors[i] = C_WALL;
+
+  movenum = 0;
+  stonenum = 0;
 
   for(int y = 0; y < y_size; y++)
   {
@@ -170,6 +171,10 @@ void Board::initHash()
     }
   }
 
+  for(int i = 0; i < MAX_ARR_SIZE; i++) {
+    ZOBRIST_MOVENUM_HASH[i] = nextHash();
+  }
+  ZOBRIST_MOVENUM_HASH[0] = Hash128();
 
   //Reseed the random number generator so that these size hashes are also
   //not affected by the size of the board we compile with
@@ -207,24 +212,6 @@ bool Board::isLegal(Loc loc, Player pla) const
     loc < MAX_ARR_SIZE &&
     (colors[loc] == C_EMPTY) 
   );
-}
-
-bool Board::isAdjacentToPla(Loc loc, Player pla) const {
-  FOREACHADJ(
-    Loc adj = loc + ADJOFFSET;
-    if(colors[adj] == pla)
-      return true;
-  );
-  return false;
-}
-
-bool Board::isAdjacentOrDiagonalToPla(Loc loc, Player pla) const {
-  for(int i = 0; i<8; i++) {
-    Loc adj = loc + adj_offsets[i];
-    if(colors[adj] == pla)
-      return true;
-  }
-  return false;
 }
 
 bool Board::isEmpty() const {
@@ -269,17 +256,15 @@ bool Board::setStone(Loc loc, Color color)
   if(color != C_BLACK && color != C_WHITE && color != C_EMPTY)
     return false;
 
-  if(colors[loc] == color)
-  {}
-  else if(colors[loc] == C_EMPTY) {
-    playMoveAssumeLegal(loc,color);
-  }
-  else if(color == C_EMPTY)
-    removeSingleStone(loc);
-  else {
-    removeSingleStone(loc);
-    playMoveAssumeLegal(loc,color);
-  }
+  Color colorOld = colors[loc];
+  colors[loc] = color;
+  pos_hash ^= ZOBRIST_BOARD_HASH[loc][colorOld];
+  pos_hash ^= ZOBRIST_BOARD_HASH[loc][color];
+
+  if(colorOld != C_EMPTY)
+    stonenum--;
+  if(color != C_EMPTY)
+    stonenum++;
 
   return true;
 }
@@ -319,17 +304,16 @@ bool Board::playMove(Loc loc, Player pla, bool isMultiStoneSuicideLegal)
 //Plays the specified move, assuming it is legal.
 void Board::playMoveAssumeLegal(Loc loc, Player pla)
 {
+  pos_hash ^= ZOBRIST_MOVENUM_HASH[movenum];
+  movenum++;
+  pos_hash ^= ZOBRIST_MOVENUM_HASH[movenum];
+
   //Pass?
   if(loc == PASS_LOC)
   {
     return;
   }
-
-  Player opp = getOpp(pla);
-
-  //Add the new stone as an independent group
-  colors[loc] = pla;
-  pos_hash ^= ZOBRIST_BOARD_HASH[loc][pla];
+  setStone(loc, pla);
 
 }
 
@@ -337,11 +321,6 @@ Hash128 Board::getSitHash(Player pla) const {
   Hash128 h = pos_hash;
   h ^= Board::ZOBRIST_PLAYER_HASH[pla];
   return h;
-}
-//Remove a single stone, even a stone part of a larger group.
-void Board::removeSingleStone(Loc loc)
-{
-  static_assert(false, "TODO");
 }
 
 int Location::distance(Loc loc0, Loc loc1, int x_size) {
@@ -386,8 +365,13 @@ void Board::checkConsistency() const {
     }
   }
 
+  tmp_pos_hash ^= ZOBRIST_MOVENUM_HASH[movenum];
+
   if(pos_hash != tmp_pos_hash)
     throw StringError(errLabel + "Pos hash does not match expected");
+
+  if(stonenum != numStonesOnBoard())
+    throw StringError(errLabel + "stoneNum does not match expected");
 
 
   short tmpAdjOffsets[8];

@@ -19,43 +19,25 @@ struct InitialPosition {
   Board board;
   BoardHistory hist;
   Player pla;
-  bool isPlainFork;
-  bool isHintFork;
 
   InitialPosition();
-  InitialPosition(const Board& board, const BoardHistory& hist, Player pla, bool isPlainFork, bool isSekiFork, bool isHintFork);
+  InitialPosition(const Board& board, const BoardHistory& hist, Player pla);
   ~InitialPosition();
 };
 
-//Holds various initial positions that we may start from rather than a whole new game
-struct ForkData {
-  std::mutex mutex;
-  std::vector<const InitialPosition*> forks;
-  ~ForkData();
-
-  void add(const InitialPosition* pos);
-  const InitialPosition* get(Rand& rand);
-
-  void addSeki(const InitialPosition* pos, Rand& rand);
-  const InitialPosition* getSeki(Rand& rand);
-};
 
 struct ExtraBlackAndKomi {
-  int extraBlack = 0;
   float komiMean = 7.5f;
   float komiStdev = 7.5f;
   bool makeGameFair = false;
   bool makeGameFairForEmptyBoard = false;
   bool allowInteger = true;
-  bool interpZero = false;
 };
 
 struct OtherGameProperties {
   bool isSgfPos = false;
   bool isHintPos = false;
   bool allowPolicyInit = true;
-  bool isFork = false;
-  bool isHintFork = false;
 
   int hintTurn = -1;
   Hash128 hintPosHash;
@@ -247,7 +229,7 @@ namespace Play {
     const Board& startBoard, Player pla, const BoardHistory& startHist, ExtraBlackAndKomi extraBlackAndKomi,
     MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW,
     const std::string& searchRandSeed,
-    bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
+    bool clearBotBeforeSearch,
     Logger& logger, bool logSearchInfo, bool logMoves,
     int maxMovesPerGame, const std::function<bool()>& shouldStop,
     const WaitableFlag* shouldPause,
@@ -262,7 +244,7 @@ namespace Play {
     const Board& startBoard, Player pla, const BoardHistory& startHist, ExtraBlackAndKomi extraBlackAndKomi,
     MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW,
     Search* botB, Search* botW,
-    bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
+    bool clearBotBeforeSearch,
     Logger& logger, bool logSearchInfo, bool logMoves,
     int maxMovesPerGame, const std::function<bool()>& shouldStop,
     const WaitableFlag* shouldPause,
@@ -270,28 +252,6 @@ namespace Play {
     Rand& gameRand,
     std::function<NNEvaluator*()> checkForNewNNEval,
     std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove
-  );
-
-  void maybeForkGame(
-    const FinishedGameData* finishedGameData,
-    ForkData* forkData,
-    const PlaySettings& playSettings,
-    Rand& gameRand,
-    Search* bot
-  );
-
-  void maybeSekiForkGame(
-    const FinishedGameData* finishedGameData,
-    ForkData* forkData,
-    const PlaySettings& playSettings,
-    const GameInitializer* gameInit,
-    Rand& gameRand
-  );
-
-  void maybeHintForkGame(
-    const FinishedGameData* finishedGameData,
-    ForkData* forkData,
-    const OtherGameProperties& otherGameProps
   );
 
 }
@@ -319,7 +279,6 @@ public:
     const std::string& seed,
     const MatchPairer::BotSpec& botSpecB,
     const MatchPairer::BotSpec& botSpecW,
-    ForkData* forkData,
     const Sgf::PositionSample* startPosSample,
     Logger& logger,
     const std::function<bool()>& shouldStop,

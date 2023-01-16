@@ -96,10 +96,8 @@ struct FinishedGameData {
   static constexpr int NUM_MODES = 8;
   static constexpr int MODE_NORMAL = 0;
   static constexpr int MODE_CLEANUP_TRAINING = 1;
-  static constexpr int MODE_FORK = 2;
   static constexpr int MODE_SGFPOS = 4;
   static constexpr int MODE_HINTPOS = 5;
-  static constexpr int MODE_HINTFORK = 6;
   static constexpr int MODE_ASYM = 7;
 
   FinishedGameData();

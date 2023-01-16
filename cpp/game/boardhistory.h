@@ -21,16 +21,12 @@ struct BoardHistory {
   //The "turn number" as of the initial board. Does not affect any rules, but possibly uses may
   //care about this number, for cases where we set up a position from midgame.
   int initialTurnNumber;
-  bool whiteHasMoved;
 
   static const int NUM_RECENT_BOARDS = 6;
   Board recentBoards[NUM_RECENT_BOARDS];
   int currentRecentBoardIdx;
   Player presumedNextMovePla;
 
-  //Did this board location ever have a stone there before, or was it ever played?
-  //(Also includes locations of suicides)
-  bool wasEverOccupiedOrPlayed[Board::MAX_ARR_SIZE];
 
 
                                          
@@ -79,8 +75,6 @@ struct BoardHistory {
 
   //Check if a move on the board is legal, taking into account the full game state and superko
   bool isLegal(const Board& board, Loc moveLoc, Player movePla) const;
-  //Check if passing right now would end the current phase of play, or the entire game
-  bool passWouldEndGame(const Board& board, Player movePla) const;
 
   //For all of the below, rootKoHashTable is optional and if provided will slightly speedup superko searches
   //This function should behave gracefully so long as it is pseudolegal (board.isLegal, but also still ok if the move is on board.ko_loc)
@@ -94,29 +88,17 @@ struct BoardHistory {
   bool makeBoardMoveTolerant(Board& board, Loc moveLoc, Player movePla);
   bool isLegalTolerant(const Board& board, Loc moveLoc, Player movePla) const;
 
-  //Slightly expensive, check if the entire game is all pass-alive-territory, and if so, declare the game finished
-  void endGameIfAllPassAlive(const Board& board);
   //Score the board as-is. If the game is already finished, and is NOT a no-result, then this should be idempotent.
-  void endAndScoreGameNow(const Board& board);
-  void endAndScoreGameNow(const Board& board, Color area[Board::MAX_ARR_SIZE]);
-  void getAreaNow(const Board& board, Color area[Board::MAX_ARR_SIZE]) const;
-
   void setWinnerByResignation(Player pla);
+  void setWinner(Color pla);
 
   void printBasicInfo(std::ostream& out, const Board& board) const;
   void printDebugInfo(std::ostream& out, const Board& board) const;
-
-
-  //Heuristically check if this history looks like an sgf variation where black passed to effectively
-  //turn into white, or similar.
-  bool hasBlackPassOrWhiteFirst() const;
 
   //Compute a hash that takes into account the full situation, the rules, discretized komi, and any immediate ko prohibitions.
   static Hash128 getSituationRulesAndKoHash(const Board& board, const BoardHistory& hist, Player nextPlayer, double drawEquivalentWinsForWhite);
 
 private:
-  int countAreaScoreWhiteMinusBlack(const Board& board, Color area[Board::MAX_ARR_SIZE]) const;
-  void setFinalScoreAndWinner(float score);
 };
 
 

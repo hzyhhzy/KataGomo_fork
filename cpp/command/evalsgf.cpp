@@ -28,12 +28,10 @@ int MainCmds::evalsgf(const vector<string>& args) {
   int64_t maxVisits;
   int numThreads;
   float overrideKomi;
-  bool printOwnership;
   bool printRootNNValues;
   bool printPolicy;
   bool printLogPolicy;
   bool printDirichletShape;
-  bool printScoreNow;
   bool printRootEndingBonus;
   bool printLead;
   bool printAvgShorttermError;
@@ -58,7 +56,6 @@ int MainCmds::evalsgf(const vector<string>& args) {
     TCLAP::ValueArg<long> visitsArg("v","visits","Set the number of visits",false,-1,"VISITS");
     TCLAP::ValueArg<int> threadsArg("t","threads","Set the number of threads",false,-1,"THREADS");
     TCLAP::ValueArg<float> overrideKomiArg("","override-komi","Artificially set komi",false,std::numeric_limits<float>::quiet_NaN(),"KOMI");
-    TCLAP::SwitchArg printOwnershipArg("","print-ownership","Print ownership");
     TCLAP::SwitchArg printRootNNValuesArg("","print-root-nn-values","Print root nn values");
     TCLAP::SwitchArg printPolicyArg("","print-policy","Print policy");
     TCLAP::SwitchArg printLogPolicyArg("","print-log-policy","Print log policy");
@@ -87,7 +84,6 @@ int MainCmds::evalsgf(const vector<string>& args) {
     cmd.add(visitsArg);
     cmd.add(threadsArg);
     cmd.add(overrideKomiArg);
-    cmd.add(printOwnershipArg);
     cmd.add(printRootNNValuesArg);
     cmd.add(printPolicyArg);
     cmd.add(printLogPolicyArg);
@@ -114,12 +110,10 @@ int MainCmds::evalsgf(const vector<string>& args) {
     maxVisits = (int64_t)visitsArg.getValue();
     numThreads = threadsArg.getValue();
     overrideKomi = overrideKomiArg.getValue();
-    printOwnership = printOwnershipArg.getValue();
     printRootNNValues = printRootNNValuesArg.getValue();
     printPolicy = printPolicyArg.getValue();
     printLogPolicy = printLogPolicyArg.getValue();
     printDirichletShape = printDirichletShapeArg.getValue();
-    printScoreNow = printScoreNowArg.getValue();
     printRootEndingBonus = printRootEndingBonusArg.getValue();
     printLead = printLeadArg.getValue();
     printAvgShorttermError = printAvgShorttermErrorArg.getValue();
@@ -176,7 +170,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
     if(moveNum > moves.size())
       throw StringError("Move num " + Global::intToString(moveNum) + " requested but sgf has only " + Global::int64ToString(moves.size()));
 
-    sgf->playMovesTolerant(board,nextPla,hist,moveNum,false);
+    sgf->playMovesTolerant(board,nextPla,hist,moveNum);
 
     vector<Loc> extraMoveLocs = Location::parseSequence(extraMoves,board);
     for(size_t i = 0; i<extraMoveLocs.size(); i++) {
@@ -186,7 +180,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
         cerr << "Extra illegal move for " << PlayerIO::colorToChar(nextPla) << ": " << Location::toString(loc,board) << endl;
         throw StringError("Illegal extra move");
       }
-      hist.makeBoardMoveAssumeLegal(board,loc,nextPla,NULL);
+      hist.makeBoardMoveAssumeLegal(board,loc,nextPla);
       nextPla = getOpp(nextPla);
     }
   };
@@ -268,10 +262,9 @@ int MainCmds::evalsgf(const vector<string>& args) {
   if(rawNN) {
     NNResultBuf buf;
     bool skipCache = true;
-    bool includeOwnerMap = true;
     MiscNNInputParams nnInputParams;
     nnInputParams.drawEquivalentWinsForWhite = params.drawEquivalentWinsForWhite;
-    nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+    nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache);
 
     cout << "Rules: " << hist.rules << endl;
     Board::printBoard(cout, board, Board::NULL_LOC, &(hist.moveHistory));
@@ -311,7 +304,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
         cerr << "Branch Illegal move for " << PlayerIO::colorToChar(pla) << ": " << Location::toString(loc,board) << endl;
         return 1;
       }
-      copyHist.makeBoardMoveAssumeLegal(copy,loc,pla,NULL);
+      copyHist.makeBoardMoveAssumeLegal(copy,loc,pla);
       pla = getOpp(pla);
     }
     Board::printBoard(sout, copy, Board::NULL_LOC, &(copyHist.moveHistory));
@@ -330,10 +323,6 @@ int MainCmds::evalsgf(const vector<string>& args) {
 
   //Postprocess------------------------------------------------------------
 
-  if(printOwnership) {
-    sout << "Ownership map (ROOT position):\n";
-    search->printRootOwnershipMap(sout,perspective);
-  }
 
   if(printRootNNValues) {
     const NNOutput* nnOutput = search->rootNode->getNNOutput();
@@ -437,31 +426,6 @@ int MainCmds::evalsgf(const vector<string>& args) {
     }
   }
 
-  if(printScoreNow) {
-    sout << "Score now (ROOT position):\n";
-    Board copy(board);
-    BoardHistory copyHist(hist);
-    Color area[Board::MAX_ARR_SIZE];
-    copyHist.endAndScoreGameNow(copy,area);
-
-    for(int y = 0; y<copy.y_size; y++) {
-      for(int x = 0; x<copy.x_size; x++) {
-        Loc l = Location::getLoc(x,y,copy.x_size);
-        sout << PlayerIO::colorToChar(area[l]);
-      }
-      sout << endl;
-    }
-    sout << endl;
-
-    sout << "Komi: " << copyHist.rules.komi << endl;
-    sout << "WBonus: " << copyHist.whiteBonusScore << endl;
-    sout << "Final: "; WriteSgf::printGameResult(sout, copyHist); sout << endl;
-  }
-
-  if(printRootEndingBonus) {
-    sout << "Ending bonus (ROOT position)\n";
-    search->printRootEndingScoreValueBonus(sout);
-  }
 
   sout << "Time taken: " << timer.getSeconds() << "\n";
   sout << "Root visits: " << search->getRootVisits() << "\n";

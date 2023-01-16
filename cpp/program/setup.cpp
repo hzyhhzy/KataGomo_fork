@@ -513,9 +513,6 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("useGraphSearch"+idxStr)) params.useGraphSearch = cfg.getBool("useGraphSearch"+idxStr);
     else if(cfg.contains("useGraphSearch"))   params.useGraphSearch = cfg.getBool("useGraphSearch");
     else                                      params.useGraphSearch = (setupFor != SETUP_FOR_DISTRIBUTED);
-    if(cfg.contains("graphSearchRepBound"+idxStr)) params.graphSearchRepBound = cfg.getInt("graphSearchRepBound"+idxStr, 3, 50);
-    else if(cfg.contains("graphSearchRepBound"))   params.graphSearchRepBound = cfg.getInt("graphSearchRepBound",        3, 50);
-    else                                           params.graphSearchRepBound = 11;
     if(cfg.contains("graphSearchCatchUpLeakProb"+idxStr)) params.graphSearchCatchUpLeakProb = cfg.getDouble("graphSearchCatchUpLeakProb"+idxStr, 0.0, 1.0);
     else if(cfg.contains("graphSearchCatchUpLeakProb"))   params.graphSearchCatchUpLeakProb = cfg.getDouble("graphSearchCatchUpLeakProb", 0.0, 1.0);
     else                                                  params.graphSearchCatchUpLeakProb = 0.0;
@@ -602,14 +599,7 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("rootPruneUselessMoves"+idxStr)) params.rootPruneUselessMoves = cfg.getBool("rootPruneUselessMoves"+idxStr);
     else if(cfg.contains("rootPruneUselessMoves"))   params.rootPruneUselessMoves = cfg.getBool("rootPruneUselessMoves");
     else                                             params.rootPruneUselessMoves = true;
-    if(cfg.contains("conservativePass"+idxStr)) params.conservativePass = cfg.getBool("conservativePass"+idxStr);
-    else if(cfg.contains("conservativePass"))   params.conservativePass = cfg.getBool("conservativePass");
-    else                                        params.conservativePass = false;
-    if(cfg.contains("fillDameBeforePass"+idxStr)) params.fillDameBeforePass = cfg.getBool("fillDameBeforePass"+idxStr);
-    else if(cfg.contains("fillDameBeforePass"))   params.fillDameBeforePass = cfg.getBool("fillDameBeforePass");
-    else                                          params.fillDameBeforePass = false;
     //Controlled by GTP directly, not used in any other mode
-    params.avoidMYTDaggerHackPla = C_EMPTY;
     if(cfg.contains("wideRootNoise"+idxStr)) params.wideRootNoise = cfg.getDouble("wideRootNoise"+idxStr, 0.0, 5.0);
     else if(cfg.contains("wideRootNoise"))   params.wideRootNoise = cfg.getDouble("wideRootNoise", 0.0, 5.0);
     else                                     params.wideRootNoise = (setupFor == SETUP_FOR_ANALYSIS ? Setup::DEFAULT_ANALYSIS_WIDE_ROOT_NOISE : 0.00);
@@ -632,9 +622,6 @@ vector<SearchParams> Setup::loadParams(
     else
       params.nnPolicyTemperature = 1.0f;
 
-    if(cfg.contains("antiMirror"+idxStr)) params.antiMirror = cfg.getBool("antiMirror"+idxStr);
-    else if(cfg.contains("antiMirror"))   params.antiMirror = cfg.getBool("antiMirror");
-    else                                  params.antiMirror = false;
 
     if(cfg.contains("subtreeValueBiasFactor"+idxStr)) params.subtreeValueBiasFactor = cfg.getDouble("subtreeValueBiasFactor"+idxStr, 0.0, 1.0);
     else if(cfg.contains("subtreeValueBiasFactor")) params.subtreeValueBiasFactor = cfg.getDouble("subtreeValueBiasFactor", 0.0, 1.0);
@@ -728,53 +715,13 @@ Rules Setup::loadSingleRules(
     rules = Rules::parseRules(cfg.getString("rules"));
   }
   else {
-    string koRule = cfg.getString("koRule", Rules::koRuleStrings());
     string scoringRule = cfg.getString("scoringRule", Rules::scoringRuleStrings());
-    bool multiStoneSuicideLegal = cfg.getBool("multiStoneSuicideLegal");
-    bool hasButton = cfg.contains("hasButton") ? cfg.getBool("hasButton") : false;
     float komi = 7.5f;
 
-    rules.koRule = Rules::parseKoRule(koRule);
     rules.scoringRule = Rules::parseScoringRule(scoringRule);
-    rules.multiStoneSuicideLegal = multiStoneSuicideLegal;
-    rules.hasButton = hasButton;
     rules.komi = komi;
 
-    if(cfg.contains("taxRule")) {
-      string taxRule = cfg.getString("taxRule", Rules::taxRuleStrings());
-      rules.taxRule = Rules::parseTaxRule(taxRule);
-    }
-    else {
-      rules.taxRule = (rules.scoringRule == Rules::SCORING_TERRITORY ? Rules::TAX_SEKI : Rules::TAX_NONE);
-    }
 
-    if(rules.hasButton && rules.scoringRule != Rules::SCORING_AREA)
-      throw StringError("Config specifies hasButton=true on a scoring system other than AREA");
-
-    //Also handles parsing of legacy option whiteBonusPerHandicapStone
-    if(cfg.contains("whiteBonusPerHandicapStone") && cfg.contains("whiteHandicapBonus"))
-      throw StringError("May specify only one of whiteBonusPerHandicapStone and whiteHandicapBonus in config");
-    else if(cfg.contains("whiteHandicapBonus"))
-      rules.whiteHandicapBonusRule = Rules::parseWhiteHandicapBonusRule(cfg.getString("whiteHandicapBonus", Rules::whiteHandicapBonusRuleStrings()));
-    else if(cfg.contains("whiteBonusPerHandicapStone")) {
-      int whiteBonusPerHandicapStone = cfg.getInt("whiteBonusPerHandicapStone",0,1);
-      if(whiteBonusPerHandicapStone == 0)
-        rules.whiteHandicapBonusRule = Rules::WHB_ZERO;
-      else
-        rules.whiteHandicapBonusRule = Rules::WHB_N;
-    }
-    else
-      rules.whiteHandicapBonusRule = Rules::WHB_ZERO;
-
-    if(cfg.contains("friendlyPassOk")) {
-      rules.friendlyPassOk = cfg.getBool("friendlyPassOk");
-    }
-
-    //Drop default komi to 6.5 for territory rules, and to 7.0 for button
-    if(rules.scoringRule == Rules::SCORING_TERRITORY)
-      rules.komi = 6.5f;
-    else if(rules.hasButton)
-      rules.komi = 7.0f;
   }
 
   if(loadKomi) {

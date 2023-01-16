@@ -1,5 +1,5 @@
 #include "../game/boardhistory.h"
-
+#include "../game/gamelogic.h"
 #include <algorithm>
 
 using namespace std;
@@ -12,14 +12,12 @@ BoardHistory::BoardHistory()
    initialBoard(),
    initialPla(P_BLACK),
    initialTurnNumber(0),
-   whiteHasMoved(false),
    recentBoards(),
    currentRecentBoardIdx(0),
    presumedNextMovePla(P_BLACK),
    isGameFinished(false),winner(C_EMPTY),finalWhiteMinusBlackScore(0.0f),
    isScored(false),isNoResult(false),isResignation(false)
 {
-  std::fill(wasEverOccupiedOrPlayed, wasEverOccupiedOrPlayed+Board::MAX_ARR_SIZE, false);
 }
 
 BoardHistory::~BoardHistory()
@@ -31,14 +29,12 @@ BoardHistory::BoardHistory(const Board& board, Player pla, const Rules& r)
    initialBoard(),
    initialPla(),
    initialTurnNumber(0),
-   whiteHasMoved(false),
    recentBoards(),
    currentRecentBoardIdx(0),
    presumedNextMovePla(pla),
    isGameFinished(false),winner(C_EMPTY),finalWhiteMinusBlackScore(0.0f),
    isScored(false),isNoResult(false),isResignation(false)
 {
-  std::fill(wasEverOccupiedOrPlayed, wasEverOccupiedOrPlayed+Board::MAX_ARR_SIZE, false);
 
   clear(board,pla,rules);
 }
@@ -49,7 +45,6 @@ BoardHistory::BoardHistory(const BoardHistory& other)
    initialBoard(other.initialBoard),
    initialPla(other.initialPla),
    initialTurnNumber(other.initialTurnNumber),
-   whiteHasMoved(other.whiteHasMoved),
    recentBoards(),
    currentRecentBoardIdx(other.currentRecentBoardIdx),
    presumedNextMovePla(other.presumedNextMovePla),
@@ -57,7 +52,6 @@ BoardHistory::BoardHistory(const BoardHistory& other)
    isScored(other.isScored),isNoResult(other.isNoResult),isResignation(other.isResignation)
 {
   std::copy(other.recentBoards, other.recentBoards+NUM_RECENT_BOARDS, recentBoards);
-  std::copy(other.wasEverOccupiedOrPlayed, other.wasEverOccupiedOrPlayed+Board::MAX_ARR_SIZE, wasEverOccupiedOrPlayed);
 }
 
 
@@ -70,11 +64,9 @@ BoardHistory& BoardHistory::operator=(const BoardHistory& other)
   initialBoard = other.initialBoard;
   initialPla = other.initialPla;
   initialTurnNumber = other.initialTurnNumber;
-  whiteHasMoved = other.whiteHasMoved;
   std::copy(other.recentBoards, other.recentBoards+NUM_RECENT_BOARDS, recentBoards);
   currentRecentBoardIdx = other.currentRecentBoardIdx;
   presumedNextMovePla = other.presumedNextMovePla;
-  std::copy(other.wasEverOccupiedOrPlayed, other.wasEverOccupiedOrPlayed+Board::MAX_ARR_SIZE, wasEverOccupiedOrPlayed);
   isGameFinished = other.isGameFinished;
   winner = other.winner;
   finalWhiteMinusBlackScore = other.finalWhiteMinusBlackScore;
@@ -91,7 +83,6 @@ BoardHistory::BoardHistory(BoardHistory&& other) noexcept
   initialBoard(other.initialBoard),
   initialPla(other.initialPla),
   initialTurnNumber(other.initialTurnNumber),
-  whiteHasMoved(other.whiteHasMoved),
   recentBoards(),
   currentRecentBoardIdx(other.currentRecentBoardIdx),
   presumedNextMovePla(other.presumedNextMovePla),
@@ -99,7 +90,6 @@ BoardHistory::BoardHistory(BoardHistory&& other) noexcept
   isScored(other.isScored),isNoResult(other.isNoResult),isResignation(other.isResignation)
 {
   std::copy(other.recentBoards, other.recentBoards+NUM_RECENT_BOARDS, recentBoards);
-  std::copy(other.wasEverOccupiedOrPlayed, other.wasEverOccupiedOrPlayed+Board::MAX_ARR_SIZE, wasEverOccupiedOrPlayed);
 }
 
 BoardHistory& BoardHistory::operator=(BoardHistory&& other) noexcept
@@ -109,11 +99,9 @@ BoardHistory& BoardHistory::operator=(BoardHistory&& other) noexcept
   initialBoard = other.initialBoard;
   initialPla = other.initialPla;
   initialTurnNumber = other.initialTurnNumber;
-  whiteHasMoved = other.whiteHasMoved;
   std::copy(other.recentBoards, other.recentBoards+NUM_RECENT_BOARDS, recentBoards);
   currentRecentBoardIdx = other.currentRecentBoardIdx;
   presumedNextMovePla = other.presumedNextMovePla;
-  std::copy(other.wasEverOccupiedOrPlayed, other.wasEverOccupiedOrPlayed+Board::MAX_ARR_SIZE, wasEverOccupiedOrPlayed);
   isGameFinished = other.isGameFinished;
   winner = other.winner;
   finalWhiteMinusBlackScore = other.finalWhiteMinusBlackScore;
@@ -131,7 +119,6 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r) {
   initialBoard = board;
   initialPla = pla;
   initialTurnNumber = 0;
-  whiteHasMoved = false;
 
   //This makes it so that if we ask for recent boards with a lookback beyond what we have a history for,
   //we simply return copies of the starting board.
@@ -141,12 +128,6 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r) {
 
   presumedNextMovePla = pla;
 
-  for(int y = 0; y<board.y_size; y++) {
-    for(int x = 0; x<board.x_size; x++) {
-      Loc loc = Location::getLoc(x,y,board.x_size);
-      wasEverOccupiedOrPlayed[loc] = (board.colors[loc] != C_EMPTY);
-    }
-  }
 
   isGameFinished = false;
   winner = C_EMPTY;
@@ -209,7 +190,6 @@ void BoardHistory::printDebugInfo(ostream& out, const Board& board) const {
   for(int i = 0; i<moveHistory.size(); i++)
     out << Location::toString(moveHistory[i].loc,board) << " ";
   out << endl;
-  assert(firstTurnIdxWithKoHistory + koHashHistory.size() == moveHistory.size() + 1);
 }
 
 
@@ -223,10 +203,6 @@ const Board& BoardHistory::getRecentBoard(int numMovesAgo) const {
 void BoardHistory::setKomi(float newKomi) {
   float oldKomi = rules.komi;
   rules.komi = newKomi;
-
-  //Recompute the game result due to the new komi
-  if(isGameFinished && isScored)
-    setFinalScoreAndWinner(finalWhiteMinusBlackScore - oldKomi + newKomi);
 }
 
 
@@ -253,57 +229,21 @@ float BoardHistory::currentSelfKomi(Player pla, double drawEquivalentWinsForWhit
   }
 }
 
-int BoardHistory::countAreaScoreWhiteMinusBlack(const Board& board, Color area[Board::MAX_ARR_SIZE]) const {
-  int score = 0;
-  
-
-  return score;
-}
-
-void BoardHistory::setFinalScoreAndWinner(float score) {
-  finalWhiteMinusBlackScore = score;
-  if(finalWhiteMinusBlackScore > 0.0f)
-    winner = C_WHITE;
-  else if(finalWhiteMinusBlackScore < 0.0f)
-    winner = C_BLACK;
-  else
-    winner = C_EMPTY;
-}
-
-void BoardHistory::getAreaNow(const Board& board, Color area[Board::MAX_ARR_SIZE]) const {
-  if(rules.scoringRule == Rules::SCORING_AREA)
-    countAreaScoreWhiteMinusBlack(board,area);
-  else
-    ASSERT_UNREACHABLE;
-}
-
-void BoardHistory::endAndScoreGameNow(const Board& board, Color area[Board::MAX_ARR_SIZE]) {
-  int boardScore;
-  if(rules.scoringRule == Rules::SCORING_AREA)
-    boardScore = countAreaScoreWhiteMinusBlack(board,area);
-  else
-    ASSERT_UNREACHABLE;
 
 
-  setFinalScoreAndWinner(boardScore + rules.komi);
-  isScored = true;
-  isNoResult = false;
-  isResignation = false;
-  isGameFinished = true;
-}
-
-void BoardHistory::endAndScoreGameNow(const Board& board) {
-  Color area[Board::MAX_ARR_SIZE];
-  endAndScoreGameNow(board,area);
-}
-
-void BoardHistory::endGameIfAllPassAlive(const Board& board) {
-  return;
-}
 
 void BoardHistory::setWinnerByResignation(Player pla) {
   isGameFinished = true;
   isScored = false;
+  isNoResult = false;
+  isResignation = true;
+  winner = pla;
+  finalWhiteMinusBlackScore = 0.0f;
+}
+
+void BoardHistory::setWinner(Player pla) {
+  isGameFinished = true;
+  isScored = true;
   isNoResult = false;
   isResignation = true;
   winner = pla;
@@ -355,50 +295,21 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   moveHistory.push_back(Move(moveLoc,movePla));
   presumedNextMovePla = getOpp(movePla);
 
-  if(moveLoc != Board::PASS_LOC)
-    wasEverOccupiedOrPlayed[moveLoc] = true;
 
   //Mark all locations that are superko-illegal for the next player, by iterating and testing each point.
   Player nextPla = getOpp(movePla);
 
 
-  //Handicap bonus score
-  if(movePla == P_WHITE && moveLoc != Board::PASS_LOC)
-    whiteHasMoved = true;
 
 
-  
-  static_assert(false, "TODO: game finish logic");
-
-}
-
-
-bool BoardHistory::hasBlackPassOrWhiteFirst() const {
-  //First move was made by white this game, on an empty board.
-  if(initialBoard.isEmpty() && moveHistory.size() > 0 && moveHistory[0].pla == P_WHITE)
-    return true;
-  //Black passed exactly once or white doublemoved
-  int numBlackPasses = 0;
-  int numWhitePasses = 0;
-  int numBlackDoubleMoves = 0;
-  int numWhiteDoubleMoves = 0;
-  for(int i = 0; i<moveHistory.size(); i++) {
-    if(moveHistory[i].loc == Board::PASS_LOC && moveHistory[i].pla == P_BLACK)
-      numBlackPasses++;
-    if(moveHistory[i].loc == Board::PASS_LOC && moveHistory[i].pla == P_WHITE)
-      numWhitePasses++;
-    if(i > 0 && moveHistory[i].pla == P_BLACK && moveHistory[i-1].pla == P_BLACK)
-      numBlackDoubleMoves++;
-    if(i > 0 && moveHistory[i].pla == P_WHITE && moveHistory[i-1].pla == P_WHITE)
-      numWhiteDoubleMoves++;
+  Color maybeWinner = GameLogic::checkWinnerAfterPlayed(board, *this, movePla, moveLoc);
+  if(maybeWinner!=C_WALL) { //game finished
+    setWinner(maybeWinner);
   }
-  if(numBlackPasses == 1 && numWhitePasses == 0 && numBlackDoubleMoves == 0 && numWhiteDoubleMoves == 0)
-    return true;
-  if(numBlackPasses == 0 && numWhitePasses == 0 && numBlackDoubleMoves == 0 && numWhiteDoubleMoves == 1)
-    return true;
 
-  return false;
 }
+
+
 
 Hash128 BoardHistory::getSituationRulesAndKoHash(const Board& board, const BoardHistory& hist, Player nextPlayer, double drawEquivalentWinsForWhite) {
   int xSize = board.x_size;

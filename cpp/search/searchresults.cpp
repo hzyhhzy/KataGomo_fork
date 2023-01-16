@@ -141,7 +141,7 @@ bool Search::getPlaySelectionValues(
       exploreScaling,
       totalChildWeight,bestChildEdgeVisits,fpuValue,
       parentUtility,parentWeightPerVisit,
-      isDuringSearch,false,maxChildWeight,NULL
+      isDuringSearch,maxChildWeight,NULL
     );
 
     for(int i = 0; i<numChildren; i++) {

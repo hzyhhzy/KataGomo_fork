@@ -13,6 +13,21 @@
 
 class NNEvaluator;
 
+namespace Tests {
+  // testnnevalcanary.cpp
+  void runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print);
+  bool runFP16Test(
+    NNEvaluator* nnEval,
+    NNEvaluator* nnEval32,
+    Logger& logger,
+    int boardSize,
+    int maxBatchSizeCap,
+    bool verbose,
+    bool quickTest,
+    bool& fp32BatchSuccessBuf);
+
+}
+
 
 namespace TestCommon {
   bool boardsSeemEqual(const Board& b1, const Board& b2);

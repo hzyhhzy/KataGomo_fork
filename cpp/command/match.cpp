@@ -233,7 +233,7 @@ int MainCmds::match(const vector<string>& args) {
           search->setCopyOfExternalPatternBonusTable(patternBonusTables[spec.botIdx]);
         };
         gameData = gameRunner->runGame(
-          seed, botSpecB, botSpecW, NULL, NULL, logger,
+          seed, botSpecB, botSpecW, NULL, logger,
           shouldStopFunc, shouldPause, nullptr, afterInitialization, nullptr
         );
       }

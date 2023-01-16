@@ -15,7 +15,6 @@
 #include "../program/play.h"
 #include "../program/setup.h"
 #include "../program/selfplaymanager.h"
-#include "../tests/tinymodel.h"
 #include "../tests/tests.h"
 #include "../command/commandline.h"
 #include "../main.h"

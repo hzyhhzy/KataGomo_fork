@@ -59,8 +59,6 @@ static void writeLine(
   cout << NNPos::locToPos(moveLoc,board.x_size,nnXLen,nnYLen) << " ";
 
   cout << baseHist.moveHistory.size() << " ";
-  cout << board.numBlackCaptures << " ";
-  cout << board.numWhiteCaptures << " ";
 
   for(int y = 0; y<board.y_size; y++) {
     for(int x = 0; x<board.x_size; x++) {
@@ -92,14 +90,6 @@ static void writeLine(
     cout << data.policyPrior << " ";
   }
 
-  vector<double> ownership = search->getAverageTreeOwnership();
-  for(int y = 0; y<board.y_size; y++) {
-    for(int x = 0; x<board.x_size; x++) {
-      int pos = NNPos::xyToPos(x,y,nnXLen);
-      cout << ownership[pos] << " ";
-    }
-  }
-
   cout << winLossHistory.size() << " ";
   for(int i = 0; i<winLossHistory.size(); i++)
     cout << winLossHistory[i] << " ";
@@ -120,7 +110,7 @@ static void initializeDemoGame(Board& board, BoardHistory& hist, Player& pla, Ra
 
   board = Board(size,size);
   pla = P_BLACK;
-  hist.clear(board,pla,Rules::getTrompTaylorish(),0);
+  hist.clear(board,pla,Rules::getTrompTaylorish());
   bot->setPosition(pla,board,hist);
 
   if(size == 19) {
@@ -313,7 +303,7 @@ static void initializeDemoGame(Board& board, BoardHistory& hist, Player& pla, Ra
           NNResultBuf buf;
           MiscNNInputParams nnInputParams;
           nnInputParams.drawEquivalentWinsForWhite = search->searchParams.drawEquivalentWinsForWhite;
-          search->nnEvaluator->evaluate(board,hist,pla,nnInputParams,buf,false,false);
+          search->nnEvaluator->evaluate(board,hist,pla,nnInputParams,buf,false);
           std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
 
           double temperature = 0.8;
@@ -328,10 +318,10 @@ static void initializeDemoGame(Board& board, BoardHistory& hist, Player& pla, Ra
           break;
 
         //Make the move!
-        hist.makeBoardMoveAssumeLegal(board,nextMove.loc,nextMove.pla,NULL);
+        hist.makeBoardMoveAssumeLegal(board,nextMove.loc,nextMove.pla);
         pla = getOpp(pla);
 
-        hist.clear(board,pla,hist.rules,0);
+        hist.clear(board,pla,hist.rules);
         bot->setPosition(pla,board,hist);
 
         movesPlayed.push_back(nextMove);
@@ -427,7 +417,6 @@ int MainCmds::demoplay(const vector<string>& args) {
   cfg.warnUnusedKeys(cerr,&logger);
 
   AsyncBot* bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
-  bot->setAlwaysIncludeOwnerMap(true);
   Rand gameRand;
 
   //Done loading!
@@ -439,7 +428,7 @@ int MainCmds::demoplay(const vector<string>& args) {
 
     Player pla = P_BLACK;
     Board baseBoard;
-    BoardHistory baseHist(baseBoard,pla,Rules::getTrompTaylorish(),0);
+    BoardHistory baseHist(baseBoard,pla,Rules::getTrompTaylorish());
     TimeControls tc;
 
     initializeDemoGame(baseBoard, baseHist, pla, gameRand, bot);
@@ -459,7 +448,6 @@ int MainCmds::demoplay(const vector<string>& args) {
     //Move loop
     int maxMovesPerGame = 1600;
     for(int i = 0; i<maxMovesPerGame; i++) {
-      baseHist.endGameIfAllPassAlive(baseBoard);
       if(baseHist.isGameFinished)
         break;
 
@@ -525,7 +513,7 @@ int MainCmds::demoplay(const vector<string>& args) {
       else {
         //And make the move on our copy of the board
         assert(baseHist.isLegal(baseBoard,moveLoc,pla));
-        baseHist.makeBoardMoveAssumeLegal(baseBoard,moveLoc,pla,NULL);
+        baseHist.makeBoardMoveAssumeLegal(baseBoard,moveLoc,pla);
 
         //If the game is over, skip making the move on the bot, to preserve
         //the last known value of the search tree for display purposes
@@ -821,7 +809,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
 
     bool hashParent = false;
     Rand iterRand;
-    sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, &iterRand, posHandler);
+    sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, &iterRand, posHandler);
   };
 
   for(size_t i = 0; i<sgfFiles.size(); i++) {
@@ -884,7 +872,7 @@ static bool maybeGetValuesAfterMove(
   if(moveLoc != Board::NULL_LOC) {
     if(!hist.isLegal(newBoard,moveLoc,newNextPla))
       return false;
-    newHist.makeBoardMoveAssumeLegal(newBoard,moveLoc,newNextPla,NULL);
+    newHist.makeBoardMoveAssumeLegal(newBoard,moveLoc,newNextPla);
     newNextPla = getOpp(newNextPla);
   }
 
@@ -959,12 +947,10 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   double turnWeightLambda;
   int maxPosesPerOutFile;
   double gameModeFastThreshold;
-  bool flipIfPassOrWFirst;
 
   int minRank;
   int minMinRank;
   string requiredPlayerName;
-  int maxHandicap;
   double maxKomi;
   double maxAutoKomi;
   double maxPolicy;
@@ -995,7 +981,6 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     TCLAP::ValueArg<int> minRankArg("","min-rank","Require player making the move to have rank at least this",false,Sgf::RANK_UNKNOWN,"INT");
     TCLAP::ValueArg<int> minMinRankArg("","min-min-rank","Require both players in a game to have rank at least this",false,Sgf::RANK_UNKNOWN,"INT");
     TCLAP::ValueArg<string> requiredPlayerNameArg("","required-player-name","Require player making the move to have this name",false,string(),"NAME");
-    TCLAP::ValueArg<int> maxHandicapArg("","max-handicap","Require no more than this big handicap in stones",false,100,"INT");
     TCLAP::ValueArg<double> maxKomiArg("","max-komi","Require absolute value of game komi to be at most this",false,1000,"KOMI");
     TCLAP::ValueArg<double> maxAutoKomiArg("","max-auto-komi","If absolute value of auto komi would exceed this, skip position",false,1000,"KOMI");
     TCLAP::ValueArg<double> maxPolicyArg("","max-policy","Chop off moves with raw policy more than this",false,1,"POLICY");
@@ -1019,7 +1004,6 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     cmd.add(minRankArg);
     cmd.add(minMinRankArg);
     cmd.add(requiredPlayerNameArg);
-    cmd.add(maxHandicapArg);
     cmd.add(maxKomiArg);
     cmd.add(maxAutoKomiArg);
     cmd.add(maxPolicyArg);
@@ -1042,11 +1026,9 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     turnWeightLambda = turnWeightLambdaArg.getValue();
     maxPosesPerOutFile = maxPosesPerOutFileArg.getValue();
     gameModeFastThreshold = gameModeFastThresholdArg.getValue();
-    flipIfPassOrWFirst = flipIfPassOrWFirstArg.getValue();
     minRank = minRankArg.getValue();
     minMinRank = minMinRankArg.getValue();
     requiredPlayerName = requiredPlayerNameArg.getValue();
-    maxHandicap = maxHandicapArg.getValue();
     maxKomi = maxKomiArg.getValue();
     maxAutoKomi = maxAutoKomiArg.getValue();
     maxPolicy = maxPolicyArg.getValue();
@@ -1192,8 +1174,6 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   };
 
   auto isSgfOkay = [&](const Sgf* sgf) {
-    if(maxHandicap < 100 && sgf->getHandicapValue() > maxHandicap)
-      return false;
     if(sgf->depth() > maxDepth)
       return false;
     if(std::fabs(sgf->getKomi()) > maxKomi)
@@ -1207,7 +1187,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     return true;
   };
 
-  auto expensiveEvaluateMove = [&toWriteQueue,&turnWeightLambda,&maxAutoKomi,&maxHandicap,&numFilteredIndivdualPoses,&surpriseMode,&logger](
+  auto expensiveEvaluateMove = [&toWriteQueue,&turnWeightLambda,&maxAutoKomi,&numFilteredIndivdualPoses,&surpriseMode,&logger](
     Search* search, Loc missedLoc,
     Player nextPla, const Board& board, const BoardHistory& hist,
     const Sgf::PositionSample& sample, bool markedAsHintPos
@@ -1216,10 +1196,6 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
       return;
 
     if(std::fabs(hist.rules.komi) > maxAutoKomi) {
-      numFilteredIndivdualPoses.fetch_add(1);
-      return;
-    }
-    if(hist.computeNumHandicapStones() > maxHandicap) {
       numFilteredIndivdualPoses.fetch_add(1);
       return;
     }
@@ -1412,7 +1388,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   // ---------------------------------------------------------------------------------------------------
   //SGF MODE
 
-  auto processSgfGame = [&logger,&gameInit,&nnEval,&expensiveEvaluateMove,autoKomi,&gameModeFastThreshold,&maxDepth,&numFilteredSgfs,&maxHandicap,&maxPolicy](
+  auto processSgfGame = [&logger,&gameInit,&nnEval,&expensiveEvaluateMove,autoKomi,&gameModeFastThreshold,&maxDepth,&numFilteredSgfs,&maxPolicy](
     Search* search, Rand& rand, const string& fileName, CompactSgf* sgf, bool blackOkay, bool whiteOkay
   ) {
     //Don't use the SGF rules - randomize them for a bit more entropy
@@ -1437,10 +1413,6 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
       numFilteredSgfs.fetch_add(1);
       return;
     }
-    if(hist.computeNumHandicapStones() > maxHandicap) {
-      numFilteredSgfs.fetch_add(1);
-      return;
-    }
 
     vector<Board> boards;
     vector<BoardHistory> hists;
@@ -1456,8 +1428,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
       MiscNNInputParams nnInputParams;
       NNResultBuf buf;
       bool skipCache = true; //Always ignore cache so that we get more entropy on repeated board positions due to symmetries
-      bool includeOwnerMap = false;
-      nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+      nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache);
 
       ReportedSearchValues superQuickValues;
       {
@@ -1503,7 +1474,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
           logger.write("Illegal move in " + fileName + " turn " + Global::intToString(m) + " move " + Location::toString(sgfMoves[m].loc, board.x_size, board.y_size));
         break;
       }
-      hist.makeBoardMoveAssumeLegal(board,sgfMoves[m].loc,sgfMoves[m].pla,NULL);
+      hist.makeBoardMoveAssumeLegal(board,sgfMoves[m].loc,sgfMoves[m].pla);
       nextPla = getOpp(sgfMoves[m].pla);
     }
     boards.push_back(board);
@@ -1631,7 +1602,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   // ---------------------------------------------------------------------------------------------------
   //TREE MODE
 
-  auto treePosHandler = [&gameInit,&nnEval,&expensiveEvaluateMove,&autoKomi,&maxPolicy,&flipIfPassOrWFirst,&surpriseMode](
+  auto treePosHandler = [&gameInit,&nnEval,&expensiveEvaluateMove,&autoKomi,&maxPolicy,&surpriseMode](
     Search* search, Rand& rand, const BoardHistory& treeHist, int initialTurnNumber, bool markedAsHintPos
   ) {
     if(shouldStop.load(std::memory_order_acquire))
@@ -1664,7 +1635,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     for(int i = 0; i<startTurn; i++) {
       bool multiStoneSuicideLegal = true;
       //Just in case
-      if(!board.isLegal(treeHist.moveHistory[i].loc,treeHist.moveHistory[i].pla,multiStoneSuicideLegal))
+      if(!board.isLegal(treeHist.moveHistory[i].loc,treeHist.moveHistory[i].pla))
         return;
       board.playMoveAssumeLegal(treeHist.moveHistory[i].loc,treeHist.moveHistory[i].pla);
     }
@@ -1689,7 +1660,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
       if(!hist.isLegal(board,sample.moves[i].loc,sample.moves[i].pla))
         return;
       assert(sample.moves[i].pla == pla);
-      hist.makeBoardMoveAssumeLegal(board,sample.moves[i].loc,sample.moves[i].pla,NULL);
+      hist.makeBoardMoveAssumeLegal(board,sample.moves[i].loc,sample.moves[i].pla);
       pla = getOpp(pla);
     }
 
@@ -1712,7 +1683,6 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
 
     MiscNNInputParams nnInputParams;
     bool skipCache = true; //Always ignore cache so that we get more entropy on repeated board positions due to symmetries
-    bool includeOwnerMap = false;
 
     double policyProb = 0.0;
     {
@@ -1721,7 +1691,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
       int count = 0;
       for(int samples = 0; samples < 4; samples++) {
         NNResultBuf buf;
-        nnEval->evaluate(board,hist,pla,nnInputParams,buf,skipCache,includeOwnerMap);
+        nnEval->evaluate(board,hist,pla,nnInputParams,buf,skipCache);
         shared_ptr<NNOutput>& nnOutput = buf.result;
         int pos = NNPos::locToPos(sample.hintLoc,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen);
         double prob = nnOutput->policyProbs[pos];
@@ -1741,10 +1711,6 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
       return;
     sample.weight = weight;
 
-    if(flipIfPassOrWFirst) {
-      if(treeHist.hasBlackPassOrWhiteFirst())
-        sample = sample.getColorFlipped();
-    }
 
     expensiveEvaluateMove(
       search, sample.hintLoc, pla, board, hist,
@@ -1905,7 +1871,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         try {
           bool hashParent = true; //Hash parent so that we distinguish hint moves that reach the same position but were different moves from different starting states.
           sgf->iterAllUniquePositions(
-            uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, &seedRand, [&](Sgf::PositionSample& unusedSample, const BoardHistory& hist, const string& comments) {
+            uniqueHashes, hashComments, hashParent, &seedRand, [&](Sgf::PositionSample& unusedSample, const BoardHistory& hist, const string& comments) {
               if(comments.size() > 0 && comments.find("%NOHINT%") != string::npos)
                 return;
               if(hist.moveHistory.size() <= 0)
@@ -2067,11 +2033,11 @@ int MainCmds::trystartposes(const vector<string>& args) {
     Board board = startPos.board;
     Player pla = startPos.nextPla;
     BoardHistory hist;
-    hist.clear(board,pla,rules,0);
+    hist.clear(board,pla,rules);
     hist.setInitialTurnNumber(startPos.initialTurnNumber);
     bool allLegal = true;
     for(size_t i = 0; i<startPos.moves.size(); i++) {
-      bool isLegal = hist.makeBoardMoveTolerant(board,startPos.moves[i].loc,startPos.moves[i].pla,false);
+      bool isLegal = hist.makeBoardMoveTolerant(board,startPos.moves[i].loc,startPos.moves[i].pla);
       if(!isLegal) {
         allLegal = false;
         break;
@@ -2223,12 +2189,12 @@ int MainCmds::viewstartposes(const vector<string>& args) {
     Board board = startPos.board;
     Player pla = startPos.nextPla;
     BoardHistory hist;
-    hist.clear(board,pla,rules,0);
+    hist.clear(board,pla,rules);
     hist.setInitialTurnNumber(startPos.initialTurnNumber);
 
     bool allLegal = true;
     for(size_t i = 0; i<startPos.moves.size(); i++) {
-      bool isLegal = hist.makeBoardMoveTolerant(board,startPos.moves[i].loc,startPos.moves[i].pla,false);
+      bool isLegal = hist.makeBoardMoveTolerant(board,startPos.moves[i].loc,startPos.moves[i].pla);
       if(!isLegal) {
         allLegal = false;
         break;
@@ -2361,7 +2327,6 @@ int MainCmds::sampleinitializations(const vector<string>& args) {
       seed,
       botSpec,
       botSpec,
-      NULL,
       NULL,
       logger,
       nullptr,

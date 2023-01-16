@@ -243,14 +243,12 @@ int MainCmds::selfplay(const vector<string>& args) {
 
   //Shared across all game loop threads
   std::atomic<int64_t> numGamesStarted(0);
-  ForkData* forkData = new ForkData();
   auto gameLoop = [
     &gameRunner,
     &manager,
     &logger,
     switchNetsMidGame,
     &numGamesStarted,
-    &forkData,
     maxGamesTotal,
     &baseParams,
     &gameSeedBase
@@ -303,7 +301,7 @@ int MainCmds::selfplay(const vector<string>& args) {
 
         string seed = gameSeedBase + ":" + Global::uint64ToHexString(thisLoopSeedRand.nextUInt64());
         gameData = gameRunner->runGame(
-          seed, botSpecB, botSpecW, forkData, NULL, logger,
+          seed, botSpecB, botSpecW, NULL, logger,
           shouldStopFunc,
           shouldPause,
           (switchNetsMidGame ? checkForNewNNEval : nullptr),
@@ -386,7 +384,6 @@ int MainCmds::selfplay(const vector<string>& args) {
 
   //Delete and clean up everything else
   NeuralNet::globalCleanup();
-  delete forkData;
   delete gameRunner;
   ScoreValue::freeTables();
 

@@ -134,8 +134,7 @@ namespace {
           BoardHistory hist(data->endHist);
           Board endBoard = hist.getRecentBoard(0);
           //Force game end just in caseif we crossed a move limit
-          if(!hist.isGameFinished)
-            hist.endAndScoreGameNow(endBoard);
+          assert(hist.isGameFinished, "runWriteDataLoop(Logger& logger):  hist.isGameFinished=false");
 
           ostringstream oresult;
           WriteSgf::printGameResult(oresult,hist);
@@ -473,7 +472,7 @@ int MainCmds::gatekeeper(const vector<string>& args) {
       if(netAndStuff->matchPairer->getMatchup(botSpecB, botSpecW, logger)) {
         string seed = gameSeedBase + ":" + Global::uint64ToHexString(thisLoopSeedRand.nextUInt64());
         gameData = gameRunner->runGame(
-          seed, botSpecB, botSpecW, NULL, NULL, logger,
+          seed, botSpecB, botSpecW,  NULL, logger,
           shouldStopFunc, shouldPause, nullptr, nullptr, nullptr
         );
       }

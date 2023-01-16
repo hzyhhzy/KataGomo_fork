@@ -117,7 +117,6 @@ struct Sgf {
     std::set<Hash128>& uniqueHashes,
     bool hashComments,
     bool hashParent,
-    bool flipIfPassOrWFirst,
     Rand* rand,
     std::vector<PositionSample>& samples
   ) const;
@@ -126,7 +125,6 @@ struct Sgf {
     std::set<Hash128>& uniqueHashes,
     bool hashComments,
     bool hashParent,
-    bool flipIfPassOrWFirst,
     Rand* rand,
     std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
   ) const;
@@ -145,7 +143,6 @@ struct Sgf {
     std::set<Hash128>& uniqueHashes,
     bool hashComments,
     bool hashParent,
-    bool flipIfPassOrWFirst,
     Rand* rand,
     std::vector<std::pair<int64_t,int64_t>>& variationTraceNodesBranch,
     std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
@@ -157,7 +154,6 @@ struct Sgf {
     std::set<Hash128>& uniqueHashes,
     bool hashComments,
     bool hashParent,
-    bool flipIfPassOrWFirst,
     const std::string& comments,
     std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
   ) const;

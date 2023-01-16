@@ -119,9 +119,6 @@ int MainCmds::analysis(const vector<string>& args) {
   auto loadParams = [](ConfigParser& config, SearchParams& params, Player& perspective, Player defaultPerspective) {
     params = Setup::loadSingleParams(config,Setup::SETUP_FOR_ANALYSIS);
     perspective = Setup::parseReportAnalysisWinrates(config,defaultPerspective);
-    //Set a default for conservativePass that differs from matches or selfplay
-    if(!config.contains("conservativePass") && !config.contains("conservativePass0"))
-      params.conservativePass = true;
   };
 
   SearchParams defaultParams;
@@ -254,8 +251,6 @@ int MainCmds::analysis(const vector<string>& args) {
     bool success = search->getAnalysisJson(
       request->perspective,
       request->analysisPVLen, request->includePolicy,
-      request->includeOwnership,request->includeOwnershipStdev,
-      request->includeMovesOwnership,request->includeMovesOwnershipStdev,
       request->includePVVisits,
       ret
     );
@@ -282,7 +277,6 @@ int MainCmds::analysis(const vector<string>& args) {
       //Else, the request is live and we marked it as popped
       else {
         bot->setPosition(request->nextPla,request->board,request->hist);
-        bot->setAlwaysIncludeOwnerMap(request->includeOwnership || request->includeOwnershipStdev || request->includeMovesOwnership || request->includeMovesOwnershipStdev);
         bot->setParams(request->params);
         bot->setAvoidMoveUntilByLoc(request->avoidMoveUntilByLocBlack,request->avoidMoveUntilByLocWhite);
 
@@ -512,10 +506,6 @@ int MainCmds::analysis(const vector<string>& args) {
       rbase.params = defaultParams;
       rbase.perspective = defaultPerspective;
       rbase.analysisPVLen = analysisPVLen;
-      rbase.includeOwnership = false;
-      rbase.includeOwnershipStdev = false;
-      rbase.includeMovesOwnership = false;
-      rbase.includeMovesOwnershipStdev = false;
       rbase.includePolicy = false;
       rbase.includePVVisits = false;
       rbase.reportDuringSearch = false;
@@ -821,21 +811,6 @@ int MainCmds::analysis(const vector<string>& args) {
         }
       }
 
-      if(input.find("whiteHandicapBonus") != input.end()) {
-        if(!input["whiteHandicapBonus"].is_string()) {
-          reportErrorForId(rbase.id, "whiteHandicapBonus", "Must be a string");
-          continue;
-        }
-        string s = input["whiteHandicapBonus"].get<string>();
-        try {
-          int whiteHandicapBonusRule = Rules::parseWhiteHandicapBonusRule(s);
-          rules.whiteHandicapBonusRule = whiteHandicapBonusRule;
-        }
-        catch(const StringError& err) {
-          reportErrorForId(rbase.id, "whiteHandicapBonus", err.what());
-          continue;
-        }
-      }
 
       if(input.find("overrideSettings") != input.end()) {
         json settings = input["overrideSettings"];
@@ -998,7 +973,7 @@ int MainCmds::analysis(const vector<string>& args) {
         if(moveHistory.size() > 0)
           initialPlayer = moveHistory[0].pla;
         else
-          initialPlayer = BoardHistory::numHandicapStonesOnBoard(board) > 0 ? P_WHITE : P_BLACK;
+          initialPlayer = P_BLACK;
       }
 
       bool rulesWereSupported;
@@ -1011,8 +986,7 @@ int MainCmds::analysis(const vector<string>& args) {
       }
 
       Player nextPla = initialPlayer;
-      BoardHistory hist(board,nextPla,rules,0);
-      hist.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
+      BoardHistory hist(board,nextPla,rules);
 
       //Build and enqueue requests
       vector<AnalyzeRequest*> newRequests;
@@ -1036,10 +1010,6 @@ int MainCmds::analysis(const vector<string>& args) {
           newRequest->params = rbase.params;
           newRequest->perspective = rbase.perspective;
           newRequest->analysisPVLen = rbase.analysisPVLen;
-          newRequest->includeOwnership = rbase.includeOwnership;
-          newRequest->includeOwnershipStdev = rbase.includeOwnershipStdev;
-          newRequest->includeMovesOwnership = rbase.includeMovesOwnership;
-          newRequest->includeMovesOwnershipStdev = rbase.includeMovesOwnershipStdev;
           newRequest->includePolicy = rbase.includePolicy;
           newRequest->includePVVisits = rbase.includePVVisits;
           newRequest->reportDuringSearch = rbase.reportDuringSearch;
@@ -1057,9 +1027,7 @@ int MainCmds::analysis(const vector<string>& args) {
         Player movePla = moveHistory[turnNumber].pla;
         Loc moveLoc = moveHistory[turnNumber].loc;
         if(movePla != nextPla) {
-          board.clearSimpleKoLoc();
           hist.clear(board,movePla,rules);
-          hist.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
         }
 
         bool suc = hist.makeBoardMoveTolerant(board,moveLoc,movePla);

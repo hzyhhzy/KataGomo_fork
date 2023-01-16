@@ -55,7 +55,6 @@ namespace Location
 
   void getAdjacentOffsets(short adj_offsets[8], int x_size);
   bool isAdjacent(Loc loc0, Loc loc1, int x_size);
-  Loc getMirrorLoc(Loc loc, int x_size, int y_size);
   Loc getCenterLoc(int x_size, int y_size);
   Loc getCenterLoc(const Board& b);
   bool isCentral(Loc loc, int x_size, int y_size);
@@ -113,6 +112,7 @@ struct Board
   static Hash128 ZOBRIST_SIZE_X_HASH[MAX_LEN+1];
   static Hash128 ZOBRIST_SIZE_Y_HASH[MAX_LEN+1];
   static Hash128 ZOBRIST_BOARD_HASH[MAX_ARR_SIZE][4];
+  static Hash128 ZOBRIST_MOVENUM_HASH[MAX_ARR_SIZE];
   static Hash128 ZOBRIST_BOARD_HASH2[MAX_ARR_SIZE][4];
   static Hash128 ZOBRIST_PLAYER_HASH[4];
   static const Hash128 ZOBRIST_GAME_IS_OVER;
@@ -131,9 +131,6 @@ struct Board
   bool isLegal(Loc loc, Player pla) const;
   //Check if this location is on the board
   bool isOnBoard(Loc loc) const;
-  //Check if this location is adjacent to stones of the specified color
-  bool isAdjacentToPla(Loc loc, Player pla) const;
-  bool isAdjacentOrDiagonalToPla(Loc loc, Player pla) const;
   //Is this board empty?
   bool isEmpty() const;
   //Count the number of stones on the board
@@ -179,6 +176,8 @@ struct Board
   int x_size;                  //Horizontal size of board
   int y_size;                  //Vertical size of board
   Color colors[MAX_ARR_SIZE];  //Color of each location on the board.
+  int movenum; //how many moves
+  int stonenum; //how many stones on board
 
   /* PointList empty_list; //List of all empty locations on board */
 
@@ -188,7 +187,6 @@ struct Board
 
   private:
   void init(int xS, int yS);
-  void removeSingleStone(Loc loc);
 
   friend std::ostream& operator<<(std::ostream& out, const Board& board);
 

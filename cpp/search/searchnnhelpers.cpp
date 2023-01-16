@@ -6,7 +6,7 @@
 #include "../core/using.h"
 //------------------------
 
-void Search::computeRootNNEvaluation(NNResultBuf& nnResultBuf, bool includeOwnerMap) {
+void Search::computeRootNNEvaluation(NNResultBuf& nnResultBuf) {
   Board board = rootBoard;
   const BoardHistory& hist = rootHistory;
   Player pla = rootPla;
@@ -36,13 +36,6 @@ bool Search::initNodeNNOutput(
   SearchThread& thread, SearchNode& node,
   bool isRoot, bool skipCache, bool isReInit
 ) {
-  bool antiMirrorDifficult = false;
-  if(searchParams.antiMirror && mirroringPla != C_EMPTY && mirrorAdvantage >= -0.5 &&
-     Location::getCenterLoc(thread.board) != Board::NULL_LOC && thread.board.colors[Location::getCenterLoc(thread.board)] == getOpp(rootPla) &&
-     isMirroringSinceSearchStart(thread.history,4) // skip recent 4 ply to be a bit tolerant
-  ) { 
-    antiMirrorDifficult = true;
-  }
   MiscNNInputParams nnInputParams;
   nnInputParams.drawEquivalentWinsForWhite = searchParams.drawEquivalentWinsForWhite;
   nnInputParams.nnPolicyTemperature = searchParams.nnPolicyTemperature;
@@ -80,14 +73,6 @@ bool Search::initNodeNNOutput(
     result = new std::shared_ptr<NNOutput>(std::move(thread.nnResultBuf.result));
   }
 
-  if(antiMirrorDifficult) {
-    // Copy
-    std::shared_ptr<NNOutput>* newNNOutputSharedPtr = new std::shared_ptr<NNOutput>(new NNOutput(**result));
-    std::shared_ptr<NNOutput>* tmp = result;
-    result = newNNOutputSharedPtr;
-    delete tmp;
-    hackNNOutputForMirror(*result);
-  }
 
   assert((*result)->noisedPolicyProbs == NULL);
   std::shared_ptr<NNOutput>* noisedResult = maybeAddPolicyNoiseAndTemp(thread,isRoot,result->get());
