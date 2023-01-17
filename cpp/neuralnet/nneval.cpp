@@ -943,6 +943,8 @@ NNCacheTable::NNCacheTable(int sizePowerOfTwo, int mutexPoolSizePowerOfTwo) {
 #if defined(SIMULATE_TRUE_HASH_COLLISIONS)
   sizePowerOfTwo = sizePowerOfTwo > 12 ? 12 : sizePowerOfTwo;
 #endif
+  if(mutexPoolSizePowerOfTwo > sizePowerOfTwo)
+    mutexPoolSizePowerOfTwo = sizePowerOfTwo;
 
   tableSize = ((uint64_t)1) << sizePowerOfTwo;
   tableMask = tableSize-1;
