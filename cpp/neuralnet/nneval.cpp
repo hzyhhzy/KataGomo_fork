@@ -695,7 +695,7 @@ void NNEvaluator::evaluate(
     for(int i = 0; i<policySize; i++) {
       Loc loc = NNPos::posToLoc(i,xSize,ySize,nnXLen,nnYLen);
       GameLogic::MovePriority mp = GameLogic::getMovePriority(board, history, nextPlayer, loc);
-      isLegal[i] = mp == GameLogic::MP_ILLEGAL;
+      isLegal[i] = mp != GameLogic::MP_ILLEGAL;
       if(mp == GameLogic::MP_SUDDEN_WIN)
         policy[i] += 500;
       else if(mp == GameLogic::MP_ONLY_NONLOSE_MOVES)
@@ -703,7 +703,6 @@ void NNEvaluator::evaluate(
       else if(mp == GameLogic::MP_WINNING)
         policy[i] += 300;
     }
-
 
     for(int i = 0; i<policySize; i++) {
       float policyValue;

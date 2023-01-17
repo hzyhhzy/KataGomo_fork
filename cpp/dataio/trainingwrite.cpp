@@ -80,7 +80,6 @@ FinishedGameData::FinishedGameData()
    policyTargetsByTurn(),
    whiteValueTargetsByTurn(),
    nnRawStatsByTurn(),
-   finalWhiteScoring(NULL),
 
    sidePositions(),
    changedNeuralNets(),
@@ -95,8 +94,6 @@ FinishedGameData::~FinishedGameData() {
   for(size_t i = 0; i<policyTargetsByTurn.size(); i++)
     delete policyTargetsByTurn[i].policyTargets;
 
-  if(finalWhiteScoring != NULL)
-    delete[] finalWhiteScoring;
 
   for(size_t i = 0; i<sidePositions.size(); i++)
     delete sidePositions[i];
@@ -153,15 +150,6 @@ void FinishedGameData::printDebug(ostream& out) const {
   }
   for(int i = 0; i<nnRawStatsByTurn.size(); i++) {
     out << "Raw Stats " << nnRawStatsByTurn[i].whiteWinLoss << " " << nnRawStatsByTurn[i].whiteScoreMean << " " << nnRawStatsByTurn[i].policyEntropy << endl;
-  }
-  if(finalWhiteScoring != NULL) {
-    for(int y = 0; y<startBoard.y_size; y++) {
-      for(int x = 0; x<startBoard.x_size; x++) {
-        Loc loc = Location::getLoc(x,y,startBoard.x_size);
-        out << Global::strprintf(" %.3f",finalWhiteScoring[loc]);
-      }
-      out << endl;
-    }
   }
   for(int i = 0; i<sidePositions.size(); i++) {
     SidePosition* sp = sidePositions[i];
@@ -321,7 +309,6 @@ void TrainingWriteBuffers::addRow(
   int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
   const NNRawStats& nnRawStats,
   const Board* finalBoard,
-  float* finalWhiteScoring,
   const vector<Board>* posHistForFutureBoards, //can be null
   bool isSidePosition,
   int numNeuralNetsBehindLatest,
@@ -498,7 +485,6 @@ void TrainingWriteBuffers::addRow(
   int8_t* rowScoreDistr = scoreDistrN.data + curRows * scoreDistrLen;
   int8_t* rowOwnership = valueTargetsNCHW.data + curRows * VALUE_SPATIAL_TARGET_NUM_CHANNELS * posArea;
 
-    assert(finalBoard != NULL);
 
     rowGlobal[27] = 1.0f;
     //Fill score info
@@ -567,31 +553,10 @@ void TrainingWriteBuffers::addRow(
   }
 
 
-  if(finalWhiteScoring == NULL
-     || (data.endHist.isGameFinished && data.endHist.isNoResult)
-  ) {
     rowGlobal[34] = 0.0f;
     for(int i = 0; i<posArea; i++) {
       rowOwnership[i+posArea*4] = 0;
     }
-  }
-  else {
-    rowGlobal[34] = 1.0f;
-    //Fill with zeros in case the buffers differ in size
-    for(int i = 0; i<posArea; i++) {
-      rowOwnership[i+posArea*4] = 0;
-    }
-
-    for(int y = 0; y<board.y_size; y++) {
-      for(int x = 0; x<board.x_size; x++) {
-        int pos = NNPos::xyToPos(x,y,dataXLen);
-        Loc loc = Location::getLoc(x,y,board.x_size);
-        float scoring = (nextPlayer == P_WHITE ? finalWhiteScoring[loc] : -finalWhiteScoring[loc]);
-        assert(scoring <= 1.0f && scoring >= -1.0f);
-        rowOwnership[pos+posArea*4] = convertRadiusOneToRadius120(scoring,rand);
-      }
-    }
-  }
 
   curRows++;
 }
@@ -810,7 +775,6 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
     else
       assert(lastTargets.noResult == 1.0f);
 
-    assert(data.finalWhiteScoring != NULL);
     assert(!data.endHist.isResignation);
   }
   #endif
@@ -877,7 +841,6 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             turnAfterStart,
             data.nnRawStatsByTurn[turnAfterStart],
             &(data.endHist.getRecentBoard(0)),
-            data.finalWhiteScoring,
             &posHistForFutureBoards,
             isSidePosition,
             numNeuralNetsBehindLatest,
@@ -928,7 +891,6 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             whiteValueTargetsBuf,
             0,
             sp->nnRawStats,
-            NULL,
             NULL,
             NULL,
             isSidePosition,

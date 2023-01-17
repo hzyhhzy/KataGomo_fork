@@ -1639,6 +1639,7 @@ void WriteSgf::writeSgf(
 
       writeSgfLoc(out,loc,xSize,ySize);
 
+      out << "]";
     }
 
     if(gameData != NULL && i >= startTurnIdx) {

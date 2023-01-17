@@ -83,7 +83,6 @@ struct FinishedGameData {
   std::vector<double> searchEntropyByTurn;
   std::vector<ValueTargets> whiteValueTargetsByTurn; //Except this one, we may have some of
   std::vector<NNRawStats> nnRawStatsByTurn;
-  float* finalWhiteScoring;
 
   std::vector<SidePosition*> sidePositions;
   std::vector<ChangedNeuralNet*> changedNeuralNets;
@@ -233,7 +232,6 @@ struct TrainingWriteBuffers {
     int whiteValueTargetsIdx, //index in whiteValueTargets corresponding to this turn.
     const NNRawStats& nnRawStats,
     const Board* finalBoard,
-    float* finalWhiteScoring,
     const std::vector<Board>* posHistForFutureBoards, //can be null
     bool isSidePosition,
     int numNeuralNetsBehindLatest,

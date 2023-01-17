@@ -245,7 +245,7 @@ void BoardHistory::setWinner(Player pla) {
   isGameFinished = true;
   isScored = true;
   isNoResult = false;
-  isResignation = true;
+  isResignation = false;
   winner = pla;
   finalWhiteMinusBlackScore = 0.0f;
 }
