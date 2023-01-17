@@ -975,6 +975,7 @@ struct SearchLimitsThisMove {
 static SearchLimitsThisMove getSearchLimitsThisMove(
   const Search* toMoveBot, Player pla, const PlaySettings& playSettings, Rand& gameRand,
   const vector<double>& historicalMctsWinLossValues,
+  const vector<double>& historicalMctsDrawValues,
   bool clearBotBeforeSearch,
   const OtherGameProperties& otherGameProps
 ) {
@@ -1031,18 +1032,25 @@ static SearchLimitsThisMove getSearchLimitsThisMove(
        playSettings.reducedVisitsMin > toMoveBot->searchParams.maxPlayouts)
       throw StringError("playSettings.reducedVisitsMin > maxVisits and/or maxPlayouts");
 
+    assert(historicalMctsWinLossValues.size() == historicalMctsDrawValues.size());
     if(historicalMctsWinLossValues.size() >= playSettings.reduceVisitsThresholdLookback) {
       double minWinLossValue = 1e20;
       double maxWinLossValue = -1e20;
-      for(int j = 0; j<playSettings.reduceVisitsThresholdLookback; j++) {
-        double winLossValue = historicalMctsWinLossValues[historicalMctsWinLossValues.size()-1-j];
+      double minDrawValue = 1e20;
+      for(int j = 0; j < playSettings.reduceVisitsThresholdLookback; j++) {
+        double winLossValue = historicalMctsWinLossValues[historicalMctsWinLossValues.size() - 1 - j];
         if(winLossValue < minWinLossValue)
           minWinLossValue = winLossValue;
         if(winLossValue > maxWinLossValue)
           maxWinLossValue = winLossValue;
+
+        double drawValue = historicalMctsDrawValues[historicalMctsWinLossValues.size() - 1 - j];
+        if(drawValue < minDrawValue)
+          minDrawValue = drawValue;
       }
       assert(playSettings.reduceVisitsThreshold >= 0.0);
       double signedMostExtreme = std::max(minWinLossValue,-maxWinLossValue);
+      signedMostExtreme = std::max(signedMostExtreme, minDrawValue);
       assert(signedMostExtreme <= 1.000001);
       if(signedMostExtreme > 1.0)
         signedMostExtreme = 1.0;
@@ -1356,6 +1364,7 @@ FinishedGameData* Play::runGame(
   vector<SidePosition*> sidePositionsToSearch;
 
   vector<double> historicalMctsWinLossValues;
+  vector<double> historicalMctsDrawValues;
   vector<double> historicalMctsLeads;
   vector<double> historicalMctsScoreStdevs;
   vector<ReportedSearchValues> rawNNValues;
@@ -1374,7 +1383,14 @@ FinishedGameData* Play::runGame(
     Search* toMoveBot = pla == P_BLACK ? botB : botW;
 
     SearchLimitsThisMove limits = getSearchLimitsThisMove(
-      toMoveBot, pla, playSettings, gameRand, historicalMctsWinLossValues, clearBotBeforeSearch, otherGameProps
+      toMoveBot,
+      pla,
+      playSettings,
+      gameRand,
+      historicalMctsWinLossValues,
+      historicalMctsDrawValues,
+      clearBotBeforeSearch,
+      otherGameProps
     );
     Loc loc;
     if(playSettings.recordTimePerMove) {
@@ -1467,6 +1483,7 @@ FinishedGameData* Play::runGame(
     if(playSettings.allowResignation || playSettings.reduceVisits) {
       ReportedSearchValues values = toMoveBot->getRootValuesRequireSuccess();
       historicalMctsWinLossValues.push_back(values.winLossValue);
+      historicalMctsDrawValues.push_back(values.noResultValue);
       historicalMctsLeads.push_back(values.lead);
       historicalMctsScoreStdevs.push_back(values.expectedScoreStdev);
     }
