@@ -1,5 +1,6 @@
 #include "../neuralnet/nneval.h"
 #include "../neuralnet/modelversion.h"
+#include "../game/gamelogic.h"
 
 using namespace std;
 
@@ -693,7 +694,14 @@ void NNEvaluator::evaluate(
     int legalCount = 0;
     for(int i = 0; i<policySize; i++) {
       Loc loc = NNPos::posToLoc(i,xSize,ySize,nnXLen,nnYLen);
-      isLegal[i] = history.isLegal(board,loc,nextPlayer);
+      GameLogic::MovePriority mp = GameLogic::getMovePriority(board, history, nextPlayer, loc);
+      isLegal[i] = mp == GameLogic::MP_ILLEGAL;
+      if(mp == GameLogic::MP_SUDDEN_WIN)
+        policy[i] += 500;
+      else if(mp == GameLogic::MP_ONLY_NONLOSE_MOVES)
+        policy[i] += 400;
+      else if(mp == GameLogic::MP_WINNING)
+        policy[i] += 300;
     }
 
 

@@ -21,8 +21,8 @@ namespace GameLogic {
   typedef char MovePriority;
   static const MovePriority MP_NORMAL = 126;
   static const MovePriority MP_SUDDEN_WIN = 1;//win after this move
-  static const MovePriority MP_ONLY_MOVES = 2;//the only non-lose moves
-  static const MovePriority MP_WINNING = 1;//sure win, but not this move
+  static const MovePriority MP_ONLY_NONLOSE_MOVES = 2;//the only non-lose moves
+  static const MovePriority MP_WINNING = 3;//sure win, but not this move
   static const MovePriority MP_ILLEGAL = -1;//illegal moves
 
   MovePriority getMovePriorityAssumeLegal(const Board& board, const BoardHistory& hist, Player pla, Loc loc);

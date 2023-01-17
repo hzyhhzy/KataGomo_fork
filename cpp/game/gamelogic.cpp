@@ -57,6 +57,12 @@ static GameLogic::MovePriority getMovePriorityOneDirectionAssumeLegal(
   if(myConNum >= 5)
     return GameLogic::MP_SUDDEN_WIN;
 
+  if(oppConNum >= 5)
+    return GameLogic::MP_ONLY_NONLOSE_MOVES;
+
+  if(myConNum == 4 && isMyLife1 && isMyLife2)
+    return GameLogic::MP_WINNING;
+
   return GameLogic::MP_NORMAL;
 }
 
@@ -71,6 +77,7 @@ GameLogic::MovePriority GameLogic::getMovePriorityAssumeLegal(const Board& board
     if(tmpMP < MP)
       MP = tmpMP;
   }
+
   return MP;
 }
 

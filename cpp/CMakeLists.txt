@@ -183,6 +183,7 @@ add_executable(katago
   game/board.cpp
   game/rules.cpp
   game/gamelogic.cpp
+  game/randomopening.cpp
   game/boardhistory.cpp
   game/graphhash.cpp
   dataio/sgf.cpp

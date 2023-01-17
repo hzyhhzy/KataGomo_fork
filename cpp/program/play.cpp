@@ -8,6 +8,7 @@
 #include "../search/asyncbot.h"
 #include "../search/searchnode.h"
 #include "../dataio/files.h"
+#include "../game/randomopening.h"
 
 #include "../core/test.h"
 
@@ -1324,16 +1325,29 @@ FinishedGameData* Play::runGame(
     }
   };
 
+
+  double balanceOpeningProb = playSettings.forSelfPlay ? 0.99 : 1.0;
+
+  if(gameRand.nextBool(balanceOpeningProb)) {
+    if(board.numStonesOnBoard() != 0)
+      cout << "board not empty when initialize opening" << endl;
+    else {
+      if(board.numStonesOnBoard() == 0)  // no lib opening
+        RandomOpening::initializeBalancedRandomOpening(botB, botW, board, hist, pla, gameRand, playSettings.forSelfPlay);
+    }
+  }
+
   if(playSettings.initGamesWithPolicy && otherGameProps.allowPolicyInit) {
-    double proportionOfBoardArea = otherGameProps.isSgfPos ? playSettings.startPosesPolicyInitAreaProp : playSettings.policyInitAreaProp;
-    if(proportionOfBoardArea > 0) {
+    double avgPolicyInitMoveNum =
+      otherGameProps.isSgfPos ? playSettings.startPosesPolicyInitAvgMoveNum : playSettings.policyInitAvgMoveNum;
+    if(avgPolicyInitMoveNum > 0) {
       //Perform the initialization using a different noised komi, to get a bit of opening policy mixing across komi
       {
         float oldKomi = hist.rules.komi;
         PlayUtils::setKomiWithNoise(extraBlackAndKomi,hist,gameRand);
         double temperature = playSettings.policyInitAreaTemperature;
         assert(temperature > 0.0 && temperature < 10.0);
-        PlayUtils::initializeGameUsingPolicy(botB, botW, board, hist, pla, gameRand, proportionOfBoardArea, temperature);
+        PlayUtils::initializeGameUsingPolicy(botB, botW, board, hist, pla, gameRand, avgPolicyInitMoveNum, temperature);
         hist.setKomi(oldKomi);
       }
       bool shouldCompensate =

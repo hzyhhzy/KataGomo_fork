@@ -6,8 +6,8 @@
 struct PlaySettings {
   //Play a bunch of mostly policy-distributed moves at the start to initialize a game.
   bool initGamesWithPolicy;
-  double policyInitAreaProp; //Avg number of moves is this * board area
-  double startPosesPolicyInitAreaProp; //Avg number of moves when using a starting position from sgf
+  double policyInitAvgMoveNum;           // Avg number of moves
+  double startPosesPolicyInitAvgMoveNum; //Avg number of moves when using a starting position from sgf
   double compensateAfterPolicyInitProb; //Chance to adjust komi to cancel the effect of imbalanced init
   //Occasionally try some alternative moves and search the responses to them.
   double sidePositionProb;
@@ -20,14 +20,6 @@ struct PlaySettings {
   int estimateLeadVisits;
   //On each train position, estimate the lead in points with this probability
   double estimateLeadProb;
-
-  //Occasionally fork an entire new game to try out an experimental move in the opening
-  double earlyForkGameProb; //Expected number of early forked games per game
-  double earlyForkGameExpectedMoveProp; //Fork on average within the first board area * this prop moves
-  double forkGameProb; //Expected number of forked games per game
-  int forkGameMinChoices; //Fork between the favorite of this many random legal moves, at minimum
-  int earlyForkGameMaxChoices; //Fork between the favorite of this many random legal moves, at maximum
-  int forkGameMaxChoices; //Fork between the favorite of this many random legal moves, at maximum
 
   //Hack to improve learning of very weird komi and very lopsided positions
   bool fancyKomiVarying;

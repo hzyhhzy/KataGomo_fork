@@ -1,11 +1,12 @@
 #include "../program/playsettings.h"
 
 PlaySettings::PlaySettings()
-  :initGamesWithPolicy(false),policyInitAreaProp(0.0),startPosesPolicyInitAreaProp(0.0),
+  : initGamesWithPolicy(false),
+    policyInitAvgMoveNum(0.0),
+    startPosesPolicyInitAvgMoveNum(0.0),
    compensateAfterPolicyInitProb(0.0),sidePositionProb(0.0),
    policyInitAreaTemperature(1.0),
    compensateKomiVisits(20),estimateLeadVisits(10),estimateLeadProb(0.0),
-   earlyForkGameProb(0.0),earlyForkGameExpectedMoveProp(0.0),forkGameProb(0.0),forkGameMinChoices(1),earlyForkGameMaxChoices(1),forkGameMaxChoices(1),
    fancyKomiVarying(false),
    cheapSearchProb(0),cheapSearchVisits(0),cheapSearchTargetWeight(0.0f),
    reduceVisits(false),reduceVisitsThreshold(100.0),reduceVisitsThresholdLookback(1),reducedVisitsMin(0),reducedVisitsWeight(1.0f),
@@ -14,7 +15,9 @@ PlaySettings::PlaySettings()
    noResolveTargetWeights(false),
    allowResignation(false),resignThreshold(0.0),resignConsecTurns(1),
    forSelfPlay(false),
-   normalAsymmetricPlayoutProb(0.0),maxAsymmetricRatio(2.0),
+    normalAsymmetricPlayoutProb(0.0),
+    maxAsymmetricRatio(2.0),
+    minAsymmetricCompensateKomiProb(0.0),
    recordTimePerMove(false)
 {}
 PlaySettings::~PlaySettings()
@@ -28,8 +31,9 @@ PlaySettings PlaySettings::loadForMatch(ConfigParser& cfg) {
   playSettings.compensateKomiVisits = cfg.contains("compensateKomiVisits") ? cfg.getInt("compensateKomiVisits",1,10000) : 100;
   playSettings.initGamesWithPolicy =  cfg.contains("initGamesWithPolicy") ? cfg.getBool("initGamesWithPolicy") : false;
   if(playSettings.initGamesWithPolicy) {
-    playSettings.policyInitAreaProp = cfg.getDouble("policyInitAreaProp",0.0,1.0);
-    playSettings.startPosesPolicyInitAreaProp = cfg.contains("startPosesPolicyInitAreaProp") ? cfg.getDouble("startPosesPolicyInitAreaProp",0.0,1.0) : 0.0;
+    playSettings.policyInitAvgMoveNum = cfg.getDouble("policyInitAvgMoveNum", 0.0, 100.0);
+    playSettings.startPosesPolicyInitAvgMoveNum =
+      cfg.contains("startPosesPolicyInitAvgMoveNum") ? cfg.getDouble("startPosesPolicyInitAvgMoveNum", 0.0, 100.0) : 0.0;
     playSettings.compensateAfterPolicyInitProb = cfg.contains("compensateAfterPolicyInitProb") ? cfg.getDouble("compensateAfterPolicyInitProb",0.0,1.0) : 1.0;
     playSettings.policyInitAreaTemperature = cfg.contains("policyInitAreaTemperature") ? cfg.getDouble("policyInitAreaTemperature",0.1,5.0) : 1.0;
   }
@@ -49,8 +53,10 @@ PlaySettings PlaySettings::loadForGatekeeper(ConfigParser& cfg) {
 PlaySettings PlaySettings::loadForSelfplay(ConfigParser& cfg) {
   PlaySettings playSettings;
   playSettings.initGamesWithPolicy = cfg.getBool("initGamesWithPolicy");
-  playSettings.policyInitAreaProp = cfg.contains("policyInitAreaProp") ? cfg.getDouble("policyInitAreaProp",0.0,1.0) : 0.04;
-  playSettings.startPosesPolicyInitAreaProp = cfg.contains("startPosesPolicyInitAreaProp") ? cfg.getDouble("startPosesPolicyInitAreaProp",0.0,1.0) : 0.0;
+  playSettings.policyInitAvgMoveNum =
+    cfg.contains("policyInitAvgMoveNum") ? cfg.getDouble("policyInitAvgMoveNum", 0.0, 100.0) : 12.0;
+  playSettings.startPosesPolicyInitAvgMoveNum =
+    cfg.contains("startPosesPolicyInitAvgMoveNum") ? cfg.getDouble("startPosesPolicyInitAvgMoveNum", 0.0, 100.0) : 0.0;
   playSettings.compensateAfterPolicyInitProb = cfg.getDouble("compensateAfterPolicyInitProb",0.0,1.0);
   playSettings.sidePositionProb =
     //forkSidePositionProb is the legacy name, included for backward compatibility
@@ -64,12 +70,6 @@ PlaySettings PlaySettings::loadForSelfplay(ConfigParser& cfg) {
   playSettings.estimateLeadProb = cfg.contains("estimateLeadProb") ? cfg.getDouble("estimateLeadProb",0.0,1.0) : 0.0;
   playSettings.fancyKomiVarying = cfg.contains("fancyKomiVarying") ? cfg.getBool("fancyKomiVarying") : false;
 
-  playSettings.earlyForkGameProb = cfg.getDouble("earlyForkGameProb",0.0,0.5);
-  playSettings.earlyForkGameExpectedMoveProp = cfg.getDouble("earlyForkGameExpectedMoveProp",0.0,1.0);
-  playSettings.forkGameProb = cfg.getDouble("forkGameProb",0,0.5);
-  playSettings.forkGameMinChoices = cfg.getInt("forkGameMinChoices",1,100);
-  playSettings.earlyForkGameMaxChoices = cfg.getInt("earlyForkGameMaxChoices",1,100);
-  playSettings.forkGameMaxChoices = cfg.getInt("forkGameMaxChoices",1,100);
   playSettings.cheapSearchProb = cfg.getDouble("cheapSearchProb",0.0,1.0);
   playSettings.cheapSearchVisits = cfg.getInt("cheapSearchVisits",1,10000000);
   playSettings.cheapSearchTargetWeight = cfg.getFloat("cheapSearchTargetWeight",0.0f,1.0f);

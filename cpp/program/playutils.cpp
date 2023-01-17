@@ -195,13 +195,17 @@ Loc PlayUtils::getGameInitializationMove(
 void PlayUtils::initializeGameUsingPolicy(
   Search* botB, Search* botW, Board& board, BoardHistory& hist, Player& pla,
   Rand& gameRand, 
-  double proportionOfBoardArea, double temperature
-) {
+  double avgPolicyInitMoveNum,
+  double temperature) {
   NNResultBuf buf;
 
-  //This gives us about 15 moves on average for 19x19.
-  int numInitialMovesToPlay = (int)floor(gameRand.nextExponential() * (board.x_size * board.y_size * proportionOfBoardArea));
-  assert(numInitialMovesToPlay >= 0);
+
+  const double randomInitMovenumEquToPolicyInit = 2.0;
+  int numInitialMovesToPlay =
+    (int)floor(gameRand.nextExponential() * (avgPolicyInitMoveNum - randomInitMovenumEquToPolicyInit * board.movenum));
+  if(numInitialMovesToPlay < 0)
+    numInitialMovesToPlay = 0;
+
   for(int i = 0; i<numInitialMovesToPlay; i++) {
     Loc loc = getGameInitializationMove(botB, botW, board, hist, pla, buf, gameRand, temperature);
 
@@ -507,6 +511,8 @@ void PlayUtils::adjustKomiToEven(
   const OtherGameProperties& otherGameProps,
   Rand& rand
 ) {
+  cout << "PlayUtils::adjustKomiToEven no implement" << endl;
+  return;
   map<float,std::pair<double,double>> scoreWLCache;
   bool looseClipping = false;
   double newKomi = getNaiveEvenKomiHelper(scoreWLCache,botB,botW,board,hist,pla,numVisits,otherGameProps,looseClipping);
