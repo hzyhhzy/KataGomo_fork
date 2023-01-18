@@ -14,22 +14,16 @@ struct Rules {
 
 
 
-  float komi;
-  //Min and max acceptable komi in various places involving user input validation
-  static constexpr float MIN_USER_KOMI = -150.0f;
-  static constexpr float MAX_USER_KOMI = 150.0f;
-
   Rules();
   Rules(
-    int scoringRule,
-    float komi
+    int scoringRule
   );
   ~Rules();
 
   bool operator==(const Rules& other) const;
   bool operator!=(const Rules& other) const;
 
-  bool equalsIgnoringKomi(const Rules& other) const;
+  bool equals(const Rules& other) const;
   bool gameResultWillBeInteger() const;
 
   static Rules getTrompTaylorish();
@@ -39,12 +33,9 @@ struct Rules {
   static int parseScoringRule(const std::string& s);
   static std::string writeScoringRule(int scoringRule);
 
-  static bool komiIsIntOrHalfInt(float komi);
 
   static Rules parseRules(const std::string& str);
-  static Rules parseRulesWithoutKomi(const std::string& str, float komi);
   static bool tryParseRules(const std::string& str, Rules& buf);
-  static bool tryParseRulesWithoutKomi(const std::string& str, Rules& buf, float komi);
 
   static Rules updateRules(const std::string& key, const std::string& value, Rules priorRules);
 
@@ -53,16 +44,14 @@ struct Rules {
   std::string toStringNoKomi() const;
   std::string toStringNoKomiMaybeNice() const;
   std::string toJsonString() const;
-  std::string toJsonStringNoKomi() const;
-  std::string toJsonStringNoKomiMaybeOmitStuff() const;
+  std::string toJsonStringMaybeOmitStuff() const;
   nlohmann::json toJson() const;
-  nlohmann::json toJsonNoKomi() const;
-  nlohmann::json toJsonNoKomiMaybeOmitStuff() const;
+  nlohmann::json toJsonMaybeOmitStuff() const;
 
   static const Hash128 ZOBRIST_SCORING_RULE_HASH[2];
 
 private:
-  nlohmann::json toJsonHelper(bool omitKomi, bool omitDefaults) const;
+  nlohmann::json toJsonHelper(bool omitDefaults) const;
 };
 
 #endif  // GAME_RULES_H_
