@@ -1,5 +1,9 @@
 ***2023.1.8 Engine based on Katago 1.12 start Modifying***   
-   
+
+This branch(BW2023) reserved komi and score
+Branch "BWnoscore2023" removed komi and score
+  
+  
 | Tasks                                                  | Branch         | Stage        | Notes                              |
 | :----------------------------------------------------- | :------------- | :----------- | :--------------------------------- |
 | **(THIS)** 4 Black-White board games(Remove Capture)   | BW2023         | **Finished** | Using Gomoku as a representative, very easy to be modified to other games
