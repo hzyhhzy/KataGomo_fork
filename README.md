@@ -1,7 +1,7 @@
 ***2023.1.8 Engine based on Katago 1.12 start Modifying***   
 
-This branch(BW2023) reserved komi and score
-Branch "BWnoscore2023" removed komi and score
+This branch(BWnoscore2023) removed komi and score
+Branch "BW2023" reserved komi and score
   
   
 | Tasks                                                  | Branch         | Stage        | Notes                              |
