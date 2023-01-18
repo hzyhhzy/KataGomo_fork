@@ -2,9 +2,9 @@
    
 | Tasks                                                  | Branch         | Stage        | Notes                              |
 | :----------------------------------------------------- | :------------- | :----------- | :--------------------------------- |
-| **(THIS)** 1 Compile and run training                             | Kata2023       | **Finished** | -                                  |
-| **(NEXT)** 2 Chinese Rule Only(Remove JP rules)                   | CNRule2023     | Doing             | Just to test whether it works      |
-	
+| **(THIS)** 4 Black-White board games(Remove Capture)   | BW2023         | **Finished** | Using Gomoku as a representative, very easy to be modified to other games
+| **(NEXT)** 4.1 Gomoku                                  | Gom2023        | Doing        | New Katagomo engine
+| **(NEXT)** 5 Chess-like games(Multi-stage moves)       | Movestone2023  | Doing        | Maybe using Breakthrough or Ataxx as a representative, very easy to be modified to other games    |	
 	
 	
 	
