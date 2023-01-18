@@ -1760,14 +1760,6 @@ void NeuralNet::getOutput(
     output->whiteLossProb = valueData[row * numValueChannels + 1];
     output->whiteNoResultProb = valueData[row * numValueChannels + 2];
 
-    //As above, these are NOT actually from white's perspective, but rather the player to move.
-    //As usual the client does the postprocessing.
-    if(output->whiteOwnerMap != NULL) {
-      const float* ownershipSrcBuf = ownershipData + row * nnXLen * nnYLen;
-      assert(computeHandle->model.numOwnershipChannels == 1);
-      SymmetryHelpers::copyOutputsWithSymmetry(ownershipSrcBuf, output->whiteOwnerMap, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
-    }
-
     if(version >= 9) {
       int numScoreValueChannels = computeHandle->model.numScoreValueChannels;
       assert(numScoreValueChannels == 6);
