@@ -563,6 +563,7 @@ struct GTPEngine {
             cout << " ";
           const AnalysisData& data = buf[i];
           double winrate = 0.5 * (1.0 + data.winLossValue);
+          double drawrate = 100.0 * data.noResultValue;
           double lcb = PlayUtils::getHackedLCBForWinrate(search,data,pla);
           if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK)) {
             winrate = 1.0-winrate;
@@ -615,6 +616,7 @@ struct GTPEngine {
             out << " ";
           const AnalysisData& data = buf[i];
           double winrate = 0.5 * (1.0 + data.winLossValue);
+          double drawrate = 100.0 * data.noResultValue;
           double utility = data.utility;
           //We still hack the LCB for consistency with LZ-analyze
           double lcb = PlayUtils::getHackedLCBForWinrate(search,data,pla);
@@ -631,6 +633,9 @@ struct GTPEngine {
           out << " visits " << data.numVisits;
           out << " utility " << utility;
           out << " winrate " << winrate;
+          out << " scoreMean " << drawrate;
+          out << " scoreStdev " << 0.0f;
+          out << " scoreLead " << drawrate;
           out << " prior " << data.policyPrior;
           out << " lcb " << lcb;
           out << " utilityLcb " << utilityLcb;
@@ -751,12 +756,14 @@ struct GTPEngine {
     if(ogsChatToStderr) {
       int64_t visits = bot->getSearch()->getRootVisits();
       double winrate = 0.5 * (1.0 + (values.winValue - values.lossValue));
+      double drawrate = 100.0 * values.noResultValue;
       //Print winrate from desired perspective
       if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK)) {
         winrate = 1.0 - winrate;
       }
       cerr << "CHAT:"
-           << "Visits " << visits << " Winrate " << Global::strprintf("%.2f%%", winrate * 100.0);
+           << "Visits " << visits << " Winrate " << Global::strprintf("%.2f%%", winrate * 100.0) << " Drawrate "
+           << Global::strprintf("%.2f%%", drawrate);
       if(params.playoutDoublingAdvantage != 0.0) {
         cerr << Global::strprintf(
           " (PDA %.2f)",

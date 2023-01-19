@@ -9,6 +9,7 @@ AnalysisData::AnalysisData()
    utility(0.0),
    resultUtility(0.0),
    winLossValue(0.0),
+   noResultValue(0.0),
    policyPrior(0.0),
    ess(0.0),
    weightFactor(0.0),
@@ -33,6 +34,7 @@ AnalysisData::AnalysisData(const AnalysisData& other)
    utility(other.utility),
    resultUtility(other.resultUtility),
    winLossValue(other.winLossValue),
+   noResultValue(other.noResultValue),
    policyPrior(other.policyPrior),
    ess(other.ess),
    weightFactor(other.weightFactor),
@@ -57,6 +59,7 @@ AnalysisData::AnalysisData(AnalysisData&& other) noexcept
    utility(other.utility),
    resultUtility(other.resultUtility),
    winLossValue(other.winLossValue),
+   noResultValue(other.noResultValue),
    policyPrior(other.policyPrior),
    ess(other.ess),
    weightFactor(other.weightFactor),
@@ -86,6 +89,7 @@ AnalysisData& AnalysisData::operator=(const AnalysisData& other) {
   utility = other.utility;
   resultUtility = other.resultUtility;
   winLossValue = other.winLossValue;
+  noResultValue = other.noResultValue;
   policyPrior = other.policyPrior;
   ess = other.ess;
   weightFactor = other.weightFactor;
@@ -113,6 +117,7 @@ AnalysisData& AnalysisData::operator=(AnalysisData&& other) noexcept {
   utility = other.utility;
   resultUtility = other.resultUtility;
   winLossValue = other.winLossValue;
+  noResultValue = other.noResultValue;
   policyPrior = other.policyPrior;
   ess = other.ess;
   weightFactor = other.weightFactor;

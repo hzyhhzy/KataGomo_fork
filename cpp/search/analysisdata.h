@@ -15,7 +15,8 @@ struct AnalysisData {
   double radius; //In units of utility
   double utility; //From -1 to 1 or -1.25 to -1.25 or other similar bounds, depending on score utility
   double resultUtility; //Utility from winloss result
-  double winLossValue; //From -1 to 1
+  double winLossValue;   // From -1 to 1
+  double noResultValue;  // From 0 to 1
   double policyPrior; //From 0 to 1
   double ess; //Effective sample size taking into account weighting, could be somewhat smaller than visits
   double weightFactor; //Due to child value weighting

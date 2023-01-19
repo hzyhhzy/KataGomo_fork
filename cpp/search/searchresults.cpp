@@ -661,6 +661,7 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
     data.utility = fpuValue;
     data.resultUtility = fpuValue;
     data.winLossValue = searchParams.winLossUtilityFactor == 1.0 ? parentWinLossValue + (fpuValue - parentUtility) : 0.0;
+    data.noResultValue = 0.0;
     // Make sure winloss values due to FPU don't go out of bounds for purposes of reporting to UI
     if(data.winLossValue < -1.0)
       data.winLossValue = -1.0;
@@ -675,6 +676,7 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
     data.utility = utilityAvg;
     data.resultUtility = getResultUtility(winLossValueAvg, noResultValueAvg);
     data.winLossValue = winLossValueAvg;
+    data.noResultValue = noResultValueAvg;
     data.ess = weightSum * weightSum / weightSqSum;
     data.weightSum = weightSum;
     data.weightSqSum = weightSqSum;
@@ -1157,6 +1159,7 @@ bool Search::getAnalysisJson(
   for(int i = 0; i < buf.size(); i++) {
     const AnalysisData& data = buf[i];
     double winrate = 0.5 * (1.0 + data.winLossValue);
+    double drawrate = data.noResultValue;
     double utility = data.utility;
     double lcb = PlayUtils::getHackedLCBForWinrate(this, data, rootPla);
     double utilityLcb = data.lcb;
@@ -1171,8 +1174,9 @@ bool Search::getAnalysisJson(
     moveInfo["move"] = Location::toString(data.move, board);
     moveInfo["visits"] = data.numVisits;
     moveInfo["weight"] = data.weightSum;
-    moveInfo["utility"] = Global::roundDynamic(utility,OUTPUT_PRECISION);
-    moveInfo["winrate"] = Global::roundDynamic(winrate,OUTPUT_PRECISION);
+    moveInfo["utility"] = Global::roundDynamic(utility, OUTPUT_PRECISION);
+    moveInfo["winrate"] = Global::roundDynamic(winrate, OUTPUT_PRECISION);
+    moveInfo["drawrate"] = Global::roundDynamic(drawrate, OUTPUT_PRECISION);
     moveInfo["prior"] = Global::roundDynamic(data.policyPrior,OUTPUT_PRECISION);
     moveInfo["lcb"] = Global::roundDynamic(lcb,OUTPUT_PRECISION);
     moveInfo["utilityLcb"] = Global::roundDynamic(utilityLcb,OUTPUT_PRECISION);
