@@ -136,8 +136,8 @@ void BookHash::getHashAndSymmetry(const BoardHistory& hist, int repBound, BookHa
       Hash128 nextHash;
 
       if(bookVersion >= 2) {
-        constexpr double drawEquivalentWinsForWhite = 0.5;
-        nextHash = GraphHash::getStateHash(histsBySym[symmetry],histsBySym[symmetry].presumedNextMovePla,drawEquivalentWinsForWhite);
+        nextHash = GraphHash::getStateHash(
+          histsBySym[symmetry], histsBySym[symmetry].presumedNextMovePla);
       }
       // Old less-rigorous hashing
       else
@@ -158,8 +158,7 @@ void BookHash::getHashAndSymmetry(const BoardHistory& hist, int repBound, BookHa
   BookHash hashes[SymmetryHelpers::NUM_SYMMETRIES];
   for(int symmetry = 0; symmetry < numSymmetries; symmetry++) {
     Player nextPlayer = hist.presumedNextMovePla;
-    constexpr double drawEquivalentWinsForWhite = 0.5;
-    Hash128 stateHash = GraphHash::getStateHash(histsBySym[symmetry],nextPlayer,drawEquivalentWinsForWhite);
+    Hash128 stateHash = GraphHash::getStateHash(histsBySym[symmetry], nextPlayer);
     hashes[symmetry] = BookHash(accums[symmetry] ^ getExtraPosHash(boardsBySym[symmetry]), stateHash);
   }
 

@@ -221,9 +221,7 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     maxBoardYSize = std::max(maxBoardYSize, pos.board.y_size);
   }
 
-  noResultStdev = cfg.contains("noResultStdev") ? cfg.getDouble("noResultStdev",0.0,1.0) : 0.0;
-  numExtraBlackFixed = cfg.contains("numExtraBlackFixed") ? cfg.getInt("numExtraBlackFixed",1,18) : 0;
-  drawRandRadius = cfg.contains("drawRandRadius") ? cfg.getDouble("drawRandRadius",0.0,1.0) : 0.0;
+  noResultRandRadius = cfg.contains("noResultRandRadius") ? cfg.getDouble("noResultStdev",0.0,1.0) : 0.0;
 }
 
 GameInitializer::~GameInitializer()
@@ -239,7 +237,7 @@ void GameInitializer::createGame(
   //Multiple threads will be calling this, and we have some mutable state such as rand.
   lock_guard<std::mutex> lock(createGameMutex);
   createGameSharedUnsynchronized(board,pla,hist,initialPosition,playSettings,otherGameProps,startPosSample);
-  if(noResultStdev != 0.0 || drawRandRadius != 0.0)
+  if(noResultRandRadius != 0.0)
     throw StringError("GameInitializer::createGame called in a mode that doesn't support specifying noResultStdev or drawRandRadius");
 }
 
@@ -255,19 +253,13 @@ void GameInitializer::createGame(
   lock_guard<std::mutex> lock(createGameMutex);
   createGameSharedUnsynchronized(board,pla,hist,initialPosition,playSettings,otherGameProps,startPosSample);
 
-  if(noResultStdev > 1e-30) {
+  if(noResultRandRadius > 1e-30) {
     double mean = params.noResultUtilityForWhite;
-    params.noResultUtilityForWhite = mean + noResultStdev * rand.nextGaussianTruncated(3.0);
+    if(mean < -1.0 || mean > 1.0)
+      throw StringError("GameInitializer: params.noResultUtilityForWhite not within [-1,1]: " + Global::doubleToString(mean));
+    params.noResultUtilityForWhite = mean + noResultRandRadius * (rand.nextDouble() * 2 - 1);
     while(params.noResultUtilityForWhite < -1.0 || params.noResultUtilityForWhite > 1.0)
-      params.noResultUtilityForWhite = mean + noResultStdev * rand.nextGaussianTruncated(3.0);
-  }
-  if(drawRandRadius > 1e-30) {
-    double mean = params.drawEquivalentWinsForWhite;
-    if(mean < 0.0 || mean > 1.0)
-      throw StringError("GameInitializer: params.drawEquivalentWinsForWhite not within [0,1]: " + Global::doubleToString(mean));
-    params.drawEquivalentWinsForWhite = mean + drawRandRadius * (rand.nextDouble() * 2 - 1);
-    while(params.drawEquivalentWinsForWhite < 0.0 || params.drawEquivalentWinsForWhite > 1.0)
-      params.drawEquivalentWinsForWhite = mean + drawRandRadius * (rand.nextDouble() * 2 - 1);
+      params.noResultUtilityForWhite = mean + noResultRandRadius * (rand.nextDouble() * 2 - 1);
   }
 }
 
@@ -748,7 +740,7 @@ static void extractValueTargets(ValueTargets& buf, const Search* toMoveBot, cons
 static NNRawStats computeNNRawStats(const Search* bot, const Board& board, const BoardHistory& hist, Player pla) {
   NNResultBuf buf;
   MiscNNInputParams nnInputParams;
-  nnInputParams.drawEquivalentWinsForWhite = bot->searchParams.drawEquivalentWinsForWhite;
+  nnInputParams.noResultUtilityForWhite = bot->searchParams.noResultUtilityForWhite;
   Board b = board;
   bot->nnEvaluator->evaluate(b,hist,pla,nnInputParams,buf,false);
   NNOutput& nnOutput = *(buf.result);
@@ -1193,7 +1185,7 @@ FinishedGameData* Play::runGame(
   gameData->gameHash.hash0 = gameRand.nextUInt64();
   gameData->gameHash.hash1 = gameRand.nextUInt64();
 
-  gameData->drawEquivalentWinsForWhite = botSpecB.baseParams.drawEquivalentWinsForWhite;
+  gameData->noResultUtilityForWhite = botSpecB.baseParams.noResultUtilityForWhite;
   gameData->playoutDoublingAdvantagePla = otherGameProps.playoutDoublingAdvantagePla;
   gameData->playoutDoublingAdvantage = otherGameProps.playoutDoublingAdvantage;
 
@@ -1658,7 +1650,7 @@ FinishedGameData* Play::runGame(
         else {
           Search* toMoveBot2 = sp2->pla == P_BLACK ? botB : botW;
           MiscNNInputParams nnInputParams;
-          nnInputParams.drawEquivalentWinsForWhite = toMoveBot2->searchParams.drawEquivalentWinsForWhite;
+          nnInputParams.noResultUtilityForWhite = toMoveBot2->searchParams.noResultUtilityForWhite;
           toMoveBot2->nnEvaluator->evaluate(
             sp2->board,sp2->hist,sp2->pla,nnInputParams,
             nnResultBuf,false

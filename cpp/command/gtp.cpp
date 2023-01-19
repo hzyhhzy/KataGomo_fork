@@ -425,6 +425,15 @@ struct GTPEngine {
     bot->setParams(params);
     bot->clearSearch();
   }
+  void setNoResultUtilityForWhite(double x) {
+    if(x > 1)
+      x = 1;
+    if(x < -1)
+      x = -1;
+    params.noResultUtilityForWhite = x;
+    bot->setParams(params);
+    bot->clearSearch();
+  }
   void setNumSearchThreads(int numThreads) {
     params.numThreads = numThreads;
     bot->setParams(params);
@@ -1407,17 +1416,20 @@ int MainCmds::gtp(const vector<string>& args) {
       engine->clearBoard();
     }
 
+    //replaced "komi" command with NoResultUtility(DrawUtility)
     else if(command == "komi") {
       float newKomi = 0;
       if(pieces.size() != 1 || !Global::tryStringToFloat(pieces[0],newKomi)) {
         responseIsError = true;
         response = "Expected single float argument for komi but got '" + Global::concat(pieces," ") + "'";
-      }
+      } 
+      else if(isnan(newKomi) || newKomi < -10 || newKomi > 10) {
+        responseIsError = true;
+        response = "unacceptable komi";
+      } 
       else {
-
-        //engine->updateKomiIfNew(newKomi);
-        
-        //In case the controller tells us komi every move, restart pondering afterward.
+        engine->setNoResultUtilityForWhite(newKomi / 10.0);
+        // In case the controller tells us komi every move, restart pondering afterward.
         maybeStartPondering = engine->bot->getRootHist().moveHistory.size() > 0;
       }
     }

@@ -302,7 +302,7 @@ bool Tests::runFP16Test(NNEvaluator* nnEval, NNEvaluator* nnEval32, Logger& logg
   auto evalBoard = [&](NNEvaluator* nnE, const BoardHistory& hist) {
     Board board = hist.getRecentBoard(0);
     MiscNNInputParams nnInputParams;
-    nnInputParams.symmetry = (int)(BoardHistory::getSituationRulesAndKoHash(board,hist,hist.presumedNextMovePla,0.5).hash0 & 7);
+    nnInputParams.symmetry = (int)(BoardHistory::getSituationRulesHash(board,hist,hist.presumedNextMovePla).hash0 & 7);
     NNResultBuf buf;
     bool skipCache = true;
     nnE->evaluate(board,hist,hist.presumedNextMovePla,nnInputParams,buf,skipCache );

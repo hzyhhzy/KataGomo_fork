@@ -62,7 +62,7 @@ FinishedGameData::FinishedGameData()
    startPla(P_BLACK),
    gameHash(),
 
-   drawEquivalentWinsForWhite(0.0),
+   noResultUtilityForWhite(0.0),
    playoutDoublingAdvantagePla(P_BLACK),
    playoutDoublingAdvantage(0.0),
 
@@ -315,7 +315,7 @@ void TrainingWriteBuffers::addRow(
 
   {
     MiscNNInputParams nnInputParams;
-    nnInputParams.drawEquivalentWinsForWhite = data.drawEquivalentWinsForWhite;
+    nnInputParams.noResultUtilityForWhite = data.noResultUtilityForWhite;
     //Note: this is coordinated with the fact that selfplay does not use this feature on side positions
     if(!isSidePosition)
       nnInputParams.playoutDoublingAdvantage = getOpp(nextPlayer) == data.playoutDoublingAdvantagePla ? -data.playoutDoublingAdvantage : data.playoutDoublingAdvantage;

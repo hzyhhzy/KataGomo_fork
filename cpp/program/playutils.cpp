@@ -81,7 +81,7 @@ Loc PlayUtils::getGameInitializationMove(
 ) {
   NNEvaluator* nnEval = (pla == P_BLACK ? botB : botW)->nnEvaluator;
   MiscNNInputParams nnInputParams;
-  nnInputParams.drawEquivalentWinsForWhite = (pla == P_BLACK ? botB : botW)->searchParams.drawEquivalentWinsForWhite;
+  nnInputParams.noResultUtilityForWhite = (pla == P_BLACK ? botB : botW)->searchParams.noResultUtilityForWhite;
   nnEval->evaluate(board,hist,pla,nnInputParams,buf,false);
   std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
 
@@ -150,39 +150,6 @@ void PlayUtils::initializeGameUsingPolicy(
   }
 }
 
-
-//Place black handicap stones, free placement
-//Does NOT switch the initial player of the board history to white
-void PlayUtils::playExtraBlack(
-  Search* bot,
-  int numExtraBlack,
-  Board& board,
-  BoardHistory& hist,
-  double temperature,
-  Rand& gameRand
-) {
-  Player pla = P_BLACK;
-
-  NNResultBuf buf;
-  for(int i = 0; i<numExtraBlack; i++) {
-    MiscNNInputParams nnInputParams;
-    nnInputParams.drawEquivalentWinsForWhite = bot->searchParams.drawEquivalentWinsForWhite;
-    bot->nnEvaluator->evaluate(board,hist,pla,nnInputParams,buf,false);
-    std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
-
-    bool allowPass = false;
-    Loc banMove = Board::NULL_LOC;
-    Loc loc = chooseRandomPolicyMove(nnOutput.get(), board, hist, pla, gameRand, temperature, allowPass, banMove);
-    if(loc == Board::NULL_LOC)
-      break;
-
-    assert(hist.isLegal(board,loc,pla));
-    hist.makeBoardMoveAssumeLegal(board,loc,pla);
-    hist.clear(board,pla,hist.rules);
-  }
-
-  bot->setPosition(pla,board,hist);
-}
 
 double PlayUtils::getHackedLCBForWinrate(const Search* search, const AnalysisData& data, Player pla) {
   double winrate = 0.5 * (1.0 + data.winLossValue);

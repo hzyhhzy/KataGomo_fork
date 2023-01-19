@@ -1109,7 +1109,7 @@ bool Search::playoutDescend(
       thread.pla = getOpp(thread.pla);
       if(searchParams.useGraphSearch)
         thread.graphHash = GraphHash::getGraphHash(
-           thread.history, thread.pla, searchParams.drawEquivalentWinsForWhite
+           thread.history, thread.pla
         );
 
       //If conservative pass, passing from the root is always non-terminal
@@ -1165,8 +1165,7 @@ bool Search::playoutDescend(
       thread.history.makeBoardMoveAssumeLegal(thread.board,bestChildMoveLoc,thread.pla);
       thread.pla = getOpp(thread.pla);
       if(searchParams.useGraphSearch)
-        thread.graphHash = GraphHash::getGraphHash(
-          thread.history, thread.pla,searchParams.drawEquivalentWinsForWhite
+        thread.graphHash = GraphHash::getGraphHash(thread.history, thread.pla
         );
     }
 

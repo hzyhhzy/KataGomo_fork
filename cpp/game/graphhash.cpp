@@ -1,8 +1,8 @@
 #include "../game/graphhash.h"
 
-Hash128 GraphHash::getStateHash(const BoardHistory& hist, Player nextPlayer, double drawEquivalentWinsForWhite) {
+Hash128 GraphHash::getStateHash(const BoardHistory& hist, Player nextPlayer) {
   const Board& board = hist.getRecentBoard(0);
-  Hash128 hash = BoardHistory::getSituationRulesAndKoHash(board, hist, nextPlayer, drawEquivalentWinsForWhite);
+  Hash128 hash = BoardHistory::getSituationRulesHash(board, hist, nextPlayer);
 
   // Fold in whether the game is over or not
   if(hist.isGameFinished)
@@ -11,11 +11,12 @@ Hash128 GraphHash::getStateHash(const BoardHistory& hist, Player nextPlayer, dou
   return hash;
 }
 
-Hash128 GraphHash::getGraphHash(const BoardHistory& hist, Player nextPlayer, double drawEquivalentWinsForWhite) {
-    return getStateHash(hist,nextPlayer,drawEquivalentWinsForWhite);
+Hash128 GraphHash::getGraphHash(const BoardHistory& hist, Player nextPlayer) {
+  return getStateHash(hist, nextPlayer);
 }
 
-Hash128 GraphHash::getGraphHashFromScratch(const BoardHistory& histOrig, Player nextPlayer, double drawEquivalentWinsForWhite) {
+Hash128
+GraphHash::getGraphHashFromScratch(const BoardHistory& histOrig, Player nextPlayer) {
   BoardHistory hist = histOrig.copyToInitial();
   Board board = hist.getRecentBoard(0);
   Hash128 graphHash = Hash128();
@@ -25,11 +26,12 @@ Hash128 GraphHash::getGraphHashFromScratch(const BoardHistory& histOrig, Player 
     assert(suc);
   }
   assert(
-    BoardHistory::getSituationRulesAndKoHash(board, hist, nextPlayer, drawEquivalentWinsForWhite) ==
-    BoardHistory::getSituationRulesAndKoHash(histOrig.getRecentBoard(0), histOrig, nextPlayer, drawEquivalentWinsForWhite)
+    BoardHistory::getSituationRulesHash(board, hist, nextPlayer) ==
+    BoardHistory::getSituationRulesHash(
+      histOrig.getRecentBoard(0), histOrig, nextPlayer)
   );
 
-  graphHash = getGraphHash(hist, nextPlayer, drawEquivalentWinsForWhite);
+  graphHash = getGraphHash(hist, nextPlayer);
   return graphHash;
 }
 

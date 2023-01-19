@@ -41,14 +41,14 @@ const Hash128 MiscNNInputParams::ZOBRIST_NN_POLICY_TEMP =
 //-----------------------------------------------------------------------------------------------------------
 //-----------------------------------------------------------------------------------------------------------
 
-double ScoreValue::whiteWinsOfWinner(Player winner, double drawEquivalentWinsForWhite) {
+double ScoreValue::whiteWinsOfWinner(Player winner, double noResultUtilityForWhite) {
   if(winner == P_WHITE)
     return 1.0;
   else if(winner == P_BLACK)
     return 0.0;
 
   assert(winner == C_EMPTY);
-  return drawEquivalentWinsForWhite;
+  return noResultUtilityForWhite;
 }
 
 static const double twoOverPi = 0.63661977236758134308;
@@ -436,7 +436,8 @@ Hash128 NNInputs::getHash(
   const Board& board, const BoardHistory& hist, Player nextPlayer,
   const MiscNNInputParams& nnInputParams
 ) {
-  Hash128 hash = BoardHistory::getSituationRulesAndKoHash(board, hist, nextPlayer, nnInputParams.drawEquivalentWinsForWhite);
+  Hash128 hash =
+    BoardHistory::getSituationRulesHash(board, hist, nextPlayer);
 
   //Fold in whether the game is over or not, since this affects how we compute input features
   //but is not a function necessarily of previous hashed values.
@@ -460,6 +461,12 @@ Hash128 NNInputs::getHash(
     hash.hash0 += hash.hash1;
     hash ^= MiscNNInputParams::ZOBRIST_NN_POLICY_TEMP;
   }
+
+  // Fold in noResultUtilityForWhite
+  int64_t noResultUtilityForWhiteDiscretized = (int64_t)(nnInputParams.noResultUtilityForWhite * 2048.0f);
+  hash.hash0 ^= Hash::murmurMix((uint64_t)noResultUtilityForWhiteDiscretized);
+  hash.hash1 = Hash::rrmxmx(hash.hash1 + (uint64_t)noResultUtilityForWhiteDiscretized);
+  hash.hash0 += hash.hash1;
 
   return hash;
 }
@@ -527,13 +534,14 @@ void NNInputs::fillRowV7(
   else
     ASSERT_UNREACHABLE;
 
+  
+  // Parameter 0 noResultUtilityForWhite
+  rowGlobal[0] = pla == C_WHITE ? nnInputParams.noResultUtilityForWhite : -nnInputParams.noResultUtilityForWhite;
 
-  //Used for handicap play
-  //Parameter 15 is used because there's actually a discontinuity in how training behavior works when this is
-  //nonzero, no matter how slightly.
+  // Parameter 15 is used because there's actually a discontinuity in how training behavior works when this is
+  // nonzero, no matter how slightly.
   if(nnInputParams.playoutDoublingAdvantage != 0) {
     rowGlobal[15] = 1.0;
     rowGlobal[16] = (float)(0.5 * nnInputParams.playoutDoublingAdvantage);
   }
-
 }

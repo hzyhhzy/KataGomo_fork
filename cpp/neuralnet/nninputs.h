@@ -31,7 +31,7 @@ namespace NNInputs {
 }
 
 struct MiscNNInputParams {
-  double drawEquivalentWinsForWhite = 0.5;
+  double noResultUtilityForWhite = 0.0;
   double playoutDoublingAdvantage = 0.0;
   float nnPolicyTemperature = 1.0f;
   // If no symmetry is specified, it will use default or random based on config, unless node is already cached.
@@ -151,7 +151,7 @@ namespace SymmetryHelpers {
 namespace ScoreValue {
 
   //The number of wins a game result should count as
-  double whiteWinsOfWinner(Player winner, double drawEquivalentWinsForWhite);
+  double whiteWinsOfWinner(Player winner, double noResultUtilityForWhite);
 
 }
 

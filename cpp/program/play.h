@@ -108,9 +108,7 @@ class GameInitializer {
   double allowRectangleProb;
 
 
-  int numExtraBlackFixed;
-  double noResultStdev;
-  double drawRandRadius;
+  double noResultRandRadius;
 
   std::vector<Sgf::PositionSample> startPoses;
   std::vector<double> startPosCumProbs;
