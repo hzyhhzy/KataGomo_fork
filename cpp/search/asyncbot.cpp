@@ -82,10 +82,6 @@ void AsyncBot::setPlayerIfNew(Player pla) {
   stopAndWait();
   search->setPlayerIfNew(pla);
 }
-void AsyncBot::setKomiIfNew(float newKomi) {
-  stopAndWait();
-  search->setKomiIfNew(newKomi);
-}
 void AsyncBot::setAvoidMoveUntilByLoc(const std::vector<int>& bVec, const std::vector<int>& wVec) {
   stopAndWait();
   search->setAvoidMoveUntilByLoc(bVec,wVec);

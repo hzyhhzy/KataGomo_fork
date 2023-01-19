@@ -15,18 +15,13 @@ struct AnalysisData {
   double radius; //In units of utility
   double utility; //From -1 to 1 or -1.25 to -1.25 or other similar bounds, depending on score utility
   double resultUtility; //Utility from winloss result
-  double scoreUtility; //Utility from score. Summing with resultUtility gives utility.
   double winLossValue; //From -1 to 1
   double policyPrior; //From 0 to 1
-  double scoreMean; //In units of points
-  double scoreStdev; //In units of points
-  double lead; //In units of points
   double ess; //Effective sample size taking into account weighting, could be somewhat smaller than visits
   double weightFactor; //Due to child value weighting
   double weightSum; //Internal value that is used instead of visits for everything
   double weightSqSum; //Sum of squares
   double utilitySqAvg;
-  double scoreMeanSqAvg;
   int order; //Preference order of the moves, 0 is best
   Loc isSymmetryOf; //If not Board::NULL_LOC, this move is a duplicate analysis data reflected from isSymmetryOf
   int symmetry; //The symmetry applied to isSymmetryOf to get move, or 0.

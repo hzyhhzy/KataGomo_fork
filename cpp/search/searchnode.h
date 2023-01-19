@@ -15,9 +15,6 @@ struct NodeStatsAtomic {
   std::atomic<int64_t> visits;
   std::atomic<double> winLossValueAvg;
   std::atomic<double> noResultValueAvg;
-  std::atomic<double> scoreMeanAvg;
-  std::atomic<double> scoreMeanSqAvg;
-  std::atomic<double> leadAvg;
   std::atomic<double> utilityAvg;
   std::atomic<double> utilitySqAvg;
   std::atomic<double> weightSum;
@@ -41,9 +38,6 @@ struct NodeStats {
   int64_t visits;
   double winLossValueAvg;
   double noResultValueAvg;
-  double scoreMeanAvg;
-  double scoreMeanSqAvg;
-  double leadAvg;
   double utilityAvg;
   double utilitySqAvg;
   double weightSum;

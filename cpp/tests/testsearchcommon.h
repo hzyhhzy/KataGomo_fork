@@ -13,7 +13,6 @@ namespace TestSearchCommon {
   struct TestSearchOptions {
     int numMovesInARow;
     bool printRootPolicy;
-    bool printEndingScoreValueBonus;
     bool printPlaySelectionValues;
     bool printRootValues;
     bool printPrunedRootValues;
@@ -32,7 +31,7 @@ namespace TestSearchCommon {
 
   void runBotOnPosition(AsyncBot* bot, Board board, Player nextPla, BoardHistory hist, TestSearchOptions opts);
 
-  void runBotOnSgf(AsyncBot* bot, const std::string& sgfStr, const Rules& defaultRules, int turnIdx, float overrideKomi, TestSearchOptions opts);
+  void runBotOnSgf(AsyncBot* bot, const std::string& sgfStr, const Rules& defaultRules, int turnIdx, TestSearchOptions opts);
 
   NNEvaluator* startNNEval(
     const std::string& modelFile, Logger& logger, const std::string& seed, int nnXLen, int nnYLen,

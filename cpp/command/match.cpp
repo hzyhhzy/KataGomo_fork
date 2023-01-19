@@ -28,7 +28,6 @@ static void signalHandler(int signal)
 
 int MainCmds::match(const vector<string>& args) {
   Board::initHash();
-  ScoreValue::initTables();
   Rand seedRand;
 
   ConfigParser cfg;
@@ -307,7 +306,6 @@ int MainCmds::match(const vector<string>& args) {
     }
   }
   NeuralNet::globalCleanup();
-  ScoreValue::freeTables();
 
   if(sigReceived.load())
     logger.write("Exited cleanly after signal");

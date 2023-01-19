@@ -26,14 +26,6 @@ struct InitialPosition {
 };
 
 
-struct ExtraBlackAndKomi {
-  float komiMean = 7.5f;
-  float komiStdev = 7.5f;
-  bool makeGameFair = false;
-  bool makeGameFairForEmptyBoard = false;
-  bool allowInteger = true;
-};
-
 struct OtherGameProperties {
   bool isSgfPos = false;
   bool isHintPos = false;
@@ -66,7 +58,6 @@ class GameInitializer {
   //Does NOT place handicap stones, users of this function need to place them manually
   void createGame(
     Board& board, Player& pla, BoardHistory& hist,
-    ExtraBlackAndKomi& extraBlackAndKomi,
     SearchParams& params,
     const InitialPosition* initialPosition,
     const PlaySettings& playSettings,
@@ -77,7 +68,6 @@ class GameInitializer {
   //A version that doesn't randomize params
   void createGame(
     Board& board, Player& pla, BoardHistory& hist,
-    ExtraBlackAndKomi& extraBlackAndKomi,
     const InitialPosition* initialPosition,
     const PlaySettings& playSettings,
     OtherGameProperties& otherGameProps,
@@ -100,7 +90,6 @@ class GameInitializer {
   void initShared(ConfigParser& cfg, Logger& logger);
   void createGameSharedUnsynchronized(
     Board& board, Player& pla, BoardHistory& hist,
-    ExtraBlackAndKomi& extraBlackAndKomi,
     const InitialPosition* initialPosition,
     const PlaySettings& playSettings,
     OtherGameProperties& otherGameProps,
@@ -118,18 +107,6 @@ class GameInitializer {
 
   double allowRectangleProb;
 
-  float komiMean;
-  float komiStdev;
-  double komiAllowIntegerProb;
-  double forkCompensateKomiProb;
-  double sgfCompensateKomiProb;
-  double komiBigStdevProb;
-  float komiBigStdev;
-  double komiBiggerStdevProb;
-  float komiBiggerStdev;
-  double handicapKomiInterpZeroProb;
-  double sgfKomiInterpZeroProb;
-  bool komiAuto;
 
   int numExtraBlackFixed;
   double noResultStdev;
@@ -226,7 +203,7 @@ namespace Play {
 
   //In the case where checkForNewNNEval is provided, will MODIFY the provided botSpecs with any new nneval!
   FinishedGameData* runGame(
-    const Board& startBoard, Player pla, const BoardHistory& startHist, ExtraBlackAndKomi extraBlackAndKomi,
+    const Board& startBoard, Player pla, const BoardHistory& startHist, 
     MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW,
     const std::string& searchRandSeed,
     bool clearBotBeforeSearch,
@@ -236,12 +213,12 @@ namespace Play {
     const PlaySettings& playSettings, const OtherGameProperties& otherGameProps,
     Rand& gameRand,
     std::function<NNEvaluator*()> checkForNewNNEval,
-    std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove
+    std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove
   );
 
   //In the case where checkForNewNNEval is provided, will MODIFY the provided botSpecs with any new nneval!
   FinishedGameData* runGame(
-    const Board& startBoard, Player pla, const BoardHistory& startHist, ExtraBlackAndKomi extraBlackAndKomi,
+    const Board& startBoard, Player pla, const BoardHistory& startHist, 
     MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW,
     Search* botB, Search* botW,
     bool clearBotBeforeSearch,
@@ -251,7 +228,7 @@ namespace Play {
     const PlaySettings& playSettings, const OtherGameProperties& otherGameProps,
     Rand& gameRand,
     std::function<NNEvaluator*()> checkForNewNNEval,
-    std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove
+    std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove
   );
 
 }
@@ -285,7 +262,7 @@ public:
     const WaitableFlag* shouldPause,
     std::function<NNEvaluator*()> checkForNewNNEval,
     std::function<void(const MatchPairer::BotSpec&, Search*)> afterInitialization,
-    std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove
+    std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove
   );
 
   const GameInitializer* getGameInitializer() const;

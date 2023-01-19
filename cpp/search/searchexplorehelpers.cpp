@@ -102,8 +102,6 @@ double Search::getExploreSelectionValueOfChild(
   int32_t childVirtualLosses = child->virtualLosses.load(std::memory_order_acquire);
   int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
   double utilityAvg = child->stats.utilityAvg.load(std::memory_order_acquire);
-  double scoreMeanAvg = child->stats.scoreMeanAvg.load(std::memory_order_acquire);
-  double scoreMeanSqAvg = child->stats.scoreMeanSqAvg.load(std::memory_order_acquire);
   double childWeight = child->stats.getChildWeight(childEdgeVisits,childVisits);
 
   //It's possible that childVisits is actually 0 here with multithreading because we're visiting this node while a child has
@@ -122,7 +120,7 @@ double Search::getExploreSelectionValueOfChild(
   if(childVirtualLosses > 0) {
     double virtualLossWeight = childVirtualLosses * searchParams.numVirtualLossesPerThread;
 
-    double utilityRadius = searchParams.winLossUtilityFactor + searchParams.staticScoreUtilityFactor + searchParams.dynamicScoreUtilityFactor;
+    double utilityRadius = searchParams.winLossUtilityFactor;
     double virtualLossUtility = (parent.nextPla == P_WHITE ? -utilityRadius : utilityRadius);
     double virtualLossWeightFrac = (double)virtualLossWeight / (virtualLossWeight + std::max(0.25,childWeight));
     childUtility = childUtility + (virtualLossUtility - childUtility) * virtualLossWeightFrac;
@@ -210,8 +208,6 @@ double Search::getReducedPlaySelectionWeight(
   float nnPolicyProb = parentPolicyProbs[movePos];
 
   int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
-  double scoreMeanAvg = child->stats.scoreMeanAvg.load(std::memory_order_acquire);
-  double scoreMeanSqAvg = child->stats.scoreMeanSqAvg.load(std::memory_order_acquire);
   double utilityAvg = child->stats.utilityAvg.load(std::memory_order_acquire);
   double childWeight = child->stats.getChildWeight(childEdgeVisits,childVisits);
 
@@ -277,7 +273,7 @@ double Search::getFpuValueForChildrenAssumeVisited(
   {
     double fpuReductionMax = isRoot ? searchParams.rootFpuReductionMax : searchParams.fpuReductionMax;
     double fpuLossProp = isRoot ? searchParams.rootFpuLossProp : searchParams.fpuLossProp;
-    double utilityRadius = searchParams.winLossUtilityFactor + searchParams.staticScoreUtilityFactor + searchParams.dynamicScoreUtilityFactor;
+    double utilityRadius = searchParams.winLossUtilityFactor;
 
     double reduction = fpuReductionMax * sqrt(policyProbMassVisited);
     fpuValue = pla == P_WHITE ? parentUtilityForFPU - reduction : parentUtilityForFPU + reduction;

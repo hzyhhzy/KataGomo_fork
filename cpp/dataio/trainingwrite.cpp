@@ -8,10 +8,7 @@ using namespace std;
 ValueTargets::ValueTargets()
   :win(0),
    loss(0),
-   noResult(0),
-   score(0),
-   hasLead(false),
-   lead(0)
+   noResult(0)
 {}
 ValueTargets::~ValueTargets()
 {}
@@ -141,15 +138,10 @@ void FinishedGameData::printDebug(ostream& out) const {
     out << whiteValueTargetsByTurn[i].win << " ";
     out << whiteValueTargetsByTurn[i].loss << " ";
     out << whiteValueTargetsByTurn[i].noResult << " ";
-    out << whiteValueTargetsByTurn[i].score << " ";
-    if(whiteValueTargetsByTurn[i].hasLead)
-      out << whiteValueTargetsByTurn[i].lead << " ";
-    else
-      out << "-" << " ";
     out << endl;
   }
   for(int i = 0; i<nnRawStatsByTurn.size(); i++) {
-    out << "Raw Stats " << nnRawStatsByTurn[i].whiteWinLoss << " " << nnRawStatsByTurn[i].whiteScoreMean << " " << nnRawStatsByTurn[i].policyEntropy << endl;
+    out << "Raw Stats " << nnRawStatsByTurn[i].whiteWinLoss << " " << nnRawStatsByTurn[i].policyEntropy << endl;
   }
   for(int i = 0; i<sidePositions.size(); i++) {
     SidePosition* sp = sidePositions[i];
@@ -182,7 +174,7 @@ TrainingWriteBuffers::TrainingWriteBuffers(int iVersion, int maxRws, int numBCha
    globalInputNC({maxRws, numFChannels}),
    policyTargetsNCMove({maxRws, POLICY_TARGET_NUM_CHANNELS, NNPos::getPolicySize(xLen,yLen)}),
    globalTargetsNC({maxRws, GLOBAL_TARGET_NUM_CHANNELS}),
-   scoreDistrN({maxRws, xLen*yLen*2+NNPos::EXTRA_SCORE_DISTR_RADIUS*2}),
+   scoreDistrN({maxRws, xLen * yLen * 2 + NNPos::EXTRA_SCORE_DISTR_RADIUS * 2}),
    valueTargetsNCHW({maxRws, VALUE_SPATIAL_TARGET_NUM_CHANNELS, yLen, xLen})
 {
   binaryInputNCHWUnpacked = new float[numBChannels * xLen * yLen];
@@ -268,7 +260,6 @@ static void fillValueTDTargets(const vector<ValueTargets>& whiteValueTargetsByTu
   double winValue = 0.0;
   double lossValue = 0.0;
   double noResultValue = 0.0;
-  double score = 0.0;
 
   double weightLeft = 1.0;
   for(int i = idx; i<whiteValueTargetsByTurn.size(); i++) {
@@ -287,12 +278,11 @@ static void fillValueTDTargets(const vector<ValueTargets>& whiteValueTargetsByTu
     winValue += weightNow * (nextPlayer == P_WHITE ? targets.win : targets.loss);
     lossValue += weightNow * (nextPlayer == P_WHITE ? targets.loss : targets.win);
     noResultValue += weightNow * targets.noResult;
-    score += weightNow * (nextPlayer == P_WHITE ? targets.score : -targets.score);
   }
   buf[0] = (float)winValue;
   buf[1] = (float)lossValue;
   buf[2] = (float)noResultValue;
-  buf[3] = (float)score;
+  buf[3] = 0.0f;
 }
 
 void TrainingWriteBuffers::addRow(
@@ -392,12 +382,6 @@ void TrainingWriteBuffers::addRow(
   //Lead
   rowGlobal[21] = 0.0f;
   rowGlobal[29] = 0.0f;
-  const ValueTargets& thisTargets = whiteValueTargets[whiteValueTargetsIdx];
-  if(thisTargets.hasLead && !(data.endHist.isGameFinished && data.endHist.isNoResult)) {
-    //Flip based on next player for training
-    rowGlobal[21] = nextPlayer == P_WHITE ? thisTargets.lead : -thisTargets.lead;
-    rowGlobal[29] = 1.0f;
-  }
 
   //Expected time of arrival of winloss variance, in turns
   {
@@ -444,7 +428,7 @@ void TrainingWriteBuffers::addRow(
   rowGlobal[46] = (float)((gameHash.hash1 >> 44) & 0xFFFFF);
 
   //Various other data
-  rowGlobal[47] = hist.currentSelfKomi(nextPlayer,data.drawEquivalentWinsForWhite);
+  rowGlobal[47] = 0.0f;
   rowGlobal[48] = (hist.rules.scoringRule == Rules::SCORING_AREA) ? 1.0f : 0.0f;
 
   //Earlier neural net metadata
@@ -463,7 +447,7 @@ void TrainingWriteBuffers::addRow(
 
   //Some stats
   rowGlobal[57] = (float)(nextPlayer == P_WHITE ? nnRawStats.whiteWinLoss : -nnRawStats.whiteWinLoss);
-  rowGlobal[58] = (float)(nextPlayer == P_WHITE ? nnRawStats.whiteScoreMean : -nnRawStats.whiteScoreMean);
+  rowGlobal[58] = 0.0f;
   rowGlobal[59] = (float)nnRawStats.policyEntropy;
 
   //Original number of visits
@@ -486,34 +470,17 @@ void TrainingWriteBuffers::addRow(
   int8_t* rowOwnership = valueTargetsNCHW.data + curRows * VALUE_SPATIAL_TARGET_NUM_CHANNELS * posArea;
 
 
-    rowGlobal[27] = 1.0f;
-    //Fill score info
-    const ValueTargets& lastTargets = whiteValueTargets[whiteValueTargets.size()-1];
-    float score = nextPlayer == P_WHITE ? lastTargets.score : -lastTargets.score;
-    rowGlobal[20] = score;
+  rowGlobal[27] = 0.0f;
+  rowGlobal[20] = 0.0f;
 
-    //Fill with zeros in case the buffers differ in size
-    for(int i = 0; i<posArea*2; i++)
-      rowOwnership[i] = 0;
+  //Fill with zeros in case the buffers differ in size
+  for(int i = 0; i<posArea*2; i++)
+    rowOwnership[i] = 0;
 
 
-    //Fill score vector "onehot"-like
-    for(int i = 0; i<scoreDistrLen; i++)
-      rowScoreDistr[i] = 0;
-    int centerScore = (int)round(score);
-    int lowerIdx = centerScore+scoreDistrMid-1;
-    int upperIdx = centerScore+scoreDistrMid;
-    if(upperIdx <= 0)
-      rowScoreDistr[0] = 100;
-    else if(lowerIdx >= scoreDistrLen-1)
-      rowScoreDistr[scoreDistrLen] = 100;
-    else {
-      float lambda = score - (centerScore-0.5f);
-      int upperProp = (int)round(lambda*100.0f);
-      rowScoreDistr[lowerIdx] = 100-upperProp;
-      rowScoreDistr[upperIdx] = upperProp;
-    }
-  
+  //Fill score vector "onehot"-like
+  for(int i = 0; i<scoreDistrLen; i++)
+    rowScoreDistr[i] = 0;
 
   if(posHistForFutureBoards == NULL) {
     rowGlobal[33] = 0.0f;

@@ -58,10 +58,8 @@ struct Sgf {
   static std::vector<Sgf*> loadSgfsFiles(const std::vector<std::string>& files);
 
   XYSize getXYSize() const;
-  float getKomi() const;
   bool hasRules() const;
   Rules getRulesOrFail() const;
-  int getHandicapValue() const;
   Player getSgfWinner() const;
   Color getFirstPlayerColor() const;
 
@@ -167,7 +165,6 @@ struct CompactSgf {
   int xSize;
   int ySize;
   int64_t depth;
-  float komi;
   Player sgfWinner;
   Hash128 hash;
 
@@ -200,7 +197,6 @@ namespace WriteSgf {
   //If startTurnIdx >= 0, write a comment in the SGF root node indicating startTurnIdx, so as to
   //indicate the index of the first turn that should be used for training data. (0 means the whole SGF, 1 means skipping black's first move, etc).
   //If valueTargets is not NULL, also write down after each move the MCTS values following that search move.
-  //If overideFinishedScore is not NAN and the game is finished and the result is a score (rather than noresult or resign), set this score instead, from white's perspective.
   void writeSgf(
     std::ostream& out, const std::string& bName, const std::string& wName,
     const BoardHistory& endHist,
@@ -208,21 +204,11 @@ namespace WriteSgf {
     bool tryNicerRulesString,
     bool omitResignPlayerMove
   );
-  void writeSgf(
-    std::ostream& out, const std::string& bName, const std::string& wName,
-    const BoardHistory& endHist,
-    const FinishedGameData* gameData,
-    bool tryNicerRulesString,
-    bool omitResignPlayerMove,
-    double overrideFinishedWhiteScore
-  );
 
   //If hist is a finished game, print the result to out along with SGF tag, else do nothing
   void printGameResult(std::ostream& out, const BoardHistory& hist);
-  void printGameResult(std::ostream& out, const BoardHistory& hist, double overrideFinishedWhiteScore);
   //Get the game result without a surrounding sgf tag
   std::string gameResultNoSgfTag(const BoardHistory& hist);
-  std::string gameResultNoSgfTag(const BoardHistory& hist, double overrideFinishedWhiteScore);
 }
 
 #endif  // DATAIO_SGF_H_

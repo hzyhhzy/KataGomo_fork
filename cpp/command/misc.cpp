@@ -30,7 +30,7 @@ static void signalHandler(int signal)
 
 static void writeLine(
   const Search* search, const BoardHistory& baseHist,
-  const vector<double>& winLossHistory, const vector<double>& scoreHistory, const vector<double>& scoreStdevHistory
+  const vector<double>& winLossHistory
 ) {
   const Board board = search->getRootBoard();
   int nnXLen = search->nnXLen;
@@ -40,11 +40,9 @@ static void writeLine(
   cout << board.y_size << " ";
   cout << nnXLen << " ";
   cout << nnYLen << " ";
-  cout << baseHist.rules.komi << " ";
   if(baseHist.isGameFinished) {
     cout << PlayerIO::playerToString(baseHist.winner) << " ";
     cout << baseHist.isResignation << " ";
-    cout << baseHist.finalWhiteMinusBlackScore << " ";
   }
   else {
     cout << "-" << " ";
@@ -85,18 +83,12 @@ static void writeLine(
     cout << NNPos::locToPos(data.move,board.x_size,nnXLen,nnYLen) << " ";
     cout << data.numVisits << " ";
     cout << data.winLossValue << " ";
-    cout << data.scoreMean << " ";
-    cout << data.scoreStdev << " ";
     cout << data.policyPrior << " ";
   }
 
   cout << winLossHistory.size() << " ";
   for(int i = 0; i<winLossHistory.size(); i++)
     cout << winLossHistory[i] << " ";
-  cout << scoreHistory.size() << " ";
-  assert(scoreStdevHistory.size() == scoreHistory.size());
-  for(int i = 0; i<scoreHistory.size(); i++)
-    cout << scoreHistory[i] << " " << scoreStdevHistory[i] << " ";
 
   cout << endl;
 }
@@ -331,22 +323,17 @@ static void initializeDemoGame(Board& board, BoardHistory& hist, Player& pla, Ra
           freeMovesPlayed.push_back(nextMove);
 
         bot->clearSearch();
-        writeLine(bot->getSearch(),hist,vector<double>(),vector<double>(),vector<double>());
+        writeLine(bot->getSearch(),hist,vector<double>());
         std::this_thread::sleep_for(std::chrono::duration<double>(1.0));
 
       } //Close while(true)
 
-      int numVisits = 20;
-      PlayUtils::adjustKomiToEven(bot->getSearchStopAndWait(),NULL,board,hist,pla,numVisits,OtherGameProperties(),rand);
-      double komi = hist.rules.komi + 0.3 * rand.nextGaussian();
-      komi = 0.5 * round(2.0 * komi);
-      hist.setKomi((float)komi);
       bot->setPosition(pla,board,hist);
     }
   }
 
   bot->clearSearch();
-  writeLine(bot->getSearch(),hist,vector<double>(),vector<double>(),vector<double>());
+  writeLine(bot->getSearch(),hist,vector<double>());
   std::this_thread::sleep_for(std::chrono::duration<double>(2.0));
 
 }
@@ -354,7 +341,6 @@ static void initializeDemoGame(Board& board, BoardHistory& hist, Player& pla, Ra
 
 int MainCmds::demoplay(const vector<string>& args) {
   Board::initHash();
-  ScoreValue::initTables();
   Rand seedRand;
 
   ConfigParser cfg;
@@ -408,7 +394,6 @@ int MainCmds::demoplay(const vector<string>& args) {
 
   const bool allowResignation = cfg.contains("allowResignation") ? cfg.getBool("allowResignation") : false;
   const double resignThreshold = cfg.contains("allowResignation") ? cfg.getDouble("resignThreshold",-1.0,0.0) : -1.0; //Threshold on [-1,1], regardless of winLossUtilityFactor
-  const double resignScoreThreshold = cfg.contains("allowResignation") ? cfg.getDouble("resignScoreThreshold",-10000.0,0.0) : -10000.0;
 
   const double searchFactorWhenWinning = cfg.contains("searchFactorWhenWinning") ? cfg.getDouble("searchFactorWhenWinning",0.01,1.0) : 1.0;
   const double searchFactorWhenWinningThreshold = cfg.contains("searchFactorWhenWinningThreshold") ? cfg.getDouble("searchFactorWhenWinningThreshold",0.0,1.0) : 1.0;
@@ -436,13 +421,11 @@ int MainCmds::demoplay(const vector<string>& args) {
     bot->setPosition(pla,baseBoard,baseHist);
 
     vector<double> recentWinLossValues;
-    vector<double> recentScores;
-    vector<double> recentScoreStdevs;
 
     double callbackPeriod = 0.05;
 
-    std::function<void(const Search*)> callback = [&baseHist,&recentWinLossValues,&recentScores,&recentScoreStdevs](const Search* search) {
-      writeLine(search,baseHist,recentWinLossValues,recentScores,recentScoreStdevs);
+    std::function<void(const Search*)> callback = [&baseHist,&recentWinLossValues](const Search* search) {
+      writeLine(search,baseHist,recentWinLossValues);
     };
 
     //Move loop
@@ -474,18 +457,12 @@ int MainCmds::demoplay(const vector<string>& args) {
       }
 
       double winLossValue;
-      double expectedScore;
-      double expectedScoreStdev;
       {
         ReportedSearchValues values = bot->getSearch()->getRootValuesRequireSuccess();
         winLossValue = values.winLossValue;
-        expectedScore = values.expectedScore;
-        expectedScoreStdev = values.expectedScoreStdev;
       }
 
       recentWinLossValues.push_back(winLossValue);
-      recentScores.push_back(expectedScore);
-      recentScoreStdevs.push_back(expectedScoreStdev);
 
       bool resigned = false;
       if(allowResignation) {
@@ -496,9 +473,9 @@ int MainCmds::demoplay(const vector<string>& args) {
         int minTurnForResignation = 1 + initialBoard.x_size * initialBoard.y_size / 6;
 
         Player resignPlayerThisTurn = C_EMPTY;
-        if(winLossValue < resignThreshold && expectedScore < resignScoreThreshold)
+        if(winLossValue < resignThreshold)
           resignPlayerThisTurn = P_WHITE;
-        else if(winLossValue > -resignThreshold && expectedScore > -resignScoreThreshold)
+        else if(winLossValue > -resignThreshold)
           resignPlayerThisTurn = P_BLACK;
 
         if(resignPlayerThisTurn == pla &&
@@ -531,7 +508,7 @@ int MainCmds::demoplay(const vector<string>& args) {
     }
 
     //End of game display line
-    writeLine(bot->getSearch(),baseHist,recentWinLossValues,recentScores,recentScoreStdevs);
+    writeLine(bot->getSearch(),baseHist,recentWinLossValues);
     //Wait a bit before diving into the next game
     std::this_thread::sleep_for(std::chrono::seconds(10));
 
@@ -541,7 +518,6 @@ int MainCmds::demoplay(const vector<string>& args) {
   delete bot;
   delete nnEval;
   NeuralNet::globalCleanup();
-  ScoreValue::freeTables();
 
   logger.write("All cleaned up, quitting");
   return 0;
@@ -563,7 +539,6 @@ int MainCmds::printclockinfo(const vector<string>& args) {
 
 int MainCmds::samplesgfs(const vector<string>& args) {
   Board::initHash();
-  ScoreValue::initTables();
   Rand seedRand;
 
   vector<string> sgfDirs;
@@ -585,7 +560,6 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   int minMinRank;
   string requiredPlayerName;
   int maxHandicap;
-  double maxKomi;
 
   try {
     KataGoCommandLine cmd("Search for suprising good moves in sgfs");
@@ -608,7 +582,6 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     TCLAP::ValueArg<int> minMinRankArg("","min-min-rank","Require both players in a game to have rank at least this",false,Sgf::RANK_UNKNOWN,"INT");
     TCLAP::ValueArg<string> requiredPlayerNameArg("","required-player-name","Require player making the move to have this name",false,string(),"NAME");
     TCLAP::ValueArg<int> maxHandicapArg("","max-handicap","Require no more than this big handicap in stones",false,100,"INT");
-    TCLAP::ValueArg<double> maxKomiArg("","max-komi","Require absolute value of game komi to be at most this",false,1000,"KOMI");
     cmd.add(sgfDirArg);
     cmd.add(sgfsDirArg);
     cmd.add(outDirArg);
@@ -627,7 +600,6 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     cmd.add(minMinRankArg);
     cmd.add(requiredPlayerNameArg);
     cmd.add(maxHandicapArg);
-    cmd.add(maxKomiArg);
     cmd.parseArgs(args);
     sgfDirs = sgfDirArg.getValue();
     sgfsDirs = sgfsDirArg.getValue();
@@ -647,7 +619,6 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     minMinRank = minMinRankArg.getValue();
     requiredPlayerName = requiredPlayerNameArg.getValue();
     maxHandicap = maxHandicapArg.getValue();
-    maxKomi = maxKomiArg.getValue();
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
@@ -691,11 +662,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   };
 
   auto isSgfOkay = [&](const Sgf* sgf) {
-    if(maxHandicap < 100 && sgf->getHandicapValue() > maxHandicap)
-      return false;
     if(sgf->depth() > maxDepth)
-      return false;
-    if(std::fabs(sgf->getKomi()) > maxKomi)
       return false;
     if(minMinRank != Sgf::RANK_UNKNOWN) {
       if(sgf->getRank(P_BLACK) < minMinRank && sgf->getRank(P_WHITE) < minMinRank)
@@ -855,7 +822,6 @@ int MainCmds::samplesgfs(const vector<string>& args) {
 
   logger.write("All done");
 
-  ScoreValue::freeTables();
   return 0;
 }
 
@@ -926,7 +892,6 @@ struct PosQueueEntry {
 
 int MainCmds::dataminesgfs(const vector<string>& args) {
   Board::initHash();
-  ScoreValue::initTables();
   Rand seedRand;
 
   ConfigParser cfg;
@@ -939,7 +904,6 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   bool gameMode;
   bool treeMode;
   bool surpriseMode;
-  bool autoKomi;
   bool tolerateIllegalMoves;
   int sgfSplitCount;
   int sgfSplitIdx;
@@ -951,8 +915,6 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   int minRank;
   int minMinRank;
   string requiredPlayerName;
-  double maxKomi;
-  double maxAutoKomi;
   double maxPolicy;
 
   try {
@@ -969,7 +931,6 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     TCLAP::SwitchArg gameModeArg("","game-mode","Game mode");
     TCLAP::SwitchArg treeModeArg("","tree-mode","Tree mode");
     TCLAP::SwitchArg surpriseModeArg("","surprise-mode","Surprise mode");
-    TCLAP::SwitchArg autoKomiArg("","auto-komi","Auto komi");
     TCLAP::SwitchArg tolerateIllegalMovesArg("","tolerate-illegal-moves","Tolerate illegal moves");
     TCLAP::ValueArg<int> sgfSplitCountArg("","sgf-split-count","Number of splits",false,1,"N");
     TCLAP::ValueArg<int> sgfSplitIdxArg("","sgf-split-idx","Which split",false,0,"IDX");
@@ -981,8 +942,6 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     TCLAP::ValueArg<int> minRankArg("","min-rank","Require player making the move to have rank at least this",false,Sgf::RANK_UNKNOWN,"INT");
     TCLAP::ValueArg<int> minMinRankArg("","min-min-rank","Require both players in a game to have rank at least this",false,Sgf::RANK_UNKNOWN,"INT");
     TCLAP::ValueArg<string> requiredPlayerNameArg("","required-player-name","Require player making the move to have this name",false,string(),"NAME");
-    TCLAP::ValueArg<double> maxKomiArg("","max-komi","Require absolute value of game komi to be at most this",false,1000,"KOMI");
-    TCLAP::ValueArg<double> maxAutoKomiArg("","max-auto-komi","If absolute value of auto komi would exceed this, skip position",false,1000,"KOMI");
     TCLAP::ValueArg<double> maxPolicyArg("","max-policy","Chop off moves with raw policy more than this",false,1,"POLICY");
     cmd.add(sgfDirArg);
     cmd.add(sgfsDirArg);
@@ -992,7 +951,6 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     cmd.add(gameModeArg);
     cmd.add(treeModeArg);
     cmd.add(surpriseModeArg);
-    cmd.add(autoKomiArg);
     cmd.add(tolerateIllegalMovesArg);
     cmd.add(sgfSplitCountArg);
     cmd.add(sgfSplitIdxArg);
@@ -1004,8 +962,6 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     cmd.add(minRankArg);
     cmd.add(minMinRankArg);
     cmd.add(requiredPlayerNameArg);
-    cmd.add(maxKomiArg);
-    cmd.add(maxAutoKomiArg);
     cmd.add(maxPolicyArg);
     cmd.parseArgs(args);
 
@@ -1018,7 +974,6 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     gameMode = gameModeArg.getValue();
     treeMode = treeModeArg.getValue();
     surpriseMode = surpriseModeArg.getValue();
-    autoKomi = autoKomiArg.getValue();
     tolerateIllegalMoves = tolerateIllegalMovesArg.getValue();
     sgfSplitCount = sgfSplitCountArg.getValue();
     sgfSplitIdx = sgfSplitIdxArg.getValue();
@@ -1029,8 +984,6 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     minRank = minRankArg.getValue();
     minMinRank = minMinRankArg.getValue();
     requiredPlayerName = requiredPlayerNameArg.getValue();
-    maxKomi = maxKomiArg.getValue();
-    maxAutoKomi = maxAutoKomiArg.getValue();
     maxPolicy = maxPolicyArg.getValue();
 
     if((int)gameMode + (int)treeMode + (int)surpriseMode != 1)
@@ -1062,9 +1015,6 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   params.rootPolicyTemperatureEarly = 1.0;
   params.rootFpuReductionMax = params.fpuReductionMax * 0.5;
 
-  //Disable dynamic utility so that utilities are always comparable
-  params.staticScoreUtilityFactor += params.dynamicScoreUtilityFactor;
-  params.dynamicScoreUtilityFactor = 0;
 
   NNEvaluator* nnEval;
   {
@@ -1176,8 +1126,6 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   auto isSgfOkay = [&](const Sgf* sgf) {
     if(sgf->depth() > maxDepth)
       return false;
-    if(std::fabs(sgf->getKomi()) > maxKomi)
-      return false;
     if(minMinRank != Sgf::RANK_UNKNOWN) {
       if(sgf->getRank(P_BLACK) < minMinRank && sgf->getRank(P_WHITE) < minMinRank)
         return false;
@@ -1187,7 +1135,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     return true;
   };
 
-  auto expensiveEvaluateMove = [&toWriteQueue,&turnWeightLambda,&maxAutoKomi,&numFilteredIndivdualPoses,&surpriseMode,&logger](
+  auto expensiveEvaluateMove = [&toWriteQueue,&turnWeightLambda,&numFilteredIndivdualPoses,&surpriseMode,&logger](
     Search* search, Loc missedLoc,
     Player nextPla, const Board& board, const BoardHistory& hist,
     const Sgf::PositionSample& sample, bool markedAsHintPos
@@ -1195,10 +1143,6 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     if(shouldStop.load(std::memory_order_acquire))
       return;
 
-    if(std::fabs(hist.rules.komi) > maxAutoKomi) {
-      numFilteredIndivdualPoses.fetch_add(1);
-      return;
-    }
 
     {
       int numStonesOnBoard = 0;
@@ -1388,7 +1332,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   // ---------------------------------------------------------------------------------------------------
   //SGF MODE
 
-  auto processSgfGame = [&logger,&gameInit,&nnEval,&expensiveEvaluateMove,autoKomi,&gameModeFastThreshold,&maxDepth,&numFilteredSgfs,&maxPolicy](
+  auto processSgfGame = [&logger,&gameInit,&nnEval,&expensiveEvaluateMove,&gameModeFastThreshold,&maxDepth,&numFilteredSgfs,&maxPolicy](
     Search* search, Rand& rand, const string& fileName, CompactSgf* sgf, bool blackOkay, bool whiteOkay
   ) {
     //Don't use the SGF rules - randomize them for a bit more entropy
@@ -1419,7 +1363,6 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     vector<Player> nextPlas;
     vector<shared_ptr<NNOutput>> nnOutputs;
     vector<double> winLossValues;
-    vector<double> scoreLeads;
 
     vector<Move> moves;
     vector<double> policyPriors;
@@ -1445,7 +1388,6 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
       shared_ptr<NNOutput>& nnOutput = nnOutputs[nnOutputs.size()-1];
 
       winLossValues.push_back(superQuickValues.winLossValue);
-      scoreLeads.push_back(superQuickValues.lead);
 
       if(m < sgfMoves.size()) {
         moves.push_back(sgfMoves[m]);
@@ -1487,23 +1429,16 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
       return;
 
     vector<double> futureValue(winLossValues.size()+1);
-    vector<double> futureLead(winLossValues.size()+1);
     vector<double> pastValue(winLossValues.size());
-    vector<double> pastLead(winLossValues.size());
     futureValue[winLossValues.size()] = winLossValues[winLossValues.size()-1];
-    futureLead[winLossValues.size()] = scoreLeads[winLossValues.size()];
     for(int i = (int)winLossValues.size()-1; i >= 0; i--) {
       futureValue[i] = 0.10 * winLossValues[i] + 0.90 * futureValue[i+1];
-      futureLead[i] = 0.10 * scoreLeads[i] + 0.90 * futureLead[i+1];
     }
     pastValue[0] = winLossValues[0];
-    pastLead[0] = scoreLeads[0];
     for(int i = 1; i<(int)winLossValues.size(); i++) {
       pastValue[i] = 0.5 * winLossValues[i] + 0.5 * pastValue[i+1];
-      pastLead[i] = 0.5 * scoreLeads[i] + 0.5 * pastLead[i+1];
     }
 
-    const double scoreLeadWeight = 0.01;
     const double sumThreshold = gameModeFastThreshold;
 
     //cout << fileName << endl;
@@ -1524,8 +1459,8 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
       if(weight <= 0)
         continue;
 
-      double pastSum = pastValue[m] + pastLead[m]*scoreLeadWeight;
-      double futureSum = futureValue[m] + futureLead[m]*scoreLeadWeight;
+      double pastSum = pastValue[m];
+      double futureSum = futureValue[m];
       if((nextPlas[m] == P_WHITE && futureSum > pastSum + sumThreshold) ||
          (nextPlas[m] == P_BLACK && futureSum < pastSum - sumThreshold)) {
         //Good
@@ -1543,12 +1478,6 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
       sample.initialTurnNumber = startIdx;
       sample.hintLoc = moves[m].loc;
       sample.weight = weight;
-
-      if(autoKomi) {
-        const int64_t numVisits = 10;
-        OtherGameProperties props;
-        PlayUtils::adjustKomiToEven(search,NULL,boards[m],hists[m],nextPlas[m],numVisits,props,rand);
-      }
 
       expensiveEvaluateMove(
         search, moves[m].loc, nextPlas[m], boards[m], hists[m],
@@ -1602,7 +1531,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   // ---------------------------------------------------------------------------------------------------
   //TREE MODE
 
-  auto treePosHandler = [&gameInit,&nnEval,&expensiveEvaluateMove,&autoKomi,&maxPolicy,&surpriseMode](
+  auto treePosHandler = [&gameInit,&nnEval,&expensiveEvaluateMove,&maxPolicy,&surpriseMode](
     Search* search, Rand& rand, const BoardHistory& treeHist, int initialTurnNumber, bool markedAsHintPos
   ) {
     if(shouldStop.load(std::memory_order_acquire))
@@ -1675,11 +1604,6 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     if(!hist.isLegal(board,sample.hintLoc,pla))
       return;
 
-    if(autoKomi) {
-      const int64_t numVisits = 10;
-      OtherGameProperties props;
-      PlayUtils::adjustKomiToEven(search,NULL,board,hist,pla,numVisits,props,rand);
-    }
 
     MiscNNInputParams nnInputParams;
     bool skipCache = true; //Always ignore cache so that we get more entropy on repeated board positions due to symmetries
@@ -1929,7 +1853,6 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   delete gameInit;
   delete nnEval;
   NeuralNet::globalCleanup();
-  ScoreValue::freeTables();
   return 0;
 }
 
@@ -1940,7 +1863,6 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
 
 int MainCmds::trystartposes(const vector<string>& args) {
   Board::initHash();
-  ScoreValue::initTables();
   Rand seedRand;
 
   ConfigParser cfg;
@@ -1980,10 +1902,6 @@ int MainCmds::trystartposes(const vector<string>& args) {
   params.rootPolicyTemperature = 1.0;
   params.rootPolicyTemperatureEarly = 1.0;
   params.rootFpuReductionMax = params.fpuReductionMax * 0.5;
-
-  //Disable dynamic utility so that utilities are always comparable
-  params.staticScoreUtilityFactor += params.dynamicScoreUtilityFactor;
-  params.dynamicScoreUtilityFactor = 0;
 
   NNEvaluator* nnEval;
   {
@@ -2048,11 +1966,6 @@ int MainCmds::trystartposes(const vector<string>& args) {
       throw StringError("Illegal move in startpos: " + Sgf::PositionSample::toJsonLine(startPos));
     }
 
-    {
-      const int64_t numVisits = 10;
-      OtherGameProperties props;
-      PlayUtils::adjustKomiToEven(search,NULL,board,hist,pla,numVisits,props,seedRand);
-    }
 
     Loc hintLoc = startPos.hintLoc;
 
@@ -2090,14 +2003,12 @@ int MainCmds::trystartposes(const vector<string>& args) {
   delete search;
   delete nnEval;
   NeuralNet::globalCleanup();
-  ScoreValue::freeTables();
   return 0;
 }
 
 
 int MainCmds::viewstartposes(const vector<string>& args) {
   Board::initHash();
-  ScoreValue::initTables();
 
   ConfigParser cfg;
   string modelFile;
@@ -2135,8 +2046,7 @@ int MainCmds::viewstartposes(const vector<string>& args) {
   AsyncBot* bot = NULL;
   NNEvaluator* nnEval = NULL;
   if(cfg.getFileName() != "") {
-    const bool loadKomiFromCfg = false;
-    rules = Setup::loadSingleRules(cfg,loadKomiFromCfg);
+    rules = Setup::loadSingleRules(cfg);
     SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
     {
       Setup::initializeSession(cfg);
@@ -2213,12 +2123,6 @@ int MainCmds::viewstartposes(const vector<string>& args) {
     Board::printBoard(cout, board, hintLoc, &(hist.moveHistory));
     cout << endl;
 
-    bool autoKomi = true;
-    if(autoKomi && bot != NULL) {
-      const int64_t numVisits = 10;
-      OtherGameProperties props;
-      PlayUtils::adjustKomiToEven(bot->getSearchStopAndWait(),NULL,board,hist,pla,numVisits,props,rand);
-    }
 
     if(bot != NULL) {
       bot->setPosition(pla,board,hist);
@@ -2239,14 +2143,12 @@ int MainCmds::viewstartposes(const vector<string>& args) {
   if(nnEval != NULL)
     delete nnEval;
 
-  ScoreValue::freeTables();
   return 0;
 }
 
 
 int MainCmds::sampleinitializations(const vector<string>& args) {
   Board::initHash();
-  ScoreValue::initTables();
 
   ConfigParser cfg;
   string modelFile;
@@ -2344,7 +2246,6 @@ int MainCmds::sampleinitializations(const vector<string>& args) {
       evalBot->genMoveSynchronous(data->startPla,TimeControls());
       ReportedSearchValues values = evalBot->getSearchStopAndWait()->getRootValuesRequireSuccess();
       cout << "Winloss: " << values.winLossValue << endl;
-      cout << "Lead: " << values.lead << endl;
     }
 
     delete data;
@@ -2355,6 +2256,5 @@ int MainCmds::sampleinitializations(const vector<string>& args) {
   if(nnEval != NULL)
     delete nnEval;
 
-  ScoreValue::freeTables();
   return 0;
 }

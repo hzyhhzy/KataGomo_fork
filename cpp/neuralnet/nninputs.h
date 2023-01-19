@@ -15,7 +15,7 @@ namespace NNPos {
   constexpr int MAX_BOARD_AREA = MAX_BOARD_LEN * MAX_BOARD_LEN;
   //Policy output adds +1 for the pass move
   constexpr int MAX_NN_POLICY_SIZE = MAX_BOARD_AREA + 1;
-  //Extra score distribution radius, used for writing score in data rows and for the neural net score belief output
+  // Extra score distribution radius, used for writing score in data rows and for the neural net score belief output
   constexpr int EXTRA_SCORE_DISTR_RADIUS = 60;
 
   int xyToPos(int x, int y, int nnXLen);
@@ -68,17 +68,11 @@ struct NNOutput {
   float whiteLossProb;
   float whiteNoResultProb;
 
-  //The first two moments of the believed distribution of the expected score at the end of the game, from white's perspective.
-  float whiteScoreMean;
-  float whiteScoreMeanSq;
-  //Points to make game fair
-  float whiteLead;
   //Expected arrival time of remaining game variance, in turns, weighted by variance, only when modelVersion >= 9
   float varTimeLeft;
   //A metric indicating the "typical" error in the winloss value or the score that the net expects, relative to the
   //short-term future MCTS value.
   float shorttermWinlossError;
-  float shorttermScoreError;
 
   //Indexed by pos rather than loc
   //Values in here will be set to negative for illegal moves, including superko
@@ -155,34 +149,10 @@ namespace SymmetryHelpers {
 //Utility functions for computing the "scoreValue", the unscaled utility of various numbers of points, prior to multiplication by
 //staticScoreUtilityFactor or dynamicScoreUtilityFactor (see searchparams.h)
 namespace ScoreValue {
-  //MUST BE CALLED AT PROGRAM START!
-  void initTables();
-  void freeTables();
 
   //The number of wins a game result should count as
   double whiteWinsOfWinner(Player winner, double drawEquivalentWinsForWhite);
-  //The score difference that a game result should count as on average
-  double whiteScoreDrawAdjust(double finalWhiteMinusBlackScore, double drawEquivalentWinsForWhite, const BoardHistory& hist);
 
-  //The unscaled utility of achieving a certain score difference
-  double whiteScoreValueOfScoreSmooth(double finalWhiteMinusBlackScore, double center, double scale, double drawEquivalentWinsForWhite, const Board& b, const BoardHistory& hist);
-  double whiteScoreValueOfScoreSmoothNoDrawAdjust(double finalWhiteMinusBlackScore, double center, double scale, const Board& b);
-  //Approximately invert whiteScoreValueOfScoreSmooth
-  double approxWhiteScoreOfScoreValueSmooth(double scoreValue, double center, double scale, const Board& b);
-  //The derviative of whiteScoreValueOfScoreSmoothNoDrawAdjust with respect to finalWhiteMinusBlackScore.
-  double whiteDScoreValueDScoreSmoothNoDrawAdjust(double finalWhiteMinusBlackScore, double center, double scale, const Board& b);
-
-  //Compute what the scoreMeanSq should be for a final game result
-  //It is NOT simply the same as finalWhiteMinusBlackScore^2 because for integer komi we model it as a distribution where with the appropriate probability
-  //you gain or lose 0.5 point to achieve the desired drawEquivalentWinsForWhite, so it actually has some variance.
-  double whiteScoreMeanSqOfScoreGridded(double finalWhiteMinusBlackScore, double drawEquivalentWinsForWhite);
-
-  //The expected unscaled utility of the final score difference, given the mean and stdev of the distribution of that difference,
-  //assuming roughly a normal distribution.
-  double expectedWhiteScoreValue(double whiteScoreMean, double whiteScoreStdev, double center, double scale, const Board& b);
-
-  //Get the standard deviation of score given the E(score) and E(score^2)
-  double getScoreStdev(double scoreMeanAvg, double scoreMeanSqAvg);
 }
 
 #endif  // NEURALNET_NNINPUTS_H_

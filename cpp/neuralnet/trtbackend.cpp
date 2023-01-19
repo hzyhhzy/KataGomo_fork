@@ -1534,38 +1534,20 @@ void NeuralNet::getOutput(
     int numScoreValueChannels = inputBuffers->singleScoreValueResultElts;
     if(version >= 9) {
       assert(numScoreValueChannels == 6);
-      output->whiteScoreMean = inputBuffers->scoreValueResults[row * numScoreValueChannels];
-      output->whiteScoreMeanSq = inputBuffers->scoreValueResults[row * numScoreValueChannels + 1];
-      output->whiteLead = inputBuffers->scoreValueResults[row * numScoreValueChannels + 2];
       output->varTimeLeft = inputBuffers->scoreValueResults[row * numScoreValueChannels + 3];
       output->shorttermWinlossError = inputBuffers->scoreValueResults[row * numScoreValueChannels + 4];
-      output->shorttermScoreError = inputBuffers->scoreValueResults[row * numScoreValueChannels + 5];
     } else if(version >= 8) {
       assert(numScoreValueChannels == 4);
-      output->whiteScoreMean = inputBuffers->scoreValueResults[row * numScoreValueChannels];
-      output->whiteScoreMeanSq = inputBuffers->scoreValueResults[row * numScoreValueChannels + 1];
-      output->whiteLead = inputBuffers->scoreValueResults[row * numScoreValueChannels + 2];
       output->varTimeLeft = inputBuffers->scoreValueResults[row * numScoreValueChannels + 3];
       output->shorttermWinlossError = 0;
-      output->shorttermScoreError = 0;
     } else if(version >= 4) {
       assert(numScoreValueChannels == 2);
-      output->whiteScoreMean = inputBuffers->scoreValueResults[row * numScoreValueChannels];
-      output->whiteScoreMeanSq = inputBuffers->scoreValueResults[row * numScoreValueChannels + 1];
-      output->whiteLead = output->whiteScoreMean;
       output->varTimeLeft = 0;
       output->shorttermWinlossError = 0;
-      output->shorttermScoreError = 0;
     } else if(version >= 3) {
       assert(numScoreValueChannels == 1);
-      output->whiteScoreMean = inputBuffers->scoreValueResults[row * numScoreValueChannels];
-      // Version 3 neural nets don't have any second moment output, implicitly already folding it in, so we just use the
-      // mean squared
-      output->whiteScoreMeanSq = output->whiteScoreMean * output->whiteScoreMean;
-      output->whiteLead = output->whiteScoreMean;
       output->varTimeLeft = 0;
       output->shorttermWinlossError = 0;
-      output->shorttermScoreError = 0;
     } else {
       ASSERT_UNREACHABLE;
     }

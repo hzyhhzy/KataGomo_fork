@@ -91,8 +91,6 @@ struct Search {
   std::vector<int> rootSymmetries;
   std::vector<int> rootPruneOnlySymmetries;
 
-  //Used to center for dynamic scorevalue
-  double recentScoreCenter;
 
 
   SearchParams searchParams;
@@ -187,7 +185,6 @@ struct Search {
 
   void setPlayerAndClearHistory(Player pla);
   void setPlayerIfNew(Player pla);
-  void setKomiIfNew(float newKomi); //Does not clear history, does clear search unless komi is equal.
   void setRootHintLoc(Loc hintLoc);
   void setAvoidMoveUntilByLoc(const std::vector<int>& bVec, const std::vector<int>& wVec);
   void setRootSymmetryPruningOnly(const std::vector<int>& rootPruneOnlySymmetries);
@@ -336,8 +333,7 @@ struct Search {
 
 
 
-  std::pair<double,double> getAverageShorttermWLAndScoreError(const SearchNode* node = NULL) const;
-  bool getSharpScore(const SearchNode* node, double& ret) const;
+  double getAverageShorttermWLError(const SearchNode* node = NULL) const;
 
   //Fill json with analysis engine format information about search results
   bool getAnalysisJson(
@@ -374,9 +370,6 @@ private:
   //----------------------------------------------------------------------------------------
   double getResultUtility(double winlossValue, double noResultValue) const;
   double getResultUtilityFromNN(const NNOutput& nnOutput) const;
-  double getScoreUtility(double scoreMeanAvg, double scoreMeanSqAvg) const;
-  double getScoreUtilityDiff(double scoreMeanAvg, double scoreMeanSqAvg, double delta) const;
-  double getApproxScoreUtilityDerivative(double scoreMean) const;
   double getUtilityFromNN(const NNOutput& nnOutput) const;
 
   //----------------------------------------------------------------------------------------
@@ -503,9 +496,6 @@ private:
     SearchNode& node,
     double winLossValue,
     double noResultValue,
-    double scoreMean,
-    double scoreMeanSq,
-    double lead,
     double weight,
     bool isTerminal,
     bool assumeNoExistingWeight
@@ -569,7 +559,7 @@ private:
   AnalysisData getAnalysisDataOfSingleChild(
     const SearchNode* child, int64_t edgeVisits, std::vector<Loc>& scratchLocs, std::vector<double>& scratchValues,
     Loc move, double policyProb, double fpuValue, double parentUtility, double parentWinLossValue,
-    double parentScoreMean, double parentScoreStdev, double parentLead, int maxPVDepth
+     int maxPVDepth
   ) const;
 
   void printPV(std::ostream& out, const std::vector<Loc>& buf) const;
@@ -579,13 +569,8 @@ private:
     std::string& prefix, int64_t origVisits, int depth, const AnalysisData& data, Player perspective
   ) const;
 
-  double getSharpScoreHelper(
-    const SearchNode* node,
-    std::unordered_set<const SearchNode*>& graphPath,
-    double policyProbsBuf[NNPos::MAX_NN_POLICY_SIZE]
-  ) const;
 
-  std::pair<double,double> getAverageShorttermWLAndScoreErrorHelper(const SearchNode* node) const;
+  double getAverageShorttermWLErrorHelper(const SearchNode* node) const;
 
 
 

@@ -34,11 +34,6 @@ struct BoardHistory {
   bool isGameFinished;
   //Winner of the game if the game is supposed to have ended now, C_EMPTY if it is a draw or isNoResult.
   Player winner;
-  //Score difference of the game if the game is supposed to have ended now, does NOT take into account whiteKomiAdjustmentForDrawUtility
-  //Always an integer or half-integer.
-  float finalWhiteMinusBlackScore;
-  //True if this game is supposed to be ended with a score
-  bool isScored;
   //True if this game is supposed to be ended but there is no result
   bool isNoResult;
   //True if this game is supposed to be ended but it was by resignation rather than an actual end position
@@ -57,8 +52,6 @@ struct BoardHistory {
 
   //Clears all history and status and bonus points, sets encore phase and rules
   void clear(const Board& board, Player pla, const Rules& rules);
-  //Set only the komi field of the rules, does not clear history, does recompute game score if game is over.
-  void setKomi(float newKomi);
   //Set the initial turn number. Affects nothing else.
   void setInitialTurnNumber(int n);
 
@@ -66,8 +59,6 @@ struct BoardHistory {
   //(such as setInitialTurnNumber, setAssumeMultipleStartingBlackMovesAreHandicap) set identically.
   BoardHistory copyToInitial() const;
 
-  float whiteKomiAdjustmentForDraws(double drawEquivalentWinsForWhite) const;
-  float currentSelfKomi(Player pla, double drawEquivalentWinsForWhite) const;
 
   //Returns a reference a recent board state, where 0 is the current board, 1 is 1 move ago, etc.
   //Requires that numMovesAgo < NUM_RECENT_BOARDS
@@ -88,7 +79,6 @@ struct BoardHistory {
   bool makeBoardMoveTolerant(Board& board, Loc moveLoc, Player movePla);
   bool isLegalTolerant(const Board& board, Loc moveLoc, Player movePla) const;
 
-  //Score the board as-is. If the game is already finished, and is NOT a no-result, then this should be idempotent.
   void setWinnerByResignation(Player pla);
   void setWinner(Color pla);
 

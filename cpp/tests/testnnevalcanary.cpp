@@ -34,8 +34,6 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     testAssert(buf.result->policyProbs[buf.result->getPos(Location::ofString("E16",board),board)] >= 0.95);
     testAssert(buf.result->whiteWinProb > 0.30);
     testAssert(buf.result->whiteWinProb < 0.70);
-    testAssert(buf.result->whiteLead > -2.5);
-    testAssert(buf.result->whiteLead < 2.5);
 
     delete sgf;
   }
@@ -66,8 +64,6 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     testAssert(buf.result->policyProbs[buf.result->getPos(Location::ofString("P15",board),board)] >= 0.80);
     testAssert(buf.result->whiteWinProb > 0.30);
     testAssert(buf.result->whiteWinProb < 0.70);
-    testAssert(buf.result->whiteLead > -2.5);
-    testAssert(buf.result->whiteLead < 2.5);
 
     delete sgf;
   }
@@ -97,8 +93,6 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     testAssert(buf.result->policyProbs[buf.result->getPos(Location::ofString("Q2",board),board)] >= 0.95);
     testAssert(buf.result->whiteWinProb > 0.30);
     testAssert(buf.result->whiteWinProb < 0.70);
-    testAssert(buf.result->whiteLead > -2.5);
-    testAssert(buf.result->whiteLead < 2.5);
 
     delete sgf;
   }
@@ -113,7 +107,6 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     Rules initialRules = sgf->getRulesOrFail();
     int turnIdx = 23;
     sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
-    hist.setKomi(-7);
 
     MiscNNInputParams nnInputParams;
     NNResultBuf buf;
@@ -128,7 +121,6 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     }
 
     testAssert(buf.result->whiteWinProb < 0.1);
-    testAssert(buf.result->whiteLead < -5.0);
 
     delete sgf;
   }
@@ -143,7 +135,6 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     Rules initialRules = sgf->getRulesOrFail();
     int turnIdx = 23;
     sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
-    hist.setKomi(21);
 
     MiscNNInputParams nnInputParams;
     NNResultBuf buf;
@@ -158,7 +149,6 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     }
 
     testAssert(buf.result->whiteWinProb > 0.9);
-    testAssert(buf.result->whiteLead > 5.0);
 
     delete sgf;
   }
@@ -166,12 +156,10 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
 
 struct GpuErrorStats {
   std::vector<double> winrateError;
-  std::vector<double> scoreError;
   std::vector<double> topPolicyDiff;
   std::vector<double> policyKLDiv;
   void appendStats(const std::shared_ptr<NNOutput>& base, const std::shared_ptr<NNOutput>& other) {
     winrateError.push_back(std::abs(0.5*(base->whiteWinProb - base->whiteLossProb) - 0.5*(other->whiteWinProb - other->whiteLossProb)));
-    scoreError.push_back(std::abs(base->whiteLead - other->whiteLead));
 
     int topPolicyIdx = 0;
     double topPolicyProb = -1;
@@ -212,12 +200,10 @@ struct GpuErrorStats {
 
   bool checkStats99(double wr, double score, double tpd, double pkld) {
     std::sort(winrateError.begin(),winrateError.end());
-    std::sort(scoreError.begin(),scoreError.end());
     std::sort(topPolicyDiff.begin(),topPolicyDiff.end());
     std::sort(policyKLDiv.begin(),policyKLDiv.end());
     return (
       100*get99Percentile(winrateError) <= wr &&
-      get99Percentile(scoreError) <= score &&
       100*get99Percentile(topPolicyDiff) <= tpd &&
       get99Percentile(policyKLDiv) <= pkld
     );
@@ -225,12 +211,10 @@ struct GpuErrorStats {
 
   bool checkStatsMax(double wr, double score, double tpd, double pkld) {
     std::sort(winrateError.begin(),winrateError.end());
-    std::sort(scoreError.begin(),scoreError.end());
     std::sort(topPolicyDiff.begin(),topPolicyDiff.end());
     std::sort(policyKLDiv.begin(),policyKLDiv.end());
     return (
       100*getMaxPercentile(winrateError) <= wr &&
-      getMaxPercentile(scoreError) <= score &&
       100*getMaxPercentile(topPolicyDiff) <= tpd &&
       getMaxPercentile(policyKLDiv) <= pkld
     );
@@ -239,7 +223,6 @@ struct GpuErrorStats {
 
   void reportStats(const string& name, Logger& logger) {
     std::sort(winrateError.begin(),winrateError.end());
-    std::sort(scoreError.begin(),scoreError.end());
     std::sort(topPolicyDiff.begin(),topPolicyDiff.end());
     std::sort(policyKLDiv.begin(),policyKLDiv.end());
 
@@ -249,12 +232,6 @@ struct GpuErrorStats {
         "%7.5f%% %7.5f%% %7.5f%% %7.5f%%",
         100*getAverage(winrateError), 100*get90Percentile(winrateError), 100*get99Percentile(winrateError), 100*getMaxPercentile(winrateError)
       )
-    );
-    logger.write(
-      name + " scoreError:    " +
-      Global::strprintf(
-        " %7.5f  %7.5f  %7.5f  %7.5f",
-        getAverage(scoreError), get90Percentile(scoreError), get99Percentile(scoreError), getMaxPercentile(scoreError))
     );
     logger.write(
       name + " topPolicyDelta: " +

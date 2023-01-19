@@ -15,8 +15,8 @@ BoardHistory::BoardHistory()
    recentBoards(),
    currentRecentBoardIdx(0),
    presumedNextMovePla(P_BLACK),
-   isGameFinished(false),winner(C_EMPTY),finalWhiteMinusBlackScore(0.0f),
-   isScored(false),isNoResult(false),isResignation(false)
+   isGameFinished(false),winner(C_EMPTY),
+   isNoResult(false),isResignation(false)
 {
 }
 
@@ -32,8 +32,8 @@ BoardHistory::BoardHistory(const Board& board, Player pla, const Rules& r)
    recentBoards(),
    currentRecentBoardIdx(0),
    presumedNextMovePla(pla),
-   isGameFinished(false),winner(C_EMPTY),finalWhiteMinusBlackScore(0.0f),
-   isScored(false),isNoResult(false),isResignation(false)
+   isGameFinished(false),winner(C_EMPTY),
+   isNoResult(false),isResignation(false)
 {
 
   clear(board,pla,rules);
@@ -48,8 +48,8 @@ BoardHistory::BoardHistory(const BoardHistory& other)
    recentBoards(),
    currentRecentBoardIdx(other.currentRecentBoardIdx),
    presumedNextMovePla(other.presumedNextMovePla),
-   isGameFinished(other.isGameFinished),winner(other.winner),finalWhiteMinusBlackScore(other.finalWhiteMinusBlackScore),
-   isScored(other.isScored),isNoResult(other.isNoResult),isResignation(other.isResignation)
+   isGameFinished(other.isGameFinished),winner(other.winner),
+   isNoResult(other.isNoResult),isResignation(other.isResignation)
 {
   std::copy(other.recentBoards, other.recentBoards+NUM_RECENT_BOARDS, recentBoards);
 }
@@ -69,8 +69,6 @@ BoardHistory& BoardHistory::operator=(const BoardHistory& other)
   presumedNextMovePla = other.presumedNextMovePla;
   isGameFinished = other.isGameFinished;
   winner = other.winner;
-  finalWhiteMinusBlackScore = other.finalWhiteMinusBlackScore;
-  isScored = other.isScored;
   isNoResult = other.isNoResult;
   isResignation = other.isResignation;
 
@@ -86,8 +84,8 @@ BoardHistory::BoardHistory(BoardHistory&& other) noexcept
   recentBoards(),
   currentRecentBoardIdx(other.currentRecentBoardIdx),
   presumedNextMovePla(other.presumedNextMovePla),
-  isGameFinished(other.isGameFinished),winner(other.winner),finalWhiteMinusBlackScore(other.finalWhiteMinusBlackScore),
-  isScored(other.isScored),isNoResult(other.isNoResult),isResignation(other.isResignation)
+  isGameFinished(other.isGameFinished),winner(other.winner),
+  isNoResult(other.isNoResult),isResignation(other.isResignation)
 {
   std::copy(other.recentBoards, other.recentBoards+NUM_RECENT_BOARDS, recentBoards);
 }
@@ -104,8 +102,6 @@ BoardHistory& BoardHistory::operator=(BoardHistory&& other) noexcept
   presumedNextMovePla = other.presumedNextMovePla;
   isGameFinished = other.isGameFinished;
   winner = other.winner;
-  finalWhiteMinusBlackScore = other.finalWhiteMinusBlackScore;
-  isScored = other.isScored;
   isNoResult = other.isNoResult;
   isResignation = other.isResignation;
 
@@ -131,8 +127,6 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r) {
 
   isGameFinished = false;
   winner = C_EMPTY;
-  finalWhiteMinusBlackScore = 0.0f;
-  isScored = false;
   isNoResult = false;
   isResignation = false;
 
@@ -185,7 +179,7 @@ void BoardHistory::printDebugInfo(ostream& out, const Board& board) const {
   out << "Rules " << rules << endl;
   out << "Presumed next pla " << PlayerIO::playerToString(presumedNextMovePla) << endl;
   out << "Game result " << isGameFinished << " " << PlayerIO::playerToString(winner) << " "
-      << finalWhiteMinusBlackScore << " " << isScored << " " << isNoResult << " " << isResignation << endl;
+      << isNoResult << " " << isResignation << endl;
   out << "Last moves ";
   for(int i = 0; i<moveHistory.size(); i++)
     out << Location::toString(moveHistory[i].loc,board) << " ";
@@ -200,54 +194,21 @@ const Board& BoardHistory::getRecentBoard(int numMovesAgo) const {
 }
 
 
-void BoardHistory::setKomi(float newKomi) {
-  float oldKomi = rules.komi;
-  rules.komi = newKomi;
-}
-
-
-
-float BoardHistory::whiteKomiAdjustmentForDraws(double drawEquivalentWinsForWhite) const {
-  //We fold the draw utility into the komi, for input into things like the neural net.
-  //Basically we model it as if the final score were jittered by a uniform draw from [-0.5,0.5].
-  //E.g. if komi from self perspective is 7 and a draw counts as 0.75 wins and 0.25 losses,
-  //then komi input should be as if it was 7.25, which in a jigo game when jittered by 0.5 gives white 75% wins and 25% losses.
-  float drawAdjustment = rules.gameResultWillBeInteger() ? (float)(drawEquivalentWinsForWhite - 0.5) : 0.0f;
-  return drawAdjustment;
-}
-
-float BoardHistory::currentSelfKomi(Player pla, double drawEquivalentWinsForWhite) const {
-  float whiteKomiAdjusted = rules.komi + whiteKomiAdjustmentForDraws(drawEquivalentWinsForWhite);
-
-  if(pla == P_WHITE)
-    return whiteKomiAdjusted;
-  else if(pla == P_BLACK)
-    return -whiteKomiAdjusted;
-  else {
-    assert(false);
-    return 0.0f;
-  }
-}
-
 
 
 
 void BoardHistory::setWinnerByResignation(Player pla) {
   isGameFinished = true;
-  isScored = false;
   isNoResult = false;
   isResignation = true;
   winner = pla;
-  finalWhiteMinusBlackScore = 0.0f;
 }
 
 void BoardHistory::setWinner(Player pla) {
   isGameFinished = true;
-  isScored = true;
   isNoResult = false;
   isResignation = false;
   winner = pla;
-  finalWhiteMinusBlackScore = 0.0f;
 }
 
 bool BoardHistory::isLegal(const Board& board, Loc moveLoc, Player movePla) const {
@@ -279,8 +240,6 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   //If somehow we're making a move after the game was ended, just clear those values and continue
   isGameFinished = false;
   winner = C_EMPTY;
-  finalWhiteMinusBlackScore = 0.0f;
-  isScored = false;
   isNoResult = false;
   isResignation = false;
 
@@ -318,15 +277,6 @@ Hash128 BoardHistory::getSituationRulesAndKoHash(const Board& board, const Board
   //Note that board.pos_hash also incorporates the size of the board.
   Hash128 hash = board.pos_hash;
   hash ^= Board::ZOBRIST_PLAYER_HASH[nextPlayer];
-
-
-  float selfKomi = hist.currentSelfKomi(nextPlayer,drawEquivalentWinsForWhite);
-
-  //Discretize the komi for the purpose of matching hash
-  int64_t komiDiscretized = (int64_t)(selfKomi*256.0f);
-  uint64_t komiHash = Hash::murmurMix((uint64_t)komiDiscretized);
-  hash.hash0 ^= komiHash;
-  hash.hash1 ^= Hash::basicLCong(komiHash);
 
   //Fold in the ko, scoring, and suicide rules
   hash ^= Rules::ZOBRIST_SCORING_RULE_HASH[hist.rules.scoringRule];

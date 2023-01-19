@@ -9,11 +9,6 @@ struct ReportedSearchValues {
   double winValue;
   double lossValue;
   double noResultValue;
-  double staticScoreValue;
-  double dynamicScoreValue;
-  double expectedScore;
-  double expectedScoreStdev;
-  double lead;
   double winLossValue;
   double utility;
   double weight;
@@ -24,9 +19,6 @@ struct ReportedSearchValues {
     const Search& search,
     double winLossValueAvg,
     double noResultValueAvg,
-    double scoreMeanAvg,
-    double scoreMeanSqAvg,
-    double leadAvg,
     double utilityAvg,
     double totalWeight,
     int64_t totalVisits

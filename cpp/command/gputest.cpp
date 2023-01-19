@@ -19,7 +19,6 @@ using namespace std;
 
 int MainCmds::testgpuerror(const vector<string>& args) {
   Board::initHash();
-  ScoreValue::initTables();
   Rand seedRand;
 
   ConfigParser cfg;
@@ -114,7 +113,6 @@ int MainCmds::testgpuerror(const vector<string>& args) {
     delete nnEval32;
   delete nnEval;
   NeuralNet::globalCleanup();
-  ScoreValue::freeTables();
 
   return 0;
 }

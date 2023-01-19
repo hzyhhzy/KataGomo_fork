@@ -31,7 +31,6 @@ class AsyncBot {
   void setPosition(Player pla, const Board& board, const BoardHistory& history);
   void setPlayerAndClearHistory(Player pla);
   void setPlayerIfNew(Player pla);
-  void setKomiIfNew(float newKomi);
   void setRootHintLoc(Loc loc);
   void setAvoidMoveUntilByLoc(const std::vector<int>& bVec, const std::vector<int>& wVec);
   void setParams(SearchParams params);

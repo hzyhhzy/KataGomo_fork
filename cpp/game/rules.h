@@ -41,8 +41,7 @@ struct Rules {
 
   friend std::ostream& operator<<(std::ostream& out, const Rules& rules);
   std::string toString() const;
-  std::string toStringNoKomi() const;
-  std::string toStringNoKomiMaybeNice() const;
+  std::string toStringMaybeNice() const;
   std::string toJsonString() const;
   std::string toJsonStringMaybeOmitStuff() const;
   nlohmann::json toJson() const;

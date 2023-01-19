@@ -74,8 +74,7 @@ namespace Setup {
 
   //Komi is just set to 7.5 and is not read in from cfg
   Rules loadSingleRules(
-    ConfigParser& cfg,
-    bool loadKomi
+    ConfigParser& cfg
   );
 
   //Returns true if the user's config specified the size, false if it did not. If false, does not set defaultBoardXSizeRet or defaultBoardYSizeRet.

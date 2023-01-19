@@ -73,7 +73,6 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const strin
    avoidMoveUntilByLocBlack(),avoidMoveUntilByLocWhite(),
    rootSymmetries(),
    rootPruneOnlySymmetries(),
-   recentScoreCenter(0.0),
    searchParams(params),numSearchesBegun(0),searchNodeAge(0),
    plaThatSearchIsFor(C_EMPTY),plaThatSearchIsForLastSearch(C_EMPTY),
    lastSearchNumPlayouts(0),
@@ -182,12 +181,6 @@ void Search::setPlayerIfNew(Player pla) {
     setPlayerAndClearHistory(pla);
 }
 
-void Search::setKomiIfNew(float newKomi) {
-  if(rootHistory.rules.komi != newKomi) {
-    clearSearch();
-    rootHistory.setKomi(newKomi);
-  }
-}
 
 void Search::setAvoidMoveUntilByLoc(const std::vector<int>& bVec, const std::vector<int>& wVec) {
   if(avoidMoveUntilByLocBlack == bVec && avoidMoveUntilByLocWhite == wVec)
@@ -569,7 +562,6 @@ void Search::beginSearch(bool pondering) {
   //cout << "BEGINSEARCH " << PlayerIO::playerToString(rootPla) << " " << PlayerIO::playerToString(plaThatSearchIsFor) << endl;
 
   clearOldNNOutputs();
-  computeRootValues();
 
   //Prepare value bias table if we need it
   if(searchParams.subtreeValueBiasFactor != 0 && subtreeValueBiasTable == NULL)
@@ -706,7 +698,7 @@ void Search::beginSearch(bool pondering) {
 
     //Recursively update all stats in the tree if we have dynamic score values
     //And also to clear out lastResponseBiasDeltaSum and lastResponseBiasWeight
-    if(searchParams.dynamicScoreUtilityFactor != 0 || searchParams.subtreeValueBiasFactor != 0 || patternBonusTable != NULL) {
+    if(patternBonusTable != NULL) {
       recursivelyRecomputeStats(node);
       if(anyFiltered) {
         //Recursive stats recomputation resulted in us marking all nodes we have. Anything filtered is old now, delete it.
@@ -920,8 +912,6 @@ void Search::recursivelyRecomputeStats(SearchNode& n) {
       double weightSum = node->stats.weightSum.load(std::memory_order_acquire);
       double winLossValueAvg = node->stats.winLossValueAvg.load(std::memory_order_acquire);
       double noResultValueAvg = node->stats.noResultValueAvg.load(std::memory_order_acquire);
-      double scoreMeanAvg = node->stats.scoreMeanAvg.load(std::memory_order_acquire);
-      double scoreMeanSqAvg = node->stats.scoreMeanSqAvg.load(std::memory_order_acquire);
 
       //It's possible that this node has 0 weight in the case where it's the root node
       //and has 0 visits because we began a search and then stopped it before any playouts happened.
@@ -932,8 +922,7 @@ void Search::recursivelyRecomputeStats(SearchNode& n) {
       }
       else {
         double resultUtility = getResultUtility(winLossValueAvg, noResultValueAvg);
-        double scoreUtility = getScoreUtility(scoreMeanAvg, scoreMeanSqAvg);
-        double newUtilityAvg = resultUtility + scoreUtility;
+        double newUtilityAvg = resultUtility;
         newUtilityAvg += getPatternBonus(node->patternBonusHash,getOpp(node->nextPla));
         double newUtilitySqAvg = newUtilityAvg * newUtilityAvg;
 
@@ -955,48 +944,6 @@ void Search::recursivelyRecomputeStats(SearchNode& n) {
 
   for(int threadIdx = 0; threadIdx<numAdditionalThreads+1; threadIdx++)
     delete dummyThreads[threadIdx];
-}
-
-
-void Search::computeRootValues() {
-
-  //Figure out how to set recentScoreCenter
-  {
-    bool foundExpectedScoreFromTree = false;
-    double expectedScore = 0.0;
-    if(rootNode != NULL) {
-      const SearchNode& node = *rootNode;
-      int64_t numVisits = node.stats.visits.load(std::memory_order_acquire);
-      double weightSum = node.stats.weightSum.load(std::memory_order_acquire);
-      double scoreMeanAvg = node.stats.scoreMeanAvg.load(std::memory_order_acquire);
-      if(numVisits > 0 && weightSum > 0) {
-        foundExpectedScoreFromTree = true;
-        expectedScore = scoreMeanAvg;
-      }
-    }
-
-    //Grab a neural net evaluation for the current position and use that as the center
-    if(!foundExpectedScoreFromTree) {
-      NNResultBuf nnResultBuf;
-      computeRootNNEvaluation(nnResultBuf);
-      expectedScore = nnResultBuf.result->whiteScoreMean;
-    }
-
-    recentScoreCenter = expectedScore * (1.0 - searchParams.dynamicScoreCenterZeroWeight);
-    double cap =  sqrt(rootBoard.x_size * rootBoard.y_size) * searchParams.dynamicScoreCenterScale;
-    if(recentScoreCenter > expectedScore + cap)
-      recentScoreCenter = expectedScore + cap;
-    if(recentScoreCenter < expectedScore - cap)
-      recentScoreCenter = expectedScore - cap;
-  }
-
-  //If we're using graph search, we recompute the graph hash from scratch at the start of search.
-  if(searchParams.useGraphSearch)
-    rootGraphHash = GraphHash::getGraphHashFromScratch(rootHistory, rootPla, searchParams.drawEquivalentWinsForWhite);
-  else
-    rootGraphHash = Hash128();
-
-
 }
 
 
@@ -1035,11 +982,8 @@ bool Search::playoutDescend(
    
       double winLossValue = thread.history.winner == C_WHITE ? 1.0 : thread.history.winner == C_BLACK ? -1.0 : 0.0;
       double noResultValue = thread.history.winner == C_EMPTY ? 1.0 : 0.0;
-      double scoreMean = ScoreValue::whiteScoreDrawAdjust(thread.history.finalWhiteMinusBlackScore,searchParams.drawEquivalentWinsForWhite,thread.history);
-      double scoreMeanSq = ScoreValue::whiteScoreMeanSqOfScoreGridded(thread.history.finalWhiteMinusBlackScore,searchParams.drawEquivalentWinsForWhite);
-      double lead = scoreMean;
       double weight = (searchParams.useUncertainty && nnEvaluator->supportsShorttermError()) ? searchParams.uncertaintyMaxWeight : 1.0;
-      addLeafValue(node, winLossValue, noResultValue, scoreMean, scoreMeanSq, lead, weight, true, false);
+      addLeafValue(node, winLossValue, noResultValue, weight, true, false);
       return true;
     
   }

@@ -14,7 +14,6 @@ using namespace std;
 
 int MainCmds::evalsgf(const vector<string>& args) {
   Board::initHash();
-  ScoreValue::initTables();
   Rand seedRand;
 
   ConfigParser cfg;
@@ -27,15 +26,12 @@ int MainCmds::evalsgf(const vector<string>& args) {
   string hintLoc;
   int64_t maxVisits;
   int numThreads;
-  float overrideKomi;
   bool printRootNNValues;
   bool printPolicy;
   bool printLogPolicy;
   bool printDirichletShape;
   bool printRootEndingBonus;
-  bool printLead;
   bool printAvgShorttermError;
-  bool printSharpScore;
   bool printGraph;
   int printMaxDepth;
   bool rawNN;
@@ -55,16 +51,12 @@ int MainCmds::evalsgf(const vector<string>& args) {
     TCLAP::ValueArg<string> hintLocArg("","hint-loc","Hint loc",false,string(),"MOVE");
     TCLAP::ValueArg<long> visitsArg("v","visits","Set the number of visits",false,-1,"VISITS");
     TCLAP::ValueArg<int> threadsArg("t","threads","Set the number of threads",false,-1,"THREADS");
-    TCLAP::ValueArg<float> overrideKomiArg("","override-komi","Artificially set komi",false,std::numeric_limits<float>::quiet_NaN(),"KOMI");
     TCLAP::SwitchArg printRootNNValuesArg("","print-root-nn-values","Print root nn values");
     TCLAP::SwitchArg printPolicyArg("","print-policy","Print policy");
     TCLAP::SwitchArg printLogPolicyArg("","print-log-policy","Print log policy");
     TCLAP::SwitchArg printDirichletShapeArg("","print-dirichlet-shape","Print dirichlet shape");
-    TCLAP::SwitchArg printScoreNowArg("","print-score-now","Print score now");
     TCLAP::SwitchArg printRootEndingBonusArg("","print-root-ending-bonus","Print root ending bonus now");
-    TCLAP::SwitchArg printLeadArg("","print-lead","Compute and print lead");
     TCLAP::SwitchArg printAvgShorttermErrorArg("","print-avg-shortterm-error","Compute and print avgShorttermError");
-    TCLAP::SwitchArg printSharpScoreArg("","print-sharp-score","Compute and print sharp weighted score");
     TCLAP::SwitchArg printGraphArg("","print-graph","Print graph structure of the search");
     TCLAP::ValueArg<int> printMaxDepthArg("","print-max-depth","How deep to print",false,1,"DEPTH");
     TCLAP::SwitchArg rawNNArg("","raw-nn","Perform single raw neural net eval");
@@ -83,16 +75,12 @@ int MainCmds::evalsgf(const vector<string>& args) {
     cmd.add(hintLocArg);
     cmd.add(visitsArg);
     cmd.add(threadsArg);
-    cmd.add(overrideKomiArg);
     cmd.add(printRootNNValuesArg);
     cmd.add(printPolicyArg);
     cmd.add(printLogPolicyArg);
     cmd.add(printDirichletShapeArg);
-    cmd.add(printScoreNowArg);
     cmd.add(printRootEndingBonusArg);
-    cmd.add(printLeadArg);
     cmd.add(printAvgShorttermErrorArg);
-    cmd.add(printSharpScoreArg);
     cmd.add(printGraphArg);
     cmd.add(printMaxDepthArg);
     cmd.add(rawNNArg);
@@ -109,15 +97,12 @@ int MainCmds::evalsgf(const vector<string>& args) {
     hintLoc = hintLocArg.getValue();
     maxVisits = (int64_t)visitsArg.getValue();
     numThreads = threadsArg.getValue();
-    overrideKomi = overrideKomiArg.getValue();
     printRootNNValues = printRootNNValuesArg.getValue();
     printPolicy = printPolicyArg.getValue();
     printLogPolicy = printLogPolicyArg.getValue();
     printDirichletShape = printDirichletShapeArg.getValue();
     printRootEndingBonus = printRootEndingBonusArg.getValue();
-    printLead = printLeadArg.getValue();
     printAvgShorttermError = printAvgShorttermErrorArg.getValue();
-    printSharpScore = printSharpScoreArg.getValue();
     printGraph = printGraphArg.getValue();
     printMaxDepth = printMaxDepthArg.getValue();
     rawNN = rawNNArg.getValue();
@@ -155,15 +140,10 @@ int MainCmds::evalsgf(const vector<string>& args) {
   Player nextPla;
   BoardHistory hist;
 
-  auto setUpBoardUsingRules = [&board,&nextPla,&hist,overrideKomi,moveNum,&sgf,&extraMoves](const Rules& initialRules) {
+  auto setUpBoardUsingRules = [&board,&nextPla,&hist,moveNum,&sgf,&extraMoves](const Rules& initialRules) {
     sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
     vector<Move>& moves = sgf->moves;
 
-    if(!isnan(overrideKomi)) {
-      if(overrideKomi > board.x_size * board.y_size || overrideKomi < -board.x_size * board.y_size)
-        throw StringError("Invalid komi, greater than the area of the board");
-      hist.setKomi(overrideKomi);
-    }
 
     if(moveNum < 0)
       throw StringError("Move num " + Global::intToString(moveNum) + " requested but must be non-negative");
@@ -330,8 +310,6 @@ int MainCmds::evalsgf(const vector<string>& args) {
       cout << "White win: " << nnOutput->whiteWinProb << endl;
       cout << "White loss: " << nnOutput->whiteLossProb << endl;
       cout << "White noresult: " << nnOutput->whiteNoResultProb << endl;
-      cout << "White score mean " << nnOutput->whiteScoreMean << endl;
-      cout << "White score stdev " << sqrt(max(0.0,(double)nnOutput->whiteScoreMeanSq - nnOutput->whiteScoreMean*nnOutput->whiteScoreMean)) << endl;
     }
   }
 
@@ -352,14 +330,6 @@ int MainCmds::evalsgf(const vector<string>& args) {
   //     cout << values << endl;
   // }
 
-
-  if(printSharpScore) {
-    double ret = 0.0;
-    bool suc = search->getSharpScore(NULL,ret);
-    assert(suc);
-    (void)suc;
-    cout << "White sharp score " << ret << endl;
-  }
 
   if(printPolicy) {
     const NNOutput* nnOutput = search->rootNode->getNNOutput();
@@ -441,14 +411,6 @@ int MainCmds::evalsgf(const vector<string>& args) {
   search->printTree(sout, search->rootNode, options, perspective);
   logger.write(sout.str());
 
-  if(printLead) {
-    BoardHistory hist2(hist);
-    double lead = PlayUtils::computeLead(
-      bot->getSearchStopAndWait(), NULL, board, hist2, nextPla,
-      20, OtherGameProperties()
-    );
-    cout << "LEAD: " << lead << endl;
-  }
 
   if(printGraph) {
     std::reverse(nodes.begin(),nodes.end());
@@ -474,7 +436,6 @@ int MainCmds::evalsgf(const vector<string>& args) {
   delete nnEval;
   NeuralNet::globalCleanup();
   delete sgf;
-  ScoreValue::freeTables();
 
   return 0;
 }

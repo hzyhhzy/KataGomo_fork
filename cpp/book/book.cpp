@@ -193,22 +193,6 @@ void BookHash::getHashAndSymmetry(const BoardHistory& hist, int repBound, BookHa
   }
 }
 
-double BookValues::getAdjustedScoreError(const Rules& rules) const {
-  if(rules.gameResultWillBeInteger()) {
-    double scoreVariance = scoreStdev * scoreStdev;
-    // KataGo's formalization of the score variance in draw-allowed games will be systematically too high by 0.25
-    // due to blurring of the score on the half-integer gridpoints.
-    // Assumes drawEquivalentWinsForWhite = 0.5.
-    double adjustedScoreVariance = scoreVariance - 0.25;
-    // Make sure we don't go smaller than some tiny values
-    if(adjustedScoreVariance < scoreVariance * 0.05)
-      adjustedScoreVariance = scoreVariance * 0.05;
-    return std::min(sqrt(adjustedScoreVariance),scoreError);
-  }
-  else {
-    return std::min(scoreStdev,scoreError);
-  }
-}
 
 
 // -----------------------------------------------------------------------------------------------------------
@@ -677,23 +661,17 @@ Book::Book(
   double cpucbwl,
   double cpucbwlp3,
   double cpucbwlp7,
-  double cpucbsl,
   double cplp,
   double cpme,
   double cpsme,
   double cwpf,
   double bpwle,
-  double bpse,
-  double bpssd,
   double bpeup,
   double bfwlpv1,
   double bfwlpv2,
   double bfbwlc,
-  double slc,
-  double ups,
   double pbsus,
-  double uppfs,
-  double ssoc
+  double uppfs
 ) : bookVersion(bversion),
     initialBoard(b),
     initialRules(r),
@@ -704,23 +682,17 @@ Book::Book(
     costPerUCBWinLossLoss(cpucbwl),
     costPerUCBWinLossLossPow3(cpucbwlp3),
     costPerUCBWinLossLossPow7(cpucbwlp7),
-    costPerUCBScoreLoss(cpucbsl),
     costPerLogPolicy(cplp),
     costPerMovesExpanded(cpme),
     costPerSquaredMovesExpanded(cpsme),
     costWhenPassFavored(cwpf),
     bonusPerWinLossError(bpwle),
-    bonusPerScoreError(bpse),
-    bonusPerSharpScoreDiscrepancy(bpssd),
     bonusPerExcessUnexpandedPolicy(bpeup),
     bonusForWLPV1(bfwlpv1),
     bonusForWLPV2(bfwlpv2),
     bonusForBiggestWLCost(bfbwlc),
-    scoreLossCap(slc),
-    utilityPerScore(ups),
     policyBoostSoftUtilityScale(pbsus),
     utilityPerPolicyForSorting(uppfs),
-    sharpScoreOutlierCap(ssoc),
     initialSymmetry(0),
     root(nullptr),
     nodes(),
@@ -768,8 +740,6 @@ double Book::getCostPerUCBWinLossLossPow3() const { return costPerUCBWinLossLoss
 void Book::setCostPerUCBWinLossLossPow3(double d) { costPerUCBWinLossLossPow3 = d; }
 double Book::getCostPerUCBWinLossLossPow7() const { return costPerUCBWinLossLossPow7; }
 void Book::setCostPerUCBWinLossLossPow7(double d) { costPerUCBWinLossLossPow7 = d; }
-double Book::getCostPerUCBScoreLoss() const { return costPerUCBScoreLoss; }
-void Book::setCostPerUCBScoreLoss(double d) { costPerUCBScoreLoss = d; }
 double Book::getCostPerLogPolicy() const { return costPerLogPolicy; }
 void Book::setCostPerLogPolicy(double d) { costPerLogPolicy = d; }
 double Book::getCostPerMovesExpanded() const { return costPerMovesExpanded; }
@@ -780,10 +750,6 @@ double Book::getCostWhenPassFavored() const { return costWhenPassFavored; }
 void Book::setCostWhenPassFavored(double d) { costWhenPassFavored = d; }
 double Book::getBonusPerWinLossError() const { return bonusPerWinLossError; }
 void Book::setBonusPerWinLossError(double d) { bonusPerWinLossError = d; }
-double Book::getBonusPerScoreError() const { return bonusPerScoreError; }
-void Book::setBonusPerScoreError(double d) { bonusPerScoreError = d; }
-double Book::getBonusPerSharpScoreDiscrepancy() const { return bonusPerSharpScoreDiscrepancy; }
-void Book::setBonusPerSharpScoreDiscrepancy(double d) { bonusPerSharpScoreDiscrepancy = d; }
 double Book::getBonusPerExcessUnexpandedPolicy() const { return bonusPerExcessUnexpandedPolicy; }
 void Book::setBonusPerExcessUnexpandedPolicy(double d) { bonusPerExcessUnexpandedPolicy = d; }
 double Book::getBonusForWLPV1() const { return bonusForWLPV1; }
@@ -792,10 +758,6 @@ double Book::getBonusForWLPV2() const { return bonusForWLPV2; }
 void Book::setBonusForWLPV2(double d) { bonusForWLPV2 = d; }
 double Book::getBonusForBiggestWLCost() const { return bonusForBiggestWLCost; }
 void Book::setBonusForBiggestWLCost(double d) { bonusForBiggestWLCost = d; }
-double Book::getScoreLossCap() const { return scoreLossCap; }
-void Book::setScoreLossCap(double d) { scoreLossCap = d; }
-double Book::getUtilityPerScore() const { return utilityPerScore; }
-void Book::setUtilityPerScore(double d) { utilityPerScore = d; }
 double Book::getPolicyBoostSoftUtilityScale() const { return policyBoostSoftUtilityScale; }
 void Book::setPolicyBoostSoftUtilityScale(double d) { policyBoostSoftUtilityScale = d; }
 double Book::getUtilityPerPolicyForSorting() const { return utilityPerPolicyForSorting; }
@@ -1190,41 +1152,19 @@ void Book::iterateEntireBookPreOrder(
 
 void Book::recomputeNodeValues(BookNode* node) {
   double winLossValue;
-  double scoreMean;
-  double sharpScoreMean;
   double winLossLCB;
-  double scoreLCB;
-  double scoreFinalLCB;
   double winLossUCB;
-  double scoreUCB;
-  double scoreFinalUCB;
   double weight = 0.0;
   double visits = 0.0;
 
   {
     const BookValues& values = node->thisValuesNotInBook;
-    double scoreError = values.getAdjustedScoreError(node->book->initialRules);
     winLossValue = values.winLossValue;
-    scoreMean = values.scoreMean;
-    sharpScoreMean = values.sharpScoreMean;
     winLossLCB = values.winLossValue - errorFactor * values.winLossError;
-    scoreLCB = values.scoreMean - errorFactor * scoreError;
-    scoreFinalLCB = values.scoreMean - errorFactor * values.scoreStdev;
     winLossUCB = values.winLossValue + errorFactor * values.winLossError;
-    scoreUCB = values.scoreMean + errorFactor * scoreError;
-    scoreFinalUCB = values.scoreMean + errorFactor * values.scoreStdev;
     weight += values.weight;
     visits += values.visits;
 
-    // A quick hack to limit the issue of outliers from sharpScore, and adjust the LCB/UCB to reflect the uncertainty
-    if(sharpScoreMean > scoreUCB)
-      scoreUCB = sharpScoreMean;
-    if(sharpScoreMean < scoreLCB)
-      scoreLCB = sharpScoreMean;
-    if(sharpScoreMean > scoreMean + sharpScoreOutlierCap)
-      sharpScoreMean = scoreMean + sharpScoreOutlierCap;
-    if(sharpScoreMean < scoreMean - sharpScoreOutlierCap)
-      sharpScoreMean = scoreMean - sharpScoreOutlierCap;
   }
 
   for(auto iter = node->moves.begin(); iter != node->moves.end(); ++iter) {
@@ -1233,27 +1173,15 @@ void Book::recomputeNodeValues(BookNode* node) {
     const RecursiveBookValues& values = child->recursiveValues;
     if(node->pla == P_WHITE) {
       winLossValue = std::max(winLossValue, values.winLossValue);
-      scoreMean = std::max(scoreMean, values.scoreMean);
-      sharpScoreMean = std::max(sharpScoreMean, values.sharpScoreMean);
       winLossLCB = std::max(winLossLCB, values.winLossLCB);
-      scoreLCB = std::max(scoreLCB, values.scoreLCB);
-      scoreFinalLCB = std::max(scoreFinalLCB, values.scoreFinalLCB);
       winLossUCB = std::max(winLossUCB, values.winLossUCB);
-      scoreUCB = std::max(scoreUCB, values.scoreUCB);
-      scoreFinalUCB = std::max(scoreFinalUCB, values.scoreFinalUCB);
       weight += values.weight;
       visits += values.visits;
     }
     else {
       winLossValue = std::min(winLossValue, values.winLossValue);
-      scoreMean = std::min(scoreMean, values.scoreMean);
-      sharpScoreMean = std::min(sharpScoreMean, values.sharpScoreMean);
       winLossLCB = std::min(winLossLCB, values.winLossLCB);
-      scoreLCB = std::min(scoreLCB, values.scoreLCB);
-      scoreFinalLCB = std::min(scoreFinalLCB, values.scoreFinalLCB);
       winLossUCB = std::min(winLossUCB, values.winLossUCB);
-      scoreUCB = std::min(scoreUCB, values.scoreUCB);
-      scoreFinalUCB = std::min(scoreFinalUCB, values.scoreFinalUCB);
       weight += values.weight;
       visits += values.visits;
     }
@@ -1261,14 +1189,8 @@ void Book::recomputeNodeValues(BookNode* node) {
 
   RecursiveBookValues& values = node->recursiveValues;
   values.winLossValue = winLossValue;
-  values.scoreMean = scoreMean;
-  values.sharpScoreMean = sharpScoreMean;
   values.winLossLCB = winLossLCB;
-  values.scoreLCB = scoreLCB;
-  values.scoreFinalLCB = scoreFinalLCB;
   values.winLossUCB = winLossUCB;
-  values.scoreUCB = scoreUCB;
-  values.scoreFinalUCB = scoreFinalUCB;
   values.weight = weight;
   values.visits = visits;
 
@@ -1289,7 +1211,7 @@ static double pow7(double x) {
 }
 
 double Book::getUtility(const RecursiveBookValues& values) const {
-  return values.winLossValue + values.scoreMean * utilityPerScore;
+  return values.winLossValue;
 }
 
 void Book::recomputeNodeCost(BookNode* node) {
@@ -1409,12 +1331,6 @@ void Book::recomputeNodeCost(BookNode* node) {
       (node->pla == P_WHITE) ?
       pow7(node->recursiveValues.winLossUCB) - pow7(child->recursiveValues.winLossUCB) :
       pow7(child->recursiveValues.winLossLCB) - pow7(node->recursiveValues.winLossLCB);
-    double ucbScoreLoss =
-      (node->pla == P_WHITE) ?
-      node->recursiveValues.scoreUCB - child->recursiveValues.scoreUCB :
-      child->recursiveValues.scoreLCB - node->recursiveValues.scoreLCB;
-    if(ucbScoreLoss > scoreLossCap)
-      ucbScoreLoss = scoreLossCap;
     double rawPolicy = locAndBookMove.second.rawPolicy;
     double logRawPolicy = log(rawPolicy + 1e-100);
     double childUtility = getUtility(child->recursiveValues);
@@ -1431,8 +1347,7 @@ void Book::recomputeNodeCost(BookNode* node) {
     if(costFromWL > node->biggestWLCostFromRoot)
       costFromWL -= bonusForBiggestWLCost * (costFromWL - node->biggestWLCostFromRoot);
     double costFromUCB =
-      costFromWL
-      + ucbScoreLoss * costPerUCBScoreLoss;
+      costFromWL;
 
     double cost =
       node->minCostFromRoot
@@ -1451,7 +1366,6 @@ void Book::recomputeNodeCost(BookNode* node) {
     node->thisNodeExpansionCost = 1e100;
   }
   else {
-    double scoreError = node->thisValuesNotInBook.getAdjustedScoreError(node->book->initialRules);
     double ucbWinLossLoss =
       (node->pla == P_WHITE) ?
       (node->recursiveValues.winLossUCB - (node->thisValuesNotInBook.winLossValue + errorFactor * node->thisValuesNotInBook.winLossError)) :
@@ -1464,15 +1378,9 @@ void Book::recomputeNodeCost(BookNode* node) {
       (node->pla == P_WHITE) ?
       (pow7(node->recursiveValues.winLossUCB) - pow7(node->thisValuesNotInBook.winLossValue + errorFactor * node->thisValuesNotInBook.winLossError)) :
       (pow7(node->thisValuesNotInBook.winLossValue - errorFactor * node->thisValuesNotInBook.winLossError) - pow7(node->recursiveValues.winLossLCB));
-    double ucbScoreLoss =
-      (node->pla == P_WHITE) ?
-      (node->recursiveValues.scoreUCB - (node->thisValuesNotInBook.scoreMean + errorFactor * scoreError)) :
-      ((node->thisValuesNotInBook.scoreMean - errorFactor * scoreError) - node->recursiveValues.scoreLCB);
-    if(ucbScoreLoss > scoreLossCap)
-      ucbScoreLoss = scoreLossCap;
     double rawPolicy = node->thisValuesNotInBook.maxPolicy;
     double logRawPolicy = log(rawPolicy + 1e-100);
-    double notInBookUtility = node->thisValuesNotInBook.winLossValue + node->thisValuesNotInBook.scoreMean * utilityPerScore;
+    double notInBookUtility = node->thisValuesNotInBook.winLossValue;
     double boostedLogRawPolicy = boostLogRawPolicy(logRawPolicy, notInBookUtility, node->thisValuesNotInBook.maxPolicy);
     bool passFavored = passPolicy > 0.15 && passPolicy > rawPolicy * 0.8 && (
       (node->pla == P_WHITE && passUtility > notInBookUtility - 0.02) ||
@@ -1485,24 +1393,6 @@ void Book::recomputeNodeCost(BookNode* node) {
       movesExpanded = 1.0 / (rawPolicy + 1e-30);
     }
 
-    // cout << "Expansion thisValues " <<
-    //   node->thisValuesNotInBook.winLossValue - errorFactor * node->thisValuesNotInBook.winLossError << " " <<
-    //   node->thisValuesNotInBook.winLossValue << " " <<
-    //   node->thisValuesNotInBook.winLossValue + errorFactor * node->thisValuesNotInBook.winLossError << endl;
-    // cout << "Expansion thisScores " <<
-    //   node->thisValuesNotInBook.scoreMean - errorFactor * scoreError << " " <<
-    //   node->thisValuesNotInBook.scoreMean << " " <<
-    //   node->thisValuesNotInBook.scoreMean + errorFactor * scoreError << endl;
-    // cout << "Recursive values " <<
-    //   node->recursiveValues.winLossLCB << " " <<
-    //   node->recursiveValues.winLossValue << " " <<
-    //   node->recursiveValues.winLossUCB << endl;
-    // cout << "Recursive scores " <<
-    //   node->recursiveValues.scoreLCB << " " <<
-    //   node->recursiveValues.scoreMean << " " <<
-    //   node->recursiveValues.scoreUCB << endl;
-    // cout << "Expansion stats " << ucbWinLossLoss << " " << ucbScoreLoss << " " << rawPolicy << endl;
-
     double costFromWL =
       ucbWinLossLoss * costPerUCBWinLossLoss
       + ucbWinLossLossPow3 * costPerUCBWinLossLossPow3
@@ -1510,8 +1400,7 @@ void Book::recomputeNodeCost(BookNode* node) {
     if(costFromWL > node->biggestWLCostFromRoot)
       costFromWL -= bonusForBiggestWLCost * (costFromWL - node->biggestWLCostFromRoot);
     double costFromUCB =
-      costFromWL
-      + ucbScoreLoss * costPerUCBScoreLoss;
+      costFromWL;
 
     node->thisNodeExpansionCost =
       costPerMove
@@ -1575,12 +1464,8 @@ void Book::recomputeNodeCost(BookNode* node) {
   for(auto& locAndBookMove: node->moves) {
     const BookNode* child = get(locAndBookMove.second.hash);
     double winLossError = std::fabs(child->recursiveValues.winLossUCB - child->recursiveValues.winLossLCB) / errorFactor / 2.0;
-    double scoreError = std::fabs(child->recursiveValues.scoreUCB - child->recursiveValues.scoreLCB) / errorFactor / 2.0;
-    double sharpScoreDiscrepancy = std::fabs(child->recursiveValues.sharpScoreMean - child->recursiveValues.scoreMean);
     double bonus =
-      bonusPerWinLossError * winLossError +
-      bonusPerScoreError * scoreError +
-      bonusPerSharpScoreDiscrepancy * sharpScoreDiscrepancy;
+      bonusPerWinLossError * winLossError;
     double bonusCap1 = (locAndBookMove.second.costFromRoot - node->minCostFromRoot) * 0.75;
     if(bonus > bonusCap1)
       bonus = bonusCap1;
@@ -1597,8 +1482,6 @@ void Book::recomputeNodeCost(BookNode* node) {
   }
   {
     double winLossError = node->thisValuesNotInBook.winLossError;
-    double scoreError = node->thisValuesNotInBook.scoreError;
-    double sharpScoreDiscrepancy = std::fabs(node->thisValuesNotInBook.sharpScoreMean - node->thisValuesNotInBook.scoreMean);
 
     // If there's an unusually large share of the policy not expanded, add a mild bonus for it.
     // For the final node expansion cost, sharp score discrepancy beyond 1 point is not capped, to encourage expanding the
@@ -1609,13 +1492,10 @@ void Book::recomputeNodeCost(BookNode* node) {
       excessUnexpandedPolicy = node->thisValuesNotInBook.maxPolicy - 1.0 / movesExpanded;
     double bonus =
       bonusPerWinLossError * winLossError +
-      bonusPerScoreError * scoreError +
-      bonusPerSharpScoreDiscrepancy * std::min(sharpScoreDiscrepancy, 1.0) +
       bonusPerExcessUnexpandedPolicy * excessUnexpandedPolicy;
     double bonusCap1 = node->thisNodeExpansionCost * 0.75;
     if(bonus > bonusCap1)
       bonus = bonusCap1;
-    bonus += bonusPerSharpScoreDiscrepancy * std::max(0.0, sharpScoreDiscrepancy - 1.0);
 
     node->thisNodeExpansionCost -= bonus;
 
@@ -1823,11 +1703,9 @@ void Book::exportToHtmlDir(
       [&](const size_t& idx0,
           const size_t& idx1) {
         double plaFactor = node->pla == P_WHITE ? 1.0 : -1.0;
-        double u0 = plaFactor * (uniqueChildValues[idx0].winLossValue + uniqueChildValues[idx0].sharpScoreMean * utilityPerScore * 0.5)
-        + plaFactor * (node->pla == P_WHITE ? uniqueChildValues[idx0].scoreLCB : uniqueChildValues[idx0].scoreUCB) * 0.5 * utilityPerScore
+        double u0 = plaFactor * uniqueChildValues[idx0].winLossValue
         + utilityPerPolicyForSorting * (0.75 * uniqueMovesInBook[idx0].rawPolicy + 0.5 * log10(uniqueMovesInBook[idx0].rawPolicy + 0.0001)/4.0);
-        double u1 = plaFactor * (uniqueChildValues[idx1].winLossValue + uniqueChildValues[idx1].sharpScoreMean * utilityPerScore * 0.5)
-        + plaFactor * (node->pla == P_WHITE ? uniqueChildValues[idx1].scoreLCB : uniqueChildValues[idx1].scoreUCB) * 0.5 * utilityPerScore
+        double u1 = plaFactor * uniqueChildValues[idx1].winLossValue 
         + utilityPerPolicyForSorting * (0.75 * uniqueMovesInBook[idx1].rawPolicy + 0.5 * log10(uniqueMovesInBook[idx1].rawPolicy + 0.0001)/4.0);
         return u0 > u1;
       }
@@ -1862,11 +1740,6 @@ void Book::exportToHtmlDir(
       if(devMode) {
         dataVarsStr += "'wlUCB':" + doubleToStringFourDigits(uniqueChildValues[idx].winLossUCB) + ",";
         dataVarsStr += "'wlLCB':" + doubleToStringFourDigits(uniqueChildValues[idx].winLossLCB) + ",";
-        dataVarsStr += "'sM':" + doubleToStringTwoDigits(uniqueChildValues[idx].scoreMean) + ",";
-        dataVarsStr += "'ssM':" + doubleToStringTwoDigits(uniqueChildValues[idx].sharpScoreMean) + ",";
-        dataVarsStr += "'sUCB':" + doubleToStringTwoDigits(uniqueChildValues[idx].scoreUCB) + ",";
-        dataVarsStr += "'sLCB':" + doubleToStringTwoDigits(uniqueChildValues[idx].scoreLCB) + ",";
-        //dataVarsStr += "'w':" + doubleToStringZeroDigits(uniqueChildValues[idx].weight) + ",";
         dataVarsStr += "'v':" + doubleToStringZeroDigits(uniqueChildValues[idx].visits) + ",";
         dataVarsStr += "'cost':" + doubleToStringFourDigits(uniqueMovesInBook[idx].costFromRoot - node->minCostFromRoot) + ",";
         dataVarsStr += "'costRoot':" + doubleToStringFourDigits(uniqueChildCosts[idx]) + ",";
@@ -1874,9 +1747,7 @@ void Book::exportToHtmlDir(
         dataVarsStr += "'bigWLC':" + doubleToStringFourDigits(uniqueChildBiggestWLCost[idx]) + ",";
       }
       else {
-        dataVarsStr += "'ssM':" + doubleToStringTwoDigits(uniqueChildValues[idx].sharpScoreMean) + ",";
         dataVarsStr += "'wlRad':" + doubleToStringFourDigits(0.5*(uniqueChildValues[idx].winLossUCB - uniqueChildValues[idx].winLossLCB)) + ",";
-        dataVarsStr += "'sRad':" + doubleToStringTwoDigits(0.5*(uniqueChildValues[idx].scoreUCB - uniqueChildValues[idx].scoreLCB)) + ",";
         dataVarsStr += "'v':" + doubleToStringZeroDigits(uniqueChildValues[idx].visits) + ",";
       }
       dataVarsStr += "},";
@@ -1884,25 +1755,9 @@ void Book::exportToHtmlDir(
     {
       BookValues& values = node->thisValuesNotInBook;
       if(values.maxPolicy > 0.0) {
-        double scoreError = values.getAdjustedScoreError(node->book->initialRules);
         double winLossValueUCB = values.winLossValue + errorFactor * values.winLossError;
         double winLossValueLCB = values.winLossValue - errorFactor * values.winLossError;
-        double scoreUCB = values.scoreMean + errorFactor * scoreError;
-        double scoreLCB = values.scoreMean - errorFactor * scoreError;
-        // double scoreFinalUCB = values.scoreMean + errorFactor * values.scoreStdev;
-        // double scoreFinalLCB = values.scoreMean - errorFactor * values.scoreStdev;
 
-        // A quick hack to limit the issue of outliers from sharpScore, and adjust the LCB/UCB to reflect the uncertainty
-        double scoreMean = values.scoreMean;
-        double sharpScoreMean = values.sharpScoreMean;
-        if(sharpScoreMean > scoreUCB)
-          scoreUCB = sharpScoreMean;
-        if(sharpScoreMean < scoreLCB)
-          scoreLCB = sharpScoreMean;
-        if(sharpScoreMean > scoreMean + sharpScoreOutlierCap)
-          sharpScoreMean = scoreMean + sharpScoreOutlierCap;
-        if(sharpScoreMean < scoreMean - sharpScoreOutlierCap)
-          sharpScoreMean = scoreMean - sharpScoreOutlierCap;
 
         dataVarsStr += "{";
         dataVarsStr += "'move':'other',";
@@ -1911,10 +1766,6 @@ void Book::exportToHtmlDir(
         if(devMode) {
           dataVarsStr += "'wlUCB':" + doubleToStringFourDigits(winLossValueUCB) + ",";
           dataVarsStr += "'wlLCB':" + doubleToStringFourDigits(winLossValueLCB) + ",";
-          dataVarsStr += "'sM':" + doubleToStringTwoDigits(scoreMean) + ",";
-          dataVarsStr += "'ssM':" + doubleToStringTwoDigits(sharpScoreMean) + ",";
-          dataVarsStr += "'sUCB':" + doubleToStringTwoDigits(scoreUCB) + ",";
-          dataVarsStr += "'sLCB':" + doubleToStringTwoDigits(scoreLCB) + ",";
           dataVarsStr += "'w':" + doubleToStringZeroDigits(values.weight) + ",";
           dataVarsStr += "'v':" + doubleToStringZeroDigits(values.visits) + ",";
           dataVarsStr += "'cost':" + doubleToStringFourDigits(node->thisNodeExpansionCost) + ",";
@@ -1923,9 +1774,7 @@ void Book::exportToHtmlDir(
           dataVarsStr += "'bigWLC':" + doubleToStringFourDigits(node->biggestWLCostFromRoot) + ",";
         }
         else {
-          dataVarsStr += "'ssM':" + doubleToStringTwoDigits(sharpScoreMean) + ",";
           dataVarsStr += "'wlRad':" + doubleToStringFourDigits(0.5*(winLossValueUCB-winLossValueLCB)) + ",";
-          dataVarsStr += "'sRad':" + doubleToStringTwoDigits(0.5*(scoreUCB-scoreLCB)) + ",";
           dataVarsStr += "'v':" + doubleToStringZeroDigits(values.visits) + ",";
         }
         dataVarsStr += "},";
@@ -1966,20 +1815,15 @@ void Book::saveToFile(const string& fileName) const {
     params["costPerUCBWinLossLoss"] = costPerUCBWinLossLoss;
     params["costPerUCBWinLossLossPow3"] = costPerUCBWinLossLossPow3;
     params["costPerUCBWinLossLossPow7"] = costPerUCBWinLossLossPow7;
-    params["costPerUCBScoreLoss"] = costPerUCBScoreLoss;
     params["costPerLogPolicy"] = costPerLogPolicy;
     params["costPerMovesExpanded"] = costPerMovesExpanded;
     params["costPerSquaredMovesExpanded"] = costPerSquaredMovesExpanded;
     params["costWhenPassFavored"] = costWhenPassFavored;
     params["bonusPerWinLossError"] = bonusPerWinLossError;
-    params["bonusPerScoreError"] = bonusPerScoreError;
-    params["bonusPerSharpScoreDiscrepancy"] = bonusPerSharpScoreDiscrepancy;
     params["bonusPerExcessUnexpandedPolicy"] = bonusPerExcessUnexpandedPolicy;
     params["bonusForWLPV1"] = bonusForWLPV1;
     params["bonusForWLPV2"] = bonusForWLPV2;
     params["bonusForBiggestWLCost"] = bonusForBiggestWLCost;
-    params["scoreLossCap"] = scoreLossCap;
-    params["utilityPerScore"] = utilityPerScore;
     params["policyBoostSoftUtilityScale"] = policyBoostSoftUtilityScale;
     params["utilityPerPolicyForSorting"] = utilityPerPolicyForSorting;
     params["initialSymmetry"] = initialSymmetry;
@@ -2005,11 +1849,7 @@ void Book::saveToFile(const string& fileName) const {
       nodeData["pla"] = PlayerIO::playerToStringShort(node->pla);
       nodeData["syms"] = node->symmetries;
       nodeData["wl"] = roundDouble(node->thisValuesNotInBook.winLossValue, 100000000);
-      nodeData["sM"] = roundDouble(node->thisValuesNotInBook.scoreMean, 1000000);
-      nodeData["ssM"] = roundDouble(node->thisValuesNotInBook.sharpScoreMean, 1000000);
       nodeData["wlE"] = roundDouble(node->thisValuesNotInBook.winLossError, 100000000);
-      nodeData["sE"] = roundDouble(node->thisValuesNotInBook.scoreError, 1000000);
-      nodeData["sStd"] = roundDouble(node->thisValuesNotInBook.scoreStdev, 1000000);
       nodeData["maxP"] = node->thisValuesNotInBook.maxPolicy;
       nodeData["w"] = roundDouble(node->thisValuesNotInBook.weight, 1000);
       nodeData["v"] = node->thisValuesNotInBook.visits;
@@ -2020,11 +1860,7 @@ void Book::saveToFile(const string& fileName) const {
       nodeData["pla"] = PlayerIO::playerToString(node->pla);
       nodeData["symmetries"] = node->symmetries;
       nodeData["winLossValue"] = node->thisValuesNotInBook.winLossValue;
-      nodeData["scoreMean"] = node->thisValuesNotInBook.scoreMean;
-      nodeData["sharpScoreMean"] = node->thisValuesNotInBook.sharpScoreMean;
       nodeData["winLossError"] = node->thisValuesNotInBook.winLossError;
-      nodeData["scoreError"] = node->thisValuesNotInBook.scoreError;
-      nodeData["scoreStdev"] = node->thisValuesNotInBook.scoreStdev;
       nodeData["maxPolicy"] = node->thisValuesNotInBook.maxPolicy;
       nodeData["weight"] = node->thisValuesNotInBook.weight;
       nodeData["visits"] = node->thisValuesNotInBook.visits;
@@ -2083,7 +1919,7 @@ void Book::saveToFile(const string& fileName) const {
   FileUtils::rename(tmpFileName,fileName);
 }
 
-Book* Book::loadFromFile(const std::string& fileName, double sharpScoreOutlierCap) {
+Book* Book::loadFromFile(const std::string& fileName) {
   std::ifstream in;
   FileUtils::open(in, fileName);
   std::string line;
@@ -2116,20 +1952,15 @@ Book* Book::loadFromFile(const std::string& fileName, double sharpScoreOutlierCa
       double costPerUCBWinLossLoss = params["costPerUCBWinLossLoss"].get<double>();
       double costPerUCBWinLossLossPow3 = params.contains("costPerUCBWinLossLossPow3") ? params["costPerUCBWinLossLossPow3"].get<double>() : 0.0;
       double costPerUCBWinLossLossPow7 = params.contains("costPerUCBWinLossLossPow7") ? params["costPerUCBWinLossLossPow7"].get<double>() : 0.0;
-      double costPerUCBScoreLoss = params["costPerUCBScoreLoss"].get<double>();
       double costPerLogPolicy = params["costPerLogPolicy"].get<double>();
       double costPerMovesExpanded = params["costPerMovesExpanded"].get<double>();
       double costPerSquaredMovesExpanded = params["costPerSquaredMovesExpanded"].get<double>();
       double costWhenPassFavored = params["costWhenPassFavored"].get<double>();
       double bonusPerWinLossError = params["bonusPerWinLossError"].get<double>();
-      double bonusPerScoreError = params.contains("bonusPerScoreError") ? params["bonusPerScoreError"].get<double>() : 0.0;
-      double bonusPerSharpScoreDiscrepancy = params.contains("bonusPerSharpScoreDiscrepancy") ? params["bonusPerSharpScoreDiscrepancy"].get<double>() : 0.0;
       double bonusPerExcessUnexpandedPolicy = params.contains("bonusPerExcessUnexpandedPolicy") ? params["bonusPerExcessUnexpandedPolicy"].get<double>() : 0.0;
       double bonusForWLPV1 = params.contains("bonusForWLPV1") ? params["bonusForWLPV1"].get<double>() : 0.0;
       double bonusForWLPV2 = params.contains("bonusForWLPV2") ? params["bonusForWLPV2"].get<double>() : 0.0;
       double bonusForBiggestWLCost = params.contains("bonusForBiggestWLCost") ? params["bonusForBiggestWLCost"].get<double>() : 0.0;
-      double scoreLossCap = params["scoreLossCap"].get<double>();
-      double utilityPerScore = params["utilityPerScore"].get<double>();
       double policyBoostSoftUtilityScale = params["policyBoostSoftUtilityScale"].get<double>();
       double utilityPerPolicyForSorting = params["utilityPerPolicyForSorting"].get<double>();
 
@@ -2144,23 +1975,17 @@ Book* Book::loadFromFile(const std::string& fileName, double sharpScoreOutlierCa
         costPerUCBWinLossLoss,
         costPerUCBWinLossLossPow3,
         costPerUCBWinLossLossPow7,
-        costPerUCBScoreLoss,
         costPerLogPolicy,
         costPerMovesExpanded,
         costPerSquaredMovesExpanded,
         costWhenPassFavored,
         bonusPerWinLossError,
-        bonusPerScoreError,
-        bonusPerSharpScoreDiscrepancy,
         bonusPerExcessUnexpandedPolicy,
         bonusForWLPV1,
         bonusForWLPV2,
         bonusForBiggestWLCost,
-        scoreLossCap,
-        utilityPerScore,
         policyBoostSoftUtilityScale,
-        utilityPerPolicyForSorting,
-        sharpScoreOutlierCap
+        utilityPerPolicyForSorting
       );
 
       int initialSymmetry = params["initialSymmetry"].get<int>();
@@ -2216,22 +2041,14 @@ Book* Book::loadFromFile(const std::string& fileName, double sharpScoreOutlierCa
 
       if(book->bookVersion >= 2) {
         node->thisValuesNotInBook.winLossValue = nodeData["wl"].get<double>();
-        node->thisValuesNotInBook.scoreMean = nodeData["sM"].get<double>();
-        node->thisValuesNotInBook.sharpScoreMean = nodeData["ssM"].get<double>();
         node->thisValuesNotInBook.winLossError = nodeData["wlE"].get<double>();
-        node->thisValuesNotInBook.scoreError = nodeData["sE"].get<double>();
-        node->thisValuesNotInBook.scoreStdev = nodeData["sStd"].get<double>();
         node->thisValuesNotInBook.maxPolicy = nodeData["maxP"].get<double>();
         node->thisValuesNotInBook.weight = nodeData["w"].get<double>();
         node->thisValuesNotInBook.visits = nodeData["v"].get<double>();
       }
       else {
         node->thisValuesNotInBook.winLossValue = nodeData["winLossValue"].get<double>();
-        node->thisValuesNotInBook.scoreMean = nodeData["scoreMean"].get<double>();
-        node->thisValuesNotInBook.sharpScoreMean = nodeData["sharpScoreMean"].get<double>();
         node->thisValuesNotInBook.winLossError = nodeData["winLossError"].get<double>();
-        node->thisValuesNotInBook.scoreError = nodeData["scoreError"].get<double>();
-        node->thisValuesNotInBook.scoreStdev = nodeData["scoreStdev"].get<double>();
         node->thisValuesNotInBook.maxPolicy = nodeData["maxPolicy"].get<double>();
         node->thisValuesNotInBook.weight = nodeData["weight"].get<double>();
         node->thisValuesNotInBook.visits = nodeData["visits"].get<double>();

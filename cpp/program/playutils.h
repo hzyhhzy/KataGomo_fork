@@ -17,26 +17,7 @@ namespace PlayUtils {
     BoardHistory& hist,
     double temperature,
     Rand& gameRand
-  );
-
-  ExtraBlackAndKomi chooseExtraBlackAndKomi(
-    float base, float stdev, double allowIntegerProb,
-    int numExtraBlackFixed,
-    double bigStdevProb, float bigStdev,
-    double biggerStdevProb, float biggerStdev,
-    double sqrtBoardArea, Rand& rand
-  );
-  void setKomiWithoutNoise(const ExtraBlackAndKomi& extraBlackAndKomi, BoardHistory& hist); //Also ignores allowInteger
-  void setKomiWithNoise(const ExtraBlackAndKomi& extraBlackAndKomi, BoardHistory& hist, Rand& rand);
-
-  ReportedSearchValues getWhiteScoreValues(
-    Search* bot,
-    const Board& board,
-    const BoardHistory& hist,
-    Player pla,
-    int64_t numVisits,
-    const OtherGameProperties& otherGameProps
-  );
+  ); 
 
   Loc chooseRandomLegalMove(const Board& board, const BoardHistory& hist, Player pla, Rand& gameRand, Loc banMove);
   int chooseRandomLegalMoves(const Board& board, const BoardHistory& hist, Player pla, Rand& gameRand, Loc* buf, int len);
@@ -63,29 +44,6 @@ namespace PlayUtils {
     double temperature
   );
 
-  float roundAndClipKomi(double unrounded, const Board& board, bool looseClipping);
-
-  void adjustKomiToEven(
-    Search* botB,
-    Search* botW, //can be NULL if only one bot
-    const Board& board,
-    BoardHistory& hist,
-    Player pla,
-    int64_t numVisits,
-    const OtherGameProperties& otherGameProps,
-    Rand& rand
-  );
-
-  //Lead from WHITE's perspective
-  float computeLead(
-    Search* botB,
-    Search* botW, //can be NULL if only one bot
-    const Board& board,
-    BoardHistory& hist,
-    Player pla,
-    int64_t numVisits,
-    const OtherGameProperties& otherGameProps
-  );
 
   double getSearchFactor(
     double searchFactorWhenWinningThreshold,

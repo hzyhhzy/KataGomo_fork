@@ -8,18 +8,13 @@ AnalysisData::AnalysisData()
    radius(0.0),
    utility(0.0),
    resultUtility(0.0),
-   scoreUtility(0.0),
    winLossValue(0.0),
    policyPrior(0.0),
-   scoreMean(0.0),
-   scoreStdev(0.0),
-   lead(0.0),
    ess(0.0),
    weightFactor(0.0),
    weightSum(0.0),
    weightSqSum(0.0),
    utilitySqAvg(0.0),
-   scoreMeanSqAvg(0.0),
    order(0),
    isSymmetryOf(Board::NULL_LOC),
    symmetry(0),
@@ -37,18 +32,13 @@ AnalysisData::AnalysisData(const AnalysisData& other)
    radius(other.radius),
    utility(other.utility),
    resultUtility(other.resultUtility),
-   scoreUtility(other.scoreUtility),
    winLossValue(other.winLossValue),
    policyPrior(other.policyPrior),
-   scoreMean(other.scoreMean),
-   scoreStdev(other.scoreStdev),
-   lead(other.lead),
    ess(other.ess),
    weightFactor(other.weightFactor),
    weightSum(other.weightSum),
    weightSqSum(other.weightSqSum),
    utilitySqAvg(other.utilitySqAvg),
-   scoreMeanSqAvg(other.scoreMeanSqAvg),
    order(other.order),
    isSymmetryOf(other.isSymmetryOf),
    symmetry(other.symmetry),
@@ -66,18 +56,13 @@ AnalysisData::AnalysisData(AnalysisData&& other) noexcept
    radius(other.radius),
    utility(other.utility),
    resultUtility(other.resultUtility),
-   scoreUtility(other.scoreUtility),
    winLossValue(other.winLossValue),
    policyPrior(other.policyPrior),
-   scoreMean(other.scoreMean),
-   scoreStdev(other.scoreStdev),
-   lead(other.lead),
    ess(other.ess),
    weightFactor(other.weightFactor),
    weightSum(other.weightSum),
    weightSqSum(other.weightSqSum),
    utilitySqAvg(other.utilitySqAvg),
-   scoreMeanSqAvg(other.scoreMeanSqAvg),
    order(other.order),
    isSymmetryOf(other.isSymmetryOf),
    symmetry(other.symmetry),
@@ -100,18 +85,13 @@ AnalysisData& AnalysisData::operator=(const AnalysisData& other) {
   radius = other.radius;
   utility = other.utility;
   resultUtility = other.resultUtility;
-  scoreUtility = other.scoreUtility;
   winLossValue = other.winLossValue;
   policyPrior = other.policyPrior;
-  scoreMean = other.scoreMean;
-  scoreStdev = other.scoreStdev;
-  lead = other.lead;
   ess = other.ess;
   weightFactor = other.weightFactor;
   weightSum = other.weightSum;
   weightSqSum = other.weightSqSum;
   utilitySqAvg = other.utilitySqAvg;
-  scoreMeanSqAvg = other.scoreMeanSqAvg;
   order = other.order;
   isSymmetryOf = other.isSymmetryOf;
   symmetry = other.symmetry;
@@ -132,18 +112,13 @@ AnalysisData& AnalysisData::operator=(AnalysisData&& other) noexcept {
   radius = other.radius;
   utility = other.utility;
   resultUtility = other.resultUtility;
-  scoreUtility = other.scoreUtility;
   winLossValue = other.winLossValue;
   policyPrior = other.policyPrior;
-  scoreMean = other.scoreMean;
-  scoreStdev = other.scoreStdev;
-  lead = other.lead;
   ess = other.ess;
   weightFactor = other.weightFactor;
   weightSum = other.weightSum;
   weightSqSum = other.weightSqSum;
   utilitySqAvg = other.utilitySqAvg;
-  scoreMeanSqAvg = other.scoreMeanSqAvg;
   order = other.order;
   isSymmetryOf = other.isSymmetryOf;
   symmetry = other.symmetry;

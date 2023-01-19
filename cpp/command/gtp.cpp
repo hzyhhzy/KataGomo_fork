@@ -34,8 +34,6 @@ static const vector<string> knownCommands = {
   "clear_board",
   "set_position",
   "komi",
-  //GTP extension - get KataGo's current komi setting
-  "get_komi",
   "play",
   "undo",
 
@@ -69,7 +67,6 @@ static const vector<string> knownCommands = {
   "kata-list_time_settings",
   "kata-time_settings",
 
-  "final_score",
   "final_status_list",
 
   "loadsgf",
@@ -179,10 +176,8 @@ static bool shouldResign(
   const BoardHistory& hist,
   Player pla,
   const vector<double>& recentWinLossValues,
-  double lead,
   const double resignThreshold,
-  const int resignConsecTurns,
-  const double resignMinScoreDifference
+  const int resignConsecTurns
 ) {
 
   int minTurnForResignation = 0;
@@ -339,7 +334,7 @@ struct GTPEngine {
       bool rulesWereSupported;
       nnEval->getSupportedRules(currentRules,rulesWereSupported);
       if(!rulesWereSupported) {
-        throw StringError("Rules " + currentRules.toJsonStringNoKomi() + " from config file " + cfg.getFileName() + " are NOT supported by neural net");
+        throw StringError("Rules " + currentRules.toJsonString() + " from config file " + cfg.getFileName() + " are NOT supported by neural net");
       }
     }
 
@@ -418,10 +413,6 @@ struct GTPEngine {
     return true;
   }
 
-  void updateKomiIfNew(float newKomi) {
-    bot->setKomiIfNew(newKomi);
-    currentRules.komi = newKomi;
-  }
 
   void setStaticPlayoutDoublingAdvantage(double d) {
     staticPlayoutDoublingAdvantage = d;
@@ -487,15 +478,14 @@ struct GTPEngine {
     return true;
   }
 
-  bool setRulesNotIncludingKomi(Rules newRules, string& error) {
+  bool setRules(Rules newRules, string& error) {
     assert(nnEval != NULL);
     assert(bot->getRootHist().rules == currentRules);
-    newRules.komi = currentRules.komi;
 
     bool rulesWereSupported;
     nnEval->getSupportedRules(newRules,rulesWereSupported);
     if(!rulesWereSupported) {
-      error = "Rules " + newRules.toJsonStringNoKomi() + " are not supported by this neural net version";
+      error = "Rules " + newRules.toJsonString() + " are not supported by this neural net version";
       return false;
     }
 
@@ -630,14 +620,10 @@ struct GTPEngine {
           double lcb = PlayUtils::getHackedLCBForWinrate(search,data,pla);
           ///But now we also offer the proper LCB that KataGo actually uses.
           double utilityLcb = data.lcb;
-          double scoreMean = data.scoreMean;
-          double lead = data.lead;
           if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK)) {
             winrate = 1.0-winrate;
             lcb = 1.0 - lcb;
             utility = -utility;
-            scoreMean = -scoreMean;
-            lead = -lead;
             utilityLcb = -utilityLcb;
           }
           out << "info";
@@ -645,12 +631,6 @@ struct GTPEngine {
           out << " visits " << data.numVisits;
           out << " utility " << utility;
           out << " winrate " << winrate;
-          // We report lead for scoreMean here so that a bunch of legacy tools that use KataGo use lead instead, which
-          // is usually a better field for user applications. We report scoreMean instead as scoreSelfplay
-          out << " scoreMean " << lead;
-          out << " scoreStdev " << data.scoreStdev;
-          out << " scoreLead " << lead;
-          out << " scoreSelfplay " << scoreMean;
           out << " prior " << data.policyPrior;
           out << " lcb " << lcb;
           out << " utilityLcb " << utilityLcb;
@@ -680,7 +660,7 @@ struct GTPEngine {
     Player pla,
     Logger& logger, double searchFactorWhenWinningThreshold, double searchFactorWhenWinning,
     bool ogsChatToStderr,
-    bool allowResignation, double resignThreshold, int resignConsecTurns, double resignMinScoreDifference,
+    bool allowResignation, double resignThreshold, int resignConsecTurns, 
     bool logSearchInfo, bool debug, bool playChosenMove,
     string& response, bool& responseIsError, bool& maybeStartPondering,
     AnalyzeArgs args
@@ -746,11 +726,9 @@ struct GTPEngine {
 
     ReportedSearchValues values;
     double winLossValue;
-    double lead;
     {
       values = bot->getSearch()->getRootValuesRequireSuccess();
       winLossValue = values.winLossValue;
-      lead = values.lead;
     }
 
     //Record data for resignation or adjusting handicap behavior ------------------------
@@ -758,8 +736,8 @@ struct GTPEngine {
 
     //Decide whether we should resign---------------------
     bool resigned = allowResignation && shouldResign(
-      bot->getRootBoard(),bot->getRootHist(),pla,recentWinLossValues,lead,
-      resignThreshold,resignConsecTurns,resignMinScoreDifference
+      bot->getRootBoard(),bot->getRootHist(),pla,recentWinLossValues,
+      resignThreshold,resignConsecTurns
     );
 
 
@@ -773,17 +751,12 @@ struct GTPEngine {
     if(ogsChatToStderr) {
       int64_t visits = bot->getSearch()->getRootVisits();
       double winrate = 0.5 * (1.0 + (values.winValue - values.lossValue));
-      double leadForPrinting = lead;
       //Print winrate from desired perspective
       if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK)) {
         winrate = 1.0 - winrate;
-        leadForPrinting = -leadForPrinting;
       }
       cerr << "CHAT:"
-           << "Visits " << visits
-           << " Winrate " << Global::strprintf("%.2f%%", winrate * 100.0)
-           << " ScoreLead " << Global::strprintf("%.1f", leadForPrinting)
-           << " ScoreStdev " << Global::strprintf("%.1f", values.expectedScoreStdev);
+           << "Visits " << visits << " Winrate " << Global::strprintf("%.2f%%", winrate * 100.0);
       if(params.playoutDoublingAdvantage != 0.0) {
         cerr << Global::strprintf(
           " (PDA %.2f)",
@@ -856,56 +829,6 @@ struct GTPEngine {
     bot->analyzeAsync(pla, searchFactor, args.secondsPerReport, args.secondsPerReport, callback);
   }
 
-  void computeAnticipatedWinnerAndScore(Player& winner, double& finalWhiteMinusBlackScore) {
-    stopAndWait();
-
-    //No playoutDoublingAdvantage to avoid bias
-    //Also never assume the game will end abruptly due to pass
-    {
-      SearchParams tmpParams = params;
-      tmpParams.playoutDoublingAdvantage = 0.0;
-      bot->setParams(tmpParams);
-    }
-
-    //Make absolutely sure we can restore the bot's old state
-    const Player oldPla = bot->getRootPla();
-    const Board oldBoard = bot->getRootBoard();
-    const BoardHistory oldHist = bot->getRootHist();
-
-    Board board = bot->getRootBoard();
-    BoardHistory hist = bot->getRootHist();
-    Player pla = bot->getRootPla();
-
-    //Tromp-taylorish scoring, or finished territory game scoring (including noresult)
-    if(hist.isGameFinished && (
-         (hist.rules.scoringRule == Rules::SCORING_AREA )
-       )
-    ) {
-      //For GTP purposes, we treat noResult as a draw since there is no provision for anything else.
-      winner = hist.winner;
-      finalWhiteMinusBlackScore = hist.finalWhiteMinusBlackScore;
-    }
-    //Human-friendly score or incomplete game score estimation
-    else {
-      int64_t numVisits = std::max(50, params.numThreads * 10);
-      //Try computing the lead for white
-      double lead = PlayUtils::computeLead(bot->getSearchStopAndWait(),NULL,board,hist,pla,numVisits,OtherGameProperties());
-
-      //Round lead to nearest integer or half-integer
-      if(hist.rules.gameResultWillBeInteger())
-        lead = round(lead);
-      else
-        lead = round(lead+0.5)-0.5;
-
-      finalWhiteMinusBlackScore = lead;
-      winner = lead > 0 ? P_WHITE : lead < 0 ? P_BLACK : C_EMPTY;
-    }
-
-    //Restore
-    bot->setPosition(oldPla,oldBoard,oldHist);
-    bot->setParams(params);
-  }
-
 
   string rawNNBrief(std::vector<Loc> branch, int whichSymmetry) {
     if(nnEval == NULL)
@@ -934,7 +857,6 @@ struct GTPEngine {
 
     string policyStr = "Policy: ";
     string wlStr = "White winloss: ";
-    string leadStr = "White lead: ";
 
     for(int symmetry = 0; symmetry < SymmetryHelpers::NUM_SYMMETRIES; symmetry++) {
       if(whichSymmetry == NNInputs::SYMMETRY_ALL || whichSymmetry == symmetry) {
@@ -951,7 +873,6 @@ struct GTPEngine {
 
           NNOutput* nnOutput = buf.result.get();
           wlStr += Global::strprintf("%.2fc ", 100.0 * (nnOutput->whiteWinProb - nnOutput->whiteLossProb));
-          leadStr += Global::strprintf("%.2f ", nnOutput->whiteLead);
         }
         if(prevLoc != Board::NULL_LOC) {
           MiscNNInputParams nnInputParams;
@@ -970,7 +891,7 @@ struct GTPEngine {
         }
       }
     }
-    return Global::trim(policyStr + "\n" + wlStr + "\n" + leadStr);
+    return Global::trim(policyStr + "\n" + wlStr);
   }
 
   string rawNN(int whichSymmetry) {
@@ -998,12 +919,8 @@ struct GTPEngine {
         out << "whiteWin " << Global::strprintf("%.6f",nnOutput->whiteWinProb) << endl;
         out << "whiteLoss " << Global::strprintf("%.6f",nnOutput->whiteLossProb) << endl;
         out << "noResult " << Global::strprintf("%.6f",nnOutput->whiteNoResultProb) << endl;
-        out << "whiteLead " << Global::strprintf("%.3f",nnOutput->whiteLead) << endl;
-        out << "whiteScoreSelfplay " << Global::strprintf("%.3f",nnOutput->whiteScoreMean) << endl;
-        out << "whiteScoreSelfplaySq " << Global::strprintf("%.3f",nnOutput->whiteScoreMeanSq) << endl;
         out << "varTimeLeft " << Global::strprintf("%.3f",nnOutput->varTimeLeft) << endl;
         out << "shorttermWinlossError " << Global::strprintf("%.3f",nnOutput->shorttermWinlossError) << endl;
-        out << "shorttermScoreError " << Global::strprintf("%.3f",nnOutput->shorttermScoreError) << endl;
 
         out << "policy" << endl;
         for(int y = 0; y<board.y_size; y++) {
@@ -1211,7 +1128,6 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
 
 int MainCmds::gtp(const vector<string>& args) {
   Board::initHash();
-  ScoreValue::initTables();
   Rand seedRand;
 
   ConfigParser cfg;
@@ -1253,19 +1169,10 @@ int MainCmds::gtp(const vector<string>& args) {
     cerr << Version::getKataGoVersionForHelp() << endl;
   }
 
-  //Defaults to 7.5 komi, gtp will generally override this
-  const bool loadKomiFromCfg = false;
-  Rules initialRules = Setup::loadSingleRules(cfg,loadKomiFromCfg);
-  logger.write("Using " + initialRules.toStringNoKomiMaybeNice() + " rules initially, unless GTP/GUI overrides this");
+  Rules initialRules = Setup::loadSingleRules(cfg);
+  logger.write("Using " + initialRules.toStringMaybeNice() + " rules initially, unless GTP/GUI overrides this");
   if(startupPrintMessageToStderr && !logger.isLoggingToStderr()) {
-    cerr << "Using " + initialRules.toStringNoKomiMaybeNice() + " rules initially, unless GTP/GUI overrides this" << endl;
-  }
-  bool isForcingKomi = false;
-  float forcedKomi = 0;
-  if(cfg.contains("ignoreGTPAndForceKomi")) {
-    isForcingKomi = true;
-    forcedKomi = cfg.getFloat("ignoreGTPAndForceKomi", Rules::MIN_USER_KOMI, Rules::MAX_USER_KOMI);
-    initialRules.komi = forcedKomi;
+    cerr << "Using " + initialRules.toStringMaybeNice() + " rules initially, unless GTP/GUI overrides this" << endl;
   }
 
   SearchParams initialParams = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
@@ -1278,7 +1185,6 @@ int MainCmds::gtp(const vector<string>& args) {
   const bool allowResignation = cfg.contains("allowResignation") ? cfg.getBool("allowResignation") : false;
   const double resignThreshold = cfg.contains("allowResignation") ? cfg.getDouble("resignThreshold",-1.0,0.0) : -1.0; //Threshold on [-1,1], regardless of winLossUtilityFactor
   const int resignConsecTurns = cfg.contains("resignConsecTurns") ? cfg.getInt("resignConsecTurns",1,100) : 3;
-  const double resignMinScoreDifference = cfg.contains("resignMinScoreDifference") ? cfg.getDouble("resignMinScoreDifference",0.0,1000.0) : -1e10;
 
   Setup::initializeSession(cfg);
 
@@ -1500,34 +1406,22 @@ int MainCmds::gtp(const vector<string>& args) {
         responseIsError = true;
         response = "Expected single float argument for komi but got '" + Global::concat(pieces," ") + "'";
       }
-      //GTP spec says that we should accept any komi, but we're going to ignore that.
-      else if(isnan(newKomi) || newKomi < Rules::MIN_USER_KOMI || newKomi > Rules::MAX_USER_KOMI) {
-        responseIsError = true;
-        response = "unacceptable komi";
-      }
-      else if(!Rules::komiIsIntOrHalfInt(newKomi)) {
-        responseIsError = true;
-        response = "komi must be an integer or half-integer";
-      }
       else {
-        if(isForcingKomi)
-          newKomi = forcedKomi;
-        engine->updateKomiIfNew(newKomi);
+
+        //engine->updateKomiIfNew(newKomi);
+        
         //In case the controller tells us komi every move, restart pondering afterward.
         maybeStartPondering = engine->bot->getRootHist().moveHistory.size() > 0;
       }
     }
 
-    else if(command == "get_komi") {
-      response = Global::doubleToString(engine->getCurrentRules().komi);
-    }
 
     else if(command == "kata-get-rules") {
       if(pieces.size() != 0) {
         response = "Expected no arguments for kata-get-rules but got '" + Global::concat(pieces," ") + "'";
       }
       else {
-        response = engine->getCurrentRules().toJsonStringNoKomi();
+        response = engine->getCurrentRules().toJsonString();
       }
     }
 
@@ -1536,7 +1430,7 @@ int MainCmds::gtp(const vector<string>& args) {
       bool parseSuccess = false;
       Rules newRules;
       try {
-        newRules = Rules::parseRulesWithoutKomi(rest,engine->getCurrentRules().komi);
+        newRules = Rules::parseRules(rest);
         parseSuccess = true;
       }
       catch(const StringError& err) {
@@ -1545,14 +1439,14 @@ int MainCmds::gtp(const vector<string>& args) {
       }
       if(parseSuccess) {
         string error;
-        bool suc = engine->setRulesNotIncludingKomi(newRules,error);
+        bool suc = engine->setRules(newRules,error);
         if(!suc) {
           responseIsError = true;
           response = error;
         }
-        logger.write("Changed rules to " + newRules.toStringNoKomiMaybeNice());
+        logger.write("Changed rules to " + newRules.toStringMaybeNice());
         if(!logger.isLoggingToStderr())
-          cerr << "Changed rules to " + newRules.toStringNoKomiMaybeNice() << endl;
+          cerr << "Changed rules to " + newRules.toStringMaybeNice() << endl;
       }
     }
 
@@ -1575,14 +1469,14 @@ int MainCmds::gtp(const vector<string>& args) {
         }
         if(parseSuccess) {
           string error;
-          bool suc = engine->setRulesNotIncludingKomi(newRules,error);
+          bool suc = engine->setRules(newRules,error);
           if(!suc) {
             responseIsError = true;
             response = error;
           }
-          logger.write("Changed rules to " + newRules.toStringNoKomiMaybeNice());
+          logger.write("Changed rules to " + newRules.toStringMaybeNice());
           if(!logger.isLoggingToStderr())
-            cerr << "Changed rules to " + newRules.toStringNoKomiMaybeNice() << endl;
+            cerr << "Changed rules to " + newRules.toStringMaybeNice() << endl;
         }
       }
     }
@@ -1597,19 +1491,7 @@ int MainCmds::gtp(const vector<string>& args) {
       else {
         string s = Global::toLower(Global::trim(pieces[0]));
         if(s == "chinese") {
-          newRules = Rules::parseRulesWithoutKomi("chinese-kgs",engine->getCurrentRules().komi);
-          parseSuccess = true;
-        }
-        else if(s == "aga") {
-          newRules = Rules::parseRulesWithoutKomi("aga",engine->getCurrentRules().komi);
-          parseSuccess = true;
-        }
-        else if(s == "new_zealand") {
-          newRules = Rules::parseRulesWithoutKomi("new_zealand",engine->getCurrentRules().komi);
-          parseSuccess = true;
-        }
-        else if(s == "japanese") {
-          newRules = Rules::parseRulesWithoutKomi("japanese",engine->getCurrentRules().komi);
+          newRules = Rules::parseRules("chinese-kgs");
           parseSuccess = true;
         }
         else {
@@ -1619,14 +1501,14 @@ int MainCmds::gtp(const vector<string>& args) {
       }
       if(parseSuccess) {
         string error;
-        bool suc = engine->setRulesNotIncludingKomi(newRules,error);
+        bool suc = engine->setRules(newRules,error);
         if(!suc) {
           responseIsError = true;
           response = error;
         }
-        logger.write("Changed rules to " + newRules.toStringNoKomiMaybeNice());
+        logger.write("Changed rules to " + newRules.toStringMaybeNice());
         if(!logger.isLoggingToStderr())
-          cerr << "Changed rules to " + newRules.toStringNoKomiMaybeNice() << endl;
+          cerr << "Changed rules to " + newRules.toStringMaybeNice() << endl;
       }
     }
 
@@ -2090,7 +1972,7 @@ int MainCmds::gtp(const vector<string>& args) {
           pla,
           logger,searchFactorWhenWinningThreshold,searchFactorWhenWinning,
           ogsChatToStderr,
-          allowResignation,resignThreshold,resignConsecTurns,resignMinScoreDifference,
+          allowResignation,resignThreshold,resignConsecTurns,
           logSearchInfo,debug,playChosenMove,
           response,responseIsError,maybeStartPondering,
           GTPEngine::AnalyzeArgs()
@@ -2120,7 +2002,7 @@ int MainCmds::gtp(const vector<string>& args) {
           pla,
           logger,searchFactorWhenWinningThreshold,searchFactorWhenWinning,
           ogsChatToStderr,
-          allowResignation,resignThreshold,resignConsecTurns,resignMinScoreDifference,
+          allowResignation,resignThreshold,resignConsecTurns,
           logSearchInfo,debug,playChosenMove,
           response,responseIsError,maybeStartPondering,
           analyzeArgs
@@ -2148,23 +2030,6 @@ int MainCmds::gtp(const vector<string>& args) {
       response = Global::trim(filterDoubleNewlines(sout.str()));
     }
 
-
-    else if(command == "final_score") {
-      engine->stopAndWait();
-
-      Player winner = C_EMPTY;
-      double finalWhiteMinusBlackScore = 0.0;
-      engine->computeAnticipatedWinnerAndScore(winner,finalWhiteMinusBlackScore);
-
-      if(winner == C_EMPTY)
-        response = "0";
-      else if(winner == C_BLACK)
-        response = "B+" + Global::strprintf("%.1f",-finalWhiteMinusBlackScore);
-      else if(winner == C_WHITE)
-        response = "W+" + Global::strprintf("%.1f",finalWhiteMinusBlackScore);
-      else
-        ASSERT_UNREACHABLE;
-    }
 
     else if(command == "loadsgf") {
       if(pieces.size() != 1 && pieces.size() != 2) {
@@ -2217,8 +2082,8 @@ int MainCmds::gtp(const vector<string>& args) {
               Rules supportedRules = engine->nnEval->getSupportedRules(sgfRules,rulesWereSupported);
               if(!rulesWereSupported) {
                 ostringstream out;
-                out << "WARNING: Rules " << sgfRules.toJsonStringNoKomi()
-                    << " from sgf not supported by neural net, using " << supportedRules.toJsonStringNoKomi() << " instead";
+                out << "WARNING: Rules " << sgfRules.toJsonString()
+                    << " from sgf not supported by neural net, using " << supportedRules.toJsonString() << " instead";
                 logger.write(out.str());
                 if(!logger.isLoggingToStderr())
                   cerr << out.str() << endl;
@@ -2226,16 +2091,13 @@ int MainCmds::gtp(const vector<string>& args) {
               }
             }
 
-            if(isForcingKomi)
-              sgfRules.komi = forcedKomi;
 
             {
               //See if the rules differ, IGNORING komi differences
               Rules currentRules = engine->getCurrentRules();
-              currentRules.komi = sgfRules.komi;
               if(sgfRules != currentRules) {
                 ostringstream out;
-                out << "Changing rules to " << sgfRules.toJsonStringNoKomi();
+                out << "Changing rules to " << sgfRules.toJsonString();
                 logger.write(out.str());
                 if(!logger.isLoggingToStderr())
                   cerr << out.str() << endl;
@@ -2267,13 +2129,6 @@ int MainCmds::gtp(const vector<string>& args) {
           }
 
           if(sgfParseSuccess) {
-            if(sgfRules.komi != engine->getCurrentRules().komi) {
-              ostringstream out;
-              out << "Changing komi to " << sgfRules.komi;
-              logger.write(out.str());
-              if(!logger.isLoggingToStderr())
-                cerr << out.str() << endl;
-            }
             engine->setOrResetBoardSize(cfg,logger,seedRand,sgfBoard.x_size,sgfBoard.y_size,logger.isLoggingToStderr());
             engine->setPositionAndRules(sgfNextPla, sgfBoard, sgfHist, sgfInitialBoard, sgfInitialNextPla, sgfHist.moveHistory);
           }
@@ -2288,14 +2143,10 @@ int MainCmds::gtp(const vector<string>& args) {
       }
       else {
         auto writeSgfToStream = [&](ostream& out) {
-          double overrideFinalScore = std::numeric_limits<double>::quiet_NaN();
           if(engine->bot->getRootHist().isGameFinished) {
             Player winner = C_EMPTY;
-            double finalWhiteMinusBlackScore = 0.0;
-            engine->computeAnticipatedWinnerAndScore(winner,finalWhiteMinusBlackScore);
-            overrideFinalScore = finalWhiteMinusBlackScore;
           }
-          WriteSgf::writeSgf(out,"","",engine->bot->getRootHist(),NULL,true,false,overrideFinalScore);
+          WriteSgf::writeSgf(out,"","",engine->bot->getRootHist(),NULL,true,false);
         };
 
         if(pieces.size() == 0 || pieces[0] == "-") {
@@ -2537,7 +2388,6 @@ int MainCmds::gtp(const vector<string>& args) {
   delete engine;
   engine = NULL;
   NeuralNet::globalCleanup();
-  ScoreValue::freeTables();
 
   logger.write("All cleaned up, quitting");
   return 0;

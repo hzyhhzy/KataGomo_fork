@@ -66,6 +66,7 @@ string Rules::toString() const {
   return out.str();
 }
 
+
 //omitDefaults: Takes up a lot of string space to include stuff, so omit some less common things if matches tromp-taylor rules
 //which is the default for parsing and if not otherwise specified
 json Rules::toJsonHelper(bool omitDefaults) const {
@@ -180,6 +181,12 @@ static Rules parseRulesHelper(const string& sOrig) {
   }
 
   return rules;
+}
+
+string Rules::toStringMaybeNice() const {
+  if(*this == parseRulesHelper("TrompTaylor"))
+    return "TrompTaylor";
+  return toString();
 }
 
 Rules Rules::parseRules(const string& sOrig) {

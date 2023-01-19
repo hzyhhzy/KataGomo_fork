@@ -212,39 +212,10 @@ double Search::getResultUtilityFromNN(const NNOutput& nnOutput) const {
   );
 }
 
-double Search::getScoreUtility(double scoreMeanAvg, double scoreMeanSqAvg) const {
-  double scoreMean = scoreMeanAvg;
-  double scoreMeanSq = scoreMeanSqAvg;
-  double scoreStdev = ScoreValue::getScoreStdev(scoreMean, scoreMeanSq);
-  double staticScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,0.0,2.0,rootBoard);
-  double dynamicScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,recentScoreCenter,searchParams.dynamicScoreCenterScale,rootBoard);
-  return staticScoreValue * searchParams.staticScoreUtilityFactor + dynamicScoreValue * searchParams.dynamicScoreUtilityFactor;
-}
-
-double Search::getScoreUtilityDiff(double scoreMeanAvg, double scoreMeanSqAvg, double delta) const {
-  double scoreMean = scoreMeanAvg;
-  double scoreMeanSq = scoreMeanSqAvg;
-  double scoreStdev = ScoreValue::getScoreStdev(scoreMean, scoreMeanSq);
-  double staticScoreValueDiff =
-    ScoreValue::expectedWhiteScoreValue(scoreMean + delta,scoreStdev,0.0,2.0,rootBoard)
-    -ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,0.0,2.0,rootBoard);
-  double dynamicScoreValueDiff =
-    ScoreValue::expectedWhiteScoreValue(scoreMean + delta,scoreStdev,recentScoreCenter,searchParams.dynamicScoreCenterScale,rootBoard)
-    -ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,recentScoreCenter,searchParams.dynamicScoreCenterScale,rootBoard);
-  return staticScoreValueDiff * searchParams.staticScoreUtilityFactor + dynamicScoreValueDiff * searchParams.dynamicScoreUtilityFactor;
-}
-
-//Ignores scoreMeanSq's effect on the utility, since that's complicated
-double Search::getApproxScoreUtilityDerivative(double scoreMean) const {
-  double staticScoreValueDerivative = ScoreValue::whiteDScoreValueDScoreSmoothNoDrawAdjust(scoreMean,0.0,2.0,rootBoard);
-  double dynamicScoreValueDerivative = ScoreValue::whiteDScoreValueDScoreSmoothNoDrawAdjust(scoreMean,recentScoreCenter,searchParams.dynamicScoreCenterScale,rootBoard);
-  return staticScoreValueDerivative * searchParams.staticScoreUtilityFactor + dynamicScoreValueDerivative * searchParams.dynamicScoreUtilityFactor;
-}
-
 
 double Search::getUtilityFromNN(const NNOutput& nnOutput) const {
   double resultUtility = getResultUtilityFromNN(nnOutput);
-  return resultUtility + getScoreUtility(nnOutput.whiteScoreMean, nnOutput.whiteScoreMeanSq);
+  return resultUtility;
 }
 
 
@@ -278,15 +249,13 @@ double Search::interpolateEarly(double halflife, double earlyValue, double value
 
 void Search::getSelfUtilityLCBAndRadius(const SearchNode& parent, const SearchNode* child, int64_t edgeVisits, Loc moveLoc, double& lcbBuf, double& radiusBuf) const {
   int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
-  double scoreMeanAvg = child->stats.scoreMeanAvg.load(std::memory_order_acquire);
-  double scoreMeanSqAvg = child->stats.scoreMeanSqAvg.load(std::memory_order_acquire);
   double utilityAvg = child->stats.utilityAvg.load(std::memory_order_acquire);
   double utilitySqAvg = child->stats.utilitySqAvg.load(std::memory_order_acquire);
   double weightSum = child->stats.getChildWeight(edgeVisits,childVisits);
   double weightSqSum = child->stats.getChildWeightSq(edgeVisits,childVisits);
 
   // Max radius of the entire utility range
-  double utilityRangeRadius = searchParams.winLossUtilityFactor + searchParams.staticScoreUtilityFactor + searchParams.dynamicScoreUtilityFactor;
+  double utilityRangeRadius = searchParams.winLossUtilityFactor;
   radiusBuf = 2.0 * utilityRangeRadius * searchParams.lcbStdevs;
   lcbBuf = -radiusBuf;
   if(childVisits <= 0 || weightSum <= 0.0 || weightSqSum <= 0.0)
@@ -308,8 +277,7 @@ void Search::getSelfUtilityLCBAndRadius(const SearchNode& parent, const SearchNo
   // Recompute effective sample size now that we have the prior
   ess = weightSum * weightSum / weightSqSum;
 
-  double utilityDiff = getScoreUtilityDiff(scoreMeanAvg, scoreMeanSqAvg, 0);
-  double utilityWithBonus = utilityAvg + utilityDiff;
+  double utilityWithBonus = utilityAvg;
   double selfUtility = parent.nextPla == P_WHITE ? utilityWithBonus : -utilityWithBonus;
 
   double utilityVariance = utilitySqAvg - utilityAvg * utilityAvg;

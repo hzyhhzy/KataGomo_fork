@@ -40,7 +40,6 @@ static double getMaxPolicy(float policyProbs[NNPos::MAX_NN_POLICY_SIZE]) {
 
 int MainCmds::genbook(const vector<string>& args) {
   Board::initHash();
-  ScoreValue::initTables();
 
   ConfigParser cfg;
   string modelFile;
@@ -106,8 +105,7 @@ int MainCmds::genbook(const vector<string>& args) {
   Logger logger(&cfg, logToStdoutDefault);
   logger.addFile(logFile);
 
-  const bool loadKomiFromCfg = true;
-  Rules rules = Setup::loadSingleRules(cfg,loadKomiFromCfg);
+  Rules rules = Setup::loadSingleRules(cfg);
 
   const int boardSizeX = cfg.getInt("boardSizeX",2,Board::MAX_LEN);
   const int boardSizeY = cfg.getInt("boardSizeY",2,Board::MAX_LEN);
@@ -117,23 +115,17 @@ int MainCmds::genbook(const vector<string>& args) {
   const double costPerUCBWinLossLoss = cfg.getDouble("costPerUCBWinLossLoss",0.0,1000000.0);
   const double costPerUCBWinLossLossPow3 = cfg.getDouble("costPerUCBWinLossLossPow3",0.0,1000000.0);
   const double costPerUCBWinLossLossPow7 = cfg.getDouble("costPerUCBWinLossLossPow7",0.0,1000000.0);
-  const double costPerUCBScoreLoss = cfg.getDouble("costPerUCBScoreLoss",0.0,1000000.0);
   const double costPerLogPolicy = cfg.getDouble("costPerLogPolicy",0.0,1000000.0);
   const double costPerMovesExpanded = cfg.getDouble("costPerMovesExpanded",0.0,1000000.0);
   const double costPerSquaredMovesExpanded = cfg.getDouble("costPerSquaredMovesExpanded",0.0,1000000.0);
   const double costWhenPassFavored = cfg.getDouble("costWhenPassFavored",0.0,1000000.0);
   const double bonusPerWinLossError = cfg.getDouble("bonusPerWinLossError",0.0,1000000.0);
-  const double bonusPerScoreError = cfg.getDouble("bonusPerScoreError",0.0,1000000.0);
-  const double bonusPerSharpScoreDiscrepancy = cfg.getDouble("bonusPerSharpScoreDiscrepancy",0.0,1000000.0);
   const double bonusPerExcessUnexpandedPolicy = cfg.getDouble("bonusPerExcessUnexpandedPolicy",0.0,1000000.0);
   const double bonusForWLPV1 = cfg.contains("bonusForWLPV1") ? cfg.getDouble("bonusForWLPV1",0.0,1000000.0) : 0.0;
   const double bonusForWLPV2 = cfg.contains("bonusForWLPV2") ? cfg.getDouble("bonusForWLPV2",0.0,1000000.0) : 0.0;
   const double bonusForBiggestWLCost = cfg.contains("bonusForBiggestWLCost") ? cfg.getDouble("bonusForBiggestWLCost",0.0,1000000.0) : 0.0;
-  const double scoreLossCap = cfg.getDouble("scoreLossCap",0.0,1000000.0);
-  const double utilityPerScore = cfg.getDouble("utilityPerScore",0.0,1000000.0);
   const double policyBoostSoftUtilityScale = cfg.getDouble("policyBoostSoftUtilityScale",0.0,1000000.0);
   const double utilityPerPolicyForSorting = cfg.getDouble("utilityPerPolicyForSorting",0.0,1000000.0);
-  const double sharpScoreOutlierCap = cfg.getDouble("sharpScoreOutlierCap",0.0,1000000.0);
   const bool logSearchInfo = cfg.getBool("logSearchInfo");
   const string rulesLabel = cfg.getString("rulesLabel");
   const string rulesLink = cfg.getString("rulesLink");
@@ -224,7 +216,7 @@ int MainCmds::genbook(const vector<string>& args) {
     bookFileExists = FileUtils::tryOpen(infile,bookFile);
   }
   if(bookFileExists) {
-    book = Book::loadFromFile(bookFile,sharpScoreOutlierCap);
+    book = Book::loadFromFile(bookFile);
     if(
       boardSizeX != book->getInitialHist().getRecentBoard(0).x_size ||
       boardSizeY != book->getInitialHist().getRecentBoard(0).y_size ||
@@ -255,20 +247,15 @@ int MainCmds::genbook(const vector<string>& args) {
         costPerUCBWinLossLoss != book->getCostPerUCBWinLossLoss() ||
         costPerUCBWinLossLossPow3 != book->getCostPerUCBWinLossLossPow3() ||
         costPerUCBWinLossLossPow7 != book->getCostPerUCBWinLossLossPow7() ||
-        costPerUCBScoreLoss != book->getCostPerUCBScoreLoss() ||
         costPerLogPolicy != book->getCostPerLogPolicy() ||
         costPerMovesExpanded != book->getCostPerMovesExpanded() ||
         costPerSquaredMovesExpanded != book->getCostPerSquaredMovesExpanded() ||
         costWhenPassFavored != book->getCostWhenPassFavored() ||
         bonusPerWinLossError != book->getBonusPerWinLossError() ||
-        bonusPerScoreError != book->getBonusPerScoreError() ||
-        bonusPerSharpScoreDiscrepancy != book->getBonusPerSharpScoreDiscrepancy() ||
         bonusPerExcessUnexpandedPolicy != book->getBonusPerExcessUnexpandedPolicy() ||
         bonusForWLPV1 != book->getBonusForWLPV1() ||
         bonusForWLPV2 != book->getBonusForWLPV2() ||
         bonusForBiggestWLCost != book->getBonusForBiggestWLCost() ||
-        scoreLossCap != book->getScoreLossCap() ||
-        utilityPerScore != book->getUtilityPerScore() ||
         policyBoostSoftUtilityScale != book->getPolicyBoostSoftUtilityScale() ||
         utilityPerPolicyForSorting != book->getUtilityPerPolicyForSorting()
       ) {
@@ -281,20 +268,15 @@ int MainCmds::genbook(const vector<string>& args) {
       if(costPerUCBWinLossLoss != book->getCostPerUCBWinLossLoss()) { logger.write("Changing costPerUCBWinLossLoss from " + Global::doubleToString(book->getCostPerUCBWinLossLoss()) + " to " + Global::doubleToString(costPerUCBWinLossLoss)); book->setCostPerUCBWinLossLoss(costPerUCBWinLossLoss); }
       if(costPerUCBWinLossLossPow3 != book->getCostPerUCBWinLossLossPow3()) { logger.write("Changing costPerUCBWinLossLossPow3 from " + Global::doubleToString(book->getCostPerUCBWinLossLossPow3()) + " to " + Global::doubleToString(costPerUCBWinLossLossPow3)); book->setCostPerUCBWinLossLossPow3(costPerUCBWinLossLossPow3); }
       if(costPerUCBWinLossLossPow7 != book->getCostPerUCBWinLossLossPow7()) { logger.write("Changing costPerUCBWinLossLossPow7 from " + Global::doubleToString(book->getCostPerUCBWinLossLossPow7()) + " to " + Global::doubleToString(costPerUCBWinLossLossPow7)); book->setCostPerUCBWinLossLossPow7(costPerUCBWinLossLossPow7); }
-      if(costPerUCBScoreLoss != book->getCostPerUCBScoreLoss()) { logger.write("Changing costPerUCBScoreLoss from " + Global::doubleToString(book->getCostPerUCBScoreLoss()) + " to " + Global::doubleToString(costPerUCBScoreLoss)); book->setCostPerUCBScoreLoss(costPerUCBScoreLoss); }
       if(costPerLogPolicy != book->getCostPerLogPolicy()) { logger.write("Changing costPerLogPolicy from " + Global::doubleToString(book->getCostPerLogPolicy()) + " to " + Global::doubleToString(costPerLogPolicy)); book->setCostPerLogPolicy(costPerLogPolicy); }
       if(costPerMovesExpanded != book->getCostPerMovesExpanded()) { logger.write("Changing costPerMovesExpanded from " + Global::doubleToString(book->getCostPerMovesExpanded()) + " to " + Global::doubleToString(costPerMovesExpanded)); book->setCostPerMovesExpanded(costPerMovesExpanded); }
       if(costPerSquaredMovesExpanded != book->getCostPerSquaredMovesExpanded()) { logger.write("Changing costPerSquaredMovesExpanded from " + Global::doubleToString(book->getCostPerSquaredMovesExpanded()) + " to " + Global::doubleToString(costPerSquaredMovesExpanded)); book->setCostPerSquaredMovesExpanded(costPerSquaredMovesExpanded); }
       if(costWhenPassFavored != book->getCostWhenPassFavored()) { logger.write("Changing costWhenPassFavored from " + Global::doubleToString(book->getCostWhenPassFavored()) + " to " + Global::doubleToString(costWhenPassFavored)); book->setCostWhenPassFavored(costWhenPassFavored); }
       if(bonusPerWinLossError != book->getBonusPerWinLossError()) { logger.write("Changing bonusPerWinLossError from " + Global::doubleToString(book->getBonusPerWinLossError()) + " to " + Global::doubleToString(bonusPerWinLossError)); book->setBonusPerWinLossError(bonusPerWinLossError); }
-      if(bonusPerScoreError != book->getBonusPerScoreError()) { logger.write("Changing bonusPerScoreError from " + Global::doubleToString(book->getBonusPerScoreError()) + " to " + Global::doubleToString(bonusPerScoreError)); book->setBonusPerScoreError(bonusPerScoreError); }
-      if(bonusPerSharpScoreDiscrepancy != book->getBonusPerSharpScoreDiscrepancy()) { logger.write("Changing bonusPerSharpScoreDiscrepancy from " + Global::doubleToString(book->getBonusPerSharpScoreDiscrepancy()) + " to " + Global::doubleToString(bonusPerSharpScoreDiscrepancy)); book->setBonusPerSharpScoreDiscrepancy(bonusPerSharpScoreDiscrepancy); }
       if(bonusPerExcessUnexpandedPolicy != book->getBonusPerExcessUnexpandedPolicy()) { logger.write("Changing bonusPerExcessUnexpandedPolicy from " + Global::doubleToString(book->getBonusPerExcessUnexpandedPolicy()) + " to " + Global::doubleToString(bonusPerExcessUnexpandedPolicy)); book->setBonusPerExcessUnexpandedPolicy(bonusPerExcessUnexpandedPolicy); }
       if(bonusForWLPV1 != book->getBonusForWLPV1()) { logger.write("Changing bonusForWLPV1 from " + Global::doubleToString(book->getBonusForWLPV1()) + " to " + Global::doubleToString(bonusForWLPV1)); book->setBonusForWLPV1(bonusForWLPV1); }
       if(bonusForWLPV2 != book->getBonusForWLPV2()) { logger.write("Changing bonusForWLPV2 from " + Global::doubleToString(book->getBonusForWLPV2()) + " to " + Global::doubleToString(bonusForWLPV2)); book->setBonusForWLPV2(bonusForWLPV2); }
       if(bonusForBiggestWLCost != book->getBonusForBiggestWLCost()) { logger.write("Changing bonusForBiggestWLCost from " + Global::doubleToString(book->getBonusForBiggestWLCost()) + " to " + Global::doubleToString(bonusForBiggestWLCost)); book->setBonusForBiggestWLCost(bonusForBiggestWLCost); }
-      if(scoreLossCap != book->getScoreLossCap()) { logger.write("Changing scoreLossCap from " + Global::doubleToString(book->getScoreLossCap()) + " to " + Global::doubleToString(scoreLossCap)); book->setScoreLossCap(scoreLossCap); }
-      if(utilityPerScore != book->getUtilityPerScore()) { logger.write("Changing utilityPerScore from " + Global::doubleToString(book->getUtilityPerScore()) + " to " + Global::doubleToString(utilityPerScore)); book->setUtilityPerScore(utilityPerScore); }
       if(policyBoostSoftUtilityScale != book->getPolicyBoostSoftUtilityScale()) { logger.write("Changing policyBoostSoftUtilityScale from " + Global::doubleToString(book->getPolicyBoostSoftUtilityScale()) + " to " + Global::doubleToString(policyBoostSoftUtilityScale)); book->setPolicyBoostSoftUtilityScale(policyBoostSoftUtilityScale); }
       if(utilityPerPolicyForSorting != book->getUtilityPerPolicyForSorting()) { logger.write("Changing utilityPerPolicyForSorting from " + Global::doubleToString(book->getUtilityPerPolicyForSorting()) + " to " + Global::doubleToString(utilityPerPolicyForSorting)); book->setUtilityPerPolicyForSorting(utilityPerPolicyForSorting); }
     }
@@ -318,23 +300,17 @@ int MainCmds::genbook(const vector<string>& args) {
       costPerUCBWinLossLoss,
       costPerUCBWinLossLossPow3,
       costPerUCBWinLossLossPow7,
-      costPerUCBScoreLoss,
       costPerLogPolicy,
       costPerMovesExpanded,
       costPerSquaredMovesExpanded,
       costWhenPassFavored,
       bonusPerWinLossError,
-      bonusPerScoreError,
-      bonusPerSharpScoreDiscrepancy,
       bonusPerExcessUnexpandedPolicy,
       bonusForWLPV1,
       bonusForWLPV2,
       bonusForBiggestWLCost,
-      scoreLossCap,
-      utilityPerScore,
       policyBoostSoftUtilityScale,
-      utilityPerPolicyForSorting,
-      sharpScoreOutlierCap
+      utilityPerPolicyForSorting
     );
     logger.write("Creating new book at " + bookFile);
     book->saveToFile(bookFile);
@@ -348,7 +324,7 @@ int MainCmds::genbook(const vector<string>& args) {
   if(traceBookFile.size() > 0) {
     if(numIterations > 0)
       throw StringError("Cannot specify iterations and trace book at the same time");
-    traceBook = Book::loadFromFile(traceBookFile,sharpScoreOutlierCap);
+    traceBook = Book::loadFromFile(traceBookFile);
     traceBook->recomputeEverything();
     logger.write("Loaded trace book with " + Global::uint64ToString(book->size()) + " nodes from " + traceBookFile);
     logger.write("traceBookMinVisits = " + Global::doubleToString(traceBookMinVisits));
@@ -395,12 +371,8 @@ int MainCmds::genbook(const vector<string>& args) {
     // or otherwise this searchNode must be a terminal node with visits from a deeper search.
     assert(getSuc);
     (void)getSuc;
-    double sharpScore = 0.0;
-    getSuc = search->getSharpScore(searchNode,sharpScore);
-    assert(getSuc);
-    (void)getSuc;
 
-    std::pair<double,double> errors = search->getAverageShorttermWLAndScoreError(searchNode);
+    double errors = search->getAverageShorttermWLError(searchNode);
 
     float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
     bool policySuc = search->getPolicy(searchNode, policyProbs);
@@ -426,11 +398,7 @@ int MainCmds::genbook(const vector<string>& args) {
     // Record those values to the book
     BookValues& nodeValues = node.thisValuesNotInBook();
     nodeValues.winLossValue = remainingSearchValues.winLossValue;
-    nodeValues.scoreMean = remainingSearchValues.expectedScore;
-    nodeValues.sharpScoreMean = sharpScore;
-    nodeValues.winLossError = errors.first;
-    nodeValues.scoreError = errors.second;
-    nodeValues.scoreStdev = remainingSearchValues.expectedScoreStdev;
+    nodeValues.winLossError = errors;
 
     nodeValues.maxPolicy = maxPolicy;
     nodeValues.weight = remainingSearchValues.weight;
@@ -458,29 +426,20 @@ int MainCmds::genbook(const vector<string>& args) {
       BookValues& nodeValues = node.thisValuesNotInBook();
       if(hist.isNoResult) {
         nodeValues.winLossValue = 0.0;
-        nodeValues.scoreMean = 0.0;
-        nodeValues.sharpScoreMean = 0.0;
       }
       else {
         if(hist.winner == P_WHITE) {
-          assert(hist.finalWhiteMinusBlackScore > 0.0);
           nodeValues.winLossValue = 1.0;
         }
         else if(hist.winner == P_BLACK) {
-          assert(hist.finalWhiteMinusBlackScore < 0.0);
           nodeValues.winLossValue = -1.0;
         }
         else {
-          assert(hist.finalWhiteMinusBlackScore == 0.0);
           nodeValues.winLossValue = 0.0;
         }
-        nodeValues.scoreMean = hist.finalWhiteMinusBlackScore;
-        nodeValues.sharpScoreMean = hist.finalWhiteMinusBlackScore;
       }
 
       nodeValues.winLossError = 0.0;
-      nodeValues.scoreError = 0.0;
-      nodeValues.scoreStdev = 0.0;
       nodeValues.maxPolicy = 1.0;
       // Treat it as if we did a fast search with the 0.5 searchfactor, clamped to reasonable bounds, with every playout weight 1.
       double visits = std::max(1.0,std::min(100000.0,(double)std::min(params.maxVisits,params.maxPlayouts)));
@@ -503,17 +462,11 @@ int MainCmds::genbook(const vector<string>& args) {
       BookValues& nodeValues = node.thisValuesNotInBook();
       if(node.pla() == P_WHITE) {
         nodeValues.winLossValue = -1e20;
-        nodeValues.scoreMean = -1e20;
-        nodeValues.sharpScoreMean =  -1e20;
       }
       else {
         nodeValues.winLossValue = 1e20;
-        nodeValues.scoreMean = 1e20;
-        nodeValues.sharpScoreMean =  1e20;
       }
       nodeValues.winLossError = 0.0;
-      nodeValues.scoreError = 0.0;
-      nodeValues.scoreStdev = 0.0;
       nodeValues.maxPolicy = 0.0;
       nodeValues.weight = 0.0;
       nodeValues.visits = 0;
@@ -1001,14 +954,12 @@ int MainCmds::genbook(const vector<string>& args) {
   delete nnEval;
   delete book;
   delete traceBook;
-  ScoreValue::freeTables();
   logger.write("DONE");
   return 0;
 }
 
 int MainCmds::checkbook(const vector<string>& args) {
   Board::initHash();
-  ScoreValue::initTables();
 
   string bookFile;
   try {
@@ -1034,8 +985,7 @@ int MainCmds::checkbook(const vector<string>& args) {
 
   Book* book;
   {
-    double sharpScoreOutlierCap = 2.0;
-    book = Book::loadFromFile(bookFile,sharpScoreOutlierCap);
+    book = Book::loadFromFile(bookFile);
     logger.write("Loaded preexisting book with " + Global::uint64ToString(book->size()) + " nodes from " + bookFile);
     logger.write("Book version = " + Global::intToString(book->bookVersion));
   }
@@ -1097,7 +1047,6 @@ int MainCmds::checkbook(const vector<string>& args) {
   }
 
   delete book;
-  ScoreValue::freeTables();
   logger.write("DONE");
   return 0;
 }

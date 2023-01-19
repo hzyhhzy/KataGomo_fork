@@ -327,14 +327,6 @@ bool Search::getNodeRawNNValues(const SearchNode& node, ReportedSearchValues& va
   values.lossValue = nnOutput->whiteLossProb;
   values.noResultValue = nnOutput->whiteNoResultProb;
 
-  double scoreMean = nnOutput->whiteScoreMean;
-  double scoreMeanSq = nnOutput->whiteScoreMeanSq;
-  double scoreStdev = ScoreValue::getScoreStdev(scoreMean,scoreMeanSq);
-  values.staticScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,0.0,2.0,rootBoard);
-  values.dynamicScoreValue = ScoreValue::expectedWhiteScoreValue(scoreMean,scoreStdev,recentScoreCenter,searchParams.dynamicScoreCenterScale,rootBoard);
-  values.expectedScore = scoreMean;
-  values.expectedScoreStdev = scoreStdev;
-  values.lead = nnOutput->whiteLead;
 
   //Sanity check
   assert(values.winValue >= 0.0);
@@ -361,9 +353,6 @@ bool Search::getNodeValues(const SearchNode* node, ReportedSearchValues& values)
   double weightSum = node->stats.weightSum.load(std::memory_order_acquire);
   double winLossValueAvg = node->stats.winLossValueAvg.load(std::memory_order_acquire);
   double noResultValueAvg = node->stats.noResultValueAvg.load(std::memory_order_acquire);
-  double scoreMeanAvg = node->stats.scoreMeanAvg.load(std::memory_order_acquire);
-  double scoreMeanSqAvg = node->stats.scoreMeanSqAvg.load(std::memory_order_acquire);
-  double leadAvg = node->stats.leadAvg.load(std::memory_order_acquire);
   double utilityAvg = node->stats.utilityAvg.load(std::memory_order_acquire);
 
   if(weightSum <= 0.0)
@@ -382,9 +371,6 @@ bool Search::getNodeValues(const SearchNode* node, ReportedSearchValues& values)
     *this,
     winLossValueAvg,
     noResultValueAvg,
-    scoreMeanAvg,
-    scoreMeanSqAvg,
-    leadAvg,
     utilityAvg,
     weightSum,
     visits
@@ -648,14 +634,11 @@ void Search::printPV(ostream& out, const vector<Loc>& buf) const {
 AnalysisData Search::getAnalysisDataOfSingleChild(
   const SearchNode* child, int64_t edgeVisits, vector<Loc>& scratchLocs, vector<double>& scratchValues,
   Loc move, double policyProb, double fpuValue, double parentUtility, double parentWinLossValue,
-  double parentScoreMean, double parentScoreStdev, double parentLead, int maxPVDepth
+  int maxPVDepth
 ) const {
   int64_t childVisits = 0;
   double winLossValueAvg = 0.0;
   double noResultValueAvg = 0.0;
-  double scoreMeanAvg = 0.0;
-  double scoreMeanSqAvg = 0.0;
-  double leadAvg = 0.0;
   double utilityAvg = 0.0;
   double utilitySqAvg = 0.0;
   double weightSum = 0.0;
@@ -665,9 +648,6 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
     childVisits = child->stats.visits.load(std::memory_order_acquire);
     winLossValueAvg = child->stats.winLossValueAvg.load(std::memory_order_acquire);
     noResultValueAvg = child->stats.noResultValueAvg.load(std::memory_order_acquire);
-    scoreMeanAvg = child->stats.scoreMeanAvg.load(std::memory_order_acquire);
-    scoreMeanSqAvg = child->stats.scoreMeanSqAvg.load(std::memory_order_acquire);
-    leadAvg = child->stats.leadAvg.load(std::memory_order_acquire);
     utilityAvg = child->stats.utilityAvg.load(std::memory_order_acquire);
     utilitySqAvg = child->stats.utilitySqAvg.load(std::memory_order_acquire);
     weightSum = child->stats.getChildWeight(edgeVisits,childVisits);
@@ -679,36 +659,26 @@ AnalysisData Search::getAnalysisDataOfSingleChild(
   data.numVisits = edgeVisits;
   if(childVisits <= 0 || weightSum <= 1e-30 || weightSqSum <= 1e-60) {
     data.utility = fpuValue;
-    data.scoreUtility = getScoreUtility(parentScoreMean,parentScoreMean*parentScoreMean+parentScoreStdev*parentScoreStdev);
-    data.resultUtility = fpuValue - data.scoreUtility;
+    data.resultUtility = fpuValue;
     data.winLossValue = searchParams.winLossUtilityFactor == 1.0 ? parentWinLossValue + (fpuValue - parentUtility) : 0.0;
     // Make sure winloss values due to FPU don't go out of bounds for purposes of reporting to UI
     if(data.winLossValue < -1.0)
       data.winLossValue = -1.0;
     if(data.winLossValue > 1.0)
       data.winLossValue = 1.0;
-    data.scoreMean = parentScoreMean;
-    data.scoreStdev = parentScoreStdev;
-    data.lead = parentLead;
     data.ess = 0.0;
     data.weightSum = 0.0;
     data.weightSqSum = 0.0;
     data.utilitySqAvg = data.utility * data.utility;
-    data.scoreMeanSqAvg = parentScoreMean * parentScoreMean + parentScoreStdev * parentScoreStdev;
   }
   else {
     data.utility = utilityAvg;
     data.resultUtility = getResultUtility(winLossValueAvg, noResultValueAvg);
-    data.scoreUtility = getScoreUtility(scoreMeanAvg, scoreMeanSqAvg);
     data.winLossValue = winLossValueAvg;
-    data.scoreMean = scoreMeanAvg;
-    data.scoreStdev = ScoreValue::getScoreStdev(scoreMeanAvg,scoreMeanSqAvg);
-    data.lead = leadAvg;
     data.ess = weightSum * weightSum / weightSqSum;
     data.weightSum = weightSum;
     data.weightSqSum = weightSqSum;
-    data.utilitySqAvg = utilitySqAvg;
-    data.scoreMeanSqAvg = scoreMeanSqAvg;
+    data.utilitySqAvg = utilitySqAvg; 
   }
 
   data.policyPrior = policyProb;
@@ -795,21 +765,12 @@ void Search::getAnalysisData(
   }
 
   double parentWinLossValue;
-  double parentScoreMean;
-  double parentScoreStdev;
-  double parentLead;
   {
     double weightSum = node.stats.weightSum.load(std::memory_order_acquire);
     double winLossValueAvg = node.stats.winLossValueAvg.load(std::memory_order_acquire);
-    double scoreMeanAvg = node.stats.scoreMeanAvg.load(std::memory_order_acquire);
-    double scoreMeanSqAvg = node.stats.scoreMeanSqAvg.load(std::memory_order_acquire);
-    double leadAvg = node.stats.leadAvg.load(std::memory_order_acquire);
     assert(weightSum > 0.0);
 
     parentWinLossValue = winLossValueAvg;
-    parentScoreMean = scoreMeanAvg;
-    parentScoreStdev = ScoreValue::getScoreStdev(parentScoreMean,scoreMeanSqAvg);
-    parentLead = leadAvg;
   }
 
   double parentUtility;
@@ -828,7 +789,7 @@ void Search::getAnalysisData(
     double policyProb = policyProbs[getPos(moveLoc)];
     AnalysisData data = getAnalysisDataOfSingleChild(
       child, edgeVisits, scratchLocs, scratchValues, moveLoc, policyProb, fpuValue, parentUtility, parentWinLossValue,
-      parentScoreMean, parentScoreStdev, parentLead, maxPVDepth
+      maxPVDepth
     );
     data.playSelectionValue = playSelectionValues[i];
     //Make sure data.lcb is from white's perspective, for consistency with everything else
@@ -897,7 +858,7 @@ void Search::getAnalysisData(
       Loc bestMove = NNPos::posToLoc(bestPos,rootBoard.x_size,rootBoard.y_size,nnXLen,nnYLen);
       AnalysisData data = getAnalysisDataOfSingleChild(
         NULL, 0, scratchLocs, scratchValues, bestMove, bestPolicy, fpuValue, parentUtility, parentWinLossValue,
-        parentScoreMean, parentScoreStdev, parentLead, maxPVDepth
+        maxPVDepth
       );
       buf.push_back(data);
     }
@@ -963,15 +924,12 @@ void Search::printTree(ostream& out, const SearchNode* node, PrintTreeOptions op
     double fpuValue = 0;
     double parentUtility = 0;
     double parentWinLossValue = 0;
-    double parentScoreMean = 0;
-    double parentScoreStdev = 0;
-    double parentLead = 0;
     //Since we don't have an edge from another parent we are following, we just use the visits on the node itself as the edge visits.
     int64_t edgeVisits = node->stats.visits.load(std::memory_order_acquire);
     data = getAnalysisDataOfSingleChild(
       node, edgeVisits, scratchLocs, scratchValues,
       Board::NULL_LOC, policyProb, fpuValue, parentUtility, parentWinLossValue,
-      parentScoreMean, parentScoreStdev, parentLead, options.maxPVDepth_
+      options.maxPVDepth_
     );
     data.weightFactor = NAN;
   }
@@ -1005,12 +963,6 @@ void Search::printTreeHelper(
       sprintf(buf,"T %6.2fc ",(perspectiveFactor * data.utility * 100.0));
       out << buf;
       sprintf(buf,"W %6.2fc ",(perspectiveFactor * data.resultUtility * 100.0));
-      out << buf;
-      sprintf(buf,"S %6.2fc (%+5.1f L %+5.1f) ",
-              perspectiveFactor * data.scoreUtility * 100.0,
-              perspectiveFactor * data.scoreMean,
-              perspectiveFactor * data.lead
-      );
       out << buf;
     }
 
@@ -1053,13 +1005,13 @@ void Search::printTreeHelper(
     }
 
     if(options.printSqs_) {
-      sprintf(buf,"SMSQ %5.1f USQ %7.5f W %6.2f WSQ %8.2f ", data.scoreMeanSqAvg, data.utilitySqAvg, data.weightSum, data.weightSqSum);
+      sprintf(buf,"USQ %7.5f W %6.2f WSQ %8.2f ", data.utilitySqAvg, data.weightSum, data.weightSqSum);
       out << buf;
     }
 
     if(options.printAvgShorttermError_) {
-      std::pair<double,double> wlAndScoreError = getAverageShorttermWLAndScoreError(&node);
-      sprintf(buf,"STWL %6.2fc STS %5.1f ", wlAndScoreError.first, wlAndScoreError.second);
+      double wlError = getAverageShorttermWLError(&node);
+      sprintf(buf,"STWL %6.2fc ", wlError);
       out << buf;
     }
 
@@ -1135,20 +1087,20 @@ void Search::printTreeHelper(
 }
 
 
-std::pair<double,double> Search::getAverageShorttermWLAndScoreError(const SearchNode* node) const {
+double Search::getAverageShorttermWLError(const SearchNode* node) const {
   if(node == NULL)
     node = rootNode;
   if(node == NULL)
-    return std::make_pair(0.0,0.0);
-  return getAverageShorttermWLAndScoreErrorHelper(node);
+    return 0.0;
+  return getAverageShorttermWLErrorHelper(node);
 }
 
-std::pair<double,double> Search::getAverageShorttermWLAndScoreErrorHelper(const SearchNode* node) const {
+double Search::getAverageShorttermWLErrorHelper(const SearchNode* node) const {
   const NNOutput* nnOutput = node->getNNOutput();
   if(nnOutput == NULL) {
     //This will also be correct for terminal nodes, which have no uncertainty.
     //The caller will scale by weightSum, so this all works as intended.
-    return std::make_pair(0.0,0.0);
+    return 0.0;
   }
 
   int childrenCapacity;
@@ -1163,12 +1115,10 @@ std::pair<double,double> Search::getAverageShorttermWLAndScoreErrorHelper(const 
   }
 
   double wlErrorSum = 0.0;
-  double scoreErrorSum = 0.0;
   double weightSum = 0.0;
   {
     double thisNodeWeight = computeWeightFromNNOutput(nnOutput);
     wlErrorSum += nnOutput->shorttermWinlossError * thisNodeWeight;
-    scoreErrorSum += nnOutput->shorttermScoreError * thisNodeWeight;
     weightSum += thisNodeWeight;
   }
 
@@ -1177,175 +1127,12 @@ std::pair<double,double> Search::getAverageShorttermWLAndScoreErrorHelper(const 
     assert(child != NULL);
     int64_t edgeVisits = children[i].getEdgeVisits();
     double childWeight = child->stats.getChildWeight(edgeVisits);
-    std::pair<double,double> result = getAverageShorttermWLAndScoreErrorHelper(child);
-    wlErrorSum += result.first * childWeight;
-    scoreErrorSum += result.second * childWeight;
+    double result = getAverageShorttermWLErrorHelper(child);
+    wlErrorSum += result * childWeight;
     weightSum += childWeight;
   }
 
-  return std::make_pair(wlErrorSum/weightSum, scoreErrorSum/weightSum);
-}
-
-bool Search::getSharpScore(const SearchNode* node, double& ret) const {
-  if(node == NULL)
-    node = rootNode;
-  if(node == NULL)
-    return false;
-
-  std::unordered_set<const SearchNode*> graphPath;
-
-  double policyProbsBuf[NNPos::MAX_NN_POLICY_SIZE];
-  if(node != rootNode) {
-    ret = getSharpScoreHelper(node,graphPath,policyProbsBuf);
-    return true;
-  }
-
-  vector<double> playSelectionValues;
-  vector<Loc> locs; // not used
-  bool allowDirectPolicyMoves = false;
-  bool alwaysComputeLcb = false;
-  bool neverUseLcb = true;
-  bool suc = getPlaySelectionValues(*node,locs,playSelectionValues,NULL,1.0,allowDirectPolicyMoves,alwaysComputeLcb,neverUseLcb,NULL,NULL);
-  //If there are no children, or otherwise values could not be computed, then fall back to the normal case
-  if(!suc) {
-    ReportedSearchValues values;
-    if(getNodeValues(node,values)) {
-      ret = values.expectedScore;
-      return true;
-    }
-    return false;
-  }
-
-  int childrenCapacity;
-  const SearchChildPointer* children = node->getChildren(childrenCapacity);
-
-  graphPath.insert(node);
-
-  double scoreMeanSum = 0.0;
-  double scoreWeightSum = 0.0;
-  double childWeightSum = 0.0;
-  for(int i = 0; i<childrenCapacity; i++) {
-    const SearchNode* child = children[i].getIfAllocated();
-    if(child == NULL)
-      break;
-    int64_t edgeVisits = children[i].getEdgeVisits();
-    NodeStats stats = NodeStats(child->stats);
-    if(stats.visits <= 0 || stats.weightSum <= 0.0 || edgeVisits <= 0)
-      continue;
-    double weight = playSelectionValues[i];
-    double sharpWeight = weight * weight * weight;
-    scoreMeanSum += sharpWeight * getSharpScoreHelper(child, graphPath, policyProbsBuf);
-    scoreWeightSum += sharpWeight;
-    childWeightSum += weight;
-  }
-
-  graphPath.erase(node);
-
-  //Also add in the direct evaluation of this node.
-  {
-    const NNOutput* nnOutput = node->getNNOutput();
-    //If somehow the nnOutput is still null here, skip
-    if(nnOutput == NULL)
-      return false;
-    double scoreMean = (double)nnOutput->whiteScoreMean;
-    double thisNodeWeight = computeWeightFromNNOutput(nnOutput);
-    double desiredScoreWeight = (scoreWeightSum < 1e-50 || childWeightSum < 1e-50) ? thisNodeWeight : thisNodeWeight * (scoreWeightSum / childWeightSum);
-    scoreMeanSum += scoreMean * desiredScoreWeight;
-    scoreWeightSum += desiredScoreWeight;
-  }
-  ret = scoreMeanSum / scoreWeightSum;
-  return true;
-}
-
-double Search::getSharpScoreHelper(
-  const SearchNode* node,
-  std::unordered_set<const SearchNode*>& graphPath,
-  double policyProbsBuf[NNPos::MAX_NN_POLICY_SIZE]
-) const {
-  if(node == NULL)
-    return 0.0;
-  const NNOutput* nnOutput = node->getNNOutput();
-  if(nnOutput == NULL) {
-    NodeStats stats = NodeStats(node->stats);
-    return stats.scoreMeanAvg;
-  }
-
-  int childrenCapacity;
-  const SearchChildPointer* children = node->getChildren(childrenCapacity);
-
-  if(childrenCapacity <= 0) {
-    double scoreMean = (double)nnOutput->whiteScoreMean;
-    return scoreMean;
-  }
-
-  std::pair<std::unordered_set<const SearchNode*>::iterator,bool> result = graphPath.insert(node);
-  //No insertion, node was already there, this means we hit a cycle in the graph
-  if(!result.second) {
-    //Just treat it as base case and immediately terminate.
-    double scoreMean = (double)nnOutput->whiteScoreMean;
-    return scoreMean;
-  }
-
-  vector<MoreNodeStats> statsBuf;
-  for(int i = 0; i<childrenCapacity; i++) {
-    const SearchNode* child = children[i].getIfAllocated();
-    if(child == NULL)
-      break;
-    int64_t edgeVisits = children[i].getEdgeVisits();
-    Loc moveLoc = children[i].getMoveLocRelaxed();
-    MoreNodeStats stats;
-    stats.stats = NodeStats(child->stats);
-    stats.selfUtility = node->nextPla == P_WHITE ? stats.stats.utilityAvg : -stats.stats.utilityAvg;
-    stats.weightAdjusted = stats.stats.getChildWeight(edgeVisits);
-    stats.prevMoveLoc = moveLoc;
-    statsBuf.push_back(stats);
-  }
-  int numChildren = (int)statsBuf.size();
-
-  //Find all children and compute weighting of the children based on their values
-  {
-    double totalChildWeight = 0.0;
-    for(int i = 0; i<numChildren; i++) {
-      totalChildWeight += statsBuf[i].weightAdjusted;
-    }
-    const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
-    if(searchParams.useNoisePruning) {
-      for(int i = 0; i<numChildren; i++)
-        policyProbsBuf[i] = std::max(1e-30, (double)policyProbs[getPos(statsBuf[i].prevMoveLoc)]);
-      totalChildWeight = pruneNoiseWeight(statsBuf, numChildren, totalChildWeight, policyProbsBuf);
-    }
-    double amountToSubtract = 0.0;
-    double amountToPrune = 0.0;
-    downweightBadChildrenAndNormalizeWeight(
-      numChildren, totalChildWeight, totalChildWeight,
-      amountToSubtract, amountToPrune, statsBuf
-    );
-  }
-
-  double scoreMeanSum = 0.0;
-  double scoreWeightSum = 0.0;
-  double childWeightSum = 0.0;
-  for(int i = 0; i<numChildren; i++) {
-    if(statsBuf[i].stats.visits <= 0 || statsBuf[i].stats.weightSum <= 0.0 || statsBuf[i].weightAdjusted <= 0.0)
-      continue;
-    double weight = statsBuf[i].weightAdjusted;
-    double sharpWeight = weight * weight * weight;
-    scoreMeanSum += sharpWeight * getSharpScoreHelper(children[i].getIfAllocated(),graphPath,policyProbsBuf);
-    scoreWeightSum += sharpWeight;
-    childWeightSum += weight;
-  }
-
-  graphPath.erase(node);
-
-  //Also add in the direct evaluation of this node.
-  {
-    double scoreMean = (double)nnOutput->whiteScoreMean;
-    double thisNodeWeight = computeWeightFromNNOutput(nnOutput);
-    double desiredScoreWeight = (scoreWeightSum < 1e-50 || childWeightSum < 1e-50) ? thisNodeWeight : thisNodeWeight * (scoreWeightSum / childWeightSum);
-    scoreMeanSum += scoreMean * desiredScoreWeight;
-    scoreWeightSum += desiredScoreWeight;
-  }
-  return scoreMeanSum / scoreWeightSum;
+  return wlErrorSum/weightSum;
 }
 
 
@@ -1373,14 +1160,10 @@ bool Search::getAnalysisJson(
     double utility = data.utility;
     double lcb = PlayUtils::getHackedLCBForWinrate(this, data, rootPla);
     double utilityLcb = data.lcb;
-    double scoreMean = data.scoreMean;
-    double lead = data.lead;
     if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && rootPla == P_BLACK)) {
       winrate = 1.0 - winrate;
       lcb = 1.0 - lcb;
       utility = -utility;
-      scoreMean = -scoreMean;
-      lead = -lead;
       utilityLcb = -utilityLcb;
     }
 
@@ -1390,12 +1173,6 @@ bool Search::getAnalysisJson(
     moveInfo["weight"] = data.weightSum;
     moveInfo["utility"] = Global::roundDynamic(utility,OUTPUT_PRECISION);
     moveInfo["winrate"] = Global::roundDynamic(winrate,OUTPUT_PRECISION);
-    // We report lead for scoreMean here so that a bunch of legacy tools that use KataGo use lead instead, which
-    // is usually a better field for user applications. We report scoreMean instead as scoreSelfplay
-    moveInfo["scoreMean"] = Global::roundDynamic(lead,OUTPUT_PRECISION);
-    moveInfo["scoreSelfplay"] = Global::roundDynamic(scoreMean,OUTPUT_PRECISION);
-    moveInfo["scoreLead"] = Global::roundDynamic(lead,OUTPUT_PRECISION);
-    moveInfo["scoreStdev"] = Global::roundDynamic(data.scoreStdev,OUTPUT_PRECISION);
     moveInfo["prior"] = Global::roundDynamic(data.policyPrior,OUTPUT_PRECISION);
     moveInfo["lcb"] = Global::roundDynamic(lcb,OUTPUT_PRECISION);
     moveInfo["utilityLcb"] = Global::roundDynamic(utilityLcb,OUTPUT_PRECISION);
@@ -1436,14 +1213,10 @@ bool Search::getAnalysisJson(
       return false;
 
     double winrate = 0.5 * (1.0 + rootVals.winLossValue);
-    double scoreMean = rootVals.expectedScore;
-    double lead = rootVals.lead;
     double utility = rootVals.utility;
 
     if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && rootPla == P_BLACK)) {
       winrate = 1.0 - winrate;
-      scoreMean = -scoreMean;
-      lead = -lead;
       utility = -utility;
     }
 
@@ -1451,16 +1224,12 @@ bool Search::getAnalysisJson(
     rootInfo["visits"] = rootVals.visits;
     rootInfo["weight"] = rootVals.weight;
     rootInfo["winrate"] = Global::roundDynamic(winrate,OUTPUT_PRECISION);
-    rootInfo["scoreSelfplay"] = Global::roundDynamic(scoreMean,OUTPUT_PRECISION);
-    rootInfo["scoreLead"] = Global::roundDynamic(lead,OUTPUT_PRECISION);
-    rootInfo["scoreStdev"] = Global::roundDynamic(rootVals.expectedScoreStdev,OUTPUT_PRECISION);
     rootInfo["utility"] = Global::roundDynamic(utility,OUTPUT_PRECISION);
 
     if(rootNode != NULL) {
       const NNOutput* nnOutput = rootNode->getNNOutput();
       if(nnOutput != NULL) {
         rootInfo["rawStWrError"] = Global::roundDynamic(nnOutput->shorttermWinlossError * 0.5,OUTPUT_PRECISION);
-        rootInfo["rawStScoreError"] = Global::roundDynamic(nnOutput->shorttermScoreError,OUTPUT_PRECISION);
         rootInfo["rawVarTimeLeft"] = Global::roundDynamic(nnOutput->varTimeLeft,OUTPUT_PRECISION);
       }
     }
@@ -1537,9 +1306,6 @@ bool Search::getPrunedNodeValues(const SearchNode* nodePtr, ReportedSearchValues
 
   double winLossValueSum = 0.0;
   double noResultValueSum = 0.0;
-  double scoreMeanSum = 0.0;
-  double scoreMeanSqSum = 0.0;
-  double leadSum = 0.0;
   double utilitySum = 0.0;
   double utilitySqSum = 0.0;
   double weightSum = 0.0;
@@ -1557,9 +1323,6 @@ bool Search::getPrunedNodeValues(const SearchNode* nodePtr, ReportedSearchValues
     double weightScaling = weight / stats.weightSum;
     winLossValueSum += weight * stats.winLossValueAvg;
     noResultValueSum += weight * stats.noResultValueAvg;
-    scoreMeanSum += weight * stats.scoreMeanAvg;
-    scoreMeanSqSum += weight * stats.scoreMeanSqAvg;
-    leadSum += weight * stats.leadAvg;
     utilitySum += weight * stats.utilityAvg;
     utilitySqSum += weight * stats.utilitySqAvg;
     weightSqSum += weightScaling * weightScaling * stats.weightSqSum;
@@ -1575,19 +1338,11 @@ bool Search::getPrunedNodeValues(const SearchNode* nodePtr, ReportedSearchValues
     double winProb = (double)nnOutput->whiteWinProb;
     double lossProb = (double)nnOutput->whiteLossProb;
     double noResultProb = (double)nnOutput->whiteNoResultProb;
-    double scoreMean = (double)nnOutput->whiteScoreMean;
-    double scoreMeanSq = (double)nnOutput->whiteScoreMeanSq;
-    double lead = (double)nnOutput->whiteLead;
-    double utility =
-      getResultUtility(winProb-lossProb, noResultProb)
-      + getScoreUtility(scoreMean, scoreMeanSq);
+    double utility = getResultUtility(winProb - lossProb, noResultProb);
 
     double weight = computeWeightFromNNOutput(nnOutput);
     winLossValueSum += (winProb - lossProb) * weight;
     noResultValueSum += noResultProb * weight;
-    scoreMeanSum += scoreMean * weight;
-    scoreMeanSqSum += scoreMeanSq * weight;
-    leadSum += lead * weight;
     utilitySum += utility * weight;
     utilitySqSum += utility * utility * weight;
     weightSqSum += weight * weight;
@@ -1597,9 +1352,6 @@ bool Search::getPrunedNodeValues(const SearchNode* nodePtr, ReportedSearchValues
     *this,
     winLossValueSum / weightSum,
     noResultValueSum / weightSum,
-    scoreMeanSum / weightSum,
-    scoreMeanSqSum / weightSum,
-    leadSum / weightSum,
     utilitySum / weightSum,
     node.stats.weightSum.load(std::memory_order_acquire),
     node.stats.visits.load(std::memory_order_acquire)

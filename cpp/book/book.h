@@ -62,33 +62,21 @@ struct BookMove {
 struct BookValues {
   // All values for which the player perspective matters are from white's perspective.
   double winLossValue = 0.0;
-  double scoreMean = 0.0;
-  double sharpScoreMean = 0.0;
 
   // Average short term error of nodes in the search. Probably correlated with the confidence
   // of this node, but not necessarily being a meaningful measure of it directly.
   double winLossError = 0.0;
-  double scoreError = 0.0;
-  // Stdev to the end of the whole game.
-  double scoreStdev = 0.0;
 
   double maxPolicy = 0.0;
   double weight = 0.0;
   double visits = 0.0;
 
-  double getAdjustedScoreError(const Rules& rules) const;
 };
 struct RecursiveBookValues {
   // Recursively computed via minimax
   double winLossValue = 0.0;
-  double scoreMean = 0.0;
-  double sharpScoreMean = 0.0;
   double winLossLCB = 0.0; // minimaxing winLossValue - winLossError * errorFactor
-  double scoreLCB = 0.0;   // minimaxing scoreMean - scoreError * errorFactor
-  double scoreFinalLCB = 0.0;   // minimaxing scoreMean - scoreStdev * errorFactor
   double winLossUCB = 0.0; // minimaxing winLossValue + winLossError * errorFactor
-  double scoreUCB = 0.0;   // minimaxing scoreMean + scoreError * errorFactor
-  double scoreFinalUCB = 0.0;   // minimaxing scoreMean + scoreError * errorFactor
 
   // Weighted by sum
   double weight = 0.0;
@@ -253,23 +241,17 @@ class Book {
   double costPerUCBWinLossLoss;
   double costPerUCBWinLossLossPow3;
   double costPerUCBWinLossLossPow7;
-  double costPerUCBScoreLoss;
   double costPerLogPolicy;
   double costPerMovesExpanded;
   double costPerSquaredMovesExpanded;
   double costWhenPassFavored;
   double bonusPerWinLossError;
-  double bonusPerScoreError;
-  double bonusPerSharpScoreDiscrepancy;
   double bonusPerExcessUnexpandedPolicy;
   double bonusForWLPV1;
   double bonusForWLPV2;
   double bonusForBiggestWLCost;
-  double scoreLossCap;
-  double utilityPerScore;
   double policyBoostSoftUtilityScale;
   double utilityPerPolicyForSorting;
-  double sharpScoreOutlierCap;
   std::map<BookHash,double> bonusByHash;
 
   int initialSymmetry; // The symmetry that needs to be applied to initialBoard to align it with rootNode. (initialspace -> rootnodespace)
@@ -288,23 +270,17 @@ class Book {
     double costPerUCBWinLossLoss,
     double costPerUCBWinLossLossPow3,
     double costPerUCBWinLossLossPow7,
-    double costPerUCBScoreLoss,
     double costPerLogPolicy,
     double costPerMovesExpanded,
     double costPerSquaredMovesExpanded,
     double costWhenPassFavored,
     double bonusPerWinLossError,
-    double bonusPerScoreError,
-    double bonusPerSharpScoreDiscrepancy,
     double bonusPerExcessUnexpandedPolicy,
     double bonusForWLPV1,
     double bonusForWLPV2,
     double bonusForBiggestWLCost,
-    double scoreLossCap,
-    double utilityPerScore,
     double policyBoostSoftUtilityScale,
-    double utilityPerPolicyForSorting,
-    double sharpScoreOutlierCap
+    double utilityPerPolicyForSorting
   );
   ~Book();
 
@@ -331,8 +307,6 @@ class Book {
   void setCostPerUCBWinLossLossPow3(double d);
   double getCostPerUCBWinLossLossPow7() const;
   void setCostPerUCBWinLossLossPow7(double d);
-  double getCostPerUCBScoreLoss() const;
-  void setCostPerUCBScoreLoss(double d);
   double getCostPerLogPolicy() const;
   void setCostPerLogPolicy(double d);
   double getCostPerMovesExpanded() const;
@@ -343,10 +317,6 @@ class Book {
   void setCostWhenPassFavored(double d);
   double getBonusPerWinLossError() const;
   void setBonusPerWinLossError(double d);
-  double getBonusPerScoreError() const;
-  void setBonusPerScoreError(double d);
-  double getBonusPerSharpScoreDiscrepancy() const;
-  void setBonusPerSharpScoreDiscrepancy(double d);
   double getBonusPerExcessUnexpandedPolicy() const;
   void setBonusPerExcessUnexpandedPolicy(double d);
   double getBonusForWLPV1() const;
@@ -355,10 +325,6 @@ class Book {
   void setBonusForWLPV2(double d);
   double getBonusForBiggestWLCost() const;
   void setBonusForBiggestWLCost(double d);
-  double getScoreLossCap() const;
-  void setScoreLossCap(double d);
-  double getUtilityPerScore() const;
-  void setUtilityPerScore(double d);
   double getPolicyBoostSoftUtilityScale() const;
   void setPolicyBoostSoftUtilityScale(double d);
   double getUtilityPerPolicyForSorting() const;
@@ -393,7 +359,7 @@ class Book {
   );
 
   void saveToFile(const std::string& fileName) const;
-  static Book* loadFromFile(const std::string& fileName, double sharpScoreOutlierCap);
+  static Book* loadFromFile(const std::string& fileName);
 
  private:
   int64_t getIdx(BookHash hash) const;

@@ -34,7 +34,6 @@ static void signalHandler(int signal)
 
 int MainCmds::selfplay(const vector<string>& args) {
   Board::initHash();
-  ScoreValue::initTables();
   Rand seedRand;
 
   ConfigParser cfg;
@@ -385,7 +384,6 @@ int MainCmds::selfplay(const vector<string>& args) {
   //Delete and clean up everything else
   NeuralNet::globalCleanup();
   delete gameRunner;
-  ScoreValue::freeTables();
 
   if(sigReceived.load())
     logger.write("Exited cleanly after signal");

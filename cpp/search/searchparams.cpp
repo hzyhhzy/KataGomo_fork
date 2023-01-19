@@ -7,10 +7,6 @@
 //have changed to preserve the behavior of tests.
 SearchParams::SearchParams()
   :winLossUtilityFactor(1.0),
-   staticScoreUtilityFactor(0.3),
-   dynamicScoreUtilityFactor(0.0),
-   dynamicScoreCenterZeroWeight(0.0),
-   dynamicScoreCenterScale(1.0),
    noResultUtilityForWhite(0.0),
    drawEquivalentWinsForWhite(0.5),
    cpuctExploration(1.0),
@@ -93,10 +89,6 @@ SearchParams::~SearchParams()
 
 SearchParams SearchParams::forTestsV1() {
   SearchParams params;
-  params.staticScoreUtilityFactor = 0.1;
-  params.dynamicScoreUtilityFactor = 0.3;
-  params.dynamicScoreCenterZeroWeight = 0.2;
-  params.dynamicScoreCenterScale = 0.75;
   params.cpuctExploration = 0.9;
   params.cpuctExplorationLog = 0.4;
   params.rootFpuReductionMax = 0.1;
@@ -113,10 +105,6 @@ SearchParams SearchParams::forTestsV1() {
 
 SearchParams SearchParams::forTestsV2() {
   SearchParams params;
-  params.staticScoreUtilityFactor = 0.1;
-  params.dynamicScoreUtilityFactor = 0.3;
-  params.dynamicScoreCenterZeroWeight = 0.2;
-  params.dynamicScoreCenterScale = 0.75;
   params.cpuctExploration = 0.9;
   params.cpuctExplorationLog = 0.4;
   params.rootFpuReductionMax = 0.1;
@@ -160,10 +148,6 @@ void SearchParams::printParams(std::ostream& out) {
 
 
   PRINTPARAM(winLossUtilityFactor);
-  PRINTPARAM(staticScoreUtilityFactor);
-  PRINTPARAM(dynamicScoreUtilityFactor);
-  PRINTPARAM(dynamicScoreCenterZeroWeight);
-  PRINTPARAM(dynamicScoreCenterScale);
   PRINTPARAM(noResultUtilityForWhite);
   PRINTPARAM(drawEquivalentWinsForWhite);
 

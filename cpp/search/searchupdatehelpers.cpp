@@ -13,16 +13,12 @@ void Search::addLeafValue(
   SearchNode& node,
   double winLossValue,
   double noResultValue,
-  double scoreMean,
-  double scoreMeanSq,
-  double lead,
   double weight,
   bool isTerminal,
   bool assumeNoExistingWeight
 ) {
   double utility =
-    getResultUtility(winLossValue, noResultValue)
-    + getScoreUtility(scoreMean, scoreMeanSq);
+    getResultUtility(winLossValue, noResultValue);
 
   if(searchParams.subtreeValueBiasFactor != 0 && !isTerminal && node.subtreeValueBiasTableEntry != nullptr) {
     SubtreeValueBiasEntry& entry = *(node.subtreeValueBiasTableEntry);
@@ -45,9 +41,6 @@ void Search::addLeafValue(
     while(node.statsLock.test_and_set(std::memory_order_acquire));
     node.stats.winLossValueAvg.store(winLossValue,std::memory_order_release);
     node.stats.noResultValueAvg.store(noResultValue,std::memory_order_release);
-    node.stats.scoreMeanAvg.store(scoreMean,std::memory_order_release);
-    node.stats.scoreMeanSqAvg.store(scoreMeanSq,std::memory_order_release);
-    node.stats.leadAvg.store(lead,std::memory_order_release);
     node.stats.utilityAvg.store(utility,std::memory_order_release);
     node.stats.utilitySqAvg.store(utilitySq,std::memory_order_release);
     node.stats.weightSqSum.store(weightSq,std::memory_order_release);
@@ -69,9 +62,6 @@ void Search::addLeafValue(
 
     node.stats.winLossValueAvg.store((node.stats.winLossValueAvg.load(std::memory_order_relaxed) * oldWeightSum + winLossValue * weight)/newWeightSum,std::memory_order_release);
     node.stats.noResultValueAvg.store((node.stats.noResultValueAvg.load(std::memory_order_relaxed) * oldWeightSum + noResultValue * weight)/newWeightSum,std::memory_order_release);
-    node.stats.scoreMeanAvg.store((node.stats.scoreMeanAvg.load(std::memory_order_relaxed) * oldWeightSum + scoreMean * weight)/newWeightSum,std::memory_order_release);
-    node.stats.scoreMeanSqAvg.store((node.stats.scoreMeanSqAvg.load(std::memory_order_relaxed) * oldWeightSum + scoreMeanSq * weight)/newWeightSum,std::memory_order_release);
-    node.stats.leadAvg.store((node.stats.leadAvg.load(std::memory_order_relaxed) * oldWeightSum + lead * weight)/newWeightSum,std::memory_order_release);
     node.stats.utilityAvg.store((node.stats.utilityAvg.load(std::memory_order_relaxed) * oldWeightSum + utility * weight)/newWeightSum,std::memory_order_release);
     node.stats.utilitySqAvg.store((node.stats.utilitySqAvg.load(std::memory_order_relaxed) * oldWeightSum + utilitySq * weight)/newWeightSum,std::memory_order_release);
     node.stats.weightSqSum.store(node.stats.weightSqSum.load(std::memory_order_relaxed) + weightSq,std::memory_order_release);
@@ -88,11 +78,8 @@ void Search::addCurrentNNOutputAsLeafValue(SearchNode& node, bool assumeNoExisti
   double winProb = (double)nnOutput->whiteWinProb;
   double lossProb = (double)nnOutput->whiteLossProb;
   double noResultProb = (double)nnOutput->whiteNoResultProb;
-  double scoreMean = (double)nnOutput->whiteScoreMean;
-  double scoreMeanSq = (double)nnOutput->whiteScoreMeanSq;
-  double lead = (double)nnOutput->whiteLead;
   double weight = computeWeightFromNNOutput(nnOutput);
-  addLeafValue(node,winProb-lossProb,noResultProb,scoreMean,scoreMeanSq,lead,weight,false,assumeNoExistingWeight);
+  addLeafValue(node,winProb-lossProb,noResultProb,weight,false,assumeNoExistingWeight);
 }
 
 double Search::computeWeightFromNNOutput(const NNOutput* nnOutput) const {
@@ -101,10 +88,8 @@ double Search::computeWeightFromNNOutput(const NNOutput* nnOutput) const {
   if(!nnEvaluator->supportsShorttermError())
     return 1.0;
 
-  double scoreMean = (double)nnOutput->whiteScoreMean;
   double utilityUncertaintyWL = searchParams.winLossUtilityFactor * nnOutput->shorttermWinlossError;
-  double utilityUncertaintyScore = getApproxScoreUtilityDerivative(scoreMean) * nnOutput->shorttermScoreError;
-  double utilityUncertainty = utilityUncertaintyWL + utilityUncertaintyScore;
+  double utilityUncertainty = utilityUncertaintyWL;
 
   double poweredUncertainty;
   if(searchParams.uncertaintyExponent == 1.0)
@@ -214,9 +199,6 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
 
   double winLossValueSum = 0.0;
   double noResultValueSum = 0.0;
-  double scoreMeanSum = 0.0;
-  double scoreMeanSqSum = 0.0;
-  double leadSum = 0.0;
   double utilitySum = 0.0;
   double utilitySqSum = 0.0;
   double weightSqSum = 0.0;
@@ -229,9 +211,6 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
 
     winLossValueSum += desiredWeight * stats.winLossValueAvg;
     noResultValueSum += desiredWeight * stats.noResultValueAvg;
-    scoreMeanSum += desiredWeight * stats.scoreMeanAvg;
-    scoreMeanSqSum += desiredWeight * stats.scoreMeanSqAvg;
-    leadSum += desiredWeight * stats.leadAvg;
     utilitySum += desiredWeight * stats.utilityAvg;
     utilitySqSum += desiredWeight * stats.utilitySqAvg;
     weightSqSum += weightScaling * weightScaling * stats.weightSqSum;
@@ -244,12 +223,8 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
     double winProb = (double)nnOutput->whiteWinProb;
     double lossProb = (double)nnOutput->whiteLossProb;
     double noResultProb = (double)nnOutput->whiteNoResultProb;
-    double scoreMean = (double)nnOutput->whiteScoreMean;
-    double scoreMeanSq = (double)nnOutput->whiteScoreMeanSq;
-    double lead = (double)nnOutput->whiteLead;
     double utility =
-      getResultUtility(winProb-lossProb, noResultProb)
-      + getScoreUtility(scoreMean, scoreMeanSq);
+      getResultUtility(winProb-lossProb, noResultProb);
 
     if(searchParams.subtreeValueBiasFactor != 0 && node.subtreeValueBiasTableEntry != nullptr) {
       SubtreeValueBiasEntry& entry = *(node.subtreeValueBiasTableEntry);
@@ -291,9 +266,6 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
     double weight = computeWeightFromNNOutput(nnOutput);
     winLossValueSum += (winProb - lossProb) * weight;
     noResultValueSum += noResultProb * weight;
-    scoreMeanSum += scoreMean * weight;
-    scoreMeanSqSum += scoreMeanSq * weight;
-    leadSum += lead * weight;
     utilitySum += utility * weight;
     utilitySqSum += utility * utility * weight;
     weightSqSum += weight * weight;
@@ -302,9 +274,6 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
 
   double winLossValueAvg = winLossValueSum / weightSum;
   double noResultValueAvg = noResultValueSum / weightSum;
-  double scoreMeanAvg = scoreMeanSum / weightSum;
-  double scoreMeanSqAvg = scoreMeanSqSum / weightSum;
-  double leadAvg = leadSum / weightSum;
   double utilityAvg = utilitySum / weightSum;
   double utilitySqAvg = utilitySqSum / weightSum;
 
@@ -316,9 +285,6 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
   while(node.statsLock.test_and_set(std::memory_order_acquire));
   node.stats.winLossValueAvg.store(winLossValueAvg,std::memory_order_release);
   node.stats.noResultValueAvg.store(noResultValueAvg,std::memory_order_release);
-  node.stats.scoreMeanAvg.store(scoreMeanAvg,std::memory_order_release);
-  node.stats.scoreMeanSqAvg.store(scoreMeanSqAvg,std::memory_order_release);
-  node.stats.leadAvg.store(leadAvg,std::memory_order_release);
   node.stats.utilityAvg.store(utilityAvg,std::memory_order_release);
   node.stats.utilitySqAvg.store(utilitySqAvg,std::memory_order_release);
   node.stats.weightSqSum.store(weightSqSum,std::memory_order_release);

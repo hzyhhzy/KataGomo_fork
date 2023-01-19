@@ -8,21 +8,13 @@ struct PlaySettings {
   bool initGamesWithPolicy;
   double policyInitAvgMoveNum;           // Avg number of moves
   double startPosesPolicyInitAvgMoveNum; //Avg number of moves when using a starting position from sgf
-  double compensateAfterPolicyInitProb; //Chance to adjust komi to cancel the effect of imbalanced init
   //Occasionally try some alternative moves and search the responses to them.
   double sidePositionProb;
 
   //Temperature to use for placing handicap stones and for initializing the board position
   double policyInitAreaTemperature;
 
-  //Use this many visits in a short search to estimate the score, for adjusting komi
-  int compensateKomiVisits;
-  int estimateLeadVisits;
-  //On each train position, estimate the lead in points with this probability
-  double estimateLeadProb;
 
-  //Hack to improve learning of very weird komi and very lopsided positions
-  bool fancyKomiVarying;
 
   //With this probability, use only this many visits for a move, and record it with only this weight
   double cheapSearchProb;

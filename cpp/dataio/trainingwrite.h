@@ -14,9 +14,6 @@ struct ValueTargets {
   float win;
   float loss;
   float noResult;
-  float score;
-  bool hasLead;
-  float lead;
 
   ValueTargets();
   ~ValueTargets();
@@ -25,7 +22,6 @@ struct ValueTargets {
 //Some basic extra stats to record outputted data about the neural net's raw evaluation on the position.
 struct NNRawStats {
   double whiteWinLoss;
-  double whiteScoreMean;
   double policyEntropy;
 };
 

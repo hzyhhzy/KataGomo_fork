@@ -349,62 +349,6 @@ XYSize Sgf::getXYSize() const {
   return XYSize(xSize,ySize);
 }
 
-float Sgf::getKomi() const {
-  checkNonEmpty(nodes);
-
-  //Default, if SGF doesn't specify
-  if(!nodes[0]->hasProperty("KM"))
-    return 7.5f;
-
-  float komi;
-  bool suc = Global::tryStringToFloat(nodes[0]->getSingleProperty("KM"), komi);
-  if(!suc)
-    propertyFail("Could not parse komi in sgf");
-
-  if(!Rules::komiIsIntOrHalfInt(komi)) {
-    //Hack - if the komi is a quarter integer and it looks like a Chinese GoGoD file, then double komi and accept
-    if(Rules::komiIsIntOrHalfInt(komi*2.0f) && nodes[0]->hasProperty("US") && nodes[0]->hasProperty("RU") &&
-       Global::isPrefix(nodes[0]->getSingleProperty("US"),"GoGoD") &&
-       Global::toLower(nodes[0]->getSingleProperty("RU")) == "chinese")
-      komi *= 2.0f;
-    else
-      propertyFail("Komi in sgf is not integer or half-integer");
-  }
-
-  //Hack - check for foxwq sgfs with weird komis
-  if(nodes[0]->hasProperty("AP") && contains(nodes[0]->getProperties("AP"),"foxwq")) {
-    if(komi == 550)
-      komi = 5.5f;
-    else if(komi == 325 || komi == 650)
-      komi = 6.5f;
-    else if(komi == 375 || komi == 750)
-      komi = 7.5f;
-    else if(komi == 350 || komi == 700)
-      komi = 7.0f;
-    else if(komi == 0)
-      komi = 0.0f;
-    else if(komi == 6.5 || komi == 7.5 || komi == 7)
-    {}
-    else
-      propertyFail("Currently no case implemented for foxwq komi: " + Global::floatToString(komi));
-  }
-
-  return komi;
-}
-
-int Sgf::getHandicapValue() const {
-  checkNonEmpty(nodes);
-  //Default, if SGF doesn't specify
-  if(!nodes[0]->hasProperty("HA"))
-    return 0;
-
-  int handicapValue = 0;
-  bool suc = Global::tryStringToInt(nodes[0]->getSingleProperty("HA"), handicapValue);
-  if(!suc)
-    propertyFail("Could not parse handicap value in sgf");
-  return handicapValue;
-}
-
 bool Sgf::hasRules() const {
   checkNonEmpty(nodes);
   return nodes[0]->hasProperty("RU");
@@ -414,7 +358,6 @@ Rules Sgf::getRulesOrFail() const {
   checkNonEmpty(nodes);
   Rules rules = nodes[0]->getRulesFromRUTagOrFail();
   //In SGF files the komi comes from the KM tag.
-  rules.komi = getKomi();
   return rules;
 }
 
@@ -1264,7 +1207,6 @@ CompactSgf::CompactSgf(const Sgf* sgf)
   xSize = size.x;
   ySize = size.y;
   depth = sgf->depth();
-  komi = sgf->getKomi();
   hash = sgf->hash;
 
   sgf->getPlacements(placements, xSize, ySize);
@@ -1289,7 +1231,6 @@ CompactSgf::CompactSgf(Sgf&& sgf)
   xSize = size.x;
   ySize = size.y;
   depth = sgf.depth();
-  komi = sgf.getKomi();
   hash = sgf.hash;
 
   sgf.getPlacements(placements, xSize, ySize);
@@ -1358,14 +1299,12 @@ bool CompactSgf::hasRules() const {
 
 Rules CompactSgf::getRulesOrFail() const {
   Rules rules = rootNode.getRulesFromRUTagOrFail();
-  rules.komi = komi;
   return rules;
 }
 
 Rules CompactSgf::getRulesOrFailAllowUnspecified(const Rules& defaultRules) const {
   //But still carry over the komi no matter what!
   Rules rules = defaultRules;
-  rules.komi = komi;
 
   if(!hasRules()) {
     return rules;
@@ -1376,7 +1315,6 @@ Rules CompactSgf::getRulesOrFailAllowUnspecified(const Rules& defaultRules) cons
 Rules CompactSgf::getRulesOrWarn(const Rules& defaultRules, std::function<void(const string& msg)> f) const {
   //But still carry over the komi no matter what!
   Rules rules = defaultRules;
-  rules.komi = komi;
 
   if(!hasRules()) {
     f("Sgf has no rules, using default rules: " + rules.toString());
@@ -1461,22 +1399,15 @@ void CompactSgf::setupBoardAndHistTolerant(const Rules& initialRules, Board& boa
 }
 
 
-void WriteSgf::printGameResult(ostream& out, const BoardHistory& hist)
-{
-  printGameResult(out,hist,std::numeric_limits<double>::quiet_NaN());
-}
-void WriteSgf::printGameResult(ostream& out, const BoardHistory& hist, double overrideFinishedWhiteScore) {
+void WriteSgf::printGameResult(ostream& out, const BoardHistory& hist) {
   if(hist.isGameFinished) {
     out << "RE[";
-    out << WriteSgf::gameResultNoSgfTag(hist, overrideFinishedWhiteScore);
+    out << WriteSgf::gameResultNoSgfTag(hist);
     out << "]";
   }
 }
 
 string WriteSgf::gameResultNoSgfTag(const BoardHistory& hist) {
-  return gameResultNoSgfTag(hist,std::numeric_limits<double>::quiet_NaN());
-}
-string WriteSgf::gameResultNoSgfTag(const BoardHistory& hist, double overrideFinishedWhiteScore) {
   if(!hist.isGameFinished)
     return "";
   else if(hist.isNoResult)
@@ -1486,51 +1417,22 @@ string WriteSgf::gameResultNoSgfTag(const BoardHistory& hist, double overrideFin
   else if(hist.isResignation && hist.winner == C_WHITE)
     return "W+R";
 
-  if(!std::isnan(overrideFinishedWhiteScore)) {
-    if(overrideFinishedWhiteScore < 0)
-      return "B+" + Global::doubleToString(-overrideFinishedWhiteScore);
-    else if(overrideFinishedWhiteScore > 0)
-      return "W+" + Global::doubleToString(overrideFinishedWhiteScore);
-    else
-      return "0";
-  }
-  else {
-    if(hist.winner == C_BLACK)
-      return "B+" + Global::doubleToString(-hist.finalWhiteMinusBlackScore);
-    else if(hist.winner == C_WHITE)
-      return "W+" + Global::doubleToString(hist.finalWhiteMinusBlackScore);
-    else if(hist.winner == C_EMPTY)
-      return "0";
-    else
-      ASSERT_UNREACHABLE;
-  }
-  return "";
+  if(hist.winner == C_BLACK)
+    return "B+";
+  else if(hist.winner == C_WHITE)
+    return "W+";
+  else if(hist.winner == C_EMPTY)
+    return "0";
+  else
+    ASSERT_UNREACHABLE;
 }
+
 void WriteSgf::writeSgf(
   ostream& out, const string& bName, const string& wName,
   const BoardHistory& endHist,
   const FinishedGameData* gameData,
   bool tryNicerRulesString,
   bool omitResignPlayerMove
-) {
-  writeSgf(
-    out,
-    bName,
-    wName,
-    endHist,
-    gameData,
-    tryNicerRulesString,
-    omitResignPlayerMove,
-    std::numeric_limits<double>::quiet_NaN()
-  );
-}
-void WriteSgf::writeSgf(
-  ostream& out, const string& bName, const string& wName,
-  const BoardHistory& endHist,
-  const FinishedGameData* gameData,
-  bool tryNicerRulesString,
-  bool omitResignPlayerMove,
-  double overrideFinishedWhiteScore
 ) {
   const Board& initialBoard = endHist.initialBoard;
   const Rules& rules = endHist.rules;
@@ -1545,10 +1447,8 @@ void WriteSgf::writeSgf(
   out << "PB[" << bName << "]";
   out << "PW[" << wName << "]";
 
-
-  out << "KM[" << rules.komi << "]";
-  out << "RU[" << (tryNicerRulesString ? rules.toStringNoKomiMaybeNice() : rules.toStringNoKomi()) << "]";
-  printGameResult(out,endHist,overrideFinishedWhiteScore);
+  out << "RU[" << (tryNicerRulesString ? rules.toStringMaybeNice() : rules.toString()) << "]";
+  printGameResult(out,endHist);
 
   bool hasAB = false;
   for(int y = 0; y<ySize; y++) {
@@ -1649,11 +1549,9 @@ void WriteSgf::writeSgf(
         char winBuf[32];
         char lossBuf[32];
         char noResultBuf[32];
-        char scoreBuf[32];
         sprintf(winBuf,"%.2f",targets.win);
         sprintf(lossBuf,"%.2f",targets.loss);
         sprintf(noResultBuf,"%.2f",targets.noResult);
-        sprintf(scoreBuf,"%.1f",targets.score);
         if(comment.length() > 0)
           comment += " ";
         comment += winBuf;
@@ -1661,8 +1559,6 @@ void WriteSgf::writeSgf(
         comment += lossBuf;
         comment += " ";
         comment += noResultBuf;
-        comment += " ";
-        comment += scoreBuf;
       }
       if(turnAfterStart < gameData->policyTargetsByTurn.size()) {
         char visitsBuf[32];
@@ -1685,7 +1581,7 @@ void WriteSgf::writeSgf(
     if(endHist.isGameFinished && i+1 == endHist.moveHistory.size()) {
       if(comment.length() > 0)
         comment += " ";
-      comment += "result=" + WriteSgf::gameResultNoSgfTag(endHist,overrideFinishedWhiteScore);
+      comment += "result=" + WriteSgf::gameResultNoSgfTag(endHist);
     }
 
     if(comment.length() > 0)

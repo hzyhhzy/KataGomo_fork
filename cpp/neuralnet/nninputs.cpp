@@ -54,174 +54,13 @@ double ScoreValue::whiteWinsOfWinner(Player winner, double drawEquivalentWinsFor
 static const double twoOverPi = 0.63661977236758134308;
 static const double piOverTwo = 1.57079632679489661923;
 
-double ScoreValue::whiteScoreDrawAdjust(double finalWhiteMinusBlackScore, double drawEquivalentWinsForWhite, const BoardHistory& hist) {
-  return finalWhiteMinusBlackScore + hist.whiteKomiAdjustmentForDraws(drawEquivalentWinsForWhite);
-}
-
-double ScoreValue::whiteScoreValueOfScoreSmooth(double finalWhiteMinusBlackScore, double center, double scale, double drawEquivalentWinsForWhite, const Board& b, const BoardHistory& hist) {
-  double adjustedScore = finalWhiteMinusBlackScore + hist.whiteKomiAdjustmentForDraws(drawEquivalentWinsForWhite) - center;
-  if(b.x_size == b.y_size)
-    return atan(adjustedScore / (scale*b.x_size)) * twoOverPi;
-  else
-    return atan(adjustedScore / (scale*sqrt(b.x_size*b.y_size))) * twoOverPi;
-}
-
-double ScoreValue::whiteScoreValueOfScoreSmoothNoDrawAdjust(double finalWhiteMinusBlackScore, double center, double scale, const Board& b) {
-  double adjustedScore = finalWhiteMinusBlackScore - center;
-  if(b.x_size == b.y_size)
-    return atan(adjustedScore / (scale*b.x_size)) * twoOverPi;
-  else
-    return atan(adjustedScore / (scale*sqrt(b.x_size*b.y_size))) * twoOverPi;
-}
-
-double ScoreValue::whiteDScoreValueDScoreSmoothNoDrawAdjust(double finalWhiteMinusBlackScore, double center, double scale, const Board& b) {
-  double adjustedScore = finalWhiteMinusBlackScore - center;
-  double scaleFactor;
-  if(b.x_size == b.y_size)
-    scaleFactor = scale*b.x_size;
-  else
-    scaleFactor = scale*sqrt(b.x_size*b.y_size);
-
-  return scaleFactor / (scaleFactor * scaleFactor + adjustedScore * adjustedScore) * twoOverPi;
-}
-
 static double inverse_atan(double x) {
   if(x >= piOverTwo - 1e-6) return 1e6;
   if(x <= -piOverTwo + 1e-6) return -1e6;
   return tan(x);
 }
 
-double ScoreValue::approxWhiteScoreOfScoreValueSmooth(double scoreValue, double center, double scale, const Board& b) {
-  assert(scoreValue >= -1 && scoreValue <= 1);
-  double scoreUnscaled = inverse_atan(scoreValue*piOverTwo);
-  if(b.x_size == b.y_size)
-    return scoreUnscaled * (scale*b.x_size) + center;
-  else
-    return scoreUnscaled * (scale*sqrt(b.x_size*b.y_size)) + center;
-}
 
-double ScoreValue::whiteScoreMeanSqOfScoreGridded(double finalWhiteMinusBlackScore, double drawEquivalentWinsForWhite) {
-  assert((int)(finalWhiteMinusBlackScore * 2) == finalWhiteMinusBlackScore * 2);
-  bool finalScoreIsInteger = ((int)finalWhiteMinusBlackScore == finalWhiteMinusBlackScore);
-  if(!finalScoreIsInteger)
-    return finalWhiteMinusBlackScore * finalWhiteMinusBlackScore;
-
-  double lower = finalWhiteMinusBlackScore - 0.5;
-  double upper = finalWhiteMinusBlackScore + 0.5;
-  double lowerSq = lower * lower;
-  double upperSq = upper * upper;
-
-  return lowerSq + (upperSq - lowerSq) * drawEquivalentWinsForWhite;
-}
-
-
-static bool scoreValueTablesInitialized = false;
-static double* expectedSVTable = NULL;
-static const int svTableAssumedBSize = NNPos::MAX_BOARD_LEN;
-static const int svTableMeanRadius = svTableAssumedBSize*svTableAssumedBSize + NNPos::EXTRA_SCORE_DISTR_RADIUS;
-static const int svTableMeanLen = svTableMeanRadius*2;
-static const int svTableStdevLen = svTableAssumedBSize*svTableAssumedBSize + NNPos::EXTRA_SCORE_DISTR_RADIUS;
-
-void ScoreValue::freeTables() {
-  if(scoreValueTablesInitialized) {
-    delete[] expectedSVTable;
-    expectedSVTable = NULL;
-    scoreValueTablesInitialized = false;
-  }
-}
-
-void ScoreValue::initTables() {
-  assert(!scoreValueTablesInitialized);
-  expectedSVTable = new double[svTableMeanLen*svTableStdevLen];
-
-  //Precompute normal PDF
-  const int stepsPerUnit = 10; //Must be divisible by 2. This is both the number of segments that we divide points into, and that we divide stdevs into
-  const int boundStdevs = 5;
-  int minStdevSteps = -boundStdevs*stepsPerUnit;
-  int maxStdevSteps = boundStdevs*stepsPerUnit;
-  double* normalPDF = new double[(maxStdevSteps-minStdevSteps)+1];
-  for(int i = minStdevSteps; i <= maxStdevSteps; i++) {
-    double xInStdevs = (double)i / stepsPerUnit;
-    double w = exp(-0.5 * xInStdevs * xInStdevs);
-    normalPDF[i-minStdevSteps] = w;
-  }
-  //Precompute scorevalue at increments of 1/stepsPerUnit points
-  Board board(svTableAssumedBSize,svTableAssumedBSize);
-  int minSVSteps = - (svTableMeanRadius*stepsPerUnit + stepsPerUnit/2 + boundStdevs * svTableStdevLen * stepsPerUnit);
-  int maxSVSteps = -minSVSteps;
-  double* svPrecomp = new double[(maxSVSteps-minSVSteps)+1];
-  for(int i = minSVSteps; i <= maxSVSteps; i++) {
-    double mean = (double)i / stepsPerUnit;
-    double sv = whiteScoreValueOfScoreSmoothNoDrawAdjust(mean, 0.0, 1.0, board);
-    svPrecomp[i-minSVSteps] = sv;
-  }
-
-  //Perform numeric integration
-  for(int meanIdx = 0; meanIdx < svTableMeanLen; meanIdx++) {
-    int meanSteps = (meanIdx - svTableMeanRadius) * stepsPerUnit - stepsPerUnit/2;
-    for(int stdevIdx = 0; stdevIdx < svTableStdevLen; stdevIdx++) {
-      double wSum = 0.0;
-      double wsvSum = 0.0;
-      for(int i = minStdevSteps; i <= maxStdevSteps; i++) {
-        int xSteps = meanSteps + stdevIdx * i;
-        double w = normalPDF[i-minStdevSteps];
-        assert(xSteps >= minSVSteps && xSteps <= maxSVSteps);
-        double sv = svPrecomp[xSteps-minSVSteps];
-        wSum += w;
-        wsvSum += w*sv;
-      }
-      expectedSVTable[meanIdx*svTableStdevLen + stdevIdx] = wsvSum / wSum;
-    }
-  }
-
-  delete[] normalPDF;
-  delete[] svPrecomp;
-  scoreValueTablesInitialized = true;
-}
-
-double ScoreValue::expectedWhiteScoreValue(double whiteScoreMean, double whiteScoreStdev, double center, double scale, const Board& b) {
-  assert(scoreValueTablesInitialized);
-
-  double scaleFactor;
-  if(b.x_size == b.y_size)
-    scaleFactor = (double)svTableAssumedBSize / (scale * b.x_size);
-  else
-    scaleFactor = (double)svTableAssumedBSize / (scale * sqrt(b.x_size*b.y_size));
-
-  double meanScaled = (whiteScoreMean - center) * scaleFactor;
-  double stdevScaled = whiteScoreStdev * scaleFactor;
-
-  double meanRounded = round(meanScaled);
-  double stdevFloored = floor(stdevScaled);
-  int meanIdx0 = (int)meanRounded + svTableMeanRadius;
-  int stdevIdx0 = (int)stdevFloored;
-  int meanIdx1 = meanIdx0+1;
-  int stdevIdx1 = stdevIdx0+1;
-
-  if(meanIdx0 < 0) { meanIdx0 = 0; meanIdx1 = 0; }
-  if(meanIdx1 >= svTableMeanLen) { meanIdx0 = svTableMeanLen-1; meanIdx1 = svTableMeanLen-1; }
-  assert(stdevIdx0 >= 0);
-  if(stdevIdx1 >= svTableStdevLen) { stdevIdx0 = svTableStdevLen-1; stdevIdx1 = svTableStdevLen-1; }
-
-  double lambdaMean = meanScaled - meanRounded + 0.5;
-  double lambdaStdev = stdevScaled - stdevFloored;
-
-  double a00 = expectedSVTable[meanIdx0*svTableStdevLen + stdevIdx0];
-  double a01 = expectedSVTable[meanIdx0*svTableStdevLen + stdevIdx1];
-  double a10 = expectedSVTable[meanIdx1*svTableStdevLen + stdevIdx0];
-  double a11 = expectedSVTable[meanIdx1*svTableStdevLen + stdevIdx1];
-
-  double b0 = a00 + lambdaStdev*(a01-a00);
-  double b1 = a10 + lambdaStdev*(a11-a10);
-  return b0 + lambdaMean*(b1-b0);
-}
-
-double ScoreValue::getScoreStdev(double scoreMean, double scoreMeanSq) {
-  double variance = scoreMeanSq - scoreMean * scoreMean;
-  if(variance <= 0.0)
-    return 0.0;
-  return sqrt(variance);
-}
 
 NNOutput::NNOutput()
   :noisedPolicyProbs(NULL)
@@ -231,12 +70,8 @@ NNOutput::NNOutput(const NNOutput& other) {
   whiteWinProb = other.whiteWinProb;
   whiteLossProb = other.whiteLossProb;
   whiteNoResultProb = other.whiteNoResultProb;
-  whiteScoreMean = other.whiteScoreMean;
-  whiteScoreMeanSq = other.whiteScoreMeanSq;
-  whiteLead = other.whiteLead;
   varTimeLeft = other.varTimeLeft;
   shorttermWinlossError = other.shorttermWinlossError;
-  shorttermScoreError = other.shorttermScoreError;
 
   nnXLen = other.nnXLen;
   nnYLen = other.nnYLen;
@@ -264,33 +99,21 @@ NNOutput::NNOutput(const vector<shared_ptr<NNOutput>>& others) {
   whiteWinProb = 0.0f;
   whiteLossProb = 0.0f;
   whiteNoResultProb = 0.0f;
-  whiteScoreMean = 0.0f;
-  whiteScoreMeanSq = 0.0f;
-  whiteLead = 0.0f;
   varTimeLeft = 0.0f;
   shorttermWinlossError = 0.0f;
-  shorttermScoreError = 0.0f;
   for(int i = 0; i<len; i++) {
     const NNOutput& other = *(others[i]);
     whiteWinProb += other.whiteWinProb;
     whiteLossProb += other.whiteLossProb;
     whiteNoResultProb += other.whiteNoResultProb;
-    whiteScoreMean += other.whiteScoreMean;
-    whiteScoreMeanSq += other.whiteScoreMeanSq;
-    whiteLead += other.whiteLead;
     varTimeLeft += other.varTimeLeft;
     shorttermWinlossError += other.shorttermWinlossError;
-    shorttermScoreError += other.shorttermScoreError;
   }
   whiteWinProb /= floatLen;
   whiteLossProb /= floatLen;
   whiteNoResultProb /= floatLen;
-  whiteScoreMean /= floatLen;
-  whiteScoreMeanSq /= floatLen;
-  whiteLead /= floatLen;
   varTimeLeft /= floatLen;
   shorttermWinlossError /= floatLen;
-  shorttermScoreError /= floatLen;
 
   nnXLen = others[0]->nnXLen;
   nnYLen = others[0]->nnYLen;
@@ -331,12 +154,8 @@ NNOutput& NNOutput::operator=(const NNOutput& other) {
   whiteWinProb = other.whiteWinProb;
   whiteLossProb = other.whiteLossProb;
   whiteNoResultProb = other.whiteNoResultProb;
-  whiteScoreMean = other.whiteScoreMean;
-  whiteScoreMeanSq = other.whiteScoreMeanSq;
-  whiteLead = other.whiteLead;
   varTimeLeft = other.varTimeLeft;
   shorttermWinlossError = other.shorttermWinlossError;
-  shorttermScoreError = other.shorttermScoreError;
 
   nnXLen = other.nnXLen;
   nnYLen = other.nnYLen;
@@ -368,12 +187,8 @@ void NNOutput::debugPrint(ostream& out, const Board& board) {
   out << "Win " << Global::strprintf("%.2fc",whiteWinProb*100) << endl;
   out << "Loss " << Global::strprintf("%.2fc",whiteLossProb*100) << endl;
   out << "NoResult " << Global::strprintf("%.2fc",whiteNoResultProb*100) << endl;
-  out << "ScoreMean " << Global::strprintf("%.2f",whiteScoreMean) << endl;
-  out << "ScoreMeanSq " << Global::strprintf("%.1f",whiteScoreMeanSq) << endl;
-  out << "Lead " << Global::strprintf("%.2f",whiteLead) << endl;
   out << "VarTimeLeft " << Global::strprintf("%.1f",varTimeLeft) << endl;
   out << "STWinlossError " << Global::strprintf("%.3f",shorttermWinlossError) << endl;
-  out << "STScoreError " << Global::strprintf("%.1f",shorttermScoreError) << endl;
 
   out << "Policy" << endl;
   for(int y = 0; y<board.y_size; y++) {
@@ -707,16 +522,6 @@ void NNInputs::fillRowV7(
   //Global features.
   //The first 5 of them were set already above to flag which of the past 5 moves were passes.
 
-  //Komi and any score adjustments
-  float selfKomi = hist.currentSelfKomi(nextPlayer,nnInputParams.drawEquivalentWinsForWhite);
-  float bArea = (float)(xSize * ySize);
-  //Bound komi just in case
-  if(selfKomi > bArea+20.0f)
-    selfKomi = bArea+20.0f;
-  if(selfKomi < -bArea-20.0f)
-    selfKomi = -bArea-20.0f;
-  rowGlobal[5] = selfKomi/20.0f;
-
   //Scoring
   if(hist.rules.scoringRule == Rules::SCORING_AREA) {}
   else
@@ -729,71 +534,6 @@ void NNInputs::fillRowV7(
   if(nnInputParams.playoutDoublingAdvantage != 0) {
     rowGlobal[15] = 1.0;
     rowGlobal[16] = (float)(0.5 * nnInputParams.playoutDoublingAdvantage);
-  }
-
-
-  //Provide parity information about the board size and komi
-  //This comes from the following observation:
-  //From white's perspective:
-  //Komi = 0.0 - Draw possible
-  //Komi = 0.5 - Win the games we would have drawn with komi 0.0
-  //Komi = 1.0 - Usually no difference from komi 0.5
-  //Komi = 1.5 - Usually no difference from komi 0.5
-  //Komi = 2.0 - Draw possible
-  //If we were to assign an "effective goodness" to these komis in order it would look like
-  //0 1 1 1 2 3 3 3 4 5 5 5 6 ...
-  //since when away from the right parity, increasing the komi doesn't help us except in cases of seki with odd numbers of dame.
-  //If we were to add 0.5 times a vector like:
-  //0 -1 0 1 0 -1 0 1 0 -1 0 ...
-  //Then this would become a linear function and hopefully easier for a neural net to learn.
-  //We expect that this is hard for a neural net to learn since it depends on the parity of the board size
-  //and is very "xor"like.
-  //So we provide it as an input.
-  //Since we are using a model where games are jittered by 0.5 (see BoardHistory::whiteKomiAdjustmentForDraws)
-  //in theory right thing to first order to provide should be a triangular wave with a period of 2 komi points:
-  //  ../\........
-  //  ./..\.......
-  //  /....\..../.
-  //  ......\../..
-  //  .......\/...
-  //The upsloping part of the wave is centered around the komi value where you could draw
-  //since komi is extra valuable when it turns losses into draws into wins, peaking at the komi value where you could draw + 0.5.
-  //It's downsloping around the komi value where you can't draw, since the marginal komi there is nearly useless, not causing you to win
-  //more games except in case of odd-dame seki.
-
-  if(hist.rules.scoringRule == Rules::SCORING_AREA ) {
-    bool boardAreaIsEven = (xSize*ySize) % 2 == 0;
-
-    //What is the parity of the komi values that can produce jigos?
-    bool drawableKomisAreEven = boardAreaIsEven;
-
-    //Find the difference between the komi viewed from our perspective and the nearest drawable komi below it.
-    float komiFloor;
-    if(drawableKomisAreEven)
-      komiFloor = floor(selfKomi / 2.0f) * 2.0f;
-    else
-      komiFloor = floor((selfKomi-1.0f) / 2.0f) * 2.0f + 1.0f;
-
-    //Cap just in case we have floating point weirdness
-    float delta = selfKomi - komiFloor;
-    assert(delta >= -0.0001f);
-    assert(delta <= 2.0001f);
-    if(delta < 0.0f)
-      delta = 0.0f;
-    if(delta > 2.0f)
-      delta = 2.0f;
-
-    //Create the triangle wave based on the difference
-    float wave;
-    if(delta < 0.5f)
-      wave = delta;
-    else if(delta < 1.5f)
-      wave = 1.0f-delta;
-    else
-      wave = delta-2.0f;
-
-    //NOTE: If ever changing which feature this is, must also update index in model.py where we multiply it into the scorebelief parity vector
-    rowGlobal[18] = wave;
   }
 
 }
