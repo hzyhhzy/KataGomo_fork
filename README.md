@@ -5,8 +5,8 @@
 | 1 Compile and run training                             | Kata2023       | Finished     | -                                  |
 | 2 Chinese Rule Only(Remove JP rules)                   | -     | Skipped    | Just to test whether it works      |
 | 3 CaptureGo(Remove Go rules)                           | -    | Skipped         | Just to test whether it works      |
-| 4 Black-White board games(Remove Capture)              | BW2023         | Finished         | Using Gomoku as a representative, very easy to be modified to other games   |
-| 4.1 Gomoku                                             | Gom2023        | **Doing**         | New Katagomo engine                |
+| 4 Black-White board games(Remove Capture)              | BW2023/BWnoscore2023 | Finished         | Using Gomoku as a representative, very easy to be modified to other games. "BWnoscore2023" branch also removed komi and score   |
+| 4.1 Gomoku                                             | Gom2023        | Todo         | New Katagomo engine                |
 | 5 Chess-like games(Multi-stage moves)                  | Movestone2023  | **Doing**         | Maybe using Breakthrough or Ataxx as a representative, very easy to be modified to other games    |
  
 
