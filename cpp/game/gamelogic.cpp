@@ -110,3 +110,52 @@ Color GameLogic::checkWinnerAfterPlayed(
 
   return C_WALL;
 }
+
+GameLogic::ResultsBeforeNN::ResultsBeforeNN() {
+  inited = false;
+  winner = C_WALL;
+  myOnlyLoc = Board::NULL_LOC;
+}
+
+void GameLogic::ResultsBeforeNN::init(const Board& board, const BoardHistory& hist, Color nextPlayer) {
+  if(inited)
+    return;
+  inited = true;
+
+  Color opp = getOpp(nextPlayer);
+
+  // check five and four
+  bool oppHasFour = false;
+  bool IHaveLifeFour = false;
+  Loc myLifeFourLoc = Board::NULL_LOC;
+  for(int x = 0; x < board.x_size; x++)
+    for(int y = 0; y < board.y_size; y++) {
+      Loc loc = Location::getLoc(x, y, board.x_size);
+      MovePriority mp = getMovePriority(board, hist, nextPlayer, loc);
+      if(mp == MP_SUDDEN_WIN) {
+        winner = nextPlayer;
+        myOnlyLoc = loc;
+        return;
+      } else if(mp == MP_ONLY_NONLOSE_MOVES) {
+        oppHasFour = true;
+        myOnlyLoc = loc;
+      } else if(mp == MP_WINNING) {
+        IHaveLifeFour = true;
+        myLifeFourLoc = loc;
+      }
+    }
+
+  // opp has four
+  if(oppHasFour)
+    return;
+
+  // I have life four, opp has no four
+  if(IHaveLifeFour) {
+    winner = nextPlayer;
+    myOnlyLoc = myLifeFourLoc;
+    return;
+  }
+
+
+  return;
+}

@@ -113,7 +113,6 @@ static Rules parseRulesHelper(const string& sOrig) {
   else if(sOrig.length() > 0 && sOrig[0] == '{') {
     //Default if not specified
     rules = Rules::getTrompTaylorish();
-    bool komiSpecified = false;
     bool taxSpecified = false;
     try {
       json input = json::parse(sOrig);
@@ -130,9 +129,6 @@ static Rules parseRulesHelper(const string& sOrig) {
     }
     catch(nlohmann::detail::exception&) {
       throw IOError("Could not parse rules: " + sOrig);
-    }
-    if(!komiSpecified) {
-      //Drop default komi to 6.5 for territory rules, and to 7.0 for button
     }
   }
 
@@ -156,7 +152,6 @@ static Rules parseRulesHelper(const string& sOrig) {
     if(s.length() <= 0)
       throw IOError("Could not parse rules: " + sOrig);
 
-    bool komiSpecified = false;
     bool taxSpecified = false;
     while(true) {
       if(s.length() <= 0)
@@ -175,8 +170,6 @@ static Rules parseRulesHelper(const string& sOrig) {
 
       //Unknown rules format
       else throw IOError("Could not parse rules: " + sOrig);
-    }
-    if(!komiSpecified) {
     }
   }
 

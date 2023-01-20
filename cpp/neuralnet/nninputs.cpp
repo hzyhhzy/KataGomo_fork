@@ -504,6 +504,11 @@ void NNInputs::fillRowV7(
     posStride = 1;
   }
 
+  GameLogic::ResultsBeforeNN resultsBeforeNN = nnInputParams.resultsBeforeNN;
+  if(!resultsBeforeNN.inited) {
+    resultsBeforeNN.init(board, hist, nextPlayer);
+  }
+
   for(int y = 0; y<ySize; y++) {
     for(int x = 0; x<xSize; x++) {
       int pos = NNPos::xyToPos(x,y,nnXLen);
@@ -524,6 +529,22 @@ void NNInputs::fillRowV7(
     }
   }
 
+  if(resultsBeforeNN.inited) {
+    rowGlobal[1] = 1.0;
+    rowGlobal[2] = resultsBeforeNN.winner == C_EMPTY;
+    rowGlobal[3] = resultsBeforeNN.winner == C_WHITE;
+    rowGlobal[4] = resultsBeforeNN.winner == C_BLACK;
+    if(board.isOnBoard(resultsBeforeNN.myOnlyLoc))
+      setRowBin(
+        rowBin,
+        NNPos::locToPos(resultsBeforeNN.myOnlyLoc, board.x_size, nnXLen, nnYLen),
+        3,
+        1.0f,
+        posStride,
+        featureStride);
+    else if(resultsBeforeNN.myOnlyLoc == Board::PASS_LOC)
+      rowGlobal[5] = 1.0;
+  }
 
 
   //Global features.

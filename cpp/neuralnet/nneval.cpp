@@ -616,6 +616,9 @@ void NNEvaluator::evaluate(
   buf.boardXSizeForServer = board.x_size;
   buf.boardYSizeForServer = board.y_size;
 
+  MiscNNInputParams nnInputParamsWithResultsBeforeNN = nnInputParams;
+  nnInputParamsWithResultsBeforeNN.resultsBeforeNN.init(board, history, nextPlayer);
+
   if(!debugSkipNeuralNet) {
     int rowSpatialLen = NNModelVersion::getNumSpatialFeatures(modelVersion) * nnXLen * nnYLen;
     if(buf.rowSpatial == NULL) {
@@ -636,9 +639,10 @@ void NNEvaluator::evaluate(
         throw StringError("Cannot reuse an nnResultBuf with different dimensions or model version");
     }
 
+
     static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
     if(inputsVersion == 7)
-      NNInputs::fillRowV7(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
+      NNInputs::fillRowV7(board, history, nextPlayer, nnInputParamsWithResultsBeforeNN, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
     else
       ASSERT_UNREACHABLE;
   }
@@ -686,16 +690,21 @@ void NNEvaluator::evaluate(
     float maxPolicy = -1e25f;
     bool isLegal[NNPos::MAX_NN_POLICY_SIZE];
     int legalCount = 0;
-    for(int i = 0; i<policySize; i++) {
-      Loc loc = NNPos::posToLoc(i,xSize,ySize,nnXLen,nnYLen);
-      GameLogic::MovePriority mp = GameLogic::getMovePriority(board, history, nextPlayer, loc);
-      isLegal[i] = mp != GameLogic::MP_ILLEGAL;
-      if(mp == GameLogic::MP_SUDDEN_WIN)
-        policy[i] += 500;
-      else if(mp == GameLogic::MP_ONLY_NONLOSE_MOVES)
-        policy[i] += 400;
-      else if(mp == GameLogic::MP_WINNING)
-        policy[i] += 300;
+
+    GameLogic::ResultsBeforeNN resultsBeforeNN = nnInputParamsWithResultsBeforeNN.resultsBeforeNN;
+    if(resultsBeforeNN.myOnlyLoc == Board::NULL_LOC) {
+      for(int i = 0; i < policySize; i++) {
+        Loc loc = NNPos::posToLoc(i, xSize, ySize, nnXLen, nnYLen);
+        isLegal[i] = history.isLegal(board, loc, nextPlayer);
+      }
+    } 
+    else  // assume all other moves are illegal
+    {
+      for(int i = 0; i < policySize; i++) {
+        isLegal[i] = false;
+      }
+      isLegal[NNPos::locToPos(resultsBeforeNN.myOnlyLoc, xSize, nnXLen, nnYLen)] = true;
+      isLegal[NNPos::locToPos(Board::PASS_LOC, xSize, nnXLen, nnYLen)] = true;
     }
 
     for(int i = 0; i<policySize; i++) {
@@ -763,17 +772,37 @@ void NNEvaluator::evaluate(
         double varTimeLeftPreSoftplus = buf.result->varTimeLeft;
         double shorttermWinlossErrorPreSoftplus = buf.result->shorttermWinlossError;
 
+        
+        if(resultsBeforeNN.winner == C_EMPTY) {  // draw
+          winProb = 0.0;
+          lossProb = 0.0;
+          noResultProb = 1.0;
+        } 
+        else if(resultsBeforeNN.winner == C_WHITE) {  // white win
+          winProb = 1.0;
+          lossProb = 0.0;
+          noResultProb = 0.0;
+        } 
+        else if(resultsBeforeNN.winner == C_BLACK) {  // black win
+          winProb = 0.0;
+          lossProb = 1.0;
+          noResultProb = 0.0;
+        } 
+        else { //no sure results
+          // Softmax
+          double maxLogits = std::max(std::max(winLogits, lossLogits), noResultLogits);
+          winProb = exp(winLogits - maxLogits);
+          lossProb = exp(lossLogits - maxLogits);
+          noResultProb = exp(noResultLogits - maxLogits);
 
-        //Softmax
-        double maxLogits = std::max(std::max(winLogits,lossLogits),noResultLogits);
-        winProb = exp(winLogits - maxLogits);
-        lossProb = exp(lossLogits - maxLogits);
-        noResultProb = exp(noResultLogits - maxLogits);
-
+        } 
+       
         double probSum = winProb + lossProb + noResultProb;
         winProb /= probSum;
         lossProb /= probSum;
         noResultProb /= probSum;
+
+
 
         varTimeLeft = softPlus(varTimeLeftPreSoftplus) * 40.0;
 

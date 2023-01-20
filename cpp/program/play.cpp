@@ -221,7 +221,7 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     maxBoardYSize = std::max(maxBoardYSize, pos.board.y_size);
   }
 
-  noResultRandRadius = cfg.contains("noResultRandRadius") ? cfg.getDouble("noResultStdev",0.0,1.0) : 0.0;
+  noResultRandRadius = cfg.contains("noResultRandRadius") ? cfg.getDouble("noResultRandRadius",0.0,1.0) : 0.0;
 }
 
 GameInitializer::~GameInitializer()

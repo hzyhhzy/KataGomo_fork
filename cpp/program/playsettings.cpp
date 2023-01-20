@@ -15,7 +15,6 @@ PlaySettings::PlaySettings()
    forSelfPlay(false),
     normalAsymmetricPlayoutProb(0.0),
     maxAsymmetricRatio(2.0),
-    minAsymmetricCompensateKomiProb(0.0),
    recordTimePerMove(false)
 {}
 PlaySettings::~PlaySettings()
@@ -73,7 +72,6 @@ PlaySettings PlaySettings::loadForSelfplay(ConfigParser& cfg) {
   playSettings.scaleDataWeight = cfg.contains("scaleDataWeight") ? cfg.getDouble("scaleDataWeight",0.01,10.0) : 1.0;
   playSettings.normalAsymmetricPlayoutProb = cfg.getDouble("normalAsymmetricPlayoutProb",0.0,1.0);
   playSettings.maxAsymmetricRatio = cfg.getDouble("maxAsymmetricRatio",1.0,100.0);
-  playSettings.minAsymmetricCompensateKomiProb = cfg.getDouble("minAsymmetricCompensateKomiProb",0.0,1.0);
   playSettings.forSelfPlay = true;
 
   if(playSettings.policySurpriseDataWeight + playSettings.valueSurpriseDataWeight > 1.0)
