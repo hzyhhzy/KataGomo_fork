@@ -54,7 +54,6 @@ struct PlaySettings {
   //Asymmetric playouts training
   double normalAsymmetricPlayoutProb; //Probability of asymmetric playouts on normal games
   double maxAsymmetricRatio;
-  double minAsymmetricCompensateKomiProb; //Minimum probability to make game fair if asymmetric (other probs will also override)
 
   //Record time taken per move
   bool recordTimePerMove;
