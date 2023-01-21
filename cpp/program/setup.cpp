@@ -653,6 +653,15 @@ vector<SearchParams> Setup::loadParams(
     else if(cfg.contains("futileVisitsThreshold"))   params.futileVisitsThreshold = cfg.getDouble("futileVisitsThreshold",0.01,1.0);
     else                                             params.futileVisitsThreshold = 0.0;
 
+    if(cfg.contains("finishGameSearchDelayMicroseconds" + idxStr))
+      params.finishGameSearchDelayMicroseconds =
+        cfg.getInt64("finishGameSearchDelayMicroseconds" + idxStr, 0, 10000000);
+    else if(cfg.contains("finishGameSearchDelayMicroseconds"))
+      params.finishGameSearchDelayMicroseconds = cfg.getInt64("finishGameSearchDelayMicroseconds", 0, 10000000);
+    else
+      params.finishGameSearchDelayMicroseconds = 0;
+
+
     //On distributed, tolerate reading mutexPoolSize since older version configs use it.
     if(setupFor == SETUP_FOR_DISTRIBUTED)
       cfg.markAllKeysUsedWithPrefix("mutexPoolSize");

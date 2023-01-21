@@ -118,7 +118,7 @@ struct SearchParams {
   double obviousMovesPolicySurpriseTolerance; //What logits of surprise does the search result need to be at most to be (1/e) obvious?
 
   double futileVisitsThreshold; //If a move would not be able to match this proportion of the max visits move in the time or visit or playout cap remaining, prune it.
-
+  int64_t finishGameSearchDelayMicroseconds; //Avoid running "too fast" at the end of the game, to cost less CPU
 
   SearchParams();
   ~SearchParams();
