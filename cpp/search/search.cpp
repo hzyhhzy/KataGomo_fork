@@ -411,12 +411,6 @@ void Search::runWholeSearch(
 
   {
     //Possibly reduce computation time, for human friendliness
-    if(rootHistory.moveHistory.size() >= 1 && rootHistory.moveHistory[rootHistory.moveHistory.size()-1].loc == Board::PASS_LOC) {
-      if(rootHistory.moveHistory.size() >= 3 && rootHistory.moveHistory[rootHistory.moveHistory.size()-3].loc == Board::PASS_LOC)
-        searchFactor *= searchParams.searchFactorAfterTwoPass;
-      else
-        searchFactor *= searchParams.searchFactorAfterOnePass;
-    }
 
     if(searchFactor != 1.0) {
       double cap = (double)((int64_t)1L << 62);
