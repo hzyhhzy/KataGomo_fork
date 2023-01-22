@@ -599,7 +599,7 @@ void NNEvaluator::evaluate(
 ) {
   assert(!isKilled);
   buf.hasResult = false;
-  buf.pla == nextPlayer;
+  buf.pla = nextPlayer;
   assert(nextPlayer == board.nextPla);
 
   if(board.x_size > nnXLen || board.y_size > nnYLen)
