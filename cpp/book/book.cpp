@@ -112,8 +112,7 @@ void BookHash::getHashAndSymmetry(const BoardHistory& hist, int repBound, BookHa
   // Don't consider symmetries that change the lengths of x and y.
   // This also lets us be fairly lazy in the rest of the book implementation and not have to carefully consider every case whether
   // we need to swap xSize and ySize when passing into getSymLoc.
-  int numSymmetries = (hist.getRecentBoard(0).x_size != hist.getRecentBoard(0).y_size) ?
-    SymmetryHelpers::NUM_SYMMETRIES_WITHOUT_TRANSPOSE : SymmetryHelpers::NUM_SYMMETRIES;
+  int numSymmetries =  SymmetryHelpers::NUM_SYMMETRIES;
 
   for(int symmetry = 0; symmetry < numSymmetries; symmetry++) {
     boardsBySym[symmetry] = SymmetryHelpers::getSymBoard(hist.initialBoard,symmetry);

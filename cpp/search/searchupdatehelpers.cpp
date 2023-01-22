@@ -33,7 +33,7 @@ void Search::addLeafValue(
   }
 
   //later will be deleted
-  utility += getPatternBonus(node.patternBonusHash, thread.board.prevPla());
+  //utility += getPatternBonus(node.patternBonusHash, thread.board.prevPla());
 
   double utilitySq = utility * utility;
   double weightSq = weight * weight;
