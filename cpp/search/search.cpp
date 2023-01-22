@@ -340,7 +340,7 @@ bool Search::makeMove(Loc moveLoc, Player movePla) {
 
 
   rootHistory.makeBoardMoveAssumeLegal(rootBoard,moveLoc,rootPla);
-  rootPla = getOpp(rootPla);
+  rootPla = rootBoard.nextPla;
 
   //Explicitly clear avoid move arrays when we play a move - user needs to respecify them if they want them.
   avoidMoveUntilByLocBlack.clear();
@@ -539,7 +539,7 @@ void Search::beginSearch(bool pondering) {
     plaThatSearchIsFor = rootPla;
   //If we begin the game with a ponder, then assume that "we" are the opposing side until we see otherwise.
   if(plaThatSearchIsFor == C_EMPTY)
-    plaThatSearchIsFor = getOpp(rootPla);
+    plaThatSearchIsFor = rootBoard.nextnextPla();
 
   if(plaThatSearchIsForLastSearch != plaThatSearchIsFor) {
     //In the case we are doing playoutDoublingAdvantage without a specific player (so, doing the root player)
@@ -769,13 +769,15 @@ SearchNode* Search::allocateOrFindNode(SearchThread& thread, Player nextPla, Loc
         if(thread.history.moveHistory.size() >= 2) {
           Loc prevMoveLoc = thread.history.moveHistory[thread.history.moveHistory.size()-2].loc;
           if(prevMoveLoc != Board::NULL_LOC) {
-            child->subtreeValueBiasTableEntry = subtreeValueBiasTable->get(getOpp(thread.pla), prevMoveLoc, bestChildMoveLoc, thread.history.getRecentBoard(1));
+            child->subtreeValueBiasTableEntry = subtreeValueBiasTable->get(
+              thread.board.prevPla(), prevMoveLoc, bestChildMoveLoc, thread.history.getRecentBoard(1));
           }
         }
       }
 
       if(patternBonusTable != NULL)
-        child->patternBonusHash = patternBonusTable->getHash(getOpp(thread.pla), bestChildMoveLoc, thread.history.getRecentBoard(1));
+        child->patternBonusHash =
+          patternBonusTable->getHash(thread.board.prevPla(), bestChildMoveLoc, thread.history.getRecentBoard(1));
 
       //Insert into map! Use insertLoc as hint.
       nodeMap.insert(insertLoc, std::make_pair(childHash,child));
@@ -917,7 +919,7 @@ void Search::recursivelyRecomputeStats(SearchNode& n) {
       else {
         double resultUtility = getResultUtility(winLossValueAvg, noResultValueAvg);
         double newUtilityAvg = resultUtility;
-        newUtilityAvg += getPatternBonus(node->patternBonusHash,getOpp(node->nextPla));
+        newUtilityAvg += getPatternBonus(node->patternBonusHash, thread.board.prevPla());
         double newUtilitySqAvg = newUtilityAvg * newUtilityAvg;
 
         while(node->statsLock.test_and_set(std::memory_order_acquire));
@@ -1106,7 +1108,7 @@ bool Search::playoutDescend(
 
       //Make the move! We need to make the move before we create the node so we can see the new state and get the right graphHash.
       thread.history.makeBoardMoveAssumeLegal(thread.board,bestChildMoveLoc,thread.pla);
-      thread.pla = getOpp(thread.pla);
+      thread.pla = thread.board.nextPla;
       if(searchParams.useGraphSearch)
         thread.graphHash = GraphHash::getGraphHash(
            thread.history, thread.pla
@@ -1163,7 +1165,7 @@ bool Search::playoutDescend(
 
       //Make the move!
       thread.history.makeBoardMoveAssumeLegal(thread.board,bestChildMoveLoc,thread.pla);
-      thread.pla = getOpp(thread.pla);
+      thread.pla = thread.board.nextPla;
       if(searchParams.useGraphSearch)
         thread.graphHash = GraphHash::getGraphHash(thread.history, thread.pla
         );

@@ -868,7 +868,7 @@ struct GTPEngine {
       bool suc = hist.makeBoardMoveTolerant(board, loc, pla);
       if(!suc)
         return "illegal move sequence";
-      pla = getOpp(pla);
+      pla = board.nextPla;
     }
 
     string policyStr = "Policy: ";
@@ -1019,7 +1019,8 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
   //pvEdgeVisits <bool whether to show pvEdgeVisits or not>
 
   //Parse optional player
-  if(pieces.size() > numArgsParsed && PlayerIO::tryParsePlayer(pieces[numArgsParsed],pla))
+  Player pla_tmp;//not used
+  if(pieces.size() > numArgsParsed && PlayerIO::tryParsePlayer(pieces[numArgsParsed], pla_tmp))
     numArgsParsed += 1;
 
   //Parse optional interval float
@@ -1915,6 +1916,8 @@ int MainCmds::gtp(const vector<string>& args) {
         response = "Could not parse vertex: '" + pieces[1] + "'";
       }
       else {
+        //ignore the player from the command
+        pla = engine->bot->getRootBoard().nextPla;
         bool suc = engine->play(loc,pla);
         if(!suc) {
           responseIsError = true;
@@ -1987,6 +1990,8 @@ int MainCmds::gtp(const vector<string>& args) {
         bool debug = command == "genmove_debug" || command == "search_debug";
         bool playChosenMove = command != "search_debug";
 
+        // ignore the player from the command
+        pla = engine->bot->getRootBoard().nextPla;
         engine->genMove(
           pla,
           logger,searchFactorWhenWinningThreshold,searchFactorWhenWinning,
@@ -2269,7 +2274,7 @@ int MainCmds::gtp(const vector<string>& args) {
             allLegal = false;
             break;
           }
-          pla = getOpp(pla);
+          pla = board.nextPla;
         }
         if(allLegal) {
           Board::printBoard(sout, board, Board::NULL_LOC, &hist.moveHistory);

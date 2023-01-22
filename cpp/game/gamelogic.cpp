@@ -17,68 +17,64 @@
 using namespace std;
 
 
-static int connectionLengthOneDirection(
-  const Board& board,
-  const BoardHistory& hist,
-  Player pla,
-  Loc loc,
-  short adj,
-  bool& isLife) {
-  Loc tmploc = loc;
-  int conNum = 0;
-  isLife = false;
-  while(1) {
-    tmploc += adj;
-    if(!board.isOnBoard(tmploc))
-      break;
-    if(board.colors[tmploc] == pla)
-      conNum++;
-    else if(board.colors[tmploc] == C_EMPTY) {
-      isLife = true;
-      break;
-    } else
-      break;
+
+
+bool GameLogic::isLegal(const Board& board, Player pla, Loc loc) {
+  if(pla != board.nextPla) {
+    std::cout << "Error next player ";
+    return false;
   }
-  return conNum;
-}
 
-static GameLogic::MovePriority getMovePriorityOneDirectionAssumeLegal(
-  const Board& board,
-  const BoardHistory& hist,
-  Player pla,
-  Loc loc,
-  int adj)  {
-  Player opp = getOpp(pla);
-  bool isMyLife1, isMyLife2, isOppLife1, isOppLife2;
-  int myConNum = connectionLengthOneDirection(board, hist, pla, loc, adj, isMyLife1) +
-                 connectionLengthOneDirection(board, hist, pla, loc, -adj, isMyLife2) + 1;
-  int oppConNum = connectionLengthOneDirection(board, hist, opp, loc, adj, isOppLife1) +
-                  connectionLengthOneDirection(board, hist, opp, loc, -adj, isOppLife2) + 1;
-  if(myConNum >= 5)
-    return GameLogic::MP_SUDDEN_WIN;
+  if(loc == Board::PASS_LOC)  // pass is lose, but not illegal
+    return true;
 
-  if(oppConNum >= 5)
-    return GameLogic::MP_ONLY_NONLOSE_MOVES;
+  if(!board.isOnBoard(loc))
+    return false;
 
-  if(myConNum == 4 && isMyLife1 && isMyLife2)
-    return GameLogic::MP_WINNING;
-
-  return GameLogic::MP_NORMAL;
+  if(board.stage == 0)  // choose a piece
+  {
+    return board.colors[loc] == pla;
+  } 
+  else if(board.stage == 1)  // place the piece
+  {
+    Color c = board.colors[loc];
+    Color opp = getOpp(pla);
+    Loc chosenMove = board.midLocs[0];
+    int x0 = Location::getX(chosenMove, board.x_size);
+    int y0 = Location::getY(chosenMove, board.x_size);
+    int x1 = Location::getX(loc, board.x_size);
+    int y1 = Location::getY(loc, board.x_size);
+    int dy = y1 - y0;
+    int dx = x1 - x0;
+    if(!((pla == C_BLACK && dy == -1) || (pla == C_WHITE && dy == 1)))
+      return false;
+    if(dx == 1 || dx == -1)
+      return c == opp || c == C_EMPTY;
+    else if(dx == 0)
+      return c == C_EMPTY;
+    else
+      return false;
+  }
+  ASSERT_UNREACHABLE;
+  return false;
 }
 
 GameLogic::MovePriority GameLogic::getMovePriorityAssumeLegal(const Board& board, const BoardHistory& hist, Player pla, Loc loc) {
   if(loc == Board::PASS_LOC)
     return MP_NORMAL;
-  MovePriority MP = MP_NORMAL;
 
-  int adjs[4] = {1, (board.x_size + 1), (board.x_size + 1) + 1, (board.x_size + 1) - 1};// +x +y +x+y -x+y
-  for(int i = 0; i < 4; i++) {
-    MovePriority tmpMP = getMovePriorityOneDirectionAssumeLegal(board, hist, pla, loc, adjs[i]);
-    if(tmpMP < MP)
-      MP = tmpMP;
+  int y = Location::getY(loc, board.x_size);
+  if(board.stage == 0) {
+    if((pla == C_BLACK && y == 1) || (pla == C_WHITE && y == board.y_size - 2))
+      return MP_WINNING;
+  }
+  else if(board.stage == 1) {
+    if((pla == C_BLACK && y == 0) || (pla == C_WHITE && y == board.y_size - 1))
+      return MP_SUDDEN_WIN;
   }
 
-  return MP;
+
+  return MP_NORMAL;
 }
 
 GameLogic::MovePriority GameLogic::getMovePriority(const Board& board, const BoardHistory& hist, Player pla, Loc loc) {
@@ -98,15 +94,14 @@ Color GameLogic::checkWinnerAfterPlayed(
   const BoardHistory& hist,
   Player pla,
   Loc loc) {
-
   if(loc == Board::PASS_LOC)
     return getOpp(pla);  //pass is not allowed
   
-  if(getMovePriorityAssumeLegal(board, hist, pla, loc) == MP_SUDDEN_WIN)
-    return pla;
+  
+  int y = Location::getY(loc, board.x_size);
+  if((pla == C_BLACK && y == 0) || (pla == C_WHITE && y == board.y_size - 1))
+      return pla;
 
-  if(board.movenum >= board.x_size * board.y_size)
-    return C_EMPTY;
 
   return C_WALL;
 }
@@ -122,39 +117,18 @@ void GameLogic::ResultsBeforeNN::init(const Board& board, const BoardHistory& hi
     return;
   inited = true;
 
-  Color opp = getOpp(nextPlayer);
 
-  // check five and four
-  bool oppHasFour = false;
-  bool IHaveLifeFour = false;
-  Loc myLifeFourLoc = Board::NULL_LOC;
   for(int x = 0; x < board.x_size; x++)
     for(int y = 0; y < board.y_size; y++) {
       Loc loc = Location::getLoc(x, y, board.x_size);
       MovePriority mp = getMovePriority(board, hist, nextPlayer, loc);
-      if(mp == MP_SUDDEN_WIN) {
+      if(mp == MP_SUDDEN_WIN || mp == MP_WINNING) {
         winner = nextPlayer;
         myOnlyLoc = loc;
         return;
-      } else if(mp == MP_ONLY_NONLOSE_MOVES) {
-        oppHasFour = true;
-        myOnlyLoc = loc;
-      } else if(mp == MP_WINNING) {
-        IHaveLifeFour = true;
-        myLifeFourLoc = loc;
       }
     }
 
-  // opp has four
-  if(oppHasFour)
-    return;
-
-  // I have life four, opp has no four
-  if(IHaveLifeFour) {
-    winner = nextPlayer;
-    myOnlyLoc = myLifeFourLoc;
-    return;
-  }
 
 
   return;

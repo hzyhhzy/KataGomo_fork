@@ -762,7 +762,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
       assert(move.pla == nextPlayer);
       assert(hist.isLegal(board,move.loc,move.pla));
       hist.makeBoardMoveAssumeLegal(board, move.loc, move.pla);
-      nextPlayer = getOpp(nextPlayer);
+      nextPlayer = board.nextPla;
 
       posHistForFutureBoards.push_back(board);
     }
@@ -826,7 +826,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
     assert(move.pla == nextPlayer);
     assert(hist.isLegal(board,move.loc,move.pla));
     hist.makeBoardMoveAssumeLegal(board, move.loc, move.pla);
-    nextPlayer = getOpp(nextPlayer);
+    nextPlayer = board.nextPla;
   }
 
   //Write side rows

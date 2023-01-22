@@ -74,6 +74,7 @@ Hash128 LocalPatternHasher::getHash(const Board& board, Loc loc, Player pla) con
 }
 
 Hash128 LocalPatternHasher::getHashWithSym(const Board& board, Loc loc, Player pla, int symmetry, bool flipColors) const {
+  
   Player symPla = flipColors ? getOpp(pla) : pla;
   Hash128 hash = zobristPla[symPla];
 

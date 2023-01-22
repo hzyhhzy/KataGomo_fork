@@ -371,7 +371,7 @@ void GameInitializer::createGameSharedUnsynchronized(
         break;
       }
       hist.makeBoardMoveAssumeLegal(board,startPos.moves[i].loc,startPos.moves[i].pla);
-      pla = getOpp(startPos.moves[i].pla);
+      pla = board.nextPla;
     }
 
     otherGameProps.isSgfPos = hintLoc == Board::NULL_LOC;
@@ -837,7 +837,7 @@ static void recordTreePositionsRec(
       Board copy = board;
       BoardHistory histCopy = hist;
       histCopy.makeBoardMoveAssumeLegal(copy, moveLoc, pla);
-      Player nextPla = getOpp(pla);
+      Player nextPla = board.nextPla;
       recordTreePositionsRec(
         gameData,
         copy,histCopy,nextPla,
@@ -1226,16 +1226,7 @@ FinishedGameData* Play::runGame(
   };
 
 
-  double balanceOpeningProb = playSettings.forSelfPlay ? 0.99 : 1.0;
 
-  if(gameRand.nextBool(balanceOpeningProb)) {
-    if(board.numStonesOnBoard() != 0)
-      cout << "board not empty when initialize opening" << endl;
-    else {
-      if(board.numStonesOnBoard() == 0)  // no lib opening
-        RandomOpening::initializeBalancedRandomOpening(botB, botW, board, hist, pla, gameRand, playSettings.forSelfPlay);
-    }
-  }
 
   if(playSettings.initGamesWithPolicy && otherGameProps.allowPolicyInit) {
     double avgPolicyInitMoveNum =
@@ -1357,7 +1348,7 @@ FinishedGameData* Play::runGame(
         if(sidePositionForkLoc != Board::NULL_LOC) {
           SidePosition* sp = new SidePosition(board,hist,pla,(int)gameData->changedNeuralNets.size());
           sp->hist.makeBoardMoveAssumeLegal(sp->board,sidePositionForkLoc,sp->pla);
-          sp->pla = getOpp(sp->pla);
+          sp->pla = sp->board.nextPla;
           if(sp->hist.isGameFinished) delete sp;
           else sidePositionsToSearch.push_back(sp);
         }
@@ -1435,7 +1426,7 @@ FinishedGameData* Play::runGame(
     int nextTurnIdx = (int)hist.moveHistory.size();
     maybeCheckForNewNNEval(nextTurnIdx);
 
-    pla = getOpp(pla);
+    pla = board.nextPla;
   }
 
   gameData->endHist = hist;
@@ -1644,7 +1635,7 @@ FinishedGameData* Play::runGame(
 
         SidePosition* sp2 = new SidePosition(sp->board,sp->hist,sp->pla,(int)gameData->changedNeuralNets.size());
         sp2->hist.makeBoardMoveAssumeLegal(sp2->board,responseLoc,sp2->pla);
-        sp2->pla = getOpp(sp2->pla);
+        sp2->pla = sp2->board.nextPla;
         if(sp2->hist.isGameFinished)
           delete sp2;
         else {
@@ -1659,7 +1650,7 @@ FinishedGameData* Play::runGame(
           Loc forkLoc = chooseRandomForkingMove(nnResultBuf.result.get(), sp2->board, sp2->hist, sp2->pla, gameRand, banMove);
           if(forkLoc != Board::NULL_LOC) {
             sp2->hist.makeBoardMoveAssumeLegal(sp2->board,forkLoc,sp2->pla);
-            sp2->pla = getOpp(sp2->pla);
+            sp2->pla = sp2->board.nextPla;
             if(sp2->hist.isGameFinished) delete sp2;
             else sidePositionsToSearch.push_back(sp2);
           }
@@ -1738,7 +1729,7 @@ static void replayGameUpToMove(const FinishedGameData* finishedGameData, int mov
     }
     assert(finishedGameData->endHist.moveHistory[i].pla == pla);
     hist.makeBoardMoveAssumeLegal(board,loc,pla);
-    pla = getOpp(pla);
+    pla = board.nextPla;
 
     if(hist.isGameFinished)
       return;

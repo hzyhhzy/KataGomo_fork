@@ -1021,7 +1021,7 @@ int MainCmds::analysis(const vector<string>& args) {
           foundIllegalMove = true;
           break;
         }
-        nextPla = getOpp(movePla);
+        nextPla = board.nextPla;
       }
 
       if(foundIllegalMove) {

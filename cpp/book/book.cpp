@@ -100,14 +100,7 @@ BookHash BookHash::ofString(const string& s) {
 
 // Just to fill out the extra 128 bits we have with another independent zobrist
 static Hash128 getExtraPosHash(const Board& board) {
-  Hash128 hash;
-  for(int y = 0; y<board.y_size; y++) {
-    for(int x = 0; x<board.x_size; x++) {
-      Loc loc = Location::getLoc(x,y,board.x_size);
-      hash ^= Board::ZOBRIST_BOARD_HASH2[loc][board.colors[loc]];
-    }
-  }
-  return hash;
+  return Hash128(Hash::basicLCong(board.pos_hash.hash1),Hash::basicLCong2(board.pos_hash.hash0));
 }
 
 void BookHash::getHashAndSymmetry(const BoardHistory& hist, int repBound, BookHash& hashRet, int& symmetryToAlignRet, vector<int>& symmetriesRet, int bookVersion) {

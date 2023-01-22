@@ -653,7 +653,7 @@ void Sgf::iterAllUniquePositionsHelper(
       }
       if(hist.moveHistory.size() > 0x3FFFFFFF)
         throw StringError("too many moves in sgf");
-      nextPla = getOpp(buf[j].pla);
+      nextPla = board.nextPla;
       samplePositionIfUniqueHelper(board,hist,nextPla,sampleBuf,initialTurnNumber,uniqueHashes,hashComments,hashParent,comments,f);
     }
   }
@@ -860,6 +860,7 @@ Sgf::PositionSample Sgf::PositionSample::ofJsonLine(const string& s) {
 }
 
 Sgf::PositionSample Sgf::PositionSample::getColorFlipped() const {
+  assert(false, "Sgf::PositionSample::getColorFlipped() is disabled");
   Sgf::PositionSample other = *this;
   Board newBoard(other.board.x_size,other.board.y_size);
   for(int y = 0; y < other.board.y_size; y++) {
@@ -1367,7 +1368,7 @@ void CompactSgf::playMovesAssumeLegal(Board& board, Player& nextPla, BoardHistor
 
   for(int64_t i = 0; i<turnIdx; i++) {
     hist.makeBoardMoveAssumeLegal(board,moves[i].loc,moves[i].pla);
-    nextPla = getOpp(moves[i].pla);
+    nextPla = board.nextPla;
   }
 }
 
@@ -1384,7 +1385,7 @@ void CompactSgf::playMovesTolerant(Board& board, Player& nextPla, BoardHistory& 
     bool suc = hist.makeBoardMoveTolerant(board,moves[i].loc,moves[i].pla);
     if(!suc)
       throw StringError("Illegal move in " + fileName + " turn " + Global::int64ToString(i) + " move " + Location::toString(moves[i].loc, board.x_size, board.y_size));
-    nextPla = getOpp(moves[i].pla);
+    nextPla = board.nextPla;
   }
 }
 

@@ -611,7 +611,7 @@ int MainCmds::genbook(const vector<string>& args) {
       assert(node.isMoveInBook(moveLoc));
       node = node.playMove(board,hist,moveLoc);
       assert(!node.isNull());
-      pla = getOpp(pla);
+      pla = board.nextPla;
     }
   };
 

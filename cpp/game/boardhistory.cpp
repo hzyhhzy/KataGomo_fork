@@ -252,12 +252,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   recentBoards[currentRecentBoardIdx] = board;
 
   moveHistory.push_back(Move(moveLoc,movePla));
-  presumedNextMovePla = getOpp(movePla);
-
-
-  //Mark all locations that are superko-illegal for the next player, by iterating and testing each point.
-  Player nextPla = getOpp(movePla);
-
+  presumedNextMovePla = board.nextPla;
 
 
 

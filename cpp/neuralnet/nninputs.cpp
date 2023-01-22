@@ -371,6 +371,17 @@ void SymmetryHelpers::markDuplicateMoveLocs(
       continue;
 
     bool isBoardSym = true;
+
+    //check chosen pieces first
+    for(int i = 0; i < board.stage; i++) {
+      Loc loc = board.midLocs[i];
+      if(board.isOnBoard(loc)) {
+        Loc symLoc = getSymLoc(loc, board, symmetry);
+        if(symLoc != loc)
+          isBoardSym = false;
+      }
+    }
+
     for(int y = 0; y < board.y_size; y++) {
       for(int x = 0; x < board.x_size; x++) {
         Loc loc = Location::getLoc(x, y, board.x_size);
@@ -529,6 +540,23 @@ void NNInputs::fillRowV7(
     }
   }
 
+  // mid state
+  if(board.stage == 0)  // choose
+  {
+    // do nothing
+  } else if(board.stage == 1)  // place
+  {
+    rowGlobal[0] = 1.0f;
+    Loc chosenMove = board.midLocs[0];
+    if(!board.isOnBoard(chosenMove)) {
+      std::cout << "nninput: chosen move not on board ";
+    } else {
+      int pos = NNPos::locToPos(chosenMove, board.x_size, nnXLen, nnYLen);
+      setRowBin(rowBin, pos, 3, 1.0f, posStride, featureStride);
+    }
+  } else
+    ASSERT_UNREACHABLE;
+
   if(resultsBeforeNN.inited) {
     rowGlobal[1] = 1.0;
     rowGlobal[2] = resultsBeforeNN.winner == C_EMPTY;
@@ -538,7 +566,7 @@ void NNInputs::fillRowV7(
       setRowBin(
         rowBin,
         NNPos::locToPos(resultsBeforeNN.myOnlyLoc, board.x_size, nnXLen, nnYLen),
-        3,
+        4,
         1.0f,
         posStride,
         featureStride);
@@ -547,22 +575,19 @@ void NNInputs::fillRowV7(
   }
 
 
-  //Global features.
-  //The first 5 of them were set already above to flag which of the past 5 moves were passes.
-
   //Scoring
   if(hist.rules.scoringRule == Rules::SCORING_AREA) {}
   else
     ASSERT_UNREACHABLE;
 
   
-  // Parameter 0 noResultUtilityForWhite
-  rowGlobal[0] = pla == C_WHITE ? nnInputParams.noResultUtilityForWhite : -nnInputParams.noResultUtilityForWhite;
-
   // Parameter 15 is used because there's actually a discontinuity in how training behavior works when this is
   // nonzero, no matter how slightly.
   if(nnInputParams.playoutDoublingAdvantage != 0) {
     rowGlobal[15] = 1.0;
     rowGlobal[16] = (float)(0.5 * nnInputParams.playoutDoublingAdvantage);
   }
+
+  // noResultUtilityForWhite
+  rowGlobal[17] = pla == C_WHITE ? nnInputParams.noResultUtilityForWhite : -nnInputParams.noResultUtilityForWhite;
 }
