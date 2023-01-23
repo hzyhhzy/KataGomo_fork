@@ -142,9 +142,10 @@ int MainCmds::genbook(const vector<string>& args) {
     bool hashComments = true;
     bool hashParent = true;
     bool flipIfPassOrWFirst = false;
+    bool allowGameOver = false;
     Rand seedRand("bonusByHash");
     sgf->iterAllUniquePositions(
-      uniqueHashes, hashComments, hashParent, &seedRand, [&](Sgf::PositionSample& unusedSample, const BoardHistory& sgfHist, const string& comments) {
+      uniqueHashes, hashComments, hashParent, allowGameOver, &seedRand, [&](Sgf::PositionSample& unusedSample, const BoardHistory& sgfHist, const string& comments) {
         (void)unusedSample;
         if(comments.size() > 0 && comments.find("BONUS") != string::npos) {
           BoardHistory hist(sgfHist.initialBoard, sgfHist.initialPla, rules);
