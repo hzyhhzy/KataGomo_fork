@@ -5,11 +5,11 @@
 | 1 Compile and run training                             | Kata2023       | Finished     | -                                  |
 | 2 Chinese Rule Only(Remove JP rules)                   | -     | Skipped    |   |
 | 3 CaptureGo(Remove Go rules)                           | -    | Skipped         |   |
-| 4 Black-White board games(Remove Capture)              | BW2023/BWnoscore2023 | Finished         | Using Gomoku as a representative, very easy to be modified to other games. "BWnoscore2023" branch also removed komi and score   |
-| 4.0 Remove score and komi                              | BWnoscore2023 | Finished         |    |
+| 4 Black-White board games(Remove Capture)              | BW2023/BWnoscore2023 | Finished(outdated)         | Using Gomoku as a representative, very easy to be modified to other games. "BWnoscore2023" branch also removed komi and score   |
+| 4.0 Remove score and komi                              | BWnoscore2023 | Finished(outdated)         |    |
 | 4.1 Gomoku                                             | Gom2023        | Todo         | New Katagomo engine                |
-| 5 Chess-like games(Multi-stage moves)                  | Movestone2023  | **Testing**         | Use Breakthrough as a representative, very easy to be modified to other games    |
-| 5.0 Only X-axis symmetry. And flip Y-axis when playing white. (For chess-like games) | MovestoneXsym2023  | **Doing**    | subtreeBias and patternBonus are also removed |
+| 5 Chess-like games(Multi-stage moves)                  | Movestone2023  | Finished(outdated)         | Use Breakthrough as a representative, very easy to be modified to other games    |
+| 5.0 Only X-axis symmetry. And flip Y-axis when playing white. (For chess-like games) | MovestoneXsym2023  | Finished    | subtreeBias and patternBonus are also removed |
  
 
 
