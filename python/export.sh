@@ -76,6 +76,8 @@ function exportStuff() {
 
                 rm -r "$SRC"
                 gzip "$TMPDST"/model.bin
+				rm -f "$BASEDIR"/latest.bin.gz
+				cp -f "$TMPDST"/model.bin.gz "$BASEDIR"/latest.bin.gz
 
                 #Make a bunch of the directories that selfplay will need so that there isn't a race on the selfplay
                 #machines to concurrently make it, since sometimes concurrent making of the same directory can corrupt

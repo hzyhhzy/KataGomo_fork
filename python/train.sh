@@ -64,7 +64,7 @@ time python ./train.py \
      -datadir "$BASEDIR"\\shuffleddata\\current\\ \
      -exportdir "$BASEDIR"\\"$EXPORT_SUBDIR" \
      -exportprefix "$TRAININGNAME" \
-     -pos-len 9 \
+     -pos-len 8 \
      -batch-size "$BATCHSIZE" \
      -model-kind "$MODELKIND" \
      -max-epochs-this-instance 1 \
