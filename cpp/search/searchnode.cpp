@@ -142,7 +142,6 @@ void SearchChildPointer::setMoveLocRelaxed(Loc loc) {
 SearchNode::SearchNode(Player pla, bool fnt, uint32_t mIdx)
   :nextPla(pla),
    forceNonTerminal(fnt),
-   patternBonusHash(),
    mutexIdx(mIdx),
    state(SearchNode::STATE_UNEVALUATED),
    nnOutput(),
@@ -152,17 +151,13 @@ SearchNode::SearchNode(Player pla, bool fnt, uint32_t mIdx)
    children2(NULL),
    stats(),
    virtualLosses(0),
-   lastSubtreeValueBiasDeltaSum(0.0),
-   lastSubtreeValueBiasWeight(0.0),
-   subtreeValueBiasTableEntry(),
    dirtyCounter(0)
 {
 }
 
-SearchNode::SearchNode(const SearchNode& other, bool fnt, bool copySubtreeValueBias)
+SearchNode::SearchNode(const SearchNode& other, bool fnt)
   :nextPla(other.nextPla),
    forceNonTerminal(fnt),
-   patternBonusHash(other.patternBonusHash),
    mutexIdx(other.mutexIdx),
    state(other.state.load(std::memory_order_acquire)),
    nnOutput(new std::shared_ptr<NNOutput>(*(other.nnOutput.load(std::memory_order_acquire)))),
@@ -172,9 +167,6 @@ SearchNode::SearchNode(const SearchNode& other, bool fnt, bool copySubtreeValueB
    children2(NULL),
    stats(other.stats),
    virtualLosses(other.virtualLosses.load(std::memory_order_acquire)),
-   lastSubtreeValueBiasDeltaSum(0.0),
-   lastSubtreeValueBiasWeight(0.0),
-   subtreeValueBiasTableEntry(),
    dirtyCounter(other.dirtyCounter.load(std::memory_order_acquire))
 {
   if(other.children0 != NULL) {
@@ -191,14 +183,6 @@ SearchNode::SearchNode(const SearchNode& other, bool fnt, bool copySubtreeValueB
     children2 = new SearchChildPointer[CHILDREN2SIZE];
     for(int i = 0; i<CHILDREN2SIZE; i++)
       children2[i].storeAll(other.children2[i]);
-  }
-  if(copySubtreeValueBias) {
-    //Currently NOT implemented. If we ever want this, think very carefully about copying subtree value bias since
-    //if we later delete this node we risk double-counting removal of the subtree value bias!
-    assert(false);
-    //lastSubtreeValueBiasDeltaSum = other.lastSubtreeValueBiasDeltaSum;
-    //lastSubtreeValueBiasWeight = other.lastSubtreeValueBiasWeight;
-    //subtreeValueBiasTableEntry = other.subtreeValueBiasTableEntry;
   }
 }
 

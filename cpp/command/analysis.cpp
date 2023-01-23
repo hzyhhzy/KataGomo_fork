@@ -4,7 +4,6 @@
 #include "../core/datetime.h"
 #include "../core/makedir.h"
 #include "../search/asyncbot.h"
-#include "../search/patternbonustable.h"
 #include "../program/setup.h"
 #include "../program/playutils.h"
 #include "../program/play.h"
@@ -124,16 +123,8 @@ int MainCmds::analysis(const vector<string>& args) {
   Player defaultPerspective;
   loadParams(cfg, defaultParams, defaultPerspective, C_EMPTY);
 
-  std::unique_ptr<PatternBonusTable> patternBonusTable = nullptr;
-  {
-    std::vector<std::unique_ptr<PatternBonusTable>> tables = Setup::loadAvoidSgfPatternBonusTables(cfg,logger);
-    assert(tables.size() == 1);
-    patternBonusTable = std::move(tables[0]);
-  }
 
   const int analysisPVLen = cfg.contains("analysisPVLen") ? cfg.getInt("analysisPVLen",1,100) : 15;
-  const bool assumeMultipleStartingBlackMovesAreHandicap =
-    cfg.contains("assumeMultipleStartingBlackMovesAreHandicap") ? cfg.getBool("assumeMultipleStartingBlackMovesAreHandicap") : true;
 
   NNEvaluator* nnEval;
   {
@@ -352,7 +343,6 @@ int MainCmds::analysis(const vector<string>& args) {
   for(int threadIdx = 0; threadIdx<numAnalysisThreads; threadIdx++) {
     string searchRandSeed = Global::uint64ToHexString(seedRand.nextUInt64()) + Global::uint64ToHexString(seedRand.nextUInt64());
     AsyncBot* bot = new AsyncBot(defaultParams, nnEval, &logger, searchRandSeed);
-    bot->setCopyOfExternalPatternBonusTable(patternBonusTable);
     threads.push_back(std::thread(analysisLoopProtected,bot,threadIdx));
     bots.push_back(bot);
   }

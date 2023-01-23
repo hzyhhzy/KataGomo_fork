@@ -27,12 +27,10 @@ struct SearchNode;
 struct SearchThread;
 struct Search;
 struct DistributionTable;
-struct PatternBonusTable;
 struct PolicySortEntry;
 struct MoreNodeStats;
 struct ReportedSearchValues;
 struct SearchChildPointer;
-struct SubtreeValueBiasTable;
 struct SearchNodeTable;
 
 //Per-thread state
@@ -111,10 +109,6 @@ struct Search {
   double normToTApproxZ;
   std::vector<double> normToTApproxTable;
 
-  //Pattern bonuses are currently only looked up for shapes completed by the player who the search is for.
-  //Implicitly these utility adjustments "assume" the opponent likes the negative of our adjustments.
-  PatternBonusTable* patternBonusTable;
-  std::unique_ptr<PatternBonusTable> externalPatternBonusTable;
 
   Rand nonSearchRand; //only for use not in search, since rand isn't threadsafe
 
@@ -135,7 +129,6 @@ struct Search {
   SearchNode* rootNode;
   SearchNodeTable* nodeTable;
   MutexPool* mutexPool;
-  SubtreeValueBiasTable* subtreeValueBiasTable;
 
   //Thread pool
   int numThreadsSpawned;
@@ -190,8 +183,6 @@ struct Search {
   void setRootSymmetryPruningOnly(const std::vector<int>& rootPruneOnlySymmetries);
   void setParams(SearchParams params);
   void setParamsNoClearing(SearchParams params); //Does not clear search
-  void setExternalPatternBonusTable(std::unique_ptr<PatternBonusTable>&& table);
-  void setCopyOfExternalPatternBonusTable(const std::unique_ptr<PatternBonusTable>& table);
   void setNNEval(NNEvaluator* nnEval);
 
   //If the number of threads is reduced, this can free up some excess threads in the thread pool.
@@ -377,7 +368,6 @@ private:
   // searchhelpers.cpp
   //----------------------------------------------------------------------------------------
   bool isAllowedRootMove(Loc moveLoc) const;
-  double getPatternBonus(Hash128 patternBonusHash, Player prevMovePla) const;
 
   double interpolateEarly(double halflife, double earlyValue, double value) const;
 
@@ -526,8 +516,7 @@ private:
   SearchNode* allocateOrFindNode(SearchThread& thread, Player nextPla, Loc bestChildMoveLoc, bool forceNonTerminal, Hash128 graphHash);
   void clearOldNNOutputs();
   void transferOldNNOutputs(SearchThread& thread);
-  void removeSubtreeValueBias(SearchNode* node);
-  void deleteAllOldOrAllNewTableNodesAndSubtreeValueBiasMulithreaded(bool old);
+  void deleteAllOldOrAllNewTableNodesMulithreaded(bool old);
   void deleteAllTableNodesMulithreaded();
 
   //----------------------------------------------------------------------------------------

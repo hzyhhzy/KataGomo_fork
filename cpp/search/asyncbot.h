@@ -35,8 +35,6 @@ class AsyncBot {
   void setAvoidMoveUntilByLoc(const std::vector<int>& bVec, const std::vector<int>& wVec);
   void setParams(SearchParams params);
   void setParamsNoClearing(SearchParams params);
-  void setExternalPatternBonusTable(std::unique_ptr<PatternBonusTable>&& table);
-  void setCopyOfExternalPatternBonusTable(const std::unique_ptr<PatternBonusTable>& table);
   void clearSearch();
 
   //Updates position and preserves the relevant subtree of search

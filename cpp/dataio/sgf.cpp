@@ -692,7 +692,6 @@ void Sgf::samplePositionIfUniqueHelper(
   std::set<Hash128>& uniqueHashes,
   bool hashComments,
   bool hashParent,
-  bool flipIfPassOrWFirst,
   bool allowGameOver, 
   const std::string& comments,
   std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f

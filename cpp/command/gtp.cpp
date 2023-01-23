@@ -7,7 +7,6 @@
 #include "../core/makedir.h"
 #include "../dataio/sgf.h"
 #include "../search/asyncbot.h"
-#include "../search/patternbonustable.h"
 #include "../program/setup.h"
 #include "../program/playutils.h"
 #include "../program/play.h"
@@ -210,7 +209,6 @@ struct GTPEngine {
   const int analysisPVLen;
 
   double staticPlayoutDoublingAdvantage;
-  double normalAvoidRepeatedPatternUtility;
 
   double genmoveWideRootNoise;
   double analysisWideRootNoise;
@@ -233,7 +231,6 @@ struct GTPEngine {
 
   vector<double> recentWinLossValues;
   double lastSearchFactor;
-  std::unique_ptr<PatternBonusTable> patternBonusTable;
 
   Player perspective;
 
@@ -242,15 +239,12 @@ struct GTPEngine {
   GTPEngine(
     const string& modelFile, SearchParams initialParams, Rules initialRules,
     double staticPDA,
-    double normAvoidRepeatedPatternUtility,
     double genmoveWRN, double analysisWRN,
-    Player persp, int pvLen,
-    std::unique_ptr<PatternBonusTable>&& pbTable
+    Player persp, int pvLen
   )
     :nnModelFile(modelFile),
      analysisPVLen(pvLen),
      staticPlayoutDoublingAdvantage(staticPDA),
-     normalAvoidRepeatedPatternUtility(normAvoidRepeatedPatternUtility),
      genmoveWideRootNoise(genmoveWRN),
      analysisWideRootNoise(analysisWRN),
      nnEval(NULL),
@@ -264,7 +258,6 @@ struct GTPEngine {
      moveHistory(),
      recentWinLossValues(),
      lastSearchFactor(1.0),
-     patternBonusTable(std::move(pbTable)),
      perspective(persp),
      genmoveTimeSum(0.0)
   {
@@ -355,7 +348,6 @@ struct GTPEngine {
       searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
 
     bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
-    bot->setCopyOfExternalPatternBonusTable(patternBonusTable);
 
     Board board(boardXSize,boardYSize);
     Player pla = P_BLACK;
@@ -699,14 +691,6 @@ struct GTPEngine {
       bot->setParams(params);
     }
 
-    {
-      double avoidRepeatedPatternUtility = normalAvoidRepeatedPatternUtility;
-     
-      if(params.avoidRepeatedPatternUtility != avoidRepeatedPatternUtility) {
-        params.avoidRepeatedPatternUtility = avoidRepeatedPatternUtility;
-        bot->setParams(params);
-      }
-    }
 
     //Play faster when winning
     double searchFactor = PlayUtils::getSearchFactor(searchFactorWhenWinningThreshold,searchFactorWhenWinning,params,recentWinLossValues,pla);
@@ -1210,7 +1194,6 @@ int MainCmds::gtp(const vector<string>& args) {
   const bool ogsChatToStderr = cfg.contains("ogsChatToStderr") ? cfg.getBool("ogsChatToStderr") : false;
   const int analysisPVLen = cfg.contains("analysisPVLen") ? cfg.getInt("analysisPVLen",1,1000) : 13;
   double staticPlayoutDoublingAdvantage = initialParams.playoutDoublingAdvantage;
-  const double normalAvoidRepeatedPatternUtility = initialParams.avoidRepeatedPatternUtility;
 
   int defaultBoardXSize = -1;
   int defaultBoardYSize = -1;
@@ -1226,22 +1209,14 @@ int MainCmds::gtp(const vector<string>& args) {
   const double analysisWideRootNoise =
     cfg.contains("analysisWideRootNoise") ? cfg.getDouble("analysisWideRootNoise",0.0,5.0) : Setup::DEFAULT_ANALYSIS_WIDE_ROOT_NOISE;
 
-  std::unique_ptr<PatternBonusTable> patternBonusTable = nullptr;
-  {
-    std::vector<std::unique_ptr<PatternBonusTable>> tables = Setup::loadAvoidSgfPatternBonusTables(cfg,logger);
-    assert(tables.size() == 1);
-    patternBonusTable = std::move(tables[0]);
-  }
 
   Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
 
   GTPEngine* engine = new GTPEngine(
     nnModelFile,initialParams,initialRules,
     staticPlayoutDoublingAdvantage,
-    normalAvoidRepeatedPatternUtility, 
     genmoveWideRootNoise,analysisWideRootNoise,
-    perspective,analysisPVLen,
-    std::move(patternBonusTable)
+    perspective,analysisPVLen
   );
   engine->setOrResetBoardSize(cfg,logger,seedRand,defaultBoardXSize,defaultBoardYSize,logger.isLoggingToStderr());
 

@@ -98,14 +98,6 @@ void AsyncBot::setParamsNoClearing(SearchParams params) {
   stopAndWait();
   search->setParamsNoClearing(params);
 }
-void AsyncBot::setExternalPatternBonusTable(std::unique_ptr<PatternBonusTable>&& table) {
-  stopAndWait();
-  search->setExternalPatternBonusTable(std::move(table));
-}
-void AsyncBot::setCopyOfExternalPatternBonusTable(const std::unique_ptr<PatternBonusTable>& table) {
-  stopAndWait();
-  search->setCopyOfExternalPatternBonusTable(table);
-}
 void AsyncBot::clearSearch() {
   stopAndWait();
   search->clearSearch();

@@ -5,7 +5,6 @@
 #include "../core/timer.h"
 #include "../dataio/sgf.h"
 #include "../search/asyncbot.h"
-#include "../search/patternbonustable.h"
 #include "../program/setup.h"
 #include "../program/play.h"
 #include "../command/commandline.h"
@@ -169,8 +168,6 @@ int MainCmds::match(const vector<string>& args) {
     nnEvalsByBot[i] = nnEvals[whichNNModel[i]];
   }
 
-  std::vector<std::unique_ptr<PatternBonusTable>> patternBonusTables = Setup::loadAvoidSgfPatternBonusTables(cfg,logger);
-  assert(patternBonusTables.size() == numBots);
 
   //Initialize object for randomly pairing bots
   bool forSelfPlay = false;
@@ -201,7 +198,7 @@ int MainCmds::match(const vector<string>& args) {
   std::map<string,double> movesByBotMap;
 
   auto runMatchLoop = [
-    &gameRunner,&matchPairer,&sgfOutputDir,&logger,&gameSeedBase,&patternBonusTables,
+    &gameRunner,&matchPairer,&sgfOutputDir,&logger,&gameSeedBase,
     &statsMutex, &gameCount, &timeUsedByBotMap, &movesByBotMap
   ](
     uint64_t threadHash
@@ -227,13 +224,10 @@ int MainCmds::match(const vector<string>& args) {
       MatchPairer::BotSpec botSpecW;
       if(matchPairer->getMatchup(botSpecB, botSpecW, logger)) {
         string seed = gameSeedBase + ":" + Global::uint64ToHexString(thisLoopSeedRand.nextUInt64());
-        std::function<void(const MatchPairer::BotSpec&, Search*)> afterInitialization = [&patternBonusTables](const MatchPairer::BotSpec& spec, Search* search) {
-          assert(spec.botIdx < patternBonusTables.size());
-          search->setCopyOfExternalPatternBonusTable(patternBonusTables[spec.botIdx]);
-        };
+        
         gameData = gameRunner->runGame(
           seed, botSpecB, botSpecW, NULL, logger,
-          shouldStopFunc, shouldPause, nullptr, afterInitialization, nullptr
+          shouldStopFunc, shouldPause, nullptr, nullptr, nullptr
         );
       }
 

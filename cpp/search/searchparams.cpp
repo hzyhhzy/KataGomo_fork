@@ -53,12 +53,7 @@ SearchParams::SearchParams()
    wideRootNoise(0.0),
    playoutDoublingAdvantage(0.0),
    playoutDoublingAdvantagePla(C_EMPTY),
-   avoidRepeatedPatternUtility(0.0),
    nnPolicyTemperature(1.0f),
-   subtreeValueBiasFactor(0.0),
-   subtreeValueBiasTableNumShards(65536),
-   subtreeValueBiasFreeProp(0.8),
-   subtreeValueBiasWeightExponent(0.5),
    nodeTableShardsPowerOfTwo(16),
    numVirtualLossesPerThread(3.0),
    numThreads(1),
@@ -122,9 +117,6 @@ SearchParams SearchParams::forTestsV2() {
   params.cpuctUtilityStdevPrior = 0.40;
   params.cpuctUtilityStdevPriorWeight = 2.0;
   params.cpuctUtilityStdevScale = 0.85;
-  params.subtreeValueBiasFactor = 0.45;
-  params.subtreeValueBiasFreeProp = 0.8;
-  params.subtreeValueBiasWeightExponent = 0.85;
   return params;
 }
 
@@ -210,14 +202,8 @@ void SearchParams::printParams(std::ostream& out) {
   PRINTPARAM(playoutDoublingAdvantage);
   std::cout << "playoutDoublingAdvantagePla" << ": " << (int)playoutDoublingAdvantagePla << std::endl;
 
-  PRINTPARAM(avoidRepeatedPatternUtility);
 
   PRINTPARAM(nnPolicyTemperature);
-
-  PRINTPARAM(subtreeValueBiasFactor);
-  PRINTPARAM(subtreeValueBiasTableNumShards);
-  PRINTPARAM(subtreeValueBiasFreeProp);
-  PRINTPARAM(subtreeValueBiasWeightExponent);
 
 
   PRINTPARAM(nodeTableShardsPowerOfTwo);

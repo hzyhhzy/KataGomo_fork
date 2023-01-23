@@ -1,7 +1,6 @@
 #include "../search/searchnodetable.h"
 
 #include "../core/rand.h"
-#include "../search/localpattern.h"
 
 SearchNodeTable::SearchNodeTable(int numShardsPowerOfTwo) {
   numShards = (uint32_t)1 << numShardsPowerOfTwo;

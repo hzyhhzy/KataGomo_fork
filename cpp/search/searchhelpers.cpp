@@ -2,7 +2,6 @@
 
 #include "../core/fancymath.h"
 #include "../search/searchnode.h"
-#include "../search/patternbonustable.h"
 
 //------------------------
 #include "../core/using.h"
@@ -235,11 +234,6 @@ bool Search::isAllowedRootMove(Loc moveLoc) const {
   return true;
 }
 
-double Search::getPatternBonus(Hash128 patternBonusHash, Player prevMovePla) const {
-  if(patternBonusTable == NULL || prevMovePla != plaThatSearchIsFor)
-    return 0;
-  return patternBonusTable->get(patternBonusHash).utilityBonus;
-}
 
 double Search::interpolateEarly(double halflife, double earlyValue, double value) const {
   double rawHalflives = (rootHistory.initialTurnNumber + rootHistory.moveHistory.size()) / halflife;

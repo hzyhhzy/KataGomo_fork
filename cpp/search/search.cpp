@@ -12,10 +12,8 @@
 #include "../core/timer.h"
 #include "../game/graphhash.h"
 #include "../search/distributiontable.h"
-#include "../search/patternbonustable.h"
 #include "../search/searchnode.h"
 #include "../search/searchnodetable.h"
-#include "../search/subtreevaluebiastable.h"
 
 using namespace std;
 
@@ -79,8 +77,6 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const strin
    effectiveSearchTimeCarriedOver(0.0),
    randSeed(rSeed),
    valueWeightDistribution(NULL),
-   patternBonusTable(NULL),
-   externalPatternBonusTable(nullptr),
    nonSearchRand(rSeed + string("$nonSearchRand")),
    logger(lg),
    nnEvaluator(nnEval),
@@ -90,7 +86,6 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const strin
    rootNode(NULL),
    nodeTable(NULL),
    mutexPool(NULL),
-   subtreeValueBiasTable(NULL),
    numThreadsSpawned(0),
    threads(NULL),
    threadTasks(NULL),
@@ -128,8 +123,6 @@ Search::~Search() {
 
   delete nodeTable;
   delete mutexPool;
-  delete subtreeValueBiasTable;
-  delete patternBonusTable;
   killThreads();
 }
 
@@ -216,18 +209,6 @@ void Search::setParamsNoClearing(SearchParams params) {
   searchParams = params;
 }
 
-void Search::setExternalPatternBonusTable(std::unique_ptr<PatternBonusTable>&& table) {
-  if(table == externalPatternBonusTable)
-    return;
-  //Probably not actually needed so long as we do a fresh search to refresh and use the new table
-  //but this makes behavior consistent with all the other setters.
-  clearSearch();
-  externalPatternBonusTable = std::move(table);
-}
-
-void Search::setCopyOfExternalPatternBonusTable(const std::unique_ptr<PatternBonusTable>& table) {
-  setExternalPatternBonusTable(table == nullptr ? nullptr : std::make_unique<PatternBonusTable>(*table));
-}
 
 void Search::setNNEval(NNEvaluator* nnEval) {
   clearSearch();
@@ -324,14 +305,13 @@ bool Search::makeMove(Loc moveLoc, Player movePla) {
       }
 
       //Okay, this is now our new root! Create a copy so as to keep the root out of the node table.
-      const bool copySubtreeValueBias = false;
       const bool forceNonTerminal = true;
-      rootNode = new SearchNode(*child, forceNonTerminal, copySubtreeValueBias);
+      rootNode = new SearchNode(*child, forceNonTerminal);
       //Sweep over the new root marking it as good (calling NULL function), and then delete anything unmarked.
       //This will include the old root node and the old copy of the child that we promoted to root.
       applyRecursivelyAnyOrderMulithreaded({rootNode}, NULL);
       bool old = true;
-      deleteAllOldOrAllNewTableNodesAndSubtreeValueBiasMulithreaded(old);
+      deleteAllOldOrAllNewTableNodesMulithreaded(old);
     }
     else {
       clearSearch();
@@ -546,39 +526,12 @@ void Search::beginSearch(bool pondering) {
     //and the player that the search is for changes, we need to clear the tree since we need new evals for the new way around
     if(searchParams.playoutDoublingAdvantage != 0 && searchParams.playoutDoublingAdvantagePla == C_EMPTY)
       clearSearch();
-    //If we are doing pattern bonus and the player the search is for changes, clear the search. Recomputing the search tree
-    //recursively *would* fix all our utilities, but the problem is the playout distribution will still be matching the
-    //old probabilities without a lot of new search, so clearing ensures a better distribution.
-    if(searchParams.avoidRepeatedPatternUtility != 0 || externalPatternBonusTable != nullptr)
-      clearSearch();
   }
   plaThatSearchIsForLastSearch = plaThatSearchIsFor;
   //cout << "BEGINSEARCH " << PlayerIO::playerToString(rootPla) << " " << PlayerIO::playerToString(plaThatSearchIsFor) << endl;
 
   clearOldNNOutputs();
 
-  //Prepare value bias table if we need it
-  if(searchParams.subtreeValueBiasFactor != 0 && subtreeValueBiasTable == NULL)
-    subtreeValueBiasTable = new SubtreeValueBiasTable(searchParams.subtreeValueBiasTableNumShards);
-
-  //Refresh pattern bonuses if needed
-  if(patternBonusTable != NULL) {
-    delete patternBonusTable;
-    patternBonusTable = NULL;
-  }
-  if(searchParams.avoidRepeatedPatternUtility != 0 || externalPatternBonusTable != nullptr) {
-    if(externalPatternBonusTable != nullptr)
-      patternBonusTable = new PatternBonusTable(*externalPatternBonusTable);
-    else
-      patternBonusTable = new PatternBonusTable();
-    if(searchParams.avoidRepeatedPatternUtility != 0) {
-      double bonus = plaThatSearchIsFor == P_WHITE ? -searchParams.avoidRepeatedPatternUtility : searchParams.avoidRepeatedPatternUtility;
-      patternBonusTable->addBonusForGameMoves(rootHistory,bonus,plaThatSearchIsFor);
-    }
-    //Clear any pattern bonus on the root node itself
-    if(rootNode != NULL)
-      rootNode->patternBonusHash = Hash128();
-  }
 
   if(searchParams.rootSymmetryPruning) {
     const std::vector<int>& avoidMoveUntilByLoc = rootPla == P_BLACK ? avoidMoveUntilByLocBlack : avoidMoveUntilByLocWhite;
@@ -690,29 +643,15 @@ void Search::beginSearch(bool pondering) {
       }
     }
 
-    //Recursively update all stats in the tree if we have dynamic score values
-    //And also to clear out lastResponseBiasDeltaSum and lastResponseBiasWeight
-    if(patternBonusTable != NULL) {
-      recursivelyRecomputeStats(node);
-      if(anyFiltered) {
-        //Recursive stats recomputation resulted in us marking all nodes we have. Anything filtered is old now, delete it.
-        bool old = true;
-        deleteAllOldOrAllNewTableNodesAndSubtreeValueBiasMulithreaded(old);
-      }
-    }
-    else {
       if(anyFiltered) {
         //Sweep over the entire child marking it as good (calling NULL function), and then delete anything unmarked.
         applyRecursivelyAnyOrderMulithreaded({rootNode}, NULL);
         bool old = true;
-        deleteAllOldOrAllNewTableNodesAndSubtreeValueBiasMulithreaded(old);
+        deleteAllOldOrAllNewTableNodesMulithreaded(old);
       }
-    }
+    
   }
 
-  //Clear unused stuff in value bias table since we may have pruned rootNode stuff
-  if(searchParams.subtreeValueBiasFactor != 0 && subtreeValueBiasTable != NULL)
-    subtreeValueBiasTable->clearUnusedSynchronous();
 
   //Mark all nodes old for the purposes of updating old nnoutputs
   searchNodeAge++;
@@ -764,21 +703,6 @@ SearchNode* Search::allocateOrFindNode(SearchThread& thread, Player nextPla, Loc
       //if the node is accessed concurrently by other nodes through the table, we need to make sure these parameters are fully
       //fully-formed before we make the node accessible to anyone.
 
-      if(searchParams.subtreeValueBiasFactor != 0 && subtreeValueBiasTable != NULL) {
-        //TODO can we make subtree value bias not depend on prev move loc?
-        if(thread.history.moveHistory.size() >= 2) {
-          Loc prevMoveLoc = thread.history.moveHistory[thread.history.moveHistory.size()-2].loc;
-          if(prevMoveLoc != Board::NULL_LOC) {
-            child->subtreeValueBiasTableEntry = subtreeValueBiasTable->get(
-              thread.board.prevPla(), prevMoveLoc, bestChildMoveLoc, thread.history.getRecentBoard(1));
-          }
-        }
-      }
-
-      if(patternBonusTable != NULL)
-        child->patternBonusHash =
-          patternBonusTable->getHash(thread.board.prevPla(), bestChildMoveLoc, thread.history.getRecentBoard(1));
-
       //Insert into map! Use insertLoc as hint.
       nodeMap.insert(insertLoc, std::make_pair(childHash,child));
     }
@@ -799,23 +723,9 @@ void Search::transferOldNNOutputs(SearchThread& thread) {
   thread.oldNNOutputsToCleanUp.resize(0);
 }
 
-void Search::removeSubtreeValueBias(SearchNode* node) {
-  if(node->subtreeValueBiasTableEntry != nullptr) {
-    double deltaUtilitySumToSubtract = node->lastSubtreeValueBiasDeltaSum * searchParams.subtreeValueBiasFreeProp;
-    double weightSumToSubtract = node->lastSubtreeValueBiasWeight * searchParams.subtreeValueBiasFreeProp;
-
-    SubtreeValueBiasEntry& entry = *(node->subtreeValueBiasTableEntry);
-    while(entry.entryLock.test_and_set(std::memory_order_acquire));
-    entry.deltaUtilitySum -= deltaUtilitySumToSubtract;
-    entry.weightSum -= weightSumToSubtract;
-    entry.entryLock.clear(std::memory_order_release);
-    node->subtreeValueBiasTableEntry = nullptr;
-  }
-}
-
 //Delete ALL nodes where nodeAge < searchNodeAge if old is true, else all nodes where nodeAge >= searchNodeAge
 //Also clears subtreevaluebias for deleted nodes.
-void Search::deleteAllOldOrAllNewTableNodesAndSubtreeValueBiasMulithreaded(bool old) {
+void Search::deleteAllOldOrAllNewTableNodesMulithreaded(bool old) {
   int numAdditionalThreads = numAdditionalThreadsToUseForTasks();
   assert(numAdditionalThreads >= 0);
   std::function<void(int)> g = [&](int threadIdx) {
@@ -826,7 +736,6 @@ void Search::deleteAllOldOrAllNewTableNodesAndSubtreeValueBiasMulithreaded(bool 
       for(auto it = nodeMap.cbegin(); it != nodeMap.cend();) {
         SearchNode* node = it->second;
         if(old == (node->nodeAge.load(std::memory_order_acquire) < searchNodeAge)) {
-          removeSubtreeValueBias(node);
           delete node;
           it = nodeMap.erase(it);
         }
@@ -919,7 +828,6 @@ void Search::recursivelyRecomputeStats(SearchNode& n) {
       else {
         double resultUtility = getResultUtility(winLossValueAvg, noResultValueAvg);
         double newUtilityAvg = resultUtility;
-        newUtilityAvg += getPatternBonus(node->patternBonusHash, thread.board.prevPla());
         double newUtilitySqAvg = newUtilityAvg * newUtilityAvg;
 
         while(node->statsLock.test_and_set(std::memory_order_acquire));

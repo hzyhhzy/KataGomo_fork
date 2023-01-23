@@ -3,7 +3,6 @@
 #include "../core/datetime.h"
 #include "../core/makedir.h"
 #include "../neuralnet/nninterface.h"
-#include "../search/patternbonustable.h"
 
 using namespace std;
 
@@ -587,10 +586,6 @@ vector<SearchParams> Setup::loadParams(
     else if(cfg.contains("playoutDoublingAdvantagePla"))   params.playoutDoublingAdvantagePla = parsePlayer("playoutDoublingAdvantagePla",cfg.getString("playoutDoublingAdvantagePla"));
     else                                                   params.playoutDoublingAdvantagePla = C_EMPTY;
 
-    if(cfg.contains("avoidRepeatedPatternUtility"+idxStr)) params.avoidRepeatedPatternUtility = cfg.getDouble("avoidRepeatedPatternUtility"+idxStr, -3.0, 3.0);
-    else if(cfg.contains("avoidRepeatedPatternUtility"))   params.avoidRepeatedPatternUtility = cfg.getDouble("avoidRepeatedPatternUtility", -3.0, 3.0);
-    else                                                   params.avoidRepeatedPatternUtility = 0.0;
-
     if(cfg.contains("nnPolicyTemperature"+idxStr))
       params.nnPolicyTemperature = cfg.getFloat("nnPolicyTemperature"+idxStr,0.01f,5.0f);
     else if(cfg.contains("nnPolicyTemperature"))
@@ -599,15 +594,6 @@ vector<SearchParams> Setup::loadParams(
       params.nnPolicyTemperature = 1.0f;
 
 
-    if(cfg.contains("subtreeValueBiasFactor"+idxStr)) params.subtreeValueBiasFactor = cfg.getDouble("subtreeValueBiasFactor"+idxStr, 0.0, 1.0);
-    else if(cfg.contains("subtreeValueBiasFactor")) params.subtreeValueBiasFactor = cfg.getDouble("subtreeValueBiasFactor", 0.0, 1.0);
-    else params.subtreeValueBiasFactor = 0.0;
-    if(cfg.contains("subtreeValueBiasFreeProp"+idxStr)) params.subtreeValueBiasFreeProp = cfg.getDouble("subtreeValueBiasFreeProp"+idxStr, 0.0, 1.0);
-    else if(cfg.contains("subtreeValueBiasFreeProp")) params.subtreeValueBiasFreeProp = cfg.getDouble("subtreeValueBiasFreeProp", 0.0, 1.0);
-    else params.subtreeValueBiasFreeProp = 0.8;
-    if(cfg.contains("subtreeValueBiasWeightExponent"+idxStr)) params.subtreeValueBiasWeightExponent = cfg.getDouble("subtreeValueBiasWeightExponent"+idxStr, 0.0, 1.0);
-    else if(cfg.contains("subtreeValueBiasWeightExponent")) params.subtreeValueBiasWeightExponent = cfg.getDouble("subtreeValueBiasWeightExponent", 0.0, 1.0);
-    else params.subtreeValueBiasWeightExponent = 0.85;
 
     if(cfg.contains("nodeTableShardsPowerOfTwo"+idxStr)) params.nodeTableShardsPowerOfTwo = cfg.getInt("nodeTableShardsPowerOfTwo"+idxStr, 8, 24);
     else if(cfg.contains("nodeTableShardsPowerOfTwo"))   params.nodeTableShardsPowerOfTwo = cfg.getInt("nodeTableShardsPowerOfTwo",        8, 24);
@@ -732,48 +718,4 @@ vector<pair<set<string>,set<string>>> Setup::getMutexKeySets() {
     ),
   };
   return mutexKeySets;
-}
-
-std::vector<std::unique_ptr<PatternBonusTable>> Setup::loadAvoidSgfPatternBonusTables(ConfigParser& cfg, Logger& logger) {
-  vector<SearchParams> paramss;
-  int numBots = 1;
-  if(cfg.contains("numBots"))
-    numBots = cfg.getInt("numBots",1,MAX_BOT_PARAMS_FROM_CFG);
-
-  std::vector<std::unique_ptr<PatternBonusTable>> tables;
-  for(int i = 0; i<numBots; i++) {
-    //Indexes different bots, such as in a match config
-    const string idxStr = Global::intToString(i);
-
-    std::unique_ptr<PatternBonusTable> patternBonusTable = nullptr;
-    for(int j = 1; j<100000; j++) {
-      //Indexes different sets of params for different sets of files, to combine into one bot.
-      const string setStr = j == 1 ? string() : Global::intToString(j);
-      const string prefix = "avoidSgf"+setStr;
-
-      //Tries to find prefix+suffix+optional index
-      //E.g. "avoidSgf"+"PatternUtility"+(optional integer indexing which bot for match)
-      auto contains = [&cfg,&idxStr,&prefix](const string& suffix) {
-        return cfg.containsAny({prefix+suffix+idxStr,prefix+suffix});
-      };
-      auto find = [&cfg,&idxStr,&prefix](const string& suffix) {
-        return cfg.firstFoundOrFail({prefix+suffix+idxStr,prefix+suffix});
-      };
-
-      if(contains("PatternUtility")) {
-        double penalty = cfg.getDouble(find("PatternUtility"),-3.0,3.0);
-        double lambda = contains("PatternLambda") ? cfg.getDouble(find("PatternLambda"),0.0,1.0) : 1.0;
-        int minTurnNumber = contains("PatternMinTurnNumber") ? cfg.getInt(find("PatternMinTurnNumber"),0,1000000) : 0;
-        size_t maxFiles = contains("PatternMaxFiles") ? (size_t)cfg.getInt(find("PatternMaxFiles"),1,1000000) : 1000000;
-        vector<string> allowedPlayerNames = contains("PatternAllowedNames") ? cfg.getStringsNonEmptyTrim(find("PatternAllowedNames")) : vector<string>();
-        vector<string> sgfDirs = cfg.getStrings(find("PatternDirs"));
-        if(patternBonusTable == nullptr)
-          patternBonusTable = std::make_unique<PatternBonusTable>();
-        string logSource = "bot " + idxStr;
-        patternBonusTable->avoidRepeatedSgfMoves(sgfDirs,penalty,lambda,minTurnNumber,maxFiles,allowedPlayerNames,logger,logSource);
-      }
-    }
-    tables.push_back(std::move(patternBonusTable));
-  }
-  return tables;
 }

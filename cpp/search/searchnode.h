@@ -6,7 +6,6 @@
 #include "../core/multithread.h"
 #include "../game/boardhistory.h"
 #include "../neuralnet/nneval.h"
-#include "../search/subtreevaluebiastable.h"
 
 struct SearchNode;
 struct SearchThread;
@@ -135,7 +134,6 @@ struct SearchNode {
   //Constant during search--------------------------------------------------------------
   const Player nextPla;
   const bool forceNonTerminal;
-  Hash128 patternBonusHash;
   const uint32_t mutexIdx; // For lookup into mutex pool
 
   //Mutable---------------------------------------------------------------------------
@@ -176,19 +174,12 @@ struct SearchNode {
   NodeStatsAtomic stats;
   std::atomic<int32_t> virtualLosses;
 
-  //Protected under the entryLock in subtreeValueBiasTableEntry
-  //Used only if subtreeValueBiasTableEntry is not nullptr.
-  //During search, subtreeValueBiasTableEntry itself is set upon creation of the node and remains constant
-  //thereafter, making it safe to access without synchronization.
-  double lastSubtreeValueBiasDeltaSum;
-  double lastSubtreeValueBiasWeight;
-  std::shared_ptr<SubtreeValueBiasEntry> subtreeValueBiasTableEntry;
 
   std::atomic<int32_t> dirtyCounter;
 
   //--------------------------------------------------------------------------------
   SearchNode(Player prevPla, bool forceNonTerminal, uint32_t mutexIdx);
-  SearchNode(const SearchNode&, bool forceNonTerminal, bool copySubtreeValueBias);
+  SearchNode(const SearchNode&, bool forceNonTerminal);
   ~SearchNode();
 
   SearchNode& operator=(const SearchNode&) = delete;
