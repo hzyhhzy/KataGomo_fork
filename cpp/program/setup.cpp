@@ -164,7 +164,6 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       nnRandSeed = cfg.getString("nnRandSeed");
     else
       nnRandSeed = Global::uint64ToString(seedRand.nextUInt64());
-    logger.write("nnRandSeed" + idxStr + " = " + nnRandSeed);
 
 #ifndef USE_EIGEN_BACKEND
     (void)expectedConcurrentEvals;
@@ -263,11 +262,6 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     if(setupFor != SETUP_FOR_DISTRIBUTED && cfg.contains("nnForcedSymmetry"))
       forcedSymmetry = cfg.getInt("nnForcedSymmetry",0,SymmetryHelpers::NUM_SYMMETRIES-1);
 
-    logger.write(
-      "After dedups: nnModelFile" + idxStr + " = " + nnModelFile
-      + " useFP16 " + useFP16Mode.toString()
-      + " useNHWC " + useNHWCMode.toString()
-    );
 
     int nnCacheSizePowerOfTwo =
       cfg.contains("nnCacheSizePowerOfTwo") ? cfg.getInt("nnCacheSizePowerOfTwo", -1, 48) :

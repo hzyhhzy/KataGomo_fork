@@ -148,7 +148,6 @@ int MainCmds::benchmark(const vector<string>& args) {
 
   const bool logToStdoutDefault = true;
   Logger logger(&cfg, logToStdoutDefault);
-  logger.write("Loading model and initializing benchmark...");
 
   CompactSgf* sgf;
   if(sgfFile != "") {
@@ -161,7 +160,6 @@ int MainCmds::benchmark(const vector<string>& args) {
       Setup::loadDefaultBoardXYSize(cfg,logger,defaultBoardXSize,defaultBoardYSize);
       boardSize = std::max(defaultBoardXSize,defaultBoardYSize);
     }
-    logger.write("Testing with default positions for board size: " + Global::intToString(boardSize));
     string sgfData = TestCommon::getBenchmarkSGFData(boardSize);
     sgf = CompactSgf::parse(sgfData);
   }
@@ -193,11 +191,7 @@ int MainCmds::benchmark(const vector<string>& args) {
   else
     reallocateNNEvalWithEnoughBatchSize(ternarySearchInitialMax);
 
-  logger.write("Loaded config " + cfg.getFileName());
-  logger.write("Loaded model "+ modelFile);
 
-  cout << endl;
-  cout << "Testing using " << maxVisits << " visits." << endl;
   if(maxVisits == defaultMaxVisits) {
     cout << "  If you have a good GPU, you might increase this using \"-visits N\" to get more accurate results." << endl;
     cout << "  If you have a weak GPU and this is taking forever, you can decrease it instead to finish the benchmark faster." << endl;
