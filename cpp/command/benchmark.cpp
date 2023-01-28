@@ -46,7 +46,7 @@ static const int64_t defaultMaxVisits = 80;
 static const int64_t defaultMaxVisits = 800;
 #endif
 
-static constexpr double defaultSecondsPerGameMove = 5.0;
+static constexpr double defaultSecondsPerGameMove = 10.0;
 static const int ternarySearchInitialMax = 32;
 
 int MainCmds::benchmark(const vector<string>& args) {
@@ -77,7 +77,7 @@ int MainCmds::benchmark(const vector<string>& args) {
     TCLAP::SwitchArg autoTuneThreadsArg("s","tune","Automatically search for the optimal number of threads (default if not specifying specific numbers of threads)");
     TCLAP::ValueArg<double> secondsPerGameMoveArg(
       "i","time",
-      "Typical amount of time per move spent while playing, in seconds (default " +
+      "How much time to use per search (default " +
       Global::doubleToString(defaultSecondsPerGameMove) + ")",
       false,defaultSecondsPerGameMove,"SECONDS"
     );
@@ -167,7 +167,7 @@ int MainCmds::benchmark(const vector<string>& args) {
   SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_BENCHMARK);
   params.maxVisits = maxVisits;
   params.maxPlayouts = maxVisits;
-  params.maxTime = 1e20;
+  params.maxTime = secondsPerGameMove;
 
   Setup::initializeSession(cfg);
 
