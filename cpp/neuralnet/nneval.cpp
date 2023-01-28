@@ -617,7 +617,6 @@ void NNEvaluator::evaluate(
   buf.boardYSizeForServer = board.y_size;
 
   MiscNNInputParams nnInputParamsWithResultsBeforeNN = nnInputParams;
-  nnInputParamsWithResultsBeforeNN.resultsBeforeNN.init(board, history, nextPlayer);
 
   if(!debugSkipNeuralNet) {
     int rowSpatialLen = NNModelVersion::getNumSpatialFeatures(modelVersion) * nnXLen * nnYLen;
@@ -691,21 +690,10 @@ void NNEvaluator::evaluate(
     bool isLegal[NNPos::MAX_NN_POLICY_SIZE];
     int legalCount = 0;
 
-    GameLogic::ResultsBeforeNN resultsBeforeNN = nnInputParamsWithResultsBeforeNN.resultsBeforeNN;
-    if(resultsBeforeNN.myOnlyLoc == Board::NULL_LOC) {
       for(int i = 0; i < policySize; i++) {
         Loc loc = NNPos::posToLoc(i, xSize, ySize, nnXLen, nnYLen);
         isLegal[i] = history.isLegal(board, loc, nextPlayer);
       }
-    } 
-    else  // assume all other moves are illegal
-    {
-      for(int i = 0; i < policySize; i++) {
-        isLegal[i] = false;
-      }
-      isLegal[NNPos::locToPos(resultsBeforeNN.myOnlyLoc, xSize, nnXLen, nnYLen)] = true;
-      isLegal[NNPos::locToPos(Board::PASS_LOC, xSize, nnXLen, nnYLen)] = true;
-    }
 
     for(int i = 0; i<policySize; i++) {
       float policyValue;
@@ -773,22 +761,7 @@ void NNEvaluator::evaluate(
         double shorttermWinlossErrorPreSoftplus = buf.result->shorttermWinlossError;
 
         
-        if(resultsBeforeNN.winner == C_EMPTY) {  // draw
-          winProb = 0.0;
-          lossProb = 0.0;
-          noResultProb = 1.0;
-        } 
-        else if(resultsBeforeNN.winner == C_WHITE) {  // white win
-          winProb = 1.0;
-          lossProb = 0.0;
-          noResultProb = 0.0;
-        } 
-        else if(resultsBeforeNN.winner == C_BLACK) {  // black win
-          winProb = 0.0;
-          lossProb = 1.0;
-          noResultProb = 0.0;
-        } 
-        else { //no sure results
+    { //no sure results
           // Softmax
           double maxLogits = std::max(std::max(winLogits, lossLogits), noResultLogits);
           winProb = exp(winLogits - maxLogits);

@@ -261,11 +261,6 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
 
 
 
-  Color maybeWinner = GameLogic::checkWinnerAfterPlayed(board, *this, movePla, moveLoc);
-  if(maybeWinner!=C_WALL) { //game finished
-    setWinner(maybeWinner);
-  }
-
 }
 
 
