@@ -53,10 +53,7 @@ Logger::Logger(
       addFile(cfg->getString("logDirDated") + "/" + DateTime::getCompactDateTimeString() + "/" + Global::uint32ToHexString(rand.nextUInt()) + ".log", false);
     }
   }
-
-  if(!header.empty()) {
-    write(header);
-  }
+  
 }
 
 Logger::~Logger()

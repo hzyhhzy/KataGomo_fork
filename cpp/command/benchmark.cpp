@@ -235,25 +235,6 @@ int MainCmds::benchmark(const vector<string>& args) {
     results = doAutoTuneThreads(params,sgf,numPositionsPerGame,nnEval,logger,secondsPerGameMove,reallocateNNEvalWithEnoughBatchSize);
   }
 
-  if(numThreadsToTest.size() > 1 || autoTuneThreads) {
-    PlayUtils::BenchmarkResults::printEloComparison(results,secondsPerGameMove);
-
-    cout << "If you care about performance, you may want to edit numSearchThreads in " << cfg.getFileName() << " based on the above results!" << endl;
-    if(cfg.contains("nnMaxBatchSize"))
-      cout << "WARNING: Your nnMaxBatchSize is hardcoded to " + cfg.getString("nnMaxBatchSize") + ", recommend deleting it and using the default (which this benchmark assumes)" << endl;
-#ifdef USE_EIGEN_BACKEND
-    if(cfg.contains("numEigenThreadsPerModel")) {
-      cout << "Note: Your numEigenThreadsPerModel is hardcoded to " + cfg.getString("numEigenThreadsPerModel") + ", consider deleting it and using the default (which this benchmark assumes when computing its performance stats)" << endl;
-    }
-#endif
-
-    cout << "If you intend to do much longer searches, configure the seconds per game move you expect with the '-time' flag and benchmark again." << endl;
-    cout << "If you intend to do short or fixed-visit searches, use lower numSearchThreads for better strength, high threads will weaken strength." << endl;
-
-    cout << "If interested see also other notes about performance and mem usage in the top of " << cfg.getFileName() << endl;
-    cout << endl;
-  }
-
   delete nnEval;
   NeuralNet::globalCleanup();
   delete sgf;
