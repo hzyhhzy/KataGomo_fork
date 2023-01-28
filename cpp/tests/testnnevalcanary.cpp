@@ -274,10 +274,12 @@ bool Tests::runFP16Test(NNEvaluator* nnEval, NNEvaluator* nnEval32, Logger& logg
       std::set<Hash128> uniqueHashes;
       const bool hashComments = false;
       const bool hashParent = false;
+      const bool allowGameOver = false;
       sgf->iterAllUniquePositions(
         uniqueHashes,
         hashComments,
         hashParent,
+        allowGameOver,
         NULL,
         [&](Sgf::PositionSample& sample, const BoardHistory& hist, const string& comments) {
           (void)sample;
