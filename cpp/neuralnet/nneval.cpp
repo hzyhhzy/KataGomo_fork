@@ -700,6 +700,8 @@ void NNEvaluator::evaluate(
       if(isLegal[i]) {
         legalCount += 1;
         policyValue = policy[i] * nnPolicyInvTemperature;
+        if(NNPos::posToLoc(i, xSize, ySize, nnXLen, nnYLen) == Board::PASS_LOC)
+          policyValue -= 10;
       }
       else
         policyValue = -1e30f;
