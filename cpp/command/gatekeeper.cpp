@@ -131,7 +131,7 @@ namespace {
           BoardHistory hist(data->endHist);
           Board endBoard = hist.getRecentBoard(0);
           //Force game end just in caseif we crossed a move limit
-          assert(hist.isGameFinished, "runWriteDataLoop(Logger& logger):  hist.isGameFinished=false");
+          assert(hist.isGameFinished);
 
           ostringstream oresult;
           WriteSgf::printGameResult(oresult,hist);
