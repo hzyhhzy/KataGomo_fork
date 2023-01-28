@@ -71,10 +71,7 @@ int MainCmds::benchmark(const vector<string>& args) {
     TCLAP::ValueArg<string> sgfFileArg("","sgf", "Optional game to sample positions from (default: uses a built-in-set of positions)",false,string(),"FILE");
     TCLAP::ValueArg<int> boardSizeArg(
       "","boardsize",
-      "Size of board to benchmark on (" +
-      Global::intToString(TestCommon::MIN_BENCHMARK_SGF_DATA_SIZE) + "-" +
-      Global::intToString(TestCommon::MAX_BENCHMARK_SGF_DATA_SIZE) + "), default " +
-      Global::intToString(TestCommon::DEFAULT_BENCHMARK_SGF_DATA_SIZE),
+      "Size of board to benchmark on y*x board, param=y=x (square board) or param=1000*y+x (retangular board)",
       false,-1,"SIZE"
     );
     TCLAP::SwitchArg autoTuneThreadsArg("s","tune","Automatically search for the optimal number of threads (default if not specifying specific numbers of threads)");

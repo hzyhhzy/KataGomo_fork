@@ -32,10 +32,11 @@ namespace Tests {
 namespace TestCommon {
   bool boardsSeemEqual(const Board& b1, const Board& b2);
 
-  constexpr int MIN_BENCHMARK_SGF_DATA_SIZE = 7;
-  constexpr int MAX_BENCHMARK_SGF_DATA_SIZE = 19;
+  constexpr int MIN_BENCHMARK_SGF_DATA_SIZE = 4;
+  constexpr int MAX_BENCHMARK_SGF_DATA_SIZE = 999999;
   constexpr int DEFAULT_BENCHMARK_SGF_DATA_SIZE = std::min(Board::DEFAULT_LEN,MAX_BENCHMARK_SGF_DATA_SIZE);
-  std::string getBenchmarkSGFData(int boardSize);
+
+  std::string getBenchmarkSGFData(int boardSize);//boardSize>1000 means boardSize=1000*ysize+xsize
 
   std::vector<std::string> getMultiGameSize9Data();
   std::vector<std::string> getMultiGameSize13Data();

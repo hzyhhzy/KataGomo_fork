@@ -303,35 +303,21 @@ PlayUtils::BenchmarkResults PlayUtils::benchmarkSearchOnPositionsAndPrint(
   vector<Move> moves = sgf->moves;
   if(moves.size() > 0xFFFF)
     moves.resize(0xFFFF);
+  if(moves.size() != 1)
+    cout
+      << "PlayUtils::BenchmarkResults PlayUtils::benchmarkSearchOnPositionsAndPrint  moves.size should be 1 but now is "
+      << moves.size()<<endl;
   string posSeed = "benchmarkPosSeed|";
   for(int i = 0; i<moves.size(); i++) {
     posSeed += Global::intToString((int)moves[i].loc);
     posSeed += "|";
   }
 
-  vector<int> possiblePositionIdxs;
-  {
-    Rand posRand(posSeed);
-    for(int i = 0; i<moves.size(); i++) {
-      possiblePositionIdxs.push_back(i);
-    }
-    if(possiblePositionIdxs.size() > 0) {
-      for(int i = (int)possiblePositionIdxs.size()-1; i > 1; i--) {
-        int r = posRand.nextUInt(i);
-        int tmp = possiblePositionIdxs[i];
-        possiblePositionIdxs[i] = possiblePositionIdxs[r];
-        possiblePositionIdxs[r] = tmp;
-      }
-    }
-    if(possiblePositionIdxs.size() > numPositionsToUse)
-      possiblePositionIdxs.resize(numPositionsToUse);
-  }
 
-  std::sort(possiblePositionIdxs.begin(),possiblePositionIdxs.end());
 
   BenchmarkResults results;
   results.numThreads = params.numThreads;
-  results.totalPositions = (int)possiblePositionIdxs.size();
+  results.totalPositions = 1;
 
   nnEval->clearCache();
   nnEval->clearStats();
@@ -349,10 +335,10 @@ PlayUtils::BenchmarkResults PlayUtils::benchmarkSearchOnPositionsAndPrint(
 
   int moveNum = 0;
 
-  for(int i = 0; i<possiblePositionIdxs.size(); i++) {
+  for(int i = 0; i<1; i++) {
     cout << "\r" << results.toStringNotDone() << "      " << std::flush;
 
-    int nextIdx = possiblePositionIdxs[i];
+    int nextIdx = moves.size();
     while(moveNum < moves.size() && moveNum < nextIdx) {
       bool suc = hist.makeBoardMoveTolerant(board,moves[moveNum].loc,moves[moveNum].pla);
       if(!suc) {
