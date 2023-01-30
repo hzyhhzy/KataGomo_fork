@@ -1229,6 +1229,7 @@ FinishedGameData* Play::runGame(
   double balanceOpeningProb = playSettings.forSelfPlay ? 0.99 : 1.0;
 
   if(gameRand.nextBool(balanceOpeningProb)) {
+    throw StringError("RandomOpening::initializeBalancedRandomOpening should be modified to suit for your new game");
     if(board.numStonesOnBoard() != 0)
       cout << "board not empty when initialize opening" << endl;
     else {
