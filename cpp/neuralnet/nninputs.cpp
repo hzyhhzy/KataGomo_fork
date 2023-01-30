@@ -526,6 +526,9 @@ void NNInputs::fillRowV7(
       else if(stone == opp)
         setRowBin(rowBin,pos,2, 1.0f, posStride, featureStride);
 
+      if(board.isLegal(loc,nextPlayer))
+        setRowBin(rowBin, pos, 4, 1.0f, posStride, featureStride);
+
     }
   }
 
@@ -558,6 +561,8 @@ void NNInputs::fillRowV7(
   
   // Parameter 0 noResultUtilityForWhite
   rowGlobal[0] = pla == C_WHITE ? nnInputParams.noResultUtilityForWhite : -nnInputParams.noResultUtilityForWhite;
+
+  rowGlobal[6] = pla == C_WHITE;
 
   // Parameter 15 is used because there's actually a discontinuity in how training behavior works when this is
   // nonzero, no matter how slightly.

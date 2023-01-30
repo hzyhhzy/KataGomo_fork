@@ -111,7 +111,12 @@ Board::Board(const Board& other)
   stonenum = other.stonenum;
   pos_hash = other.pos_hash;
 
-  memcpy(adj_offsets, other.adj_offsets, sizeof(short)*8);
+  memcpy(adj_offsets, other.adj_offsets, sizeof(short) * 8);
+
+  memcpy(stoneXCount, other.stoneXCount, sizeof(uint8_t) * MAX_LEN);
+  memcpy(stoneYCount, other.stoneYCount, sizeof(uint8_t) * MAX_LEN);
+  memcpy(stoneXpYCount, other.stoneXpYCount, sizeof(uint8_t) * 2 * MAX_LEN);
+  memcpy(stoneXmYCount, other.stoneXmYCount, sizeof(uint8_t) * 2 * MAX_LEN);
 }
 
 void Board::init(int xS, int yS)
@@ -125,6 +130,15 @@ void Board::init(int xS, int yS)
 
   for(int i = 0; i < MAX_ARR_SIZE; i++)
     colors[i] = C_WALL;
+
+  for(int i = 0; i < MAX_LEN; i++) {
+    stoneXCount[i] = 0;
+    stoneYCount[i] = 0;
+    stoneXpYCount[i] = 0;
+    stoneXmYCount[i] = 0;
+    stoneXpYCount[i + MAX_LEN] = 0;
+    stoneXmYCount[i + MAX_LEN] = 0;
+  }
 
   movenum = 0;
   stonenum = 0;
@@ -207,11 +221,32 @@ bool Board::isLegal(Loc loc, Player pla) const
 {
   if(pla != P_BLACK && pla != P_WHITE)
     return false;
-  return loc == PASS_LOC || (
-    loc >= 0 &&
-    loc < MAX_ARR_SIZE &&
-    (colors[loc] == C_EMPTY) 
-  );
+  if(loc == PASS_LOC)
+    return true;
+  if(!isOnBoard(loc))
+    return false;
+  if(colors[loc] != C_EMPTY)
+    return false;
+
+  if(stonenum < 2)
+    return true;
+  
+  int x = Location::getX(loc, x_size);
+  int y = Location::getY(loc, x_size);
+  int xpy = x + y, xmy = x - y + y_size;
+
+  if(pla==C_BLACK) 
+    return (stoneXCount[x] % 2 == 1) || 
+           (stoneYCount[y] % 2 == 1) || 
+           (stoneXpYCount[xpy] % 2 == 1) ||
+           (stoneXmYCount[xmy] % 2 == 1);
+  else
+    return (stoneXCount[x] > 0 && stoneXCount[x] % 2 == 0) || 
+           (stoneYCount[y] > 0 && stoneYCount[y] % 2 == 0) ||
+           (stoneXpYCount[xpy] > 0 && stoneXpYCount[xpy] % 2 == 0) ||
+           (stoneXmYCount[xmy] > 0 && stoneXmYCount[xmy] % 2 == 0) ;
+
+
 }
 
 bool Board::isEmpty() const {
@@ -261,10 +296,32 @@ bool Board::setStone(Loc loc, Color color)
   pos_hash ^= ZOBRIST_BOARD_HASH[loc][colorOld];
   pos_hash ^= ZOBRIST_BOARD_HASH[loc][color];
 
-  if(colorOld != C_EMPTY)
+  if(colorOld != C_EMPTY) {
     stonenum--;
-  if(color != C_EMPTY)
+
+    int x = Location::getX(loc, x_size);
+    int y = Location::getY(loc, x_size);
+    int xpy = x + y, xmy = x - y + y_size;
+    int delta = colorOld == C_BLACK ? -1 : -2;
+
+    stoneXCount[x] += delta;
+    stoneYCount[y] += delta;
+    stoneXpYCount[xpy] += delta;
+    stoneXmYCount[xmy] += delta;
+  }
+  if(color != C_EMPTY) {
     stonenum++;
+
+    int x = Location::getX(loc, x_size);
+    int y = Location::getY(loc, x_size);
+    int xpy = x + y, xmy = x - y + y_size;
+    int delta = color == C_BLACK ? 1 : 2;
+
+    stoneXCount[x] += delta;
+    stoneYCount[y] += delta;
+    stoneXpYCount[xpy] += delta;
+    stoneXmYCount[xmy] += delta;
+  }
 
   return true;
 }
@@ -373,6 +430,72 @@ void Board::checkConsistency() const {
   if(stonenum != numStonesOnBoard())
     throw StringError(errLabel + "stoneNum does not match expected");
 
+  // count stones in lines X
+  for(int x = 0; x < x_size; x++) {
+    int count = 0;
+    for(int y = 0; y < y_size; y++) {
+      Loc loc = Location::getLoc(x, y, x_size);
+      Color c = colors[loc];
+      if(c == C_BLACK)
+        count += 1;
+      else if(c == C_WHITE)
+        count += 2;
+    }
+    if(count != stoneXCount[x])
+      throw StringError(errLabel + "stoneXCount does not match expected");
+  }
+  
+  // count stones in lines Y
+  for(int y = 0; y < y_size; y++) {
+    int count = 0;
+    for(int x = 0; x < x_size; x++) {
+      Loc loc = Location::getLoc(x, y, x_size);
+      Color c = colors[loc];
+      if(c == C_BLACK)
+        count += 1;
+      else if(c == C_WHITE)
+        count += 2;
+    }
+    if(count != stoneYCount[y])
+      throw StringError(errLabel + "stoneYCount does not match expected");
+  }
+
+  // count stones in lines XpY
+  for(int xpy = 0; xpy < x_size + y_size; xpy++) {
+    int count = 0;
+    for(int x = 0; x < x_size; x++) {
+      int y = xpy - x;
+      if(y < 0 || y >= y_size)
+        continue;
+      Loc loc = Location::getLoc(x, y, x_size);
+      Color c = colors[loc];
+      if(c == C_BLACK)
+        count += 1;
+      else if(c == C_WHITE)
+        count += 2;
+    }
+    if(count != stoneXpYCount[xpy])
+      throw StringError(errLabel + "stoneXpYCount does not match expected");
+  }
+
+  // count stones in lines XmY
+  for(int xmy = 0; xmy < x_size + y_size; xmy++) {
+    int count = 0;
+    for(int x = 0; x < x_size; x++) {
+      //xmy=x-y+y_size
+      int y = x - xmy + y_size;
+      if(y < 0 || y >= y_size)
+        continue;
+      Loc loc = Location::getLoc(x, y, x_size);
+      Color c = colors[loc];
+      if(c == C_BLACK)
+        count += 1;
+      else if(c == C_WHITE)
+        count += 2;
+    }
+    if(count != stoneXmYCount[xmy])
+      throw StringError(errLabel + "stoneXmYCount does not match expected");
+  }
 
   short tmpAdjOffsets[8];
   Location::getAdjacentOffsets(tmpAdjOffsets,x_size);

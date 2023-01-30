@@ -124,9 +124,7 @@ void GameLogic::ResultsBeforeNN::init(const Board& board, const BoardHistory& hi
 
   Color opp = getOpp(nextPlayer);
 
-  // check five and four
-  bool oppHasFour = false;
-  bool IHaveLifeFour = false;
+  // check five 
   Loc myLifeFourLoc = Board::NULL_LOC;
   for(int x = 0; x < board.x_size; x++)
     for(int y = 0; y < board.y_size; y++) {
@@ -136,25 +134,9 @@ void GameLogic::ResultsBeforeNN::init(const Board& board, const BoardHistory& hi
         winner = nextPlayer;
         myOnlyLoc = loc;
         return;
-      } else if(mp == MP_ONLY_NONLOSE_MOVES) {
-        oppHasFour = true;
-        myOnlyLoc = loc;
-      } else if(mp == MP_WINNING) {
-        IHaveLifeFour = true;
-        myLifeFourLoc = loc;
-      }
+      } 
     }
 
-  // opp has four
-  if(oppHasFour)
-    return;
-
-  // I have life four, opp has no four
-  if(IHaveLifeFour) {
-    winner = nextPlayer;
-    myOnlyLoc = myLifeFourLoc;
-    return;
-  }
 
 
   return;

@@ -1226,7 +1226,7 @@ FinishedGameData* Play::runGame(
   };
 
 
-  double balanceOpeningProb = playSettings.forSelfPlay ? 0.99 : 1.0;
+  double balanceOpeningProb = 0.0;//playSettings.forSelfPlay ? 0.99 : 1.0;
 
   if(gameRand.nextBool(balanceOpeningProb)) {
     throw StringError("RandomOpening::initializeBalancedRandomOpening should be modified to suit for your new game");
