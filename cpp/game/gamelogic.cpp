@@ -24,6 +24,7 @@ static int connectionLengthOneDirection(
   Loc loc,
   short adj,
   bool& isLife) {
+  (void)hist;
   Loc tmploc = loc;
   int conNum = 0;
   isLife = false;
@@ -122,7 +123,6 @@ void GameLogic::ResultsBeforeNN::init(const Board& board, const BoardHistory& hi
     return;
   inited = true;
 
-  Color opp = getOpp(nextPlayer);
 
   // check five and four
   bool oppHasFour = false;

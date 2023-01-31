@@ -290,16 +290,6 @@ bool Board::setStones(std::vector<Move> placements) {
   }
   return true;
 }
-//Attempts to play the specified move. Returns true if successful, returns false if the move was illegal.
-bool Board::playMove(Loc loc, Player pla, bool isMultiStoneSuicideLegal)
-{
-  if(isLegal(loc,pla))
-  {
-    playMoveAssumeLegal(loc,pla);
-    return true;
-  }
-  return false;
-}
 
 //Plays the specified move, assuming it is legal.
 void Board::playMoveAssumeLegal(Loc loc, Player pla)

@@ -132,9 +132,7 @@ int MainCmds::analysis(const vector<string>& args) {
   }
 
   const int analysisPVLen = cfg.contains("analysisPVLen") ? cfg.getInt("analysisPVLen",1,100) : 15;
-  const bool assumeMultipleStartingBlackMovesAreHandicap =
-    cfg.contains("assumeMultipleStartingBlackMovesAreHandicap") ? cfg.getBool("assumeMultipleStartingBlackMovesAreHandicap") : true;
-
+ 
   NNEvaluator* nnEval;
   {
     Setup::initializeSession(cfg);

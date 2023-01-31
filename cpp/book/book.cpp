@@ -110,7 +110,7 @@ static Hash128 getExtraPosHash(const Board& board) {
   return hash;
 }
 
-void BookHash::getHashAndSymmetry(const BoardHistory& hist, int repBound, BookHash& hashRet, int& symmetryToAlignRet, vector<int>& symmetriesRet, int bookVersion) {
+void BookHash::getHashAndSymmetry(const BoardHistory& hist, BookHash& hashRet, int& symmetryToAlignRet, vector<int>& symmetriesRet, int bookVersion) {
   Board boardsBySym[SymmetryHelpers::NUM_SYMMETRIES];
   BoardHistory histsBySym[SymmetryHelpers::NUM_SYMMETRIES];
   Hash128 accums[SymmetryHelpers::NUM_SYMMETRIES];
@@ -541,7 +541,7 @@ SymBookNode SymBookNode::playAndAddMove(Board& board, BoardHistory& hist, Loc mo
   BookHash childHash;
   int symmetryToAlignToChild;
   vector<int> symmetriesOfChild;
-  BookHash::getHashAndSymmetry(hist, node->book->repBound, childHash, symmetryToAlignToChild, symmetriesOfChild, node->book->bookVersion);
+  BookHash::getHashAndSymmetry(hist, childHash, symmetryToAlignToChild, symmetriesOfChild, node->book->bookVersion);
 
   // Okay...
   // A: invSymmetryOfNode is the transform from SymBookNode space -> BookNode space
@@ -654,7 +654,6 @@ Book::Book(
   const Board& b,
   Rules r,
   Player p,
-  int rb,
   double sf,
   double cpm,
   double cpucbwl,
@@ -675,7 +674,6 @@ Book::Book(
     initialBoard(b),
     initialRules(r),
     initialPla(p),
-    repBound(rb),
     errorFactor(sf),
     costPerMove(cpm),
     costPerUCBWinLossLoss(cpucbwl),
@@ -704,7 +702,7 @@ Book::Book(
   vector<int> rootSymmetries;
 
   BoardHistory initialHist(initialBoard, initialPla, initialRules);
-  BookHash::getHashAndSymmetry(initialHist, repBound, rootHash, symmetryToAlign, rootSymmetries, bookVersion);
+  BookHash::getHashAndSymmetry(initialHist, rootHash, symmetryToAlign, rootSymmetries, bookVersion);
 
   initialSymmetry = symmetryToAlign;
   root = new BookNode(rootHash, this, initialPla, rootSymmetries);
@@ -1567,10 +1565,10 @@ void Book::exportToHtmlDir(
     std::sprintf(toStringBuf,"%.4f",x);
     return string(toStringBuf);
   };
-  auto doubleToStringTwoDigits = [&](double x) {
-    std::sprintf(toStringBuf,"%.2f",x);
-    return string(toStringBuf);
-  };
+  //auto doubleToStringTwoDigits = [&](double x) {
+  //  std::sprintf(toStringBuf,"%.2f",x);
+  //  return string(toStringBuf);
+  //};
   auto doubleToStringZeroDigits = [&](double x) {
     std::sprintf(toStringBuf,"%.0f",x);
     return string(toStringBuf);
@@ -1808,7 +1806,6 @@ void Book::saveToFile(const string& fileName) const {
     params["initialBoard"] = Board::toJson(initialBoard);
     params["initialRules"] = initialRules.toJson();
     params["initialPla"] = PlayerIO::playerToString(initialPla);
-    params["repBound"] = repBound;
     params["errorFactor"] = errorFactor;
     params["costPerMove"] = costPerMove;
     params["costPerUCBWinLossLoss"] = costPerUCBWinLossLoss;
@@ -1945,7 +1942,6 @@ Book* Book::loadFromFile(const std::string& fileName) {
       assertContains(params,"initialRules");
       Rules initialRules = Rules::parseRules(params["initialRules"].dump());
       Player initialPla = PlayerIO::parsePlayer(params["initialPla"].get<string>());
-      int repBound = params["repBound"].get<int>();
       double errorFactor = params["errorFactor"].get<double>();
       double costPerMove = params["costPerMove"].get<double>();
       double costPerUCBWinLossLoss = params["costPerUCBWinLossLoss"].get<double>();
@@ -1968,7 +1964,6 @@ Book* Book::loadFromFile(const std::string& fileName) {
         initialBoard,
         initialRules,
         initialPla,
-        repBound,
         errorFactor,
         costPerMove,
         costPerUCBWinLossLoss,

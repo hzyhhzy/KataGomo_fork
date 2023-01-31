@@ -555,13 +555,11 @@ int MainCmds::samplesgfs(const vector<string>& args) {
   int64_t maxBranchCount;
   double minTurnNumberBoardAreaProp;
   double maxTurnNumberBoardAreaProp;
-  bool flipIfPassOrWFirst;
   bool allowGameOver;
   bool hashComments;
 
   int minMinRank;
   string requiredPlayerName;
-  int maxHandicap;
 
   try {
     KataGoCommandLine cmd("Search for suprising good moves in sgfs");
@@ -579,12 +577,10 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     TCLAP::ValueArg<string> maxBranchCountArg("","max-branch-count","Max branch count allowed for sgf",false,"100000000","INT");
     TCLAP::ValueArg<double> minTurnNumberBoardAreaPropArg("","min-turn-number-board-area-prop","Only use turn number >= this board area",false,-1.0,"PROP");
     TCLAP::ValueArg<double> maxTurnNumberBoardAreaPropArg("","max-turn-number-board-area-prop","Only use turn number <= this board area",false,10000.0,"PROP");
-    TCLAP::SwitchArg flipIfPassOrWFirstArg("","flip-if-pass","Try to heuristically find cases where an sgf passes to simulate white<->black");
     TCLAP::SwitchArg allowGameOverArg("","allow-game-over","Allow sampling game over positions in sgf");
     TCLAP::SwitchArg hashCommentsArg("","hash-comments","Hash comments in sgf");
     TCLAP::ValueArg<int> minMinRankArg("","min-min-rank","Require both players in a game to have rank at least this",false,Sgf::RANK_UNKNOWN,"INT");
     TCLAP::ValueArg<string> requiredPlayerNameArg("","required-player-name","Require player making the move to have this name",false,string(),"NAME");
-    TCLAP::ValueArg<int> maxHandicapArg("","max-handicap","Require no more than this big handicap in stones",false,100,"INT");
     cmd.add(sgfDirArg);
     cmd.add(sgfsDirArg);
     cmd.add(outDirArg);
@@ -598,12 +594,10 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     cmd.add(maxBranchCountArg);
     cmd.add(minTurnNumberBoardAreaPropArg);
     cmd.add(maxTurnNumberBoardAreaPropArg);
-    cmd.add(flipIfPassOrWFirstArg);
     cmd.add(allowGameOverArg);
     cmd.add(hashCommentsArg);
     cmd.add(minMinRankArg);
     cmd.add(requiredPlayerNameArg);
-    cmd.add(maxHandicapArg);
     cmd.parseArgs(args);
     sgfDirs = sgfDirArg.getValue();
     sgfsDirs = sgfsDirArg.getValue();
@@ -618,12 +612,10 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     maxBranchCount = Global::stringToInt64(maxBranchCountArg.getValue());
     minTurnNumberBoardAreaProp = minTurnNumberBoardAreaPropArg.getValue();
     maxTurnNumberBoardAreaProp = maxTurnNumberBoardAreaPropArg.getValue();
-    flipIfPassOrWFirst = flipIfPassOrWFirstArg.getValue();
     allowGameOver = allowGameOverArg.getValue();
     hashComments = hashCommentsArg.getValue();
     minMinRank = minMinRankArg.getValue();
     requiredPlayerName = requiredPlayerNameArg.getValue();
-    maxHandicap = maxHandicapArg.getValue();
   }
   catch (TCLAP::ArgException &e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
@@ -945,7 +937,6 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     TCLAP::ValueArg<double> turnWeightLambdaArg("","turn-weight-lambda","Adjust weight for writing down each position",false,0.0,"LAMBDA");
     TCLAP::ValueArg<int> maxPosesPerOutFileArg("","max-poses-per-out-file","Number of hintposes per output file",false,100000,"INT");
     TCLAP::ValueArg<double> gameModeFastThresholdArg("","game-mode-fast-threshold","Utility threshold for game mode fast pass",false,0.005,"UTILS");
-    TCLAP::SwitchArg flipIfPassOrWFirstArg("","flip-if-pass","Try to heuristically find cases where an sgf passes to simulate white<->black");
     TCLAP::SwitchArg allowGameOverArg("","allow-game-over","Allow sampling game over positions in sgf");
     TCLAP::ValueArg<int> minRankArg("","min-rank","Require player making the move to have rank at least this",false,Sgf::RANK_UNKNOWN,"INT");
     TCLAP::ValueArg<int> minMinRankArg("","min-min-rank","Require both players in a game to have rank at least this",false,Sgf::RANK_UNKNOWN,"INT");
@@ -967,7 +958,6 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     cmd.add(turnWeightLambdaArg);
     cmd.add(maxPosesPerOutFileArg);
     cmd.add(gameModeFastThresholdArg);
-    cmd.add(flipIfPassOrWFirstArg);
     cmd.add(allowGameOverArg);
     cmd.add(minRankArg);
     cmd.add(minMinRankArg);
@@ -1580,7 +1570,6 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     //This is hacky and makes everything quadratic, but whatever
     Board board = treeHist.initialBoard;
     for(int i = 0; i<startTurn; i++) {
-      bool multiStoneSuicideLegal = true;
       //Just in case
       if(!board.isLegal(treeHist.moveHistory[i].loc,treeHist.moveHistory[i].pla))
         return;

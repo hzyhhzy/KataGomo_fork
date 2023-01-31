@@ -1799,7 +1799,6 @@ FinishedGameData* GameRunner::runGame(
   Rand gameRand(seed + ":" + "forGameRand");
 
   const InitialPosition* initialPosition = NULL;
-  bool usedSekiForkHackPosition = false;
 
   Board board;
   Player pla;

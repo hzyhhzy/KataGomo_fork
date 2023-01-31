@@ -30,7 +30,6 @@ int MainCmds::evalsgf(const vector<string>& args) {
   bool printPolicy;
   bool printLogPolicy;
   bool printDirichletShape;
-  bool printRootEndingBonus;
   bool printAvgShorttermError;
   bool printGraph;
   int printMaxDepth;
@@ -101,7 +100,6 @@ int MainCmds::evalsgf(const vector<string>& args) {
     printPolicy = printPolicyArg.getValue();
     printLogPolicy = printLogPolicyArg.getValue();
     printDirichletShape = printDirichletShapeArg.getValue();
-    printRootEndingBonus = printRootEndingBonusArg.getValue();
     printAvgShorttermError = printAvgShorttermErrorArg.getValue();
     printGraph = printGraphArg.getValue();
     printMaxDepth = printMaxDepthArg.getValue();

@@ -148,9 +148,6 @@ struct Board
   // valid state. Also returns false if any location is specified more than once.
   bool setStones(std::vector<Move> placements);
 
-  //Attempts to play the specified move. Returns true if successful, returns false if the move was illegal.
-  bool playMove(Loc loc, Player pla, bool isMultiStoneSuicideLegal);
-
   //Plays the specified move, assuming it is legal.
   void playMoveAssumeLegal(Loc loc, Player pla);
 

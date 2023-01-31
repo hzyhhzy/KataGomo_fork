@@ -156,20 +156,6 @@ static int parseByoYomiPeriods(const vector<string>& args, int argIdx) {
 }
 
 
-static double getBoardSizeScaling(const Board& board) {
-  return pow(19.0 * 19.0 / (double)(board.x_size * board.y_size), 0.75);
-}
-static bool noWhiteStonesOnBoard(const Board& board) {
-  for(int y = 0; y < board.y_size; y++) {
-    for(int x = 0; x < board.x_size; x++) {
-      Loc loc = Location::getLoc(x,y,board.x_size);
-      if(board.colors[loc] == P_WHITE)
-        return false;
-    }
-  }
-  return true;
-}
-
 
 static bool shouldResign(
   const Board& board,
@@ -179,7 +165,7 @@ static bool shouldResign(
   const double resignThreshold,
   const int resignConsecTurns
 ) {
-
+  (void)board;
   int minTurnForResignation = 0;
 
   if(hist.moveHistory.size() < minTurnForResignation)
@@ -572,7 +558,6 @@ struct GTPEngine {
             cout << " ";
           const AnalysisData& data = buf[i];
           double winrate = 0.5 * (1.0 + data.winLossValue);
-          double drawrate = 100.0 * data.noResultValue;
           double lcb = PlayUtils::getHackedLCBForWinrate(search,data,pla);
           if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK)) {
             winrate = 1.0-winrate;
@@ -2162,9 +2147,6 @@ int MainCmds::gtp(const vector<string>& args) {
       }
       else {
         auto writeSgfToStream = [&](ostream& out) {
-          if(engine->bot->getRootHist().isGameFinished) {
-            Player winner = C_EMPTY;
-          }
           WriteSgf::writeSgf(out,"","",engine->bot->getRootHist(),NULL,true,false);
         };
 

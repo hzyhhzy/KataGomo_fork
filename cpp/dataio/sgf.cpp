@@ -897,7 +897,7 @@ Sgf::PositionSample Sgf::PositionSample::previousPosition(double newWeight) cons
   return other;
 }
 
-bool Sgf::PositionSample::isEqualForTesting(const Sgf::PositionSample& other, bool checkNumCaptures, bool checkSimpleKo) const {
+bool Sgf::PositionSample::isEqualForTesting(const Sgf::PositionSample& other) const {
   if(!board.isEqualForTesting(other.board))
     return false;
   if(nextPla != other.nextPla)
