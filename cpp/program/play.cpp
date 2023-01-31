@@ -1225,11 +1225,12 @@ FinishedGameData* Play::runGame(
     }
   };
 
-
-  double balanceOpeningProb = 0.0;//playSettings.forSelfPlay ? 0.99 : 1.0;
+  double whitePlaysFirstProb = 0.3;
+  double balanceOpeningProb = playSettings.forSelfPlay ? 0.9 : 1.0;
+  if(gameRand.nextBool(whitePlaysFirstProb) && board.numStonesOnBoard())
+    pla == C_WHITE;
 
   if(gameRand.nextBool(balanceOpeningProb)) {
-    throw StringError("RandomOpening::initializeBalancedRandomOpening should be modified to suit for your new game");
     if(board.numStonesOnBoard() != 0)
       cout << "board not empty when initialize opening" << endl;
     else {
