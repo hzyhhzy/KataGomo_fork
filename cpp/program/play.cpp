@@ -1228,7 +1228,7 @@ FinishedGameData* Play::runGame(
   double whitePlaysFirstProb = 0.3;
   double balanceOpeningProb = playSettings.forSelfPlay ? 0.9 : 1.0;
   if(gameRand.nextBool(whitePlaysFirstProb) && board.numStonesOnBoard() == 0)
-    pla == C_WHITE;
+    pla = C_WHITE;
 
   if(gameRand.nextBool(balanceOpeningProb)) {
     if(board.numStonesOnBoard() != 0)
