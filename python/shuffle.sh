@@ -46,7 +46,7 @@ echo "Beginning shuffle at" $(date "+%Y-%m-%d %H:%M:%S")
          -approx-rows-per-out-file 70000 \
          -num-processes "$NTHREADS" \
          -batch-size "$BATCHSIZE" \
-         -min-rows 70000 \
+         -min-rows 60000 \
          -keep-target-rows 1100000 \
          -only-include-md5-path-prop-lbound 0.00 \
          -only-include-md5-path-prop-ubound 0.95 \
@@ -66,7 +66,7 @@ echo "Beginning shuffle at" $(date "+%Y-%m-%d %H:%M:%S")
          -approx-rows-per-out-file 70000 \
          -num-processes "$NTHREADS" \
          -batch-size "$BATCHSIZE" \
-         -min-rows 70000 \
+         -min-rows 60000 \
          -keep-target-rows 51200 \
          -only-include-md5-path-prop-lbound 0.95 \
          -only-include-md5-path-prop-ubound 1.00 \

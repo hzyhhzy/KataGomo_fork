@@ -2,16 +2,11 @@
 import sys
 import os
 import argparse
-import traceback
-import math
 import time
-import logging
 import zipfile
 import shutil
-import psutil
 import json
 import hashlib
-import datetime
 
 import multiprocessing
 
@@ -38,9 +33,6 @@ def joint_shuffle_take_first_n(n,arrs):
   for arr in arrs:
     shuffled_arrs.append(arr[perm])
   return shuffled_arrs
-
-def memusage_mb():
-  return psutil.Process(os.getpid()).memory_info().rss // 1048576
 
 def shardify(input_idx, input_file_group, num_out_files, out_tmp_dirs, keep_prob):
   np.random.seed([int.from_bytes(os.urandom(4), byteorder='little') for i in range(4)])
@@ -109,9 +101,6 @@ def shardify(input_idx, input_file_group, num_out_files, out_tmp_dirs, keep_prob
   counts = np.bincount(rand_assts,minlength=num_out_files)
   countsums = np.cumsum(counts)
   assert(countsums[len(countsums)-1] == num_rows_to_keep)
-
-  # if input_idx % 29 == 0:
-  #   print("%s: Shardify writing... (mem usage %dMB)" % (str(datetime.datetime.now()),memusage_mb()), flush=True)
 
   for out_idx in range(num_out_files):
     start = countsums[out_idx]-counts[out_idx]
@@ -188,8 +177,6 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_
   assert(globalTargetsNC.shape[0] == num_rows)
   assert(scoreDistrN.shape[0] == num_rows)
   assert(valueTargetsNCHW.shape[0] == num_rows)
-
-  # print("%s: Merge writing... (mem usage %dMB)" % (str(datetime.datetime.now()),memusage_mb()), flush=True)
 
   #Just truncate and lose the batch at the end, it's fine
   num_batches = (num_rows // (batch_size * ensure_batch_multiple)) * ensure_batch_multiple
