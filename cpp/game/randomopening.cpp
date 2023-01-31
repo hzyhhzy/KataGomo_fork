@@ -148,10 +148,29 @@ static bool tryInitializeBalancedRandomOpening(
   BoardHistory histCopy(hist);
   Player nextPlayerCopy = nextPlayer;
 
+  std::vector<float> randomMoveNumProb;
+
+  randomMoveNumProb = std::vector<float>{35, 30, 25, 20, 15, 10, 5, 1, 0, 0, 0, 0};
+
+  int maxRandomMoveNum = randomMoveNumProb.size();
 
   static const double avgRandomDistFactor = 1.0;
 
-  int randomMoveNum = 2;
+  double randomMoveNumProbTotal = 0;
+  for(int i = 0; i < maxRandomMoveNum; i++)
+    randomMoveNumProbTotal += randomMoveNumProb[i];
+  double randomMoveNumProbSum = 0;
+  double randomMoveNumProbRandomDouble = gameRand.nextDouble() * randomMoveNumProbTotal - 1e-7;
+  int randomMoveNum = -1;
+  for(int i = 0; i < maxRandomMoveNum; i++) {
+    randomMoveNumProbSum += randomMoveNumProb[i];
+    if(randomMoveNumProbSum >= randomMoveNumProbRandomDouble) {
+      randomMoveNum = i;
+      break;
+    }
+  }
+  if(randomMoveNum == -1)
+    ASSERT_UNREACHABLE;
 
   double avgDist = gameRand.nextExponential() * avgRandomDistFactor;
   for(int i = 0; i < randomMoveNum; i++) {
@@ -161,6 +180,13 @@ static bool tryInitializeBalancedRandomOpening(
       return false;
     nextPlayerCopy = getOpp(nextPlayerCopy);
   }
+  Loc balancedMove = getBalanceMove(botB, botW, boardCopy, histCopy, nextPlayerCopy, gameRand, forSelfplay, rejectProb);
+  if(balancedMove == Board::NULL_LOC)
+    return false;
+  histCopy.makeBoardMoveAssumeLegal(boardCopy, balancedMove, nextPlayerCopy);
+  if(histCopy.isGameFinished)
+    return false;
+  nextPlayerCopy = getOpp(nextPlayerCopy);
 
   board = boardCopy;
   hist = histCopy;
@@ -175,7 +201,7 @@ void RandomOpening::initializeBalancedRandomOpening(
   Player& nextPlayer,
   Rand& gameRand,
   bool forSelfplay) {
-  static const int maxTryTimes = 1;
+  static const int maxTryTimes = 20;
   int tryTimes = 0;
   double rejectProb = 0.995;
   while(!tryInitializeBalancedRandomOpening(botB, botW, board, hist, nextPlayer, gameRand, forSelfplay, rejectProb)) {
