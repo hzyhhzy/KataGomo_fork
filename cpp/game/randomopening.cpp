@@ -4,7 +4,7 @@
 #include "../search/asyncbot.h"
 using namespace RandomOpening;
 
-static Loc getRandomNearbyMove(Board& board, Rand& gameRand, double avgDist) {
+static Loc getRandomNearbyMove(Board& board, Rand& gameRand, double avgDist, Player nextPla) {
   int xsize = board.x_size, ysize = board.y_size;
   if(board.isEmpty()) {
     int x = gameRand.nextUInt(xsize - 2) + 1, y = gameRand.nextUInt(ysize - 2) + 1;
@@ -20,7 +20,7 @@ static Loc getRandomNearbyMove(Board& board, Rand& gameRand, double avgDist) {
       for(int x2 = 0; x2 < xsize; x2++)
         for(int y2 = 0; y2 < ysize; y2++) {
           Loc loc2 = Location::getLoc(x2, y2, xsize);
-          if(board.colors[loc2] != C_EMPTY)
+          if(! board.isLegal(loc2,nextPla))
             continue;
           double prob_increase = pow((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1) + avgDist * avgDist, -1.5);
           prob[y2 * xsize + x2] += prob_increase;
