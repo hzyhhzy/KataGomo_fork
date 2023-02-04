@@ -1,14 +1,23 @@
-***2023.1.8 Engine based on Katago 1.12 start Modifying***   
+# 墨棋（奇偶棋）   
+***基本规则(v0.2)：***
+19x19棋盘，黑白交替，黑先。   
+对于一条横/竖/斜线，若有奇数个黑子则称为“奇线”，若有偶数个黑子或者没有黑子只有白子则称为“偶线”，若都没有则既不是奇线也不是偶线。   
+前两步无限制，之后每一步黑子落在的点所在的四条线必须有至少一条是奇线，白子落在的点所在的四条线必须有至少一条是偶线。   
+谁先连五（横竖斜线，超过五也算赢）则获胜，同五子棋。
 
-This branch(BWnoscore2023) removed komi and score
-Branch "BW2023" reserved komi and score
+
   
   
-| Tasks                                                  | Branch         | Stage        | Notes                              |
-| :----------------------------------------------------- | :------------- | :----------- | :--------------------------------- |
-| **(THIS)** 4 Black-White board games(Remove Capture)   | BW2023         | **Finished** | Using Gomoku as a representative, very easy to be modified to other games
-| **(NEXT)** 4.1 Gomoku                                  | Gom2023        | Doing        | New Katagomo engine
-| **(NEXT)** 5 Chess-like games(Multi-stage moves)       | Movestone2023  | Doing        | Maybe using Breakthrough or Ataxx as a representative, very easy to be modified to other games    |	
+| 规则                                                  | Branch         | 结论                              |
+| :----------------------------------------------------- | :------------- | :-------------------------------------------- |
+| v0.2   | newgame_MoQiGomoku         | 19路白必胜，白棋脱先进攻
+| v0.4 前三手不禁，其他同v0.2   | ...V04        | 19路黑必胜，白棋脱先黑棋可以防住
+| v0.5 横竖线连6才获胜（斜线还是5）。白先  | ..._t2  | 19路几乎平衡(黑60%)     
+| v0.1 黑棋连走两手白棋再下  | 兼容v0.4  | 黑棋巨优，没必要训练
+| v0.3 计算奇偶线时，黑子白子都考虑  | ...V03  | 白棋巨劣，白棋基本没地方下
+| 横竖斜线连6才获胜  | ..._t3  | 比较磨叽，存在和棋(19路大约5%)。白大劣，让3个子才比较平衡，如果白棋开局杀不掉会拖到100~200手黑棋才赢
+| 不看斜线的奇偶，只看横竖  | ...T1  | 黑棋巨劣，因为白棋不走黑棋也需要9手才能赢，所以白棋随意脱先
+| v0.25 黑子算2，白子算3，无子则非奇线也非偶线，否则模4等于0或3为偶线，模4等于1或2为奇线  | V025  | 还没训练
 	
 	
 	
