@@ -12,7 +12,7 @@
 #include "../external/nlohmann_json/json.hpp"
 
 #ifndef COMPILE_MAX_BOARD_LEN 
-#define COMPILE_MAX_BOARD_LEN 8
+#define COMPILE_MAX_BOARD_LEN 15
 #endif
 
 //how many stages in each move
@@ -164,8 +164,6 @@ struct Board
   //Plays the specified move, assuming it is legal.
   void playMoveAssumeLegal(Loc loc, Player pla);
 
-  // who plays the next next move
-  Player nextnextPla() const;
 
   // who plays the last move
   Player prevPla() const;

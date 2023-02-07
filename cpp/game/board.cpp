@@ -158,13 +158,6 @@ void Board::init(int xS, int yS)
     return;
   }
 
-  //initial stones of breakthrough
-  for(int x = 0; x < x_size; x++) {
-    setStone(Location::getLoc(x, 0, x_size), C_WHITE);
-    setStone(Location::getLoc(x, 1, x_size), C_WHITE);
-    setStone(Location::getLoc(x, y_size - 1, x_size), C_BLACK);
-    setStone(Location::getLoc(x, y_size - 2, x_size), C_BLACK);
-  }
 }
 
 void Board::initHash()
@@ -328,12 +321,25 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
 
   if(stage == 0)  //choose
   {
-    stage = 1;
-    pos_hash ^= ZOBRIST_STAGENUM_HASH[0];
-    pos_hash ^= ZOBRIST_STAGENUM_HASH[1];
+    if(!isOnBoard(loc)) { //maybe pass
+      nextPla = getOpp(nextPla);
+      pos_hash ^= ZOBRIST_NEXTPLA_HASH[getOpp(nextPla)];
+      pos_hash ^= ZOBRIST_NEXTPLA_HASH[nextPla];
+    } 
+    else if(colors[loc]==C_EMPTY) { //place stone
+      setStone(loc, pla);
+      nextPla = getOpp(nextPla);
+      pos_hash ^= ZOBRIST_NEXTPLA_HASH[getOpp(nextPla)];
+      pos_hash ^= ZOBRIST_NEXTPLA_HASH[nextPla];
+    } 
+    else { //choose a stone
+      stage = 1;
+      pos_hash ^= ZOBRIST_STAGENUM_HASH[0];
+      pos_hash ^= ZOBRIST_STAGENUM_HASH[1];
 
-    midLocs[0] = loc;
-    pos_hash ^= ZOBRIST_STAGELOC_HASH[loc][0];
+      midLocs[0] = loc;
+      pos_hash ^= ZOBRIST_STAGELOC_HASH[loc][0];
+    }
   } 
   else if(stage == 1)  //place
   {
@@ -344,8 +350,8 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
     if(isOnBoard(loc)) {
       Loc chosenLoc = midLocs[0];
       if(isOnBoard(chosenLoc))
-        setStone(chosenLoc, C_EMPTY);
-      setStone(loc, nextPla);
+        setStone(chosenLoc, nextPla);
+      setStone(loc, getOpp(nextPla));
     }
 
     for(int i = 0; i < STAGE_NUM_EACH_PLA - 1; i++) {
@@ -363,12 +369,6 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
 
 }
 
-Player Board::nextnextPla() const {
-  if(stage == STAGE_NUM_EACH_PLA - 1)
-    return getOpp(nextPla);
-  else
-    return nextPla;
-}
 
 Player Board::prevPla() const {
   if(stage == 0)

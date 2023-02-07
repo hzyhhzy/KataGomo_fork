@@ -519,7 +519,7 @@ void Search::beginSearch(bool pondering) {
     plaThatSearchIsFor = rootPla;
   //If we begin the game with a ponder, then assume that "we" are the opposing side until we see otherwise.
   if(plaThatSearchIsFor == C_EMPTY)
-    plaThatSearchIsFor = rootBoard.nextnextPla();
+    plaThatSearchIsFor = rootBoard.prevPla();
 
   if(plaThatSearchIsForLastSearch != plaThatSearchIsFor) {
     //In the case we are doing playoutDoublingAdvantage without a specific player (so, doing the root player)
