@@ -1,4 +1,6 @@
-#!/bin/bash -eu
+
+                        rm -f "$BASEDIR"/latest.bin.gz
+                        cp -f "$TMPDST"/model.bin.gz "$BASEDIR"/latest.bin.gz#!/bin/bash -eu
 set -o pipefail
 {
 #Takes any models in torchmodels_toexport/ and outputs a cuda-runnable model file to modelstobetested/
@@ -76,8 +78,6 @@ function exportStuff() {
 
                 rm -r "$SRC"
                 gzip "$TMPDST"/model.bin
-				rm -f "$BASEDIR"/latest.bin.gz
-				cp -f "$TMPDST"/model.bin.gz "$BASEDIR"/latest.bin.gz
 
                 #Make a bunch of the directories that selfplay will need so that there isn't a race on the selfplay
                 #machines to concurrently make it, since sometimes concurrent making of the same directory can corrupt
@@ -91,6 +91,8 @@ function exportStuff() {
                         mkdir -p "$BASEDIR"/selfplay/"$NAME"/sgfs
                         mkdir -p "$BASEDIR"/selfplay/"$NAME"/tdata
                         mkdir -p "$BASEDIR"/selfplay/"$NAME"/vdata
+                        rm -f "$BASEDIR"/latest.bin.gz
+                        cp -f "$TMPDST"/model.bin.gz "$BASEDIR"/latest.bin.gz
                     fi
                 fi
 
