@@ -20,6 +20,7 @@ void Search::addLeafValue(
   double utility =
     getResultUtility(winLossValue, noResultValue);
 
+  
 
   double utilitySq = utility * utility;
   double weightSq = weight * weight;
