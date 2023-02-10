@@ -142,31 +142,6 @@ void BoardHistory::setInitialTurnNumber(int n) {
   initialTurnNumber = n;
 }
 
-static int numHandicapStonesOnBoardHelper(const Board& board, int blackNonPassTurnsToStart) {
-  int startBoardNumBlackStones = 0;
-  int startBoardNumWhiteStones = 0;
-  for(int y = 0; y<board.y_size; y++) {
-    for(int x = 0; x<board.x_size; x++) {
-      Loc loc = Location::getLoc(x,y,board.x_size);
-      if(board.colors[loc] == C_BLACK)
-        startBoardNumBlackStones += 1;
-      else if(board.colors[loc] == C_WHITE)
-        startBoardNumWhiteStones += 1;
-    }
-  }
-  //If we set up in a nontrivial position, then consider it a non-handicap game.
-  if(startBoardNumWhiteStones != 0)
-    return 0;
-  //Add in additional counted stones
-  int blackTurnAdvantage = startBoardNumBlackStones + blackNonPassTurnsToStart;
-
-  //If there was only one black move/stone to start, then it was a regular game
-  if(blackTurnAdvantage <= 1)
-    return 0;
-  return blackTurnAdvantage;
-}
-
-
 void BoardHistory::printBasicInfo(ostream& out, const Board& board) const {
   Board::printBoard(out, board, Board::NULL_LOC, &moveHistory);
   out << "Next player: " << PlayerIO::playerToString(presumedNextMovePla) << endl;
@@ -222,11 +197,9 @@ bool BoardHistory::isLegal(const Board& board, Loc moveLoc, Player movePla) cons
 
 
 bool BoardHistory::isLegalTolerant(const Board& board, Loc moveLoc, Player movePla) const {
-  bool multiStoneSuicideLegal = true; //Tolerate suicide regardless of rules
   return board.isLegal(moveLoc, movePla);
 }
 bool BoardHistory::makeBoardMoveTolerant(Board& board, Loc moveLoc, Player movePla) {
-  bool multiStoneSuicideLegal = true; //Tolerate suicide regardless of rules
   if(!board.isLegal(moveLoc,movePla))
     return false;
   makeBoardMoveAssumeLegal(board,moveLoc,movePla);
@@ -235,7 +208,6 @@ bool BoardHistory::makeBoardMoveTolerant(Board& board, Loc moveLoc, Player moveP
 
 
 void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player movePla) {
-  Hash128 posHashBeforeMove = board.pos_hash;
 
   //If somehow we're making a move after the game was ended, just clear those values and continue
   isGameFinished = false;
@@ -253,9 +225,6 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
 
   moveHistory.push_back(Move(moveLoc,movePla));
   presumedNextMovePla = board.nextPla;
-
-
-
   Color maybeWinner = GameLogic::checkWinnerAfterPlayed(board, *this, movePla, moveLoc);
   if(maybeWinner!=C_WALL) { //game finished
     setWinner(maybeWinner);
@@ -266,10 +235,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
 
 
 Hash128 BoardHistory::getSituationRulesHash(const Board& board, const BoardHistory& hist, Player nextPlayer) {
-  int xSize = board.x_size;
-  int ySize = board.y_size;
-
-  //Note that board.pos_hash also incorporates the size of the board.
+ //Note that board.pos_hash also incorporates the size of the board.
   Hash128 hash = board.pos_hash;
   hash ^= Board::ZOBRIST_PLAYER_HASH[nextPlayer];
 

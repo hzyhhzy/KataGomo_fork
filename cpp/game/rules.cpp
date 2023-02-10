@@ -66,32 +66,18 @@ string Rules::toString() const {
   return out.str();
 }
 
+string Rules::toJsonString() const {
+  return toJson().dump();
+}
 
 //omitDefaults: Takes up a lot of string space to include stuff, so omit some less common things if matches tromp-taylor rules
 //which is the default for parsing and if not otherwise specified
-json Rules::toJsonHelper(bool omitDefaults) const {
+json Rules::toJson() const {
   json ret;
   ret["scoring"] = writeScoringRule(scoringRule);
   return ret;
 }
 
-json Rules::toJson() const {
-  return toJsonHelper(false);
-}
-
-
-json Rules::toJsonMaybeOmitStuff() const {
-  return toJsonHelper(true);
-}
-
-string Rules::toJsonString() const {
-  return toJsonHelper(false).dump();
-}
-
-
-string Rules::toJsonStringMaybeOmitStuff() const {
-  return toJsonHelper(true).dump();
-}
 
 Rules Rules::updateRules(const string& k, const string& v, Rules oldRules) {
   Rules rules = oldRules;
@@ -113,7 +99,6 @@ static Rules parseRulesHelper(const string& sOrig) {
   else if(sOrig.length() > 0 && sOrig[0] == '{') {
     //Default if not specified
     rules = Rules::getTrompTaylorish();
-    bool taxSpecified = false;
     try {
       json input = json::parse(sOrig);
       string s;
@@ -152,7 +137,6 @@ static Rules parseRulesHelper(const string& sOrig) {
     if(s.length() <= 0)
       throw IOError("Could not parse rules: " + sOrig);
 
-    bool taxSpecified = false;
     while(true) {
       if(s.length() <= 0)
         break;

@@ -15,6 +15,7 @@ ReportedSearchValues::ReportedSearchValues(
   double totalWeight,
   int64_t totalVisits
 ) {
+  (void)search;
   winLossValue = winLossValueAvg;
   noResultValue = noResultValueAvg;
   utility = utilityAvg;

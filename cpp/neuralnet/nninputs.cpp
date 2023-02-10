@@ -54,13 +54,6 @@ double ScoreValue::whiteWinsOfWinner(Player winner, double noResultUtilityForWhi
 static const double twoOverPi = 0.63661977236758134308;
 static const double piOverTwo = 1.57079632679489661923;
 
-static double inverse_atan(double x) {
-  if(x >= piOverTwo - 1e-6) return 1e6;
-  if(x <= -piOverTwo + 1e-6) return -1e6;
-  return tan(x);
-}
-
-
 
 NNOutput::NNOutput()
   :noisedPolicyProbs(NULL)
@@ -332,7 +325,6 @@ Board SymmetryHelpers::getSymBoard(const Board& board, int symmetry) {
     transpose ? board.y_size : board.x_size,
     transpose ? board.x_size : board.y_size
   );
-  Loc symKoLoc = Board::NULL_LOC;
   for(int y = 0; y<board.y_size; y++) {
     for(int x = 0; x<board.x_size; x++) {
       Loc loc = Location::getLoc(x,y,board.x_size);

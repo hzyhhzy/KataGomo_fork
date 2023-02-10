@@ -242,6 +242,7 @@ double Search::interpolateEarly(double halflife, double earlyValue, double value
 }
 
 void Search::getSelfUtilityLCBAndRadius(const SearchNode& parent, const SearchNode* child, int64_t edgeVisits, Loc moveLoc, double& lcbBuf, double& radiusBuf) const {
+  (void)moveLoc;
   int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
   double utilityAvg = child->stats.utilityAvg.load(std::memory_order_acquire);
   double utilitySqAvg = child->stats.utilitySqAvg.load(std::memory_order_acquire);

@@ -43,14 +43,10 @@ struct Rules {
   std::string toString() const;
   std::string toStringMaybeNice() const;
   std::string toJsonString() const;
-  std::string toJsonStringMaybeOmitStuff() const;
   nlohmann::json toJson() const;
-  nlohmann::json toJsonMaybeOmitStuff() const;
 
   static const Hash128 ZOBRIST_SCORING_RULE_HASH[2];
 
-private:
-  nlohmann::json toJsonHelper(bool omitDefaults) const;
 };
 
 #endif  // GAME_RULES_H_
