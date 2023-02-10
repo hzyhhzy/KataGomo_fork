@@ -92,9 +92,9 @@ bool Search::getPlaySelectionValues(
     if(childWeight > maxChildWeight)
       maxChildWeight = childWeight;
     
-      playSelectionValues.push_back((double)childWeight);
-      if(retVisitCounts != NULL)
-        (*retVisitCounts).push_back((double)edgeVisits);
+    playSelectionValues.push_back((double)childWeight);
+    if(retVisitCounts != NULL)
+      (*retVisitCounts).push_back((double)edgeVisits);
     
   }
 
@@ -1150,7 +1150,6 @@ bool Search::getAnalysisJson(
   static constexpr int OUTPUT_PRECISION = 8;
 
   const Board& board = rootBoard;
-  const BoardHistory& hist = rootHistory;
   bool duplicateForSymmetries = true;
   getAnalysisData(buf, minMoves, false, analysisPVLen, duplicateForSymmetries);
 

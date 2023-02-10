@@ -125,8 +125,7 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
         else {
           bool hashComments = false;
           bool hashParent = false;
-          bool flipIfPassOrWFirst = true;
-          bool allowGameOver = false; 
+          bool allowGameOver = false;
           sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, allowGameOver, NULL, posHandler);
         }
       }
@@ -1791,7 +1790,6 @@ FinishedGameData* GameRunner::runGame(
   Rand gameRand(seed + ":" + "forGameRand");
 
   const InitialPosition* initialPosition = NULL;
-  bool usedSekiForkHackPosition = false;
 
   Board board;
   Player pla;

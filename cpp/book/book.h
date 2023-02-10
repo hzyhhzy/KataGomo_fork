@@ -30,7 +30,7 @@ struct BookHash {
 
   // Get book hash, and the symmetry to apply so that hist aligns with book nodes for its current position, (histspace -> nodespace)
   // and the list of symmetries such that book node is invariant under those symmetries.
-  static void getHashAndSymmetry(const BoardHistory& hist, int repBound, BookHash& hashRet, int& symmetryToAlignRet, std::vector<int>& symmetriesRet, int bookVersion);
+  static void getHashAndSymmetry(const BoardHistory& hist, BookHash& hashRet, int& symmetryToAlignRet, std::vector<int>& symmetriesRet, int bookVersion);
 
   friend std::ostream& operator<<(std::ostream& out, const BookHash other);
   std::string toString() const;
@@ -233,7 +233,6 @@ class Book {
   const Board initialBoard;
   const Rules initialRules;
   const Player initialPla;
-  const int repBound;
 
  private:
   double errorFactor;
@@ -264,7 +263,6 @@ class Book {
     const Board& board,
     Rules rules,
     Player initialPla,
-    int repBound,
     double errorFactor,
     double costPerMove,
     double costPerUCBWinLossLoss,

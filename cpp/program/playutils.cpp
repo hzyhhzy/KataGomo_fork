@@ -167,22 +167,6 @@ double PlayUtils::getHackedLCBForWinrate(const Search* search, const AnalysisDat
   return lcb;
 }
 
-static SearchParams getNoiselessParams(SearchParams oldParams, int64_t numVisits) {
-  SearchParams newParams = oldParams;
-  newParams.maxVisits = numVisits;
-  newParams.maxPlayouts = numVisits;
-  newParams.rootNoiseEnabled = false;
-  newParams.rootPolicyTemperature = 1.0;
-  newParams.rootPolicyTemperatureEarly = 1.0;
-  newParams.rootFpuReductionMax = newParams.fpuReductionMax;
-  newParams.rootFpuLossProp = newParams.fpuLossProp;
-  newParams.rootDesiredPerChildVisitsCoeff = 0.0;
-  newParams.rootNumSymmetriesToSample = 1;
-  if(newParams.numThreads > (numVisits+7)/8)
-    newParams.numThreads = (int)((numVisits+7)/8);
-  return newParams;
-}
-
 
 
 double PlayUtils::getSearchFactor(

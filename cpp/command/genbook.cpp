@@ -109,7 +109,6 @@ int MainCmds::genbook(const vector<string>& args) {
 
   const int boardSizeX = cfg.getInt("boardSizeX",2,Board::MAX_LEN);
   const int boardSizeY = cfg.getInt("boardSizeY",2,Board::MAX_LEN);
-  const int repBound = cfg.getInt("repBound",3,1000);
   const double errorFactor = cfg.getDouble("errorFactor",0.01,100.0);
   const double costPerMove = cfg.getDouble("costPerMove",0.0,1000000.0);
   const double costPerUCBWinLossLoss = cfg.getDouble("costPerUCBWinLossLoss",0.0,1000000.0);
@@ -141,7 +140,6 @@ int MainCmds::genbook(const vector<string>& args) {
     std::set<Hash128> uniqueHashes;
     bool hashComments = true;
     bool hashParent = true;
-    bool flipIfPassOrWFirst = false;
     bool allowGameOver = false;
     Rand seedRand("bonusByHash");
     sgf->iterAllUniquePositions(
@@ -161,7 +159,7 @@ int MainCmds::genbook(const vector<string>& args) {
 
           double bonus = Global::stringToDouble(Global::trim(comments.substr(comments.find("BONUS")+5)));
           for(int bookVersion = 1; bookVersion < Book::LATEST_BOOK_VERSION; bookVersion++) {
-            BookHash::getHashAndSymmetry(hist, repBound, hashRet, symmetryToAlignRet, symmetriesRet, bookVersion);
+            BookHash::getHashAndSymmetry(hist, hashRet, symmetryToAlignRet, symmetriesRet, bookVersion);
             bonusByHash[hashRet] = bonus;
             logger.write("Adding bonus " + Global::doubleToString(bonus) + " to hash " + hashRet.toString());
           }
@@ -221,7 +219,6 @@ int MainCmds::genbook(const vector<string>& args) {
     if(
       boardSizeX != book->getInitialHist().getRecentBoard(0).x_size ||
       boardSizeY != book->getInitialHist().getRecentBoard(0).y_size ||
-      repBound != book->repBound ||
       rules != book->getInitialHist().rules
     ) {
       throw StringError("Book parameters do not match");
@@ -295,7 +292,6 @@ int MainCmds::genbook(const vector<string>& args) {
       bonusInitialBoard,
       rules,
       bonusInitialPla,
-      repBound,
       errorFactor,
       costPerMove,
       costPerUCBWinLossLoss,
@@ -650,7 +646,7 @@ int MainCmds::genbook(const vector<string>& args) {
       BookHash hashRet;
       int symmetryToAlignRet;
       vector<int> symmetriesRet;
-      BookHash::getHashAndSymmetry(hist, book->repBound, hashRet, symmetryToAlignRet, symmetriesRet, book->bookVersion);
+      BookHash::getHashAndSymmetry(hist, hashRet, symmetryToAlignRet, symmetriesRet, book->bookVersion);
       if(hashRet != node.hash()) {
         ostringstream out;
         Board board = hist.getRecentBoard(0);
@@ -1023,7 +1019,7 @@ int MainCmds::checkbook(const vector<string>& args) {
       BookHash hashRet;
       int symmetryToAlignRet;
       vector<int> symmetriesRet;
-      BookHash::getHashAndSymmetry(hist, book->repBound, hashRet, symmetryToAlignRet, symmetriesRet, book->bookVersion);
+      BookHash::getHashAndSymmetry(hist, hashRet, symmetryToAlignRet, symmetriesRet, book->bookVersion);
       if(hashRet != node.hash()) {
         logger.write("Book failed integrity check, the node with hash " + node.hash().toString() + " when walked to has hash " + hashRet.toString());
         ostringstream out;

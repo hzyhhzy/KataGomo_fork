@@ -866,7 +866,6 @@ Sgf::PositionSample Sgf::PositionSample::ofJsonLine(const string& s) {
 }
 
 Sgf::PositionSample Sgf::PositionSample::getColorFlipped() const {
-  assert(false, "Sgf::PositionSample::getColorFlipped() is disabled");
   Sgf::PositionSample other = *this;
   Board newBoard(other.board.x_size,other.board.y_size);
   for(int y = 0; y < other.board.y_size; y++) {
@@ -898,7 +897,7 @@ Sgf::PositionSample Sgf::PositionSample::previousPosition(double newWeight) cons
   return other;
 }
 
-bool Sgf::PositionSample::isEqualForTesting(const Sgf::PositionSample& other, bool checkNumCaptures, bool checkSimpleKo) const {
+bool Sgf::PositionSample::isEqualForTesting(const Sgf::PositionSample& other) const {
   if(!board.isEqualForTesting(other.board))
     return false;
   if(nextPla != other.nextPla)

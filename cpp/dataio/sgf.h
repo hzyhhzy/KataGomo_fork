@@ -102,7 +102,7 @@ struct Sgf {
 
     //For the moment, only used in testing since it does extra consistency checks.
     //If we need a version to be used in "prod", we could make an efficient version maybe as operator==.
-    bool isEqualForTesting(const PositionSample& other, bool checkNumCaptures, bool checkSimpleKo) const;
+    bool isEqualForTesting(const PositionSample& other) const;
   };
 
   //Loads SGF all unique positions in ALL branches of that SGF.

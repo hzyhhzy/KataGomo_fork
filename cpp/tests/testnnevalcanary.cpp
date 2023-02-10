@@ -199,6 +199,7 @@ struct GpuErrorStats {
   }
 
   bool checkStats99(double wr, double score, double tpd, double pkld) {
+    (void)score;
     std::sort(winrateError.begin(),winrateError.end());
     std::sort(topPolicyDiff.begin(),topPolicyDiff.end());
     std::sort(policyKLDiv.begin(),policyKLDiv.end());
@@ -210,6 +211,7 @@ struct GpuErrorStats {
   }
 
   bool checkStatsMax(double wr, double score, double tpd, double pkld) {
+    (void)score;
     std::sort(winrateError.begin(),winrateError.end());
     std::sort(topPolicyDiff.begin(),topPolicyDiff.end());
     std::sort(policyKLDiv.begin(),policyKLDiv.end());
