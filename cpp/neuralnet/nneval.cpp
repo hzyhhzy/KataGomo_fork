@@ -786,12 +786,12 @@ void NNEvaluator::evaluate(
           lossProb = 0.0;
           noResultProb = 1.0;
         } 
-        else if(resultsBeforeNN.winner == C_WHITE) {  // white win
+        else if(resultsBeforeNN.winner == nextPlayer) {  // next player win
           winProb = 1.0;
           lossProb = 0.0;
           noResultProb = 0.0;
         } 
-        else if(resultsBeforeNN.winner == C_BLACK) {  // black win
+        else if(resultsBeforeNN.winner == getOpp(nextPlayer)) {  // opp win
           winProb = 0.0;
           lossProb = 1.0;
           noResultProb = 0.0;
