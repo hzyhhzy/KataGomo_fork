@@ -524,8 +524,8 @@ void NNInputs::fillRowV7(
   if(resultsBeforeNN.inited) {
     rowGlobal[1] = 1.0;
     rowGlobal[2] = resultsBeforeNN.winner == C_EMPTY;
-    rowGlobal[3] = resultsBeforeNN.winner == C_WHITE;
-    rowGlobal[4] = resultsBeforeNN.winner == C_BLACK;
+    rowGlobal[3] = resultsBeforeNN.winner == nextPlayer;
+    rowGlobal[4] = resultsBeforeNN.winner == getOpp(nextPlayer);
     if(board.isOnBoard(resultsBeforeNN.myOnlyLoc))
       setRowBin(
         rowBin,
