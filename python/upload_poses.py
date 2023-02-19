@@ -101,6 +101,14 @@ def handle_file(poses_by_key, poses_file):
         pos["hintLoc"]
       )
 
+      if len(pos["movePlas"]) > 0:
+        assert pos["nextPla"] == "B" or pos["nextPla"] == "W"
+        assert pos["movePlas"][0] == pos["nextPla"]
+      for i in range(len(pos["movePlas"])):
+        assert pos["movePlas"][i] == "B" or pos["movePlas"][i] == "W"
+      for i in range(1,len(pos["movePlas"])):
+        assert pos["movePlas"][i] != pos["movePlas"][i-1]
+
       if "weight" in pos:
         weight = pos["weight"]
       else:
@@ -110,11 +118,11 @@ def handle_file(poses_by_key, poses_file):
       if key in poses_by_key:
         poses_by_key[key]["weight"] += weight
       else:
-        poses_by_key[key] = pos
+        poses_by_key[key] = pos.copy()
       if key in poses_by_key_this_file:
         poses_by_key_this_file[key]["weight"] += weight
       else:
-        poses_by_key_this_file[key] = pos
+        poses_by_key_this_file[key] = pos.copy()
   if separate_summaries:
     sumweight,sumweightsq = compute_sum_sumsq(poses_by_key_this_file.values())
     if sumweight > 0 and sumweightsq > 0:
