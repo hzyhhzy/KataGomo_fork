@@ -25,6 +25,8 @@ Hash128 Board::ZOBRIST_STAGENUM_HASH[STAGE_NUM_EACH_PLA];
 Hash128 Board::ZOBRIST_STAGELOC_HASH[MAX_ARR_SIZE][STAGE_NUM_EACH_PLA];
 Hash128 Board::ZOBRIST_NEXTPLA_HASH[4];
 Hash128 Board::ZOBRIST_MOVENUM_HASH[MAX_MOVE_NUM];
+Hash128 Board::ZOBRIST_REMAIN_SCORE_BLACK_HASH[MAX_SCORE];
+Hash128 Board::ZOBRIST_REMAIN_SCORE_WHITE_HASH[MAX_SCORE];
 Hash128 Board::ZOBRIST_PLAYER_HASH[4];
 const Hash128 Board::ZOBRIST_GAME_IS_OVER = //Based on sha256 hash of Board::ZOBRIST_GAME_IS_OVER
   Hash128(0xb6f9e465597a77eeULL, 0xf1d583d960a4ce7fULL);
@@ -109,6 +111,9 @@ Board::Board(const Board& other)
 
   memcpy(colors, other.colors, sizeof(Color)*MAX_ARR_SIZE);
 
+  blackRemainScore = other.blackRemainScore;
+  whiteRemainScore = other.whiteRemainScore;
+
   movenum = other.movenum;
   pos_hash = other.pos_hash;
 
@@ -119,8 +124,7 @@ Board::Board(const Board& other)
   memcpy(midLocs, other.midLocs, sizeof(Loc) * STAGE_NUM_EACH_PLA);
 }
 
-void Board::init(int xS, int yS)
-{
+void Board::init(int xS, int yS) {
   assert(IS_ZOBRIST_INITALIZED);
   if(xS < 0 || yS < 0 || xS > MAX_LEN || yS > MAX_LEN)
     throw StringError("Board::init - invalid board size");
@@ -131,13 +135,14 @@ void Board::init(int xS, int yS)
   for(int i = 0; i < MAX_ARR_SIZE; i++)
     colors[i] = C_WALL;
 
+  blackRemainScore = GameLogic::DefaultTargetScore;
+  whiteRemainScore = GameLogic::DefaultTargetScore;
+
   movenum = 0;
 
-  for(int y = 0; y < y_size; y++)
-  {
-    for(int x = 0; x < x_size; x++)
-    {
-      Loc loc = (x+1) + (y+1)*(x_size+1);
+  for(int y = 0; y < y_size; y++) {
+    for(int x = 0; x < x_size; x++) {
+      Loc loc = (x + 1) + (y + 1) * (x_size + 1);
       colors[loc] = C_EMPTY;
       // empty_list.add(loc);
     }
@@ -149,22 +154,11 @@ void Board::init(int xS, int yS)
   stage = 0;
 
   pos_hash = ZOBRIST_SIZE_X_HASH[x_size] ^ ZOBRIST_SIZE_Y_HASH[y_size] ^ ZOBRIST_NEXTPLA_HASH[nextPla] ^
-             ZOBRIST_STAGENUM_HASH[stage];
+             ZOBRIST_STAGENUM_HASH[stage] ^ ZOBRIST_REMAIN_SCORE_BLACK_HASH[blackRemainScore] ^
+             ZOBRIST_REMAIN_SCORE_WHITE_HASH[whiteRemainScore];
 
   Location::getAdjacentOffsets(adj_offsets, x_size);
 
-  if(y_size < 4) {
-    cout << "y_size < 4 is not supported for Breakthrough";
-    return;
-  }
-
-  //initial stones of breakthrough
-  for(int x = 0; x < x_size; x++) {
-    setStone(Location::getLoc(x, 0, x_size), C_WHITE);
-    setStone(Location::getLoc(x, 1, x_size), C_WHITE);
-    setStone(Location::getLoc(x, y_size - 1, x_size), C_BLACK);
-    setStone(Location::getLoc(x, y_size - 2, x_size), C_BLACK);
-  }
 }
 
 void Board::initHash()
@@ -211,6 +205,11 @@ void Board::initHash()
   }
   ZOBRIST_MOVENUM_HASH[0] = Hash128();
 
+  for(int i = 0; i < MAX_SCORE; i++) {
+    ZOBRIST_REMAIN_SCORE_BLACK_HASH[i] = nextHash();
+    ZOBRIST_REMAIN_SCORE_WHITE_HASH[i] = nextHash();
+  }
+
   //Reseed the random number generator so that these size hashes are also
   //not affected by the size of the board we compile with
   rand.init("Board::initHash() for ZOBRIST_SIZE hashes");
@@ -229,9 +228,40 @@ bool Board::isOnBoard(Loc loc) const {
 }
 
 //Check if moving here is illegal.
-bool Board::isLegal(Loc loc, Player pla) const
-{
-  return GameLogic::isLegal(*this, pla, loc);
+bool Board::isLegal(Loc loc, Player pla) const {
+  if(pla != nextPla) {
+    std::cout << "Error next player ";
+    return false;
+  }
+
+  if(loc == Board::PASS_LOC)  // pass is lose, but not illegal
+    return true;
+
+  if(!isOnBoard(loc))
+    return false;
+
+  if(stage == 0)  // choose a piece
+  {
+    return true;
+  } 
+  else if(stage == 1)  // place the piece
+  {
+    Color opp = getOpp(pla);
+
+    Loc chosenMove = midLocs[0];
+    assert(isOnBoard(chosenMove));
+    Color chosenColor = colors[chosenMove];
+    assert(chosenColor != C_EMPTY);
+    if(chosenColor==pla) {
+      return colors[loc] == C_EMPTY;
+    } 
+    else if(chosenColor == opp) {
+      return colors[loc] == C_EMPTY && Location::euclideanDistanceSquared(chosenMove, loc, x_size) <= 2;
+    } 
+    else ASSERT_UNREACHABLE;
+  }
+  ASSERT_UNREACHABLE;
+  return false;
 }
 
 bool Board::isEmpty() const {
@@ -316,32 +346,45 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
   movenum++;
   pos_hash ^= ZOBRIST_MOVENUM_HASH[movenum];
 
+  if(!isOnBoard(loc))
+    return;
+
   if(stage == 0)  //choose
   {
-    stage = 1;
-    pos_hash ^= ZOBRIST_STAGENUM_HASH[0];
-    pos_hash ^= ZOBRIST_STAGENUM_HASH[1];
+    if(colors[loc] == C_EMPTY) { //落子
+      colors[loc] == pla;
+      GameLogic::maybeCapture(*this, pla, loc);
+    } 
+    else{ //移子或推子
+      stage = 1;
+      pos_hash ^= ZOBRIST_STAGENUM_HASH[0];
+      pos_hash ^= ZOBRIST_STAGENUM_HASH[1];
 
-    midLocs[0] = loc;
-    pos_hash ^= ZOBRIST_STAGELOC_HASH[loc][0];
+      midLocs[0] = loc;
+      pos_hash ^= ZOBRIST_STAGELOC_HASH[loc][0];
+    }
   } 
   else if(stage == 1)  //place
   {
-    stage = 0;
-    pos_hash ^= ZOBRIST_STAGENUM_HASH[1];
-    pos_hash ^= ZOBRIST_STAGENUM_HASH[0];
+    Color opp = getOpp(pla);
+    Loc chosenLoc = midLocs[0];
+    if(colors[chosenLoc] == pla) {  // 移子
+
 
     if(isOnBoard(loc)) {
-      Loc chosenLoc = midLocs[0];
       if(isOnBoard(chosenLoc))
         setStone(chosenLoc, C_EMPTY);
-      setStone(loc, nextPla);
+      setStone(loc, pla);
     }
 
     for(int i = 0; i < STAGE_NUM_EACH_PLA - 1; i++) {
       pos_hash ^= ZOBRIST_STAGELOC_HASH[midLocs[i]][i];
       midLocs[i] = Board::NULL_LOC;
     }
+
+    stage = 0;
+    pos_hash ^= ZOBRIST_STAGENUM_HASH[1];
+    pos_hash ^= ZOBRIST_STAGENUM_HASH[0];
 
     nextPla = getOpp(nextPla);
     pos_hash ^= ZOBRIST_NEXTPLA_HASH[getOpp(nextPla)];
@@ -353,19 +396,6 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
 
 }
 
-Player Board::nextnextPla() const {
-  if(stage == STAGE_NUM_EACH_PLA - 1)
-    return getOpp(nextPla);
-  else
-    return nextPla;
-}
-
-Player Board::prevPla() const {
-  if(stage == 0)
-    return getOpp(nextPla);
-  else
-    return nextPla;
-}
 
 Hash128 Board::getSitHash(Player pla) const {
   Hash128 h = pos_hash;
@@ -423,6 +453,11 @@ void Board::checkConsistency() const {
     // std::cout << ZOBRIST_STAGELOC_HASH[midLocs[i]][i]<<" ";
     tmp_pos_hash ^= ZOBRIST_STAGELOC_HASH[midLocs[i]][i];
   }
+
+  if(blackRemainScore < 0 || whiteRemainScore < 0)
+    throw StringError(errLabel + "RemainScore smaller than 0");
+  tmp_pos_hash ^= ZOBRIST_REMAIN_SCORE_BLACK_HASH[blackRemainScore];
+  tmp_pos_hash ^= ZOBRIST_REMAIN_SCORE_WHITE_HASH[whiteRemainScore];
 
   if(pos_hash != tmp_pos_hash) {
     std::cout << "Stage=" << stage << ",NextPla=" << int(nextPla) << std::endl;
