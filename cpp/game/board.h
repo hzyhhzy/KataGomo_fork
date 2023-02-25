@@ -12,7 +12,7 @@
 #include "../external/nlohmann_json/json.hpp"
 
 #ifndef COMPILE_MAX_BOARD_LEN
-#define COMPILE_MAX_BOARD_LEN 19
+#define COMPILE_MAX_BOARD_LEN 8
 #endif
 
 //TYPES AND CONSTANTS-----------------------------------------------------------------
@@ -112,7 +112,6 @@ struct Board
   static Hash128 ZOBRIST_SIZE_X_HASH[MAX_LEN+1];
   static Hash128 ZOBRIST_SIZE_Y_HASH[MAX_LEN+1];
   static Hash128 ZOBRIST_BOARD_HASH[MAX_ARR_SIZE][4];
-  static Hash128 ZOBRIST_MOVENUM_HASH[MAX_ARR_SIZE];
   static Hash128 ZOBRIST_BOARD_HASH2[MAX_ARR_SIZE][4];
   static Hash128 ZOBRIST_PLAYER_HASH[4];
   static const Hash128 ZOBRIST_GAME_IS_OVER;
@@ -129,6 +128,8 @@ struct Board
   //Functions------------------------------------
 
   bool isLegal(Loc loc, Player pla) const;
+  bool noLegalMoveExceptPass(Player pla) const;
+
   //Check if this location is on the board
   bool isOnBoard(Loc loc) const;
   //Is this board empty?
@@ -136,6 +137,7 @@ struct Board
   //Count the number of stones on the board
   int numStonesOnBoard() const;
   int numPlaStonesOnBoard(Player pla) const;
+  int countWhiteScore() const;
 
 
   //Sets the specified stone if possible, including overwriting existing stones.
@@ -173,8 +175,6 @@ struct Board
   int x_size;                  //Horizontal size of board
   int y_size;                  //Vertical size of board
   Color colors[MAX_ARR_SIZE];  //Color of each location on the board.
-  int movenum; //how many moves
-  int stonenum; //how many stones on board
 
   /* PointList empty_list; //List of all empty locations on board */
 

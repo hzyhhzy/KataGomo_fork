@@ -1,5 +1,4 @@
 #include "../game/boardhistory.h"
-#include "../game/gamelogic.h"
 #include <algorithm>
 
 using namespace std;
@@ -215,6 +214,9 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   isNoResult = false;
   isResignation = false;
 
+
+  bool illegalPass = (moveLoc == Board::PASS_LOC) && (!board.noLegalMoveExceptPass(movePla));
+
   board.playMoveAssumeLegal(moveLoc,movePla);
 
   
@@ -226,12 +228,21 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   moveHistory.push_back(Move(moveLoc,movePla));
   presumedNextMovePla = getOpp(movePla);
 
-
-  Color maybeWinner = GameLogic::checkWinnerAfterPlayed(board, *this, movePla, moveLoc);
-  if(maybeWinner!=C_WALL) { //game finished
-    setWinner(maybeWinner);
+  Player opp = getOpp(movePla);
+  if(illegalPass)
+    setWinner(opp);
+  else if(moveLoc == Board::PASS_LOC) {
+    if(board.noLegalMoveExceptPass(opp)) //game finished
+    {
+      int whiteScore = board.countWhiteScore();
+      if(whiteScore > 0)
+        setWinner(C_WHITE);
+      else if(whiteScore < 0)
+        setWinner(C_BLACK);
+      else
+        setWinner(C_EMPTY);
+    }
   }
-
 }
 
 

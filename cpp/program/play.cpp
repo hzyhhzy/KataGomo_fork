@@ -8,7 +8,6 @@
 #include "../search/asyncbot.h"
 #include "../search/searchnode.h"
 #include "../dataio/files.h"
-#include "../game/randomopening.h"
 
 #include "../core/test.h"
 
@@ -1226,16 +1225,6 @@ FinishedGameData* Play::runGame(
   };
 
 
-  double balanceOpeningProb = playSettings.forSelfPlay ? 0.99 : 1.0;
-
-  if(gameRand.nextBool(balanceOpeningProb)) {
-    if(board.numStonesOnBoard() != 0)
-      cout << "board not empty when initialize opening" << endl;
-    else {
-      if(board.numStonesOnBoard() == 0)  // no lib opening
-        RandomOpening::initializeBalancedRandomOpening(botB, botW, board, hist, pla, gameRand, playSettings.forSelfPlay);
-    }
-  }
 
   if(playSettings.initGamesWithPolicy && otherGameProps.allowPolicyInit) {
     double avgPolicyInitMoveNum =

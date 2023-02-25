@@ -22,7 +22,6 @@ Hash128 Board::ZOBRIST_SIZE_X_HASH[MAX_LEN+1];
 Hash128 Board::ZOBRIST_SIZE_Y_HASH[MAX_LEN+1];
 Hash128 Board::ZOBRIST_BOARD_HASH[MAX_ARR_SIZE][4];
 Hash128 Board::ZOBRIST_PLAYER_HASH[4];
-Hash128 Board::ZOBRIST_MOVENUM_HASH[MAX_ARR_SIZE];
 Hash128 Board::ZOBRIST_BOARD_HASH2[MAX_ARR_SIZE][4];
 const Hash128 Board::ZOBRIST_GAME_IS_OVER = //Based on sha256 hash of Board::ZOBRIST_GAME_IS_OVER
   Hash128(0xb6f9e465597a77eeULL, 0xf1d583d960a4ce7fULL);
@@ -107,8 +106,6 @@ Board::Board(const Board& other)
 
   memcpy(colors, other.colors, sizeof(Color)*MAX_ARR_SIZE);
 
-  movenum = other.movenum;
-  stonenum = other.stonenum;
   pos_hash = other.pos_hash;
 
   memcpy(adj_offsets, other.adj_offsets, sizeof(short)*8);
@@ -126,8 +123,6 @@ void Board::init(int xS, int yS)
   for(int i = 0; i < MAX_ARR_SIZE; i++)
     colors[i] = C_WALL;
 
-  movenum = 0;
-  stonenum = 0;
 
   for(int y = 0; y < y_size; y++)
   {
@@ -139,7 +134,15 @@ void Board::init(int xS, int yS)
     }
   }
 
+  
   pos_hash = ZOBRIST_SIZE_X_HASH[x_size] ^ ZOBRIST_SIZE_Y_HASH[y_size];
+
+  int halfX = x_size / 2, halfY = y_size / 2;
+  setStone(Location::getLoc(halfX, halfY, x_size), C_WHITE);
+  setStone(Location::getLoc(halfX - 1, halfY - 1, x_size), C_WHITE);
+  setStone(Location::getLoc(halfX - 1, halfY, x_size), C_BLACK);
+  setStone(Location::getLoc(halfX, halfY - 1, x_size), C_BLACK);
+
 
   Location::getAdjacentOffsets(adj_offsets,x_size);
 }
@@ -171,10 +174,6 @@ void Board::initHash()
     }
   }
 
-  for(int i = 0; i < MAX_ARR_SIZE; i++) {
-    ZOBRIST_MOVENUM_HASH[i] = nextHash();
-  }
-  ZOBRIST_MOVENUM_HASH[0] = Hash128();
 
   //Reseed the random number generator so that these size hashes are also
   //not affected by the size of the board we compile with
@@ -207,11 +206,39 @@ bool Board::isLegal(Loc loc, Player pla) const
 {
   if(pla != P_BLACK && pla != P_WHITE)
     return false;
-  return loc == PASS_LOC || (
-    loc >= 0 &&
-    loc < MAX_ARR_SIZE &&
-    (colors[loc] == C_EMPTY) 
-  );
+  if(loc == PASS_LOC)
+    return true;
+  if(!isOnBoard(loc))
+    return false;
+  if(colors[loc] != C_EMPTY)
+    return false;
+  for(int adj = 0; adj < 8; adj++) {
+    Loc l = loc + adj_offsets[adj];
+    if(!isOnBoard(l) || colors[l] != getOpp(pla))
+      continue;
+
+    while(1) {
+      l += adj_offsets[adj];
+      if(!isOnBoard(l))
+        break;
+      if(colors[l] == pla)
+        return true;
+      if(colors[l] != getOpp(pla))
+        break;
+    }
+  }
+  return false;
+  
+}
+
+bool Board::noLegalMoveExceptPass(Player pla) const 
+{
+  for(int x = 0; x < x_size; x++)
+    for(int y = 0; y < y_size; y++) {
+      if(isLegal(Location::getLoc(x, y, x_size), pla))
+        return false;
+    }
+  return true;
 }
 
 bool Board::isEmpty() const {
@@ -249,6 +276,20 @@ int Board::numPlaStonesOnBoard(Player pla) const {
   return num;
 }
 
+int Board::countWhiteScore() const {
+  int score = 0;
+  for(int y = 0; y < y_size; y++) {
+    for(int x = 0; x < x_size; x++) {
+      Loc loc = Location::getLoc(x, y, x_size);
+      if(colors[loc] == C_WHITE)
+        score += 1;
+      else if(colors[loc] == C_BLACK)
+        score -= 1;
+    }
+  }
+  return score;
+}
+
 bool Board::setStone(Loc loc, Color color)
 {
   if(loc < 0 || loc >= MAX_ARR_SIZE || colors[loc] == C_WALL)
@@ -261,10 +302,6 @@ bool Board::setStone(Loc loc, Color color)
   pos_hash ^= ZOBRIST_BOARD_HASH[loc][colorOld];
   pos_hash ^= ZOBRIST_BOARD_HASH[loc][color];
 
-  if(colorOld != C_EMPTY)
-    stonenum--;
-  if(color != C_EMPTY)
-    stonenum++;
 
   return true;
 }
@@ -292,18 +329,42 @@ bool Board::setStones(std::vector<Move> placements) {
 }
 
 //Plays the specified move, assuming it is legal.
-void Board::playMoveAssumeLegal(Loc loc, Player pla)
-{
-  pos_hash ^= ZOBRIST_MOVENUM_HASH[movenum];
-  movenum++;
-  pos_hash ^= ZOBRIST_MOVENUM_HASH[movenum];
-
-  //Pass?
-  if(loc == PASS_LOC)
-  {
+void Board::playMoveAssumeLegal(Loc loc, Player pla) {
+  // Pass?
+  if(loc == PASS_LOC) {
     return;
   }
   setStone(loc, pla);
+  Player opp = getOpp(pla);
+
+  for(int adj = 0; adj < 8; adj++) {
+    Loc l = loc + adj_offsets[adj];
+    if(!isOnBoard(l) || colors[l] != getOpp(pla))
+      continue;
+    bool needChange = false;
+    while(1) {
+      l += adj_offsets[adj];
+      if(!isOnBoard(l))
+        break;
+      if(colors[l] == pla) {
+        needChange = true;
+        break;
+      }
+      if(colors[l] != getOpp(pla))
+        break;
+    }
+    if(needChange) {
+      Loc l = loc;
+      while(1) {
+        l += adj_offsets[adj];
+        assert(isOnBoard(l) && (colors[l] == pla || colors[l] == opp));
+        if(colors[l] == pla) {
+          break;
+        } else
+          setStone(l, pla);
+      }
+    }
+  }
 
 }
 
@@ -355,13 +416,9 @@ void Board::checkConsistency() const {
     }
   }
 
-  tmp_pos_hash ^= ZOBRIST_MOVENUM_HASH[movenum];
 
   if(pos_hash != tmp_pos_hash)
     throw StringError(errLabel + "Pos hash does not match expected");
-
-  if(stonenum != numStonesOnBoard())
-    throw StringError(errLabel + "stoneNum does not match expected");
 
 
   short tmpAdjOffsets[8];

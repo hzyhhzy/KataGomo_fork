@@ -182,8 +182,6 @@ add_executable(katago
   core/timer.cpp
   game/board.cpp
   game/rules.cpp
-  game/gamelogic.cpp
-  game/randomopening.cpp
   game/boardhistory.cpp
   game/graphhash.cpp
   dataio/sgf.cpp
