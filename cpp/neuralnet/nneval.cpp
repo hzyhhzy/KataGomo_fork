@@ -589,27 +589,25 @@ void NNEvaluator::evaluate(
   Player nextPlayer,
   const MiscNNInputParams& nnInputParams,
   NNResultBuf& buf,
-  bool skipCache
-) {
+  bool skipCache) {
   assert(!isKilled);
   buf.hasResult = false;
- 
 
   if(board.x_size > nnXLen || board.y_size > nnYLen)
-    throw StringError("NNEvaluator was configured with nnXLen = " + Global::intToString(nnXLen) +
-                      " nnYLen = " + Global::intToString(nnYLen) +
-                      " but was asked to evaluate board with larger x or y size");
+    throw StringError(
+      "NNEvaluator was configured with nnXLen = " + Global::intToString(nnXLen) +
+      " nnYLen = " + Global::intToString(nnYLen) + " but was asked to evaluate board with larger x or y size");
   if(requireExactNNLen) {
     if(board.x_size != nnXLen || board.y_size != nnYLen)
-      throw StringError("NNEvaluator was configured with nnXLen = " + Global::intToString(nnXLen) +
-                        " nnYLen = " + Global::intToString(nnYLen) +
-                        " and requireExactNNLen, but was asked to evaluate board with different x or y size");
+      throw StringError(
+        "NNEvaluator was configured with nnXLen = " + Global::intToString(nnXLen) +
+        " nnYLen = " + Global::intToString(nnYLen) +
+        " and requireExactNNLen, but was asked to evaluate board with different x or y size");
   }
 
   Hash128 nnHash = NNInputs::getHash(board, history, nextPlayer, nnInputParams);
 
-  if(nnCacheTable != NULL && !skipCache && nnCacheTable->get(nnHash,buf.result)) {
-    
+  if(nnCacheTable != NULL && !skipCache && nnCacheTable->get(nnHash, buf.result)) {
     buf.hasResult = true;
     return;
   }
@@ -617,16 +615,12 @@ void NNEvaluator::evaluate(
   buf.boardXSizeForServer = board.x_size;
   buf.boardYSizeForServer = board.y_size;
 
-  MiscNNInputParams nnInputParamsWithResultsBeforeNN = nnInputParams;
-  nnInputParamsWithResultsBeforeNN.resultsBeforeNN.init(board, history, nextPlayer);
-
   if(!debugSkipNeuralNet) {
     int rowSpatialLen = NNModelVersion::getNumSpatialFeatures(modelVersion) * nnXLen * nnYLen;
     if(buf.rowSpatial == NULL) {
       buf.rowSpatial = new float[rowSpatialLen];
       buf.rowSpatialSize = rowSpatialLen;
-    }
-    else {
+    } else {
       if(buf.rowSpatialSize != rowSpatialLen)
         throw StringError("Cannot reuse an nnResultBuf with different dimensions or model version");
     }
@@ -634,16 +628,15 @@ void NNEvaluator::evaluate(
     if(buf.rowGlobal == NULL) {
       buf.rowGlobal = new float[rowGlobalLen];
       buf.rowGlobalSize = rowGlobalLen;
-    }
-    else {
+    } else {
       if(buf.rowGlobalSize != rowGlobalLen)
         throw StringError("Cannot reuse an nnResultBuf with different dimensions or model version");
     }
 
-
     static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
     if(inputsVersion == 7)
-      NNInputs::fillRowV7(board, history, nextPlayer, nnInputParamsWithResultsBeforeNN, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
+      NNInputs::fillRowV7(
+        board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
     else
       ASSERT_UNREACHABLE;
   }
@@ -665,48 +658,45 @@ void NNEvaluator::evaluate(
   }
   lock.unlock();
 
-  //This should only fire if we have more than maxConcurrentEvals evaluating, such that they wrap the
-  //circular buffer.
+  // This should only fire if we have more than maxConcurrentEvals evaluating, such that they wrap the
+  // circular buffer.
   assert(!overlooped);
-  (void)overlooped; //Avoid unused variable when asserts disabled
+  (void)overlooped;  // Avoid unused variable when asserts disabled
 
   unique_lock<std::mutex> resultLock(buf.resultMutex);
   while(!buf.hasResult)
     buf.clientWaitingForResult.wait(resultLock);
   resultLock.unlock();
 
-  //Perform postprocessing on the result - turn the nn output into probabilities
-  //As a hack though, if the only thing we were missing was the ownermap, just grab the old policy and values
-  //and use those. This avoids recomputing in a randomly different orientation when we just need the ownermap
-  //and causing policy weights to be different, which would reduce performance of successive searches in a game
-  //by making the successive searches distribute their playouts less coherently and using the cache more poorly.
-  
-    float* policy = buf.result->policyProbs;
+  // Perform postprocessing on the result - turn the nn output into probabilities
+  // As a hack though, if the only thing we were missing was the ownermap, just grab the old policy and values
+  // and use those. This avoids recomputing in a randomly different orientation when we just need the ownermap
+  // and causing policy weights to be different, which would reduce performance of successive searches in a game
+  // by making the successive searches distribute their playouts less coherently and using the cache more poorly.
 
-    float nnPolicyInvTemperature = 1.0f / nnInputParams.nnPolicyTemperature;
+  float* policy = buf.result->policyProbs;
 
-    int xSize = board.x_size;
-    int ySize = board.y_size;
+  float nnPolicyInvTemperature = 1.0f / nnInputParams.nnPolicyTemperature;
 
-    float maxPolicy = -1e25f;
-    bool isLegal[NNPos::MAX_NN_POLICY_SIZE];
-    int legalCount = 0;
+  int xSize = board.x_size;
+  int ySize = board.y_size;
 
-    GameLogic::ResultsBeforeNN resultsBeforeNN = nnInputParamsWithResultsBeforeNN.resultsBeforeNN;
-    if(resultsBeforeNN.myOnlyLoc == Board::NULL_LOC) {
-      for(int i = 0; i < policySize; i++) {
-        Loc loc = NNPos::posToLoc(i, xSize, ySize, nnXLen, nnYLen);
-        isLegal[i] = history.isLegal(board, loc, nextPlayer);
-      }
-    } 
-    else  // assume all other moves are illegal
-    {
-      for(int i = 0; i < policySize; i++) {
-        isLegal[i] = false;
-      }
-      isLegal[NNPos::locToPos(resultsBeforeNN.myOnlyLoc, xSize, nnXLen, nnYLen)] = true;
-      isLegal[NNPos::locToPos(Board::PASS_LOC, xSize, nnXLen, nnYLen)] = true;
+  float maxPolicy = -1e25f;
+  bool isLegal[NNPos::MAX_NN_POLICY_SIZE];
+  int legalCount = 0;
+
+  for(int i = 0; i < policySize; i++) {
+    Loc loc = NNPos::posToLoc(i, xSize, ySize, nnXLen, nnYLen);
+    isLegal[i] = history.isLegal(board, loc, nextPlayer);
+  }
+
+  if(debugSkipNeuralNet && board.stage == 0) {
+    for(int i = 0; i < policySize; i++) {
+      Loc loc = NNPos::posToLoc(i, xSize, ySize, nnXLen, nnYLen);
+      if(GameLogic::checkCaptureIfPlay(board, nextPlayer, loc) > 0)
+        policy[i] += 3.0;
     }
+  }
 
     for(int i = 0; i<policySize; i++) {
       float policyValue;
@@ -774,29 +764,12 @@ void NNEvaluator::evaluate(
         double shorttermWinlossErrorPreSoftplus = buf.result->shorttermWinlossError;
 
         
-        if(resultsBeforeNN.winner == C_EMPTY) {  // draw
-          winProb = 0.0;
-          lossProb = 0.0;
-          noResultProb = 1.0;
-        } 
-        else if(resultsBeforeNN.winner == nextPlayer) {  // next player win
-          winProb = 1.0;
-          lossProb = 0.0;
-          noResultProb = 0.0;
-        } 
-        else if(resultsBeforeNN.winner == getOpp(nextPlayer)) {  // opp win
-          winProb = 0.0;
-          lossProb = 1.0;
-          noResultProb = 0.0;
-        } 
-        else { //no sure results
-          // Softmax
-          double maxLogits = std::max(std::max(winLogits, lossLogits), noResultLogits);
-          winProb = exp(winLogits - maxLogits);
-          lossProb = exp(lossLogits - maxLogits);
-          noResultProb = exp(noResultLogits - maxLogits);
+        double maxLogits = std::max(std::max(winLogits, lossLogits), noResultLogits);
+        winProb = exp(winLogits - maxLogits);
+        lossProb = exp(lossLogits - maxLogits);
+        noResultProb = exp(noResultLogits - maxLogits);
 
-        } 
+        
        
         double probSum = winProb + lossProb + noResultProb;
         winProb /= probSum;

@@ -25,65 +25,23 @@ namespace GameLogic {
 
 
 
-  typedef char MovePriority;
-  static const MovePriority MP_NORMAL = 126;
-  static const MovePriority MP_SUDDEN_WIN = 1;//win after this move
-  static const MovePriority MP_ONLY_NONLOSE_MOVES = 2;//the only non-lose moves
-  static const MovePriority MP_WINNING = 3;//sure win, but not this move
-  static const MovePriority MP_ILLEGAL = -1;//illegal moves
-
-  MovePriority getMovePriorityAssumeLegal(const Board& board, const BoardHistory& hist, Player pla, Loc loc);
-  MovePriority getMovePriority(const Board& board, const BoardHistory& hist, Player pla, Loc loc);
-
   //C_EMPTY = draw, C_WALL = not finished 
   Color checkWinnerAfterPlayed(const Board& board, const BoardHistory& hist, Player pla, Loc loc);
 
   
-  int checkCaptureIfPlay(
+  int checkCaptureIfPlay( //check whether it is a capture if played in stage=0, maybe not a win move because it does not make sure whether can make any moves in stage=1
     const Board& board,
     Player pla,
-    Loc loc);  // no matter whether played, assume it is already played
+    Loc loc);  
 
   int maybeCapture(
     Board& board,
-    Player pla,
-    Loc loc);  // if symmetry, capture them and return stonenum
-
-  int removeStoneAndMaybeCapture(Board& board, Loc loc) //
-
-  void markConnectedStonesRecursive(
-    std::vector<bool>& visited,
-    const Board& board,
-    Player pla,
-    int x,
-    int y,
-    Loc locAssumed,  
-    Color colorAssumed,  //assume the color of locAssumed is always colorAssumed, no matter what is it on the board. If not used, locAssumed=NULL_LOC
-    int& minX,
-    int& maxX,
-    int& minY,
-    int& maxY,
-    int& stoneNum);  // visited[x+y*x_size]
-
-  bool isSymmetry(
-    std::vector<bool>& stones,
-    int x_size,
-    int minX,
-    int maxX,
-    int minY,
-    int maxY);  // stones[x+y*x_size]
+    Player pla);  // if symmetry, capture them and return stonenum
 
 
 
-  //some results calculated before calculating NN
-  //part of NN input, and then change policy/value according to this
-  struct ResultsBeforeNN {
-    bool inited;
-    Color winner;
-    Loc myOnlyLoc;
-    ResultsBeforeNN();
-    void init(const Board& board, const BoardHistory& hist, Color nextPlayer);
-  };
+
+
 }
 
 

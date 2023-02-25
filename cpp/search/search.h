@@ -185,6 +185,7 @@ struct Search {
   void setParamsNoClearing(SearchParams params); //Does not clear search
   void setNNEval(NNEvaluator* nnEval);
 
+  void setRemainScore(int black, int white);
   //If the number of threads is reduced, this can free up some excess threads in the thread pool.
   //Calling this is never necessary, it may just reduce some resource use.
   //searchmultithreadhelpers.cpp

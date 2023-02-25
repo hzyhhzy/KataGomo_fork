@@ -50,9 +50,12 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
   if(allowedScoringRules.size() <= 0)
     throw IOError("scoringRules must have at least one value in " + cfg.getFileName());
 
-
+  
   allowedBSizes = cfg.getInts("bSizes", 2, Board::MAX_LEN);
-  allowedBSizeRelProbs = cfg.getDoubles("bSizeRelProbs",0.0,1e100);
+  allowedBSizeRelProbs = cfg.getDoubles("bSizeRelProbs", 0.0, 1e100);
+
+  allowedTargetScores = cfg.getInts("targetScores", 1, 50);
+  allowedTargetScoreRelProbs = cfg.getDoubles("targetScoreRelProbs", 0.0, 1e100);
 
   allowRectangleProb = cfg.contains("allowRectangleProb") ? cfg.getDouble("allowRectangleProb",0.0,1.0) : 0.0;
 
@@ -204,6 +207,11 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
   if(allowedBSizes.size() != allowedBSizeRelProbs.size())
     throw IOError("bSizes and bSizeRelProbs must have same number of values in " + cfg.getFileName());
 
+  if(allowedTargetScores.size() <= 0)
+    throw IOError("targetScores must have at least one value in " + cfg.getFileName());
+  if(allowedTargetScores.size() != allowedTargetScoreRelProbs.size())
+    throw IOError("targetScores and targetScoreRelProbs must have same number of values in " + cfg.getFileName());
+
   minBoardXSize = allowedBSizes[0];
   minBoardYSize = allowedBSizes[0];
   maxBoardXSize = allowedBSizes[0];
@@ -334,6 +342,9 @@ void GameInitializer::createGameSharedUnsynchronized(
   if(allowRectangleProb > 0 && rand.nextBool(allowRectangleProb))
     ySizeIdx = rand.nextUInt(allowedBSizeRelProbs.data(),allowedBSizeRelProbs.size());
 
+  int targetScore =
+    allowedTargetScores[rand.nextUInt(allowedTargetScoreRelProbs.data(), allowedTargetScoreRelProbs.size())];
+
   Rules rules = createRulesUnsynchronized();
 
   const Sgf::PositionSample* posSample = NULL;
@@ -385,6 +396,7 @@ void GameInitializer::createGameSharedUnsynchronized(
     int xSize = allowedBSizes[xSizeIdx];
     int ySize = allowedBSizes[ySizeIdx];
     board = Board(xSize,ySize);
+    board.setRemainScore(targetScore, targetScore);
     pla = P_BLACK;
     hist.clear(board,pla,rules);
 
@@ -1226,7 +1238,7 @@ FinishedGameData* Play::runGame(
   };
 
 
-
+  
 
   if(playSettings.initGamesWithPolicy && otherGameProps.allowPolicyInit) {
     double avgPolicyInitMoveNum =

@@ -124,6 +124,16 @@ Board::Board(const Board& other)
   memcpy(midLocs, other.midLocs, sizeof(Loc) * STAGE_NUM_EACH_PLA);
 }
 
+void Board::setRemainScore(int black, int white) {
+  pos_hash ^= ZOBRIST_REMAIN_SCORE_BLACK_HASH[blackRemainScore];
+  blackRemainScore = black;
+  pos_hash ^= ZOBRIST_REMAIN_SCORE_BLACK_HASH[blackRemainScore];
+
+  pos_hash ^= ZOBRIST_REMAIN_SCORE_WHITE_HASH[whiteRemainScore];
+  whiteRemainScore = white;
+  pos_hash ^= ZOBRIST_REMAIN_SCORE_WHITE_HASH[whiteRemainScore];
+}
+
 void Board::init(int xS, int yS) {
   assert(IS_ZOBRIST_INITALIZED);
   if(xS < 0 || yS < 0 || xS > MAX_LEN || yS > MAX_LEN)
@@ -352,8 +362,13 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
   if(stage == 0)  //choose
   {
     if(colors[loc] == C_EMPTY) { //落子
-      colors[loc] == pla;
-      GameLogic::maybeCapture(*this, pla, loc);
+      setStone(loc, pla);
+      int getScore = GameLogic::maybeCapture(*this, pla);
+      if(getScore == 0) {
+        nextPla = getOpp(nextPla);
+        pos_hash ^= ZOBRIST_NEXTPLA_HASH[getOpp(nextPla)];
+        pos_hash ^= ZOBRIST_NEXTPLA_HASH[nextPla];
+      }
     } 
     else{ //移子或推子
       stage = 1;
@@ -368,14 +383,16 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
   {
     Color opp = getOpp(pla);
     Loc chosenLoc = midLocs[0];
+    assert(isOnBoard(chosenLoc));
     if(colors[chosenLoc] == pla) {  // 移子
-
-
-    if(isOnBoard(loc)) {
-      if(isOnBoard(chosenLoc))
-        setStone(chosenLoc, C_EMPTY);
+      setStone(chosenLoc, C_EMPTY);
       setStone(loc, pla);
-    }
+
+    } else if(colors[chosenLoc] == opp) {  // 推子
+      setStone(chosenLoc, pla);
+      setStone(loc, opp);
+    } else
+      ASSERT_UNREACHABLE;
 
     for(int i = 0; i < STAGE_NUM_EACH_PLA - 1; i++) {
       pos_hash ^= ZOBRIST_STAGELOC_HASH[midLocs[i]][i];
@@ -386,9 +403,12 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
     pos_hash ^= ZOBRIST_STAGENUM_HASH[1];
     pos_hash ^= ZOBRIST_STAGENUM_HASH[0];
 
-    nextPla = getOpp(nextPla);
-    pos_hash ^= ZOBRIST_NEXTPLA_HASH[getOpp(nextPla)];
-    pos_hash ^= ZOBRIST_NEXTPLA_HASH[nextPla];
+    int getScore = GameLogic::maybeCapture(*this, pla);
+    if(getScore == 0) {
+      nextPla = getOpp(nextPla);
+      pos_hash ^= ZOBRIST_NEXTPLA_HASH[getOpp(nextPla)];
+      pos_hash ^= ZOBRIST_NEXTPLA_HASH[nextPla];
+    }
 
   } 
   else

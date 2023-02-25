@@ -432,7 +432,10 @@ struct GTPEngine {
     bot->setParams(params);
     bot->clearSearch();
   }
-
+  void setRemainScore(int black, int white) { 
+    bot->setRemainScore(black, white);
+    bot->clearSearch(); 
+  }
 
   bool play(Loc loc, Player pla) {
     assert(bot->getRootHist().rules == currentRules);
@@ -1458,6 +1461,27 @@ int MainCmds::gtp(const vector<string>& args) {
           if(!logger.isLoggingToStderr())
             cerr << "Changed rules to " + newRules.toStringMaybeNice() << endl;
         }
+      }
+    }
+
+    else if(command == "rs") {
+      int remainScoreB = 0;
+      int remainScoreW = 0;
+      if(pieces.size() != 2) {
+        responseIsError = true;
+        response = "Expected one arguments for rs but got '" + Global::concat(pieces, " ") + "'";
+      } 
+      else if(!Global::tryStringToInt(pieces[0], remainScoreB)) {
+        responseIsError = true;
+        response = "Could not parse int: '" + pieces[0] + "'";
+      }
+      else if(!Global::tryStringToInt(pieces[1], remainScoreW)) {
+        responseIsError = true;
+        response = "Could not parse int: '" + pieces[1] + "'";
+      } 
+      else {
+        engine->setRemainScore(remainScoreB,remainScoreW);
+        maybeStartPondering = true;
       }
     }
 

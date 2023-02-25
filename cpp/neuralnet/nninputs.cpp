@@ -507,10 +507,6 @@ void NNInputs::fillRowV7(
     posStride = 1;
   }
 
-  GameLogic::ResultsBeforeNN resultsBeforeNN = nnInputParams.resultsBeforeNN;
-  if(!resultsBeforeNN.inited) {
-    resultsBeforeNN.init(board, hist, nextPlayer);
-  }
 
   for(int y = 0; y<ySize; y++) {
     for(int x = 0; x<xSize; x++) {
@@ -529,43 +525,54 @@ void NNInputs::fillRowV7(
       else if(stone == opp)
         setRowBin(rowBin,pos,2, 1.0f, posStride, featureStride);
 
+      
+      // mark all moves which can capture
+      if(board.stage==0) {
+        if(GameLogic::checkCaptureIfPlay(board, pla, loc) > 0)
+          setRowBin(rowBin, pos, 4, 1.0f, posStride, featureStride);
+      }
     }
   }
 
   // mid state
   if(board.stage == 0)  // choose
   {
-    // do nothing
+    //do nothing
   } else if(board.stage == 1)  // place
   {
-    rowGlobal[0] = 1.0f;
     Loc chosenMove = board.midLocs[0];
-    if(!board.isOnBoard(chosenMove)) {
-      std::cout << "nninput: chosen move not on board ";
-    } else {
-      int pos = NNPos::locToPos(chosenMove, board.x_size, nnXLen, nnYLen);
-      setRowBin(rowBin, pos, 3, 1.0f, posStride, featureStride);
-    }
+    assert(board.isOnBoard(chosenMove));
+    if(board.colors[chosenMove] == pla)
+      rowGlobal[0] = 1.0f;
+    else if(board.colors[chosenMove] == opp)
+      rowGlobal[1] = 1.0f;
+    else
+      ASSERT_UNREACHABLE;
+
+    int pos = NNPos::locToPos(chosenMove, board.x_size, nnXLen, nnYLen);
+    setRowBin(rowBin, pos, 3, 1.0f, posStride, featureStride);
   } else
     ASSERT_UNREACHABLE;
 
-  if(resultsBeforeNN.inited) {
-    rowGlobal[1] = 1.0;
-    rowGlobal[2] = resultsBeforeNN.winner == C_EMPTY;
-    rowGlobal[3] = resultsBeforeNN.winner == nextPlayer;
-    rowGlobal[4] = resultsBeforeNN.winner == getOpp(nextPlayer);
-    if(board.isOnBoard(resultsBeforeNN.myOnlyLoc))
-      setRowBin(
-        rowBin,
-        NNPos::locToPos(resultsBeforeNN.myOnlyLoc, board.x_size, nnXLen, nnYLen),
-        4,
-        1.0f,
-        posStride,
-        featureStride);
-    else if(resultsBeforeNN.myOnlyLoc == Board::PASS_LOC)
-      rowGlobal[5] = 1.0;
-  }
 
+  //rowGlobal 2~ ,remain score features
+  float myRemainScore = pla == C_WHITE ? board.whiteRemainScore : board.blackRemainScore;
+  float oppRemainScore = pla == C_WHITE ? board.blackRemainScore : board.whiteRemainScore;
+
+  assert(myRemainScore > 0);
+  assert(oppRemainScore > 0);
+
+  rowGlobal[2] = myRemainScore * 0.2;
+  rowGlobal[3] = log(myRemainScore);
+  rowGlobal[4] = exp(-myRemainScore / 2.0);
+  rowGlobal[5] = exp(-myRemainScore / 6.0);
+  rowGlobal[6] = exp(-myRemainScore / 20.0);
+
+  rowGlobal[7] = oppRemainScore * 0.2;
+  rowGlobal[8] = log(oppRemainScore);
+  rowGlobal[9] = exp(-oppRemainScore / 2.0);
+  rowGlobal[10] = exp(-oppRemainScore / 6.0);
+  rowGlobal[11] = exp(-oppRemainScore / 20.0);
 
   //Scoring
   if(hist.rules.scoringRule == Rules::SCORING_AREA) {}
