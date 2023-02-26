@@ -220,15 +220,6 @@ void Search::setNNEval(NNEvaluator* nnEval) {
   policySize = NNPos::getPolicySize(nnXLen,nnYLen);
 }
 
-void Search::setRemainScore(int black, int white) {
-  if(black <= 0)
-    black = rootBoard.blackRemainScore;
-  if(white <= 0)
-    white = rootBoard.whiteRemainScore;
-  rootBoard.setRemainScore(black,white);
-  clearSearch();
-}
-
 void Search::clearSearch() {
   effectiveSearchTimeCarriedOver = 0.0;
   if(rootNode != NULL) {

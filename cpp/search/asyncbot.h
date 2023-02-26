@@ -35,7 +35,6 @@ class AsyncBot {
   void setAvoidMoveUntilByLoc(const std::vector<int>& bVec, const std::vector<int>& wVec);
   void setParams(SearchParams params);
   void setParamsNoClearing(SearchParams params);
-  void setRemainScore(int black, int white);
   void clearSearch();
 
   //Updates position and preserves the relevant subtree of search

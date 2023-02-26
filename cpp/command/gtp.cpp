@@ -432,10 +432,6 @@ struct GTPEngine {
     bot->setParams(params);
     bot->clearSearch();
   }
-  void setRemainScore(int black, int white) { 
-    bot->setRemainScore(black, white);
-    bot->clearSearch(); 
-  }
 
   bool play(Loc loc, Player pla) {
     assert(bot->getRootHist().rules == currentRules);
@@ -464,6 +460,32 @@ struct GTPEngine {
       bool suc = play(moveLoc,movePla);
       assert(suc);
       (void)suc; //Avoid warning when asserts are off
+    }
+    return true;
+  }
+
+  bool setTargetScore(int black, int white) {
+    if(black <= 0)
+      black = initialBoard.blackRemainScore;
+    if(white <= 0)
+      white = initialBoard.whiteRemainScore;
+    initialBoard.setRemainScore(black, white);
+    assert(bot->getRootHist().rules == currentRules);
+
+    vector<Move> moveHistoryCopy = moveHistory;
+
+    Board undoneBoard = initialBoard;
+    BoardHistory undoneHist(undoneBoard, initialPla, currentRules);
+    undoneHist.setInitialTurnNumber(bot->getRootHist().initialTurnNumber);
+    vector<Move> emptyMoveHistory;
+    setPositionAndRules(initialPla, undoneBoard, undoneHist, initialBoard, initialPla, emptyMoveHistory);
+
+    for(int i = 0; i < moveHistoryCopy.size(); i++) {
+      Loc moveLoc = moveHistoryCopy[i].loc;
+      Player movePla = moveHistoryCopy[i].pla;
+      bool suc = play(moveLoc, movePla);
+      assert(suc);
+      (void)suc;  // Avoid warning when asserts are off
     }
     return true;
   }
@@ -1463,13 +1485,13 @@ int MainCmds::gtp(const vector<string>& args) {
         }
       }
     }
-
+    
     else if(command == "rs") {
       int remainScoreB = 0;
       int remainScoreW = 0;
       if(pieces.size() != 2) {
         responseIsError = true;
-        response = "Expected one arguments for rs but got '" + Global::concat(pieces, " ") + "'";
+        response = "Expected two arguments for rs but got '" + Global::concat(pieces, " ") + "'";
       } 
       else if(!Global::tryStringToInt(pieces[0], remainScoreB)) {
         responseIsError = true;
@@ -1480,7 +1502,27 @@ int MainCmds::gtp(const vector<string>& args) {
         response = "Could not parse int: '" + pieces[1] + "'";
       } 
       else {
-        engine->setRemainScore(remainScoreB,remainScoreW);
+        //engine->setRemainScore(remainScoreB,remainScoreW);
+        int blackScoreAlready = engine->initialBoard.blackRemainScore - engine->bot->getRootBoard().blackRemainScore;
+        int whiteScoreAlready = engine->initialBoard.whiteRemainScore - engine->bot->getRootBoard().whiteRemainScore;
+        engine->setTargetScore(remainScoreB + blackScoreAlready, remainScoreW + whiteScoreAlready);
+        maybeStartPondering = true;
+      }
+    } 
+    else if(command == "s") {
+      int remainScoreB = 0;
+      int remainScoreW = 0;
+      if(pieces.size() != 2 && pieces.size() != 1) {
+        responseIsError = true;
+        response = "Expected one or two arguments for rs but got '" + Global::concat(pieces, " ") + "'";
+      } else if(!Global::tryStringToInt(pieces[0], remainScoreB)) {
+        responseIsError = true;
+        response = "Could not parse int: '" + pieces[0] + "'";
+      } else if(!Global::tryStringToInt(pieces[pieces.size() - 1], remainScoreW)) {
+        responseIsError = true;
+        response = "Could not parse int: '" + pieces[pieces.size() - 1] + "'";
+      } else {
+        engine->setTargetScore(remainScoreB, remainScoreW);
         maybeStartPondering = true;
       }
     }

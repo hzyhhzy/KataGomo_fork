@@ -560,7 +560,11 @@ void NNInputs::fillRowV7(
   float oppRemainScore = pla == C_WHITE ? board.blackRemainScore : board.whiteRemainScore;
 
   assert(myRemainScore > 0);
+  if(myRemainScore <= 0)
+    myRemainScore = 1;
   assert(oppRemainScore > 0);
+  if(oppRemainScore <= 0)
+    oppRemainScore = 1;
 
   rowGlobal[2] = myRemainScore * 0.2;
   rowGlobal[3] = log(myRemainScore);

@@ -98,10 +98,6 @@ void AsyncBot::setParamsNoClearing(SearchParams params) {
   stopAndWait();
   search->setParamsNoClearing(params);
 }
-void AsyncBot::setRemainScore(int black, int white) {
-  stopAndWait();
-  search->setRemainScore(black, white);
-}
 
 void AsyncBot::clearSearch() {
   stopAndWait();
