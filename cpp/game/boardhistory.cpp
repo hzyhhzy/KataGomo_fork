@@ -282,7 +282,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
 void BoardHistory::maybeFinishGame(Board& board,Player lastPla,Loc lastLoc)
 {
   Loc tmploc;
-  if (board.getMaxConnectLengthAndWinLoc(lastPla, tmploc) == 6)
+  if (board.getMaxConnectLengthAndWinLoc(lastPla, tmploc) == 5)
   {
     setWinner(lastPla);
     return;

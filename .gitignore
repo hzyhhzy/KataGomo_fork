@@ -65,3 +65,4 @@ cmake_install.cmake
 GPATH
 GRTAGS
 GTAGS
+/scripts/models

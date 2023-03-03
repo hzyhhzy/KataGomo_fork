@@ -290,7 +290,6 @@ Hash128 Board::getSitHash(Player pla) const {
 int Board::getMaxConnectLengthAndWinLoc(Color pla, Loc& bestLoc) const
 {
   int maxConLen = 0;
-  int maxPriority = 0;//连四取最大，连五取最小
   bestLoc = NULL_LOC;
 
   for(int y0=0;y0<y_size;y0++)
@@ -301,8 +300,8 @@ int Board::getMaxConnectLengthAndWinLoc(Color pla, Loc& bestLoc) const
       {
         short adj = adj_offsets[dir * 2];
         int emptyNum = 0;
-        Loc emptyLocs[2] = { NULL_LOC,NULL_LOC };
-        for (int len = 0; len < 6; len++)
+        Loc emptyLoc = NULL_LOC;
+        for (int len = 0; len < 5; len++)
         {
           Loc loc = loc0 + len * adj;
           if (!isOnBoard(loc))
@@ -311,17 +310,17 @@ int Board::getMaxConnectLengthAndWinLoc(Color pla, Loc& bestLoc) const
             break;
           }
           Color color = colors[loc];
-          if (loc == midLocs[0])
+          if(loc == midLocs[0])
             color = pla;
           if (color == pla)continue;
           else if (color == C_EMPTY)
           {
-            if (emptyNum >= 2 || ((stage==1||maxConLen==5) && emptyNum >= 1))
+            if (emptyNum >= 1)
             {
               emptyNum = 3;
               break;
             }
-            emptyLocs[emptyNum] = loc;
+            emptyLoc = loc;
             emptyNum++;
           }
           else
@@ -331,54 +330,21 @@ int Board::getMaxConnectLengthAndWinLoc(Color pla, Loc& bestLoc) const
           }
         }
 
-        if (emptyNum > 2)
+        if (emptyNum > 1)
           continue;//nothing
-        else if (emptyNum == 2)//four
+        else if (emptyNum == 1)//four
         {
-          if (maxConLen <= 4)
+          if (maxConLen < 4)
           {
             maxConLen = 4;
-            for (int i = 0; i < 2; i++)
-            {
-              Loc emptyLoc = emptyLocs[i];
-              int32_t priority=getMovePriority(pla, emptyLoc);
-              //cout << Location::toString(emptyLoc, x_size, y_size) << " " << priority << endl;
-              if (priority > maxPriority)
-              {
-                maxPriority = priority;
-                bestLoc = emptyLoc;
-              }
-            }
-          }
-          else continue;
-        }
-        else if (emptyNum == 1)//five
-        {
-          if (maxConLen < 5)
-          {
-            maxConLen = 5;
-            Loc emptyLoc = emptyLocs[0];
-            int32_t priority=getMovePriority(pla, emptyLoc);
-            maxPriority = priority;
             bestLoc = emptyLoc;
-          }
-          else if (maxConLen == 5)
-          {
-            Loc emptyLoc = emptyLocs[0];
-            int32_t priority=getMovePriority(pla, emptyLoc);
-            //if (priority > lastMovePriority)continue;//illegal
-            if (priority < maxPriority)
-            {
-              maxPriority = priority;
-              bestLoc = emptyLoc;
-            }
           }
           else continue;
         }
         else if (emptyNum == 0)//win
         {
           bestLoc = NULL_LOC;
-          return 6;
+          return 5;
         }
       }
     }
@@ -411,9 +377,17 @@ bool Board::isLegal(Loc loc, Player pla, bool isMultiStoneSuicideLegal) const
   }
   else if (stage == 1)//第二步
   {
-    return colors[loc] == C_EMPTY &&
-      midLocs[0] != loc &&
-      getMovePriority(pla, loc) <= lastMovePriority;
+    if(!(colors[loc] == C_EMPTY && midLocs[0] != loc && getMovePriority(pla, loc) <= lastMovePriority))
+      return false;
+    if(!isOnBoard(midLocs[0]))
+      return true;
+    int x = Location::getX(loc, x_size);
+    int y = Location::getY(loc, x_size);
+    int x1 = Location::getX(midLocs[0], x_size);
+    int y1 = Location::getY(midLocs[0], x_size);
+    if(x == x1 || y == y1 || x + y == x1 + y1 || x - y == x1 - y1)
+      return false;
+    return true;
   }
 
   ASSERT_UNREACHABLE;

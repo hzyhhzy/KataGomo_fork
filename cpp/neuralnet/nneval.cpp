@@ -719,11 +719,11 @@ void NNEvaluator::evaluate(
     bool isLegal[NNPos::MAX_NN_POLICY_SIZE];
     int legalCount = 0;
 
-    Loc winLoc;
-    int maxConLen = board.getMaxConnectLengthAndWinLoc(nextPlayer, winLoc);
+    Loc winLoc = Board::NULL_LOC;
+    int maxConLen = board.stage == 0 ? board.getMaxConnectLengthAndWinLoc(nextPlayer, winLoc) : 0;
     if (winLoc != Board::NULL_LOC && board.isLegal(winLoc, nextPlayer, true))
     {
-      if (maxConLen < 4 || (maxConLen < 5 && board.stage == 1) || maxConLen >= 6)
+      if (maxConLen != 4 || board.stage!=0)
         ASSERT_UNREACHABLE;
 
       //this may happen when using side position
