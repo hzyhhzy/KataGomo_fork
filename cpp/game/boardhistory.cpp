@@ -222,6 +222,10 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   isNoResult = false;
   isResignation = false;
 
+  bool isCapture = board.stage == 1 && board.colors[moveLoc] != C_EMPTY;
+  if(isCapture)
+    posHashHistoryCount.clear();
+
   board.playMoveAssumeLegal(moveLoc,movePla);
 
   
