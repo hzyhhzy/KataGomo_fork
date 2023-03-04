@@ -24,7 +24,6 @@ Hash128 Board::ZOBRIST_BOARD_HASH[MAX_ARR_SIZE][NUM_BOARD_COLORS];
 Hash128 Board::ZOBRIST_STAGENUM_HASH[STAGE_NUM_EACH_PLA];
 Hash128 Board::ZOBRIST_STAGELOC_HASH[MAX_ARR_SIZE][STAGE_NUM_EACH_PLA];
 Hash128 Board::ZOBRIST_NEXTPLA_HASH[4];
-Hash128 Board::ZOBRIST_MOVENUM_HASH[MAX_MOVE_NUM];
 Hash128 Board::ZOBRIST_PLAYER_HASH[4];
 const Hash128 Board::ZOBRIST_GAME_IS_OVER = //Based on sha256 hash of Board::ZOBRIST_GAME_IS_OVER
   Hash128(0xb6f9e465597a77eeULL, 0xf1d583d960a4ce7fULL);
@@ -109,7 +108,6 @@ Board::Board(const Board& other)
 
   memcpy(colors, other.colors, sizeof(Color)*MAX_ARR_SIZE);
 
-  movenum = other.movenum;
   pos_hash = other.pos_hash;
 
   memcpy(adj_offsets, other.adj_offsets, sizeof(short) * 8);
@@ -131,7 +129,6 @@ void Board::init(int xS, int yS)
   for(int i = 0; i < MAX_ARR_SIZE; i++)
     colors[i] = C_WALL;
 
-  movenum = 0;
 
   for(int y = 0; y < y_size; y++)
   {
@@ -206,10 +203,6 @@ void Board::initHash()
   }
 
 
-  for(int i = 0; i < MAX_MOVE_NUM; i++) {
-    ZOBRIST_MOVENUM_HASH[i] = nextHash();
-  }
-  ZOBRIST_MOVENUM_HASH[0] = Hash128();
 
   //Reseed the random number generator so that these size hashes are also
   //not affected by the size of the board we compile with
@@ -312,9 +305,6 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
     std::cout << "Error next player ";
   }
 
-  pos_hash ^= ZOBRIST_MOVENUM_HASH[movenum];
-  movenum++;
-  pos_hash ^= ZOBRIST_MOVENUM_HASH[movenum];
 
   if(stage == 0)  //choose
   {
@@ -415,7 +405,6 @@ void Board::checkConsistency() const {
     }
   }
 
-  tmp_pos_hash ^= ZOBRIST_MOVENUM_HASH[movenum];
 
   tmp_pos_hash ^= ZOBRIST_NEXTPLA_HASH[nextPla];
   tmp_pos_hash ^= ZOBRIST_STAGENUM_HASH[stage];

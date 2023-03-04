@@ -123,7 +123,6 @@ struct Board
   static Hash128 ZOBRIST_STAGENUM_HASH[STAGE_NUM_EACH_PLA];
   static Hash128 ZOBRIST_STAGELOC_HASH[MAX_ARR_SIZE][STAGE_NUM_EACH_PLA];
   static Hash128 ZOBRIST_NEXTPLA_HASH[4];
-  static Hash128 ZOBRIST_MOVENUM_HASH[MAX_MOVE_NUM];
   static Hash128 ZOBRIST_PLAYER_HASH[4];
   static const Hash128 ZOBRIST_GAME_IS_OVER;
 
@@ -190,7 +189,6 @@ struct Board
   int x_size;                  //Horizontal size of board
   int y_size;                  //Vertical size of board
   Color colors[MAX_ARR_SIZE];  //Color of each location on the board.
-  int movenum; //how many moves
 
   /* PointList empty_list; //List of all empty locations on board */
 

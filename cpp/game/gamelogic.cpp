@@ -97,10 +97,21 @@ Color GameLogic::checkWinnerAfterPlayed(
   if(loc == Board::PASS_LOC)
     return getOpp(pla);  //pass is not allowed
   
-  
-  int y = Location::getY(loc, board.x_size);
-  if((pla == C_BLACK && y == 0) || (pla == C_WHITE && y == board.y_size - 1))
-      return pla;
+  if(board.numPlaStonesOnBoard(getOpp(pla)) == 0)
+    return pla;
+  Hash128 h = board.pos_hash;
+  assert(hist.posHashHistoryCount.count(h));
+  if(hist.posHashHistoryCount.at(h) >= 2 || hist.moveHistory.size() > Board::MAX_ARR_SIZE * 100) {
+    if(hist.moveHistory.size() > Board::MAX_ARR_SIZE * 100)
+      cout << "Game too long without loop" << endl;
+    int whiteScore = board.numPlaStonesOnBoard(C_WHITE) - board.numPlaStonesOnBoard(C_BLACK);
+    if(whiteScore > 0)
+      return C_WHITE;
+    else if(whiteScore < 0)
+      return C_BLACK;
+    else
+      return C_EMPTY;
+  }
 
 
   return C_WALL;
