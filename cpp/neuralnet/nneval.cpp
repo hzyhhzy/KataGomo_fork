@@ -773,6 +773,12 @@ void NNEvaluator::evaluate(
         double varTimeLeftPreSoftplus = buf.result->varTimeLeft;
         double shorttermWinlossErrorPreSoftplus = buf.result->shorttermWinlossError;
 
+        if(debugSkipNeuralNet)  // add some bias to encourage capture
+        {
+          float stoneDif = board.numPlaStonesOnBoard(nextPlayer) - board.numPlaStonesOnBoard(getOpp(nextPlayer));
+          winLogits += 0.5 * stoneDif;
+          lossLogits -= 0.5 * stoneDif;
+        }
         
         if(resultsBeforeNN.winner == C_EMPTY) {  // draw
           winProb = 0.0;

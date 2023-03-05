@@ -17,7 +17,104 @@
 using namespace std;
 
 
+static void nextLocOfCircle(int bs, int& x, int& y, int& dx, int& dy, bool& hasCircle) {
+  x = x + dx;
+  y = y + dy;
+  if(x < 0 || y < 0 || x >= bs || y >= bs)
+    hasCircle = true;
+  if(x < 0) {
+    assert(dx == -1);
+    assert(dy == 0);
+    if(y < bs / 2) {
+      x = y;
+      y = 0;
+      dx = 0;
+      dy = 1;
+    } else {
+      x = bs - y - 1;
+      y = bs - 1;
+      dx = 0;
+      dy = -1;
+    }
+  }
+  else if(y < 0) {
+    assert(dy == -1);
+    assert(dx == 0);
+    if(x < bs / 2) {
+      y = x;
+      x = 0;
+      dy = 0;
+      dx = 1;
+    } else {
+      y = bs - x - 1;
+      x = bs - 1;
+      dy = 0;
+      dx = -1;
+    }
+  }
+  else if(x >= bs) {
+    assert(dx == 1);
+    assert(dy == 0);
+    if(y < bs / 2) {
+      x = bs - y - 1;
+      y = 0;
+      dx = 0;
+      dy = 1;
+    } else {
+      x = y;
+      y = bs - 1;
+      dx = 0;
+      dy = -1;
+    }
+  } 
+  else if(y >= bs) {
+    assert(dy == 1);
+    assert(dx == 0);
+    if(x < bs / 2) {
+      y = bs - x - 1;
+      x = 0;
+      dy = 0;
+      dx = 1;
+    } else {
+      y = x;
+      x = bs - 1;
+      dy = 0;
+      dx = -1;
+    }
+  }
+}
+static Loc findCaptureLocOneDirection(const Board& board, Player pla, Loc startLoc,int dx,int dy) {
+  assert(board.x_size == board.y_size);
+  int bs = board.x_size;
+  int x = Location::getX(startLoc, bs);
+  int y = Location::getY(startLoc, bs);
+  bool hasCircle = false;
+  if((x == 0 || x == bs - 1) && (y == 0 || y == bs - 1))
+    return Board::NULL_LOC;
+  for(int step=0;step<4*bs;step++) {
+    nextLocOfCircle(bs, x, y, dx, dy, hasCircle);
+    if((x == 0 || x == bs - 1) && (y == 0 || y == bs - 1))
+      return Board::NULL_LOC;
+    Loc loc = Location::getLoc(x, y, bs);
+    assert(board.isOnBoard(loc));
+    if(loc != startLoc && board.colors[loc] != C_EMPTY) {
+      if(!hasCircle || board.colors[loc] == pla)
+        return Board::NULL_LOC;
+      else
+        return loc;
+    }
+  }
+  return Board::NULL_LOC;
+}
 
+static bool isLegalCapture(const Board& board, Player pla, Loc startLoc, Loc targetLoc) {
+  static const int dxs[4] = {1, -1, 0, 0};
+  static const int dys[4] = { 0, 0, 1, -1};
+  for(int i = 0; i < 4; i++)
+    if(findCaptureLocOneDirection(board, pla, startLoc, dxs[i], dys[i]) == targetLoc)
+      return true;
+  return false;
+}
 
 bool GameLogic::isLegal(const Board& board, Player pla, Loc loc) {
   if(pla != board.nextPla) {
@@ -37,21 +134,13 @@ bool GameLogic::isLegal(const Board& board, Player pla, Loc loc) {
   } 
   else if(board.stage == 1)  // place the piece
   {
-    Color c = board.colors[loc];
     Color opp = getOpp(pla);
     Loc chosenMove = board.midLocs[0];
-    int x0 = Location::getX(chosenMove, board.x_size);
-    int y0 = Location::getY(chosenMove, board.x_size);
-    int x1 = Location::getX(loc, board.x_size);
-    int y1 = Location::getY(loc, board.x_size);
-    int dy = y1 - y0;
-    int dx = x1 - x0;
-    if(!((pla == C_BLACK && dy == -1) || (pla == C_WHITE && dy == 1)))
-      return false;
-    if(dx == 1 || dx == -1)
-      return c == opp || c == C_EMPTY;
-    else if(dx == 0)
-      return c == C_EMPTY;
+    Color c = board.colors[loc];
+    if(c == C_EMPTY)
+      return Location::euclideanDistanceSquared(loc, chosenMove, board.x_size) <= 2;
+    else if(c == opp)  // capture
+      return isLegalCapture(board, pla, chosenMove, loc);
     else
       return false;
   }
@@ -60,20 +149,6 @@ bool GameLogic::isLegal(const Board& board, Player pla, Loc loc) {
 }
 
 GameLogic::MovePriority GameLogic::getMovePriorityAssumeLegal(const Board& board, const BoardHistory& hist, Player pla, Loc loc) {
-  if(loc == Board::PASS_LOC)
-    return MP_NORMAL;
-
-  int y = Location::getY(loc, board.x_size);
-  if(board.stage == 0) {
-    if((pla == C_BLACK && y == 1) || (pla == C_WHITE && y == board.y_size - 2))
-      return MP_WINNING;
-  }
-  else if(board.stage == 1) {
-    if((pla == C_BLACK && y == 0) || (pla == C_WHITE && y == board.y_size - 1))
-      return MP_SUDDEN_WIN;
-  }
-
-
   return MP_NORMAL;
 }
 
@@ -127,20 +202,6 @@ void GameLogic::ResultsBeforeNN::init(const Board& board, const BoardHistory& hi
   if(inited)
     return;
   inited = true;
-
-
-  for(int x = 0; x < board.x_size; x++)
-    for(int y = 0; y < board.y_size; y++) {
-      Loc loc = Location::getLoc(x, y, board.x_size);
-      MovePriority mp = getMovePriority(board, hist, nextPlayer, loc);
-      if(mp == MP_SUDDEN_WIN || mp == MP_WINNING) {
-        winner = nextPlayer;
-        myOnlyLoc = loc;
-        return;
-      }
-    }
-
-
 
   return;
 }
