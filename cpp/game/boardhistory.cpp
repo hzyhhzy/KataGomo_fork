@@ -222,9 +222,14 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   isNoResult = false;
   isResignation = false;
 
-  bool isCapture = board.stage == 1 && board.colors[moveLoc] != C_EMPTY;
-  if(isCapture)
+  
+  int hashCountBeforePlay = posHashHistoryCount.count(board.pos_hash);
+  bool isCopyStone = board.stage == 0 && board.colors[moveLoc]==C_EMPTY;
+
+  if(isCopyStone || hashCountBeforePlay>=2)
     posHashHistoryCount.clear();
+
+  bool isLegalPass = moveLoc == Board::PASS_LOC && (!GameLogic::hasLegalMove(board));
 
   board.playMoveAssumeLegal(moveLoc,movePla);
 
@@ -242,7 +247,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
 
   moveHistory.push_back(Move(moveLoc,movePla));
   presumedNextMovePla = board.nextPla;
-  Color maybeWinner = GameLogic::checkWinnerAfterPlayed(board, *this, movePla, moveLoc);
+  Color maybeWinner = GameLogic::checkWinnerAfterPlayed(board, *this, movePla, moveLoc,isLegalPass);
   if(maybeWinner!=C_WALL) { //game finished
     setWinner(maybeWinner);
   }

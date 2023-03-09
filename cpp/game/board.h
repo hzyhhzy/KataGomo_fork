@@ -12,7 +12,7 @@
 #include "../external/nlohmann_json/json.hpp"
 
 #ifndef COMPILE_MAX_BOARD_LEN 
-#define COMPILE_MAX_BOARD_LEN 6
+#define COMPILE_MAX_BOARD_LEN 7
 #endif
 
 //how many stages in each move

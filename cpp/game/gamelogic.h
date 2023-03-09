@@ -31,7 +31,8 @@ namespace GameLogic {
   MovePriority getMovePriority(const Board& board, const BoardHistory& hist, Player pla, Loc loc);
 
   //C_EMPTY = draw, C_WALL = not finished 
-  Color checkWinnerAfterPlayed(const Board& board, const BoardHistory& hist, Player pla, Loc loc);
+  Color checkWinnerAfterPlayed(const Board& board, const BoardHistory& hist, Player pla, Loc loc, bool isLegalPass);
+  bool hasLegalMove(const Board& board);
 
 
   //some results calculated before calculating NN

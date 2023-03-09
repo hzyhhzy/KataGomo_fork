@@ -523,22 +523,19 @@ void NNInputs::fillRowV7(
       Color stone = board.colors[loc];
 
       //Features 1,2 - pla,opp stone
-      //Features 3,4,5 - 1,2,3 libs
       if(stone == pla)
         setRowBin(rowBin,pos,1, 1.0f, posStride, featureStride);
       else if(stone == opp)
         setRowBin(rowBin,pos,2, 1.0f, posStride, featureStride);
-
-      if(board.stage == 1 && board.isLegal(loc, pla))
-        setRowBin(rowBin, pos, 4, 1.0f, posStride, featureStride);
-
     }
   }
 
   // mid state
   if(board.stage == 0)  // choose
   {
-    // do nothing
+    if(!GameLogic::hasLegalMove(board))
+      rowGlobal[1] = 1.0f;
+
   } else if(board.stage == 1)  // place
   {
     rowGlobal[0] = 1.0f;
