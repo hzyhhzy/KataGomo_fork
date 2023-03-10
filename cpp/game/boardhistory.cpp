@@ -262,7 +262,11 @@ Hash128 BoardHistory::getSituationRulesHash(const Board& board, const BoardHisto
   hash ^= Board::ZOBRIST_PLAYER_HASH[nextPlayer];
 
   //Fold in the ko, scoring, and suicide rules
-  hash ^= Rules::ZOBRIST_SCORING_RULE_HASH[hist.rules.scoringRule];
+  hash ^= Rules::ZOBRIST_LOOPPASS_RULE_HASH[hist.rules.loopPassRule];
+  if(hist.rules.komi != 0) {
+    hash = Hash128(Hash::murmurMix(hash.hash0 + hist.rules.komi), Hash::nasam(hash.hash1 - hist.rules.komi));
+  }
+
 
   return hash;
 }

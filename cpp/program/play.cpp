@@ -43,12 +43,17 @@ GameInitializer::GameInitializer(ConfigParser& cfg, Logger& logger, const string
 
 void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
 
-  allowedScoringRuleStrs = cfg.getStrings("scoringRules", Rules::scoringRuleStrings());
+  allowedLoopPassRuleStrs = cfg.getStrings("loopPassRules", Rules::loopPassRuleStrings());
 
-  for(size_t i = 0; i < allowedScoringRuleStrs.size(); i++)
-    allowedScoringRules.push_back(Rules::parseScoringRule(allowedScoringRuleStrs[i]));
-  if(allowedScoringRules.size() <= 0)
-    throw IOError("scoringRules must have at least one value in " + cfg.getFileName());
+  for(size_t i = 0; i < allowedLoopPassRuleStrs.size(); i++)
+    allowedLoopPassRules.push_back(Rules::parseLoopPassRule(allowedLoopPassRuleStrs[i]));
+  if(allowedLoopPassRules.size() <= 0)
+    throw IOError("loopPassRules must have at least one value in " + cfg.getFileName());
+
+  komiMean = cfg.contains("komiMean") ? cfg.getFloat("komiMean", -1000, 1000) : 0.0f;
+  komiStdev = cfg.contains("komiStdev") ? cfg.getFloat("komiStdev", 0.0f, 1000.0f) : 0.0f;
+  komiBigStdevProb = cfg.contains("komiBigStdevProb") ? cfg.getDouble("komiBigStdevProb", 0.0, 1.0) : 0.0;
+  komiBigStdev = cfg.contains("komiBigStdev") ? cfg.getFloat("komiBigStdev", 0.0f, 1000.0f) : 2.0f;
 
 
   allowedBSizes = cfg.getInts("bSizes", 2, Board::MAX_LEN);
@@ -263,12 +268,6 @@ void GameInitializer::createGame(
   }
 }
 
-Rules GameInitializer::randomizeScoringAndTaxRules(Rules rules, Rand& randToUse) const {
-  rules.scoringRule = allowedScoringRules[randToUse.nextUInt((uint32_t)allowedScoringRules.size())];
-
-
-  return rules;
-}
 
 bool GameInitializer::isAllowedBSize(int xSize, int ySize) {
   if(!contains(allowedBSizes,xSize))
@@ -303,7 +302,14 @@ Rules GameInitializer::createRules() {
 
 Rules GameInitializer::createRulesUnsynchronized() {
   Rules rules;
-  rules.scoringRule = allowedScoringRules[rand.nextUInt((uint32_t)allowedScoringRules.size())];
+  rules.loopPassRule = allowedLoopPassRules[rand.nextUInt((uint32_t)allowedLoopPassRules.size())];
+
+  int boardArea = Board::MAX_LEN * Board::MAX_LEN;
+
+  float komiStdevThis = rand.nextBool(komiBigStdevProb) ? komiBigStdev : komiStdev;
+  do {
+    rules.komi = llround(komiMean + rand.nextGaussian() * komiStdevThis);
+  } while(rules.komi <= -boardArea || rules.komi >= boardArea);
 
   return rules;
 }

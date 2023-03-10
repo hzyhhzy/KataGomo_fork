@@ -673,12 +673,12 @@ Rules Setup::loadSingleRules(
   Rules rules;
 
   if(cfg.contains("rules")) {
-    if(cfg.contains("scoringRule")) throw StringError("Cannot both specify 'rules' and individual rules like scoringRule");
+    if(cfg.contains("loopPassRule")) throw StringError("Cannot both specify 'rules' and individual rules like scoringRule");
     rules = Rules::parseRules(cfg.getString("rules"));
   }
   else {
-    string scoringRule = cfg.getString("scoringRule", Rules::scoringRuleStrings());
-    rules.scoringRule = Rules::parseScoringRule(scoringRule);
+    string loopPassRule = cfg.getString("loopPassRule", Rules::loopPassRuleStrings());
+    rules.loopPassRule = Rules::parseLoopPassRule(loopPassRule);
 
 
   }

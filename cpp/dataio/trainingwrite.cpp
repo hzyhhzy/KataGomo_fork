@@ -411,7 +411,7 @@ void TrainingWriteBuffers::addRow(
 
   //Various other data
   rowGlobal[47] = 0.0f;
-  rowGlobal[48] = (hist.rules.scoringRule == Rules::SCORING_AREA) ? 1.0f : 0.0f;
+  rowGlobal[48] = 0.0f;
 
   //Earlier neural net metadata
   rowGlobal[49] = data.changedNeuralNets.size() > 0 ? 1.0f : 0.0f;

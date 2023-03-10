@@ -551,10 +551,23 @@ void NNInputs::fillRowV7(
 
 
   //Scoring
-  if(hist.rules.scoringRule == Rules::SCORING_AREA) {}
-  else
+  if(hist.rules.loopPassRule == Rules::LOOPDRAW_PASSSCORING) {
+  } else if(hist.rules.loopPassRule == Rules::LOOPDRAW_PASSCONTINUE) {
+    rowGlobal[2] = 1.0f;
+  } else if(hist.rules.loopPassRule == Rules::LOOPLOSE_PASSSCORING) {
+    rowGlobal[3] = 1.0f;
+  } else if(hist.rules.loopPassRule == Rules::LOOPSCORING_PASSSCORING) {
+    rowGlobal[4] = 1.0f;
+  } else
     ASSERT_UNREACHABLE;
 
+  float selfKomi = pla == C_BLACK ? hist.rules.komi : -hist.rules.komi;
+  rowGlobal[5] = tanh(selfKomi);
+  rowGlobal[6] = tanh(selfKomi * 0.3);
+  rowGlobal[7] = tanh(selfKomi * 0.1);
+  rowGlobal[8] = selfKomi/(board.x_size*board.y_size);
+
+  rowGlobal[9] = (hist.rules.komi + board.x_size * board.y_size) % 2;
   
   // Parameter 15 is used because there's actually a discontinuity in how training behavior works when this is
   // nonzero, no matter how slightly.

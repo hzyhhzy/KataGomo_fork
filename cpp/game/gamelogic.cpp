@@ -103,19 +103,41 @@ Color GameLogic::checkWinnerAfterPlayed(
   Player pla,
   Loc loc,
   bool isLegalPass) {
+
+  Player opp = getOpp(pla);
   if(isLegalPass) {
     assert(loc == Board::PASS_LOC);
     assert(board.stage == 0);
-    bool hasLegalMoveNextMove = hasLegalMove(board);
-    if(!hasLegalMoveNextMove) {//double pass, normal ending
-      int whiteScore = board.numPlaStonesOnBoard(C_WHITE) - board.numPlaStonesOnBoard(C_BLACK);
-      if(whiteScore > 0)
-        return C_WHITE;
-      else if(whiteScore < 0)
-        return C_BLACK;
+
+    if(
+      hist.rules.loopPassRule == Rules::LOOPDRAW_PASSSCORING ||
+      hist.rules.loopPassRule == Rules::LOOPLOSE_PASSSCORING ||
+      hist.rules.loopPassRule == Rules::LOOPSCORING_PASSSCORING) {
+      int myScore = 2 * board.numPlaStonesOnBoard(pla) - board.x_size * board.y_size;
+      if(pla == C_BLACK)
+        myScore -= hist.rules.komi;
+      else
+        myScore += hist.rules.komi;
+
+      if(myScore > 0)
+        return pla;
+      else if(myScore < 0)
+        return opp;
       else
         return C_EMPTY;
-    }
+    } else if(hist.rules.loopPassRule == Rules::LOOPDRAW_PASSCONTINUE) {
+      bool hasLegalMoveNextMove = hasLegalMove(board);
+      if(!hasLegalMoveNextMove) {  // double pass, normal ending
+        int whiteScore = board.numPlaStonesOnBoard(C_WHITE) - board.numPlaStonesOnBoard(C_BLACK);
+        if(whiteScore > 0)
+          return C_WHITE;
+        else if(whiteScore < 0)
+          return C_BLACK;
+        else
+          return C_EMPTY;
+      }
+    } else
+      ASSERT_UNREACHABLE;
   } else if(loc == Board::PASS_LOC)
     return getOpp(pla);//illegal pass
   
@@ -123,10 +145,38 @@ Color GameLogic::checkWinnerAfterPlayed(
     return pla;
   Hash128 h = board.pos_hash;
   assert(hist.posHashHistoryCount.count(h));
-  //loop or extremely long game, draw
-  if(hist.posHashHistoryCount.at(h) >= 2 || hist.moveHistory.size() > Board::MAX_ARR_SIZE * 100) {
-    if(hist.moveHistory.size() > Board::MAX_ARR_SIZE * 100)
-      cout << "Game too long without loop" << endl;
+
+  //loop
+  if(hist.posHashHistoryCount.at(h) >= 2) {
+    if(
+      hist.rules.loopPassRule == Rules::LOOPDRAW_PASSSCORING ||
+      hist.rules.loopPassRule == Rules::LOOPDRAW_PASSCONTINUE) {
+      return C_EMPTY;
+    }
+    else if(
+      hist.rules.loopPassRule == Rules::LOOPLOSE_PASSSCORING) {
+      return opp;
+    }
+    else if(hist.rules.loopPassRule == Rules::LOOPSCORING_PASSSCORING) {
+      int myScore = 2 * board.numPlaStonesOnBoard(pla) - board.x_size * board.y_size;
+      if(pla == C_BLACK)
+        myScore -= hist.rules.komi;
+      else
+        myScore += hist.rules.komi;
+
+      if(myScore > 0)
+        return pla;
+      else if(myScore < 0)
+        return opp;
+      else
+        return C_EMPTY;
+    }
+    else ASSERT_UNREACHABLE;
+  }
+
+  // extremely long game, draw
+  if(hist.moveHistory.size() > Board::MAX_ARR_SIZE * 100) {
+    cout << "Game too long without loop" << endl;
     return C_EMPTY;
   }
 

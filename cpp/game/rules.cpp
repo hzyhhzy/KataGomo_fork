@@ -9,53 +9,72 @@ using json = nlohmann::json;
 
 Rules::Rules() {
   //Defaults if not set - closest match to TT rules
-  scoringRule = SCORING_AREA;
+  loopPassRule = LOOPDRAW_PASSSCORING;
+  komi = 0;
 }
 
 Rules::Rules(
-  int sRule
+  int loopPassRule,
+  int komi
 )
-  :scoringRule(sRule)
-{}
+  :loopPassRule(loopPassRule), komi(komi) {}
 
 Rules::~Rules() {
 }
 
 bool Rules::operator==(const Rules& other) const {
-  return
-    scoringRule == other.scoringRule;
+  return loopPassRule == other.loopPassRule && komi == other.komi;
 }
 
 bool Rules::operator!=(const Rules& other) const {
-  return
-    scoringRule != other.scoringRule ;
+  return !(*this == other);
 }
 
 
 Rules Rules::getTrompTaylorish() {
   Rules rules;
-  rules.scoringRule = SCORING_AREA;
+  rules.loopPassRule = LOOPDRAW_PASSSCORING;
   return rules;
 }
 
 
 
-set<string> Rules::scoringRuleStrings() {
-  return {"AREA"};
+map<string,int> Rules::loopPassRuleStringsMap() {
+  return {
+    pair<string, int>("LOOPDRAW_PASSSCORING", 0),
+    pair<string, int>("LOOPDRAW_PASSCONTINUE", 1),
+    pair<string, int>("LOOPLOSE_PASSSCORING", 2),
+    pair<string, int>("LOOPSCORING_PASSSCORING", 3)
+  };
 }
 
-int Rules::parseScoringRule(const string& s) {
-  if(s == "AREA") return Rules::SCORING_AREA;
+std::set<std::string> Rules::loopPassRuleStrings() {
+  set<string> ruleSet;
+  auto ruleMap = Rules::loopPassRuleStringsMap();
+  for(auto r = ruleMap.begin(); r != ruleMap.end(); r++) {
+    ruleSet.insert(r->first);
+  }
+  return ruleSet;
+}
+
+int Rules::parseLoopPassRule(const string& s) {
+  auto ruleMap = loopPassRuleStringsMap();
+  if(ruleMap.count(s))
+    return ruleMap[s];
   else throw IOError("Rules::parseScoringRule: Invalid scoring rule: " + s);
 }
 
-string Rules::writeScoringRule(int scoringRule) {
-  if(scoringRule == Rules::SCORING_AREA) return string("AREA");
+string Rules::writeLoopPassRule(int scoringRule) {
+  auto ruleMap = loopPassRuleStringsMap();
+  for(auto s=ruleMap.begin();s!=ruleMap.end();s++) {
+    if(s->second == scoringRule)
+      return s->first;
+  }
   return string("UNKNOWN");
 }
 
 ostream& operator<<(ostream& out, const Rules& rules) {
-  out << "score" << Rules::writeScoringRule(rules.scoringRule);
+  out << "looppass" << Rules::writeLoopPassRule(rules.loopPassRule) << "komi" << rules.komi;
   return out;
 }
 
@@ -74,7 +93,8 @@ string Rules::toJsonString() const {
 //which is the default for parsing and if not otherwise specified
 json Rules::toJson() const {
   json ret;
-  ret["scoring"] = writeScoringRule(scoringRule);
+  ret["looppass"] = writeLoopPassRule(loopPassRule);
+  ret["komi"] = komi;
   return ret;
 }
 
@@ -83,8 +103,16 @@ Rules Rules::updateRules(const string& k, const string& v, Rules oldRules) {
   Rules rules = oldRules;
   string key = Global::trim(k);
   string value = Global::trim(Global::toUpper(v));
-  if(key == "score") rules.scoringRule = Rules::parseScoringRule(value);
-  else if(key == "scoring") rules.scoringRule = Rules::parseScoringRule(value);
+  if(key == "looppass")
+    rules.loopPassRule = Rules::parseLoopPassRule(value);
+  else if(key == "komi") {
+    int newKomi = oldRules.komi;
+    bool suc = Global::tryStringToInt(value, newKomi);
+    if(suc)
+      rules.komi = newKomi;
+    else
+      throw IOError("Wrong komi: " + value + ", komi should be an integer");
+  }
   else throw IOError("Unknown rules option: " + key);
   return rules;
 }
@@ -94,7 +122,8 @@ static Rules parseRulesHelper(const string& sOrig) {
   string lowercased = Global::trim(Global::toLower(sOrig));
   
   if(lowercased == "tromp-taylor" || lowercased == "tromp_taylor" || lowercased == "tromp taylor" || lowercased == "tromptaylor") {
-    rules.scoringRule = Rules::SCORING_AREA;
+    rules.loopPassRule= Rules::LOOPDRAW_PASSSCORING;
+    rules.komi = 0;
   }
   else if(sOrig.length() > 0 && sOrig[0] == '{') {
     //Default if not specified
@@ -104,12 +133,7 @@ static Rules parseRulesHelper(const string& sOrig) {
       string s;
       for(json::iterator iter = input.begin(); iter != input.end(); ++iter) {
         string key = iter.key();
-        if(key == "score")
-          rules.scoringRule = Rules::parseScoringRule(iter.value().get<string>());
-        else if(key == "scoring")
-          rules.scoringRule = Rules::parseScoringRule(iter.value().get<string>());
-        else
-          throw IOError("Unknown rules option: " + key);
+        rules = Rules::updateRules(key, iter.value().get<string>(),rules);
       }
     }
     catch(nlohmann::detail::exception&) {
@@ -141,14 +165,30 @@ static Rules parseRulesHelper(const string& sOrig) {
       if(s.length() <= 0)
         break;
 
-      if(startsWithAndStrip(s,"scoring")) {
-        if(startsWithAndStrip(s,"AREA")) rules.scoringRule = Rules::SCORING_AREA;
-        else throw IOError("Could not parse rules: " + sOrig);
+      if(startsWithAndStrip(s,"looppass")) {
+        auto ruleMap = Rules::loopPassRuleStringsMap();
+        for(auto r = ruleMap.begin(); r != ruleMap.end(); r++) {
+          if(startsWithAndStrip(s, r->first)) {
+            rules.loopPassRule = r->second;
+            continue;
+          }
+        }
+        throw IOError("Could not parse rules: " + sOrig);
         continue;
       }
-      if(startsWithAndStrip(s,"score")) {
-        if(startsWithAndStrip(s,"AREA")) rules.scoringRule = Rules::SCORING_AREA;
-        else throw IOError("Could not parse rules: " + sOrig);
+      if(startsWithAndStrip(s, "komi")) {
+        int endIdx = 0;
+        while(endIdx < s.length() && Global::isDigit(s[endIdx]))
+          endIdx++;
+        int komi;
+        bool suc = Global::tryStringToInt(s.substr(0, endIdx), komi);
+        if(!suc)
+          throw IOError("Could not parse rules: " + sOrig);
+        if(komi > 1e5 || komi < -1e5)
+          throw IOError("Could not parse rules: " + sOrig);
+        rules.komi = komi;
+        s = s.substr(endIdx);
+        s = Global::trim(s);
         continue;
       }
 
@@ -182,9 +222,11 @@ bool Rules::tryParseRules(const string& sOrig, Rules& buf) {
 
 
 
-const Hash128 Rules::ZOBRIST_SCORING_RULE_HASH[2] = {
-  //Based on sha256 hash of Rules::SCORING_AREA, but also mixing none tax rule hash, to preserve legacy hashes
-  Hash128(0x8b3ed7598f901494ULL ^ 0x72eeccc72c82a5e7ULL, 0x1dfd47ac77bce5f8ULL ^ 0x0d1265e413623e2bULL),
-  //Based on sha256 hash of Rules::SCORING_TERRITORY, but also mixing seki tax rule hash, to preserve legacy hashes
-  Hash128(0x381345dc357ec982ULL ^ 0x125bfe48a41042d5ULL, 0x03ba55c026026b56ULL ^ 0x061866b5f2b98a79ULL),
-};
+
+const Hash128 Rules::ZOBRIST_LOOPPASS_RULE_HASH[4] = {
+  Hash128(0xcfe353052ab23e7aULL, 0x243466cc5740fa07ULL),
+  Hash128(0x3bdac963636f8efbULL, 0x7f5d9b5d76a70889ULL),
+  Hash128(0xd4aecfb2904ed7d1ULL, 0x9adba41979253974ULL),
+  Hash128(0x23af6fd73de24455ULL, 0x2339118e63d7a780ULL)};
+const Hash128 Rules::ZOBRIST_KOMI_RULE_HASH_BASE =
+  Hash128(0x4c927b66ae674d8fULL, 0x1956c0e6b45360fbULL);

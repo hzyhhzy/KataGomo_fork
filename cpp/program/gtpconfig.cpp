@@ -80,7 +80,10 @@ logToStderr = false
 
 $$KO_RULE
 
-$$SCORING_RULE
+$$LOOPPASS_RULE
+# options: 
+# LOOPDRAW_PASSSCORING, LOOPDRAW_PASSCONTINUE, LOOPLOSE_PASSSCORING, LOOPSCORING_PASSSCORING 
+
 
 $$TAX_RULE
 
@@ -465,8 +468,7 @@ string GTPConfig::makeConfig(
     assert(pos != string::npos);
     config.replace(pos, key.size(), replacement);
   };
-  if(rules.scoringRule == Rules::SCORING_AREA)            replace("$$SCORING_RULE", "scoringRule = AREA  # options: AREA, TERRITORY");
-  else { ASSERT_UNREACHABLE; }
+  replace("$$LOOPPASSRULE", "loopPassRule = "+Rules::writeLoopPassRule(rules.loopPassRule)+" ");
 
 
 
