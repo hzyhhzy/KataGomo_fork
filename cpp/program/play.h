@@ -109,6 +109,9 @@ class GameInitializer {
   double komiBigStdevProb;
   float komiBigStdev;
 
+  double banLocProb;
+  double banLocAreaPropAvg;
+  double banLocAreaPropMax;
 
 
   double allowRectangleProb;

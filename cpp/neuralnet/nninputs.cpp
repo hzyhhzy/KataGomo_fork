@@ -524,9 +524,11 @@ void NNInputs::fillRowV7(
 
       //Features 1,2 - pla,opp stone
       if(stone == pla)
-        setRowBin(rowBin,pos,1, 1.0f, posStride, featureStride);
+        setRowBin(rowBin, pos, 1, 1.0f, posStride, featureStride);
       else if(stone == opp)
-        setRowBin(rowBin,pos,2, 1.0f, posStride, featureStride);
+        setRowBin(rowBin, pos, 2, 1.0f, posStride, featureStride);
+      else if(stone == C_BAN)
+        setRowBin(rowBin, pos, 3, 1.0f, posStride, featureStride);
     }
   }
 
@@ -544,7 +546,7 @@ void NNInputs::fillRowV7(
       std::cout << "nninput: chosen move not on board ";
     } else {
       int pos = NNPos::locToPos(chosenMove, board.x_size, nnXLen, nnYLen);
-      setRowBin(rowBin, pos, 3, 1.0f, posStride, featureStride);
+      setRowBin(rowBin, pos, 4, 1.0f, posStride, featureStride);
     }
   } else
     ASSERT_UNREACHABLE;
@@ -565,9 +567,9 @@ void NNInputs::fillRowV7(
   rowGlobal[5] = tanh(selfKomi);
   rowGlobal[6] = tanh(selfKomi * 0.3);
   rowGlobal[7] = tanh(selfKomi * 0.1);
-  rowGlobal[8] = selfKomi/(board.x_size*board.y_size);
+  rowGlobal[8] = selfKomi / board.boardArea();
 
-  rowGlobal[9] = (hist.rules.komi + board.x_size * board.y_size) % 2;
+  rowGlobal[9] = (hist.rules.komi + board.boardArea()) % 2;
   
   // Parameter 15 is used because there's actually a discontinuity in how training behavior works when this is
   // nonzero, no matter how slightly.

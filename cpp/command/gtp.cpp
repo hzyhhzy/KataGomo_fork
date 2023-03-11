@@ -1377,19 +1377,69 @@ int MainCmds::gtp(const vector<string>& args) {
       engine->clearBoard();
     }
 
-    //replaced "komi" command with NoResultUtility(DrawUtility)
     else if(command == "komi") {
-      float newKomi = 0;
-      if(pieces.size() != 1 || !Global::tryStringToFloat(pieces[0],newKomi)) {
+      int boardArea = engine->bot->getRootBoard().boardArea();
+      float newKomif = 0;
+      if(pieces.size() != 1 || !Global::tryStringToFloat(pieces[0],newKomif)) {
         responseIsError = true;
         response = "Expected single float argument for komi but got '" + Global::concat(pieces," ") + "'";
       } 
-      else if(isnan(newKomi) || newKomi < -10 || newKomi > 10) {
+      else if(isnan(newKomif) || newKomif <= -boardArea || newKomif >= boardArea) {
         responseIsError = true;
         response = "unacceptable komi";
       } 
       else {
-        engine->setNoResultUtilityForWhite(newKomi / 10.0);
+        int newKomi;
+        float newNoResultUtilityForWhite;
+
+        int komi2 = llround(newKomif * 2);
+        int komi2mod4 = komi2 % 4;
+        if(komi2mod4 < 0)
+          komi2mod4 += 4;
+        assert(komi2mod4 >= 0 && komi2mod4 < 4);
+        if(boardArea % 2 == 1) {
+          if(komi2mod4 == 0) {
+            newKomi = komi2 / 2;
+            newNoResultUtilityForWhite = 0.0;
+          } else if(komi2mod4 == 1) {
+            newKomi = (komi2 - 1) / 2;
+            newNoResultUtilityForWhite = 1.0;
+          } else if(komi2mod4 == 2) {
+            newKomi = komi2 / 2;
+            newNoResultUtilityForWhite = 0.0;
+          } else if(komi2mod4 == 3) {
+            newKomi = (komi2 + 1) / 2;
+            newNoResultUtilityForWhite = -1.0;
+          }
+        } 
+        else {
+          if(komi2mod4 == 0) {
+            newKomi = komi2 / 2;
+            newNoResultUtilityForWhite = 0.0;
+          } else if(komi2mod4 == 1) {
+            newKomi = (komi2 + 1) / 2;
+            newNoResultUtilityForWhite = -1.0;
+          } else if(komi2mod4 == 2) {
+            newKomi = komi2 / 2;
+            newNoResultUtilityForWhite = 0.0;
+          } else if(komi2mod4 == 3) {
+            newKomi = (komi2 - 1) / 2;
+            newNoResultUtilityForWhite = 1.0;
+          }
+        }
+
+
+
+        Rules newRules = engine->getCurrentRules();
+        newRules.komi = newKomi;
+        string error;
+        bool suc = engine->setRules(newRules, error);
+        if(!suc) {
+          responseIsError = true;
+          response = error;
+        }
+
+        engine->setNoResultUtilityForWhite(newNoResultUtilityForWhite);
         // In case the controller tells us komi every move, restart pondering afterward.
         maybeStartPondering = engine->bot->getRootHist().moveHistory.size() > 0;
       }

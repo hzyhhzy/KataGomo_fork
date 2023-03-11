@@ -198,7 +198,7 @@ void SgfNode::accumPlacements(vector<Move>& moves, int xSize, int ySize) const {
   }
   if(contains(*props,"AE")) {
     const vector<string>& ae = map_get(*props,"AE");
-    handleRectangleList(ae,C_EMPTY);
+    handleRectangleList(ae,C_BAN);
   }
 }
 
@@ -1483,6 +1483,22 @@ void WriteSgf::writeSgf(
         }
         out << "[";
         writeSgfLoc(out,loc,xSize,ySize);
+        out << "]";
+      }
+    }
+  }
+
+  bool hasAE = false;
+  for(int y = 0; y < ySize; y++) {
+    for(int x = 0; x < xSize; x++) {
+      Loc loc = Location::getLoc(x, y, xSize);
+      if(initialBoard.colors[loc] == C_BAN) {
+        if(!hasAE) {
+          out << "AE";
+          hasAE = true;
+        }
+        out << "[";
+        writeSgfLoc(out, loc, xSize, ySize);
         out << "]";
       }
     }

@@ -256,6 +256,10 @@ int Board::numPlaStonesOnBoard(Player pla) const {
   return num;
 }
 
+int Board::boardArea() const {
+  return x_size * y_size - numPlaStonesOnBoard(C_BAN);
+}
+
 bool Board::setStone(Loc loc, Color color)
 {
   if(loc < 0 || loc >= MAX_ARR_SIZE || colors[loc] == C_WALL)
@@ -426,7 +430,7 @@ void Board::checkConsistency() const {
         tmp_pos_hash ^= ZOBRIST_BOARD_HASH[loc][C_EMPTY];
       }
       else
-        throw StringError(errLabel + "Non-(black,white,empty) value within board legal area");
+        throw StringError(errLabel + "C_WALL value within board legal area");
     }
   }
 

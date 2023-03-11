@@ -38,7 +38,8 @@ static constexpr Color C_EMPTY = 0;
 static constexpr Color C_BLACK = 1;
 static constexpr Color C_WHITE = 2;
 static constexpr Color C_WALL = 3;
-static constexpr int NUM_BOARD_COLORS = 4;
+static constexpr Color C_BAN = 4;
+static constexpr int NUM_BOARD_COLORS = 5;
 
 static inline Color getOpp(Color c)
 {return c ^ 3;}
@@ -145,6 +146,7 @@ struct Board
   //Count the number of stones on the board
   int numStonesOnBoard() const;
   int numPlaStonesOnBoard(Player pla) const;
+  int boardArea() const;
 
 
   //Sets the specified stone if possible, including overwriting existing stones.

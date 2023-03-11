@@ -113,7 +113,7 @@ Color GameLogic::checkWinnerAfterPlayed(
       hist.rules.loopPassRule == Rules::LOOPDRAW_PASSSCORING ||
       hist.rules.loopPassRule == Rules::LOOPLOSE_PASSSCORING ||
       hist.rules.loopPassRule == Rules::LOOPSCORING_PASSSCORING) {
-      int myScore = 2 * board.numPlaStonesOnBoard(pla) - board.x_size * board.y_size;
+      int myScore = 2 * board.numPlaStonesOnBoard(pla) - board.boardArea();
       if(pla == C_BLACK)
         myScore -= hist.rules.komi;
       else
@@ -158,7 +158,7 @@ Color GameLogic::checkWinnerAfterPlayed(
       return opp;
     }
     else if(hist.rules.loopPassRule == Rules::LOOPSCORING_PASSSCORING) {
-      int myScore = 2 * board.numPlaStonesOnBoard(pla) - board.x_size * board.y_size;
+      int myScore = 2 * board.numPlaStonesOnBoard(pla) - -board.boardArea();
       if(pla == C_BLACK)
         myScore -= hist.rules.komi;
       else

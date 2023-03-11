@@ -55,6 +55,10 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
   komiBigStdevProb = cfg.contains("komiBigStdevProb") ? cfg.getDouble("komiBigStdevProb", 0.0, 1.0) : 0.0;
   komiBigStdev = cfg.contains("komiBigStdev") ? cfg.getFloat("komiBigStdev", 0.0f, 1000.0f) : 2.0f;
 
+  banLocProb = cfg.contains("banLocProb") ? cfg.getDouble("banLocProb", 0.0, 1.0) : 0.0;
+  banLocAreaPropAvg = cfg.contains("banLocAreaPropAvg") ? cfg.getDouble("banLocAreaPropAvg", 0.0, 1.0) : 0.2;
+  banLocAreaPropMax = cfg.contains("banLocAreaPropMax") ? cfg.getDouble("banLocAreaPropMax", 0.001, 1.0) : 0.5;
+
 
   allowedBSizes = cfg.getInts("bSizes", 2, Board::MAX_LEN);
   allowedBSizeRelProbs = cfg.getDoubles("bSizeRelProbs",0.0,1e100);
@@ -391,6 +395,23 @@ void GameInitializer::createGameSharedUnsynchronized(
     int xSize = allowedBSizes[xSizeIdx];
     int ySize = allowedBSizes[ySizeIdx];
     board = Board(xSize,ySize);
+    //place banned locs
+    if(rand.nextBool(banLocProb))
+    { 
+      double banLocAreaProp;
+
+      do {
+        banLocAreaProp = banLocAreaPropAvg * rand.nextExponential();
+      } while(banLocAreaProp > banLocAreaPropMax);
+
+      for(int loc = 0; loc < Board::MAX_ARR_SIZE; loc++) {
+        if(board.colors[loc] == C_EMPTY)
+          if(rand.nextBool(banLocAreaProp))
+            board.setStone(loc, C_BAN);
+      }
+      
+    }
+
     pla = P_BLACK;
     hist.clear(board,pla,rules);
 
