@@ -1962,7 +1962,7 @@ int MainCmds::gtp(const vector<string>& args) {
         response = engine->bot->getRootBoard().getFEN();
     } 
     else if(command == "setfen") {
-      if(pieces.size() != 2) {
+      if(pieces.size() < 2) {
         responseIsError = true;
         response = "Expected FEN string and nextplayer for setfen but got '" + Global::concat(pieces, " ") + "'";
       } else if(pieces[1] != "b" && pieces[1] != "w" && pieces[1] != "x" && pieces[1] != "o") {
