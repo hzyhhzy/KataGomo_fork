@@ -159,6 +159,9 @@ struct Board
   // valid state. Also returns false if any location is specified more than once.
   bool setStones(std::vector<Move> placements);
 
+
+  bool setFEN(std::string fen, Player nextPlayer);
+
   //Plays the specified move, assuming it is legal.
   void playMoveAssumeLegal(Loc loc, Player pla);
 
@@ -178,6 +181,8 @@ struct Board
   //For the moment, only used in testing since it does extra consistency checks.
   //If we need a version to be used in "prod", we could make an efficient version maybe as operator==.
   bool isEqualForTesting(const Board& other) const;
+
+  std::string getFEN() const;
 
   static Board parseBoard(int xSize, int ySize, const std::string& s);
   static Board parseBoard(int xSize, int ySize, const std::string& s, char lineDelimiter);

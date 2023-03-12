@@ -484,6 +484,7 @@ char PlayerIO::colorToChar(Color c)
   case C_BLACK: return 'X';
   case C_WHITE: return 'O';
   case C_EMPTY: return '.';
+  case C_BAN: return '-';
   default:  return '#';
   }
 }
@@ -686,6 +687,105 @@ vector<Loc> Location::parseSequence(const string& str, const Board& board) {
     locs.push_back(Location::ofString(piece,board));
   }
   return locs;
+}
+
+bool Board::setFEN(std::string fen, Player nextPlayer) {
+
+  auto lines = Global::split(fen, '/');
+  int newYsize = lines.size();
+
+  int newXsize = 0;
+  {
+    string line = lines[0];
+
+    int x = 0;
+    for(int p = 0; p < line.size(); p++) {
+      char c = line[p];
+      if(c >= '0' && c <= '9') {
+        int emptylen = c - '0';
+        for(int i = 0; i < emptylen; i++) {
+          x++;
+        }
+      } else {
+        x++;
+      }
+    }
+    newXsize = x;
+  }
+  init(newXsize, newYsize);
+  pos_hash ^= ZOBRIST_NEXTPLA_HASH[nextPla];
+  nextPla = nextPlayer;
+  pos_hash ^= ZOBRIST_NEXTPLA_HASH[nextPla];
+
+  assert(x_size <= 9);
+  for(int y = 0; y < y_size; y++) {
+    string line = lines[y];
+
+    int x = 0;
+    for(int p = 0; p < line.size(); p++) {
+      if(x >= x_size)
+        return false;
+
+      char c = line[p];
+      if(c >= '0' && c <= '9') {
+        int emptylen = c - '0';
+        for(int i = 0; i < emptylen; i++) {
+          if(x >= x_size)
+            return false;
+          setStone(Location::getLoc(x, y, x_size), C_EMPTY);
+          x++;
+        }
+      } else {
+        Color color = 
+          c == 'x' ? C_BLACK : 
+          c == 'o' ? C_WHITE : 
+          c == '-' ? C_BAN : 
+          C_WALL;
+        if(color == C_WALL)
+          return false;
+        setStone(Location::getLoc(x, y, x_size), color);
+        x++;
+      }
+    }
+    if(x != x_size)
+      return false;
+  }
+  return true;
+}
+
+std::string Board::getFEN() const {
+  string fen;
+  for(int y = 0; y < y_size; y++) {
+    if(y != 0)
+      fen += "/";
+
+    int emptylen = 0;
+    for(int x = 0; x < x_size; x++) {
+      Color color = colors[Location::getLoc(x, y, x_size)];
+      char c = 
+        color == C_BLACK ? 'x' :
+        color == C_WHITE ? 'o' :
+        color == C_BAN ? '-' :
+        color == C_EMPTY ? '.' :
+        '#';
+      if(c == '.')
+        emptylen += 1;
+      else {
+        if(emptylen > 0)
+          fen += to_string(emptylen);
+        emptylen = 0;
+        fen += c;
+      }
+    }
+    if(emptylen > 0)
+      fen += to_string(emptylen);
+  }
+  fen += " ";
+  if(nextPla == C_BLACK)
+    fen += "b";
+  else
+    fen += "w";
+  return fen;
 }
 
 void Board::printBoard(ostream& out, const Board& board, Loc markLoc, const vector<Move>* hist) {

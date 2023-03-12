@@ -354,6 +354,22 @@ struct GTPEngine {
     recentWinLossValues.clear();
   }
 
+  bool setFEN(string fen, Player nextPlayer) {
+    assert(bot->getRootHist().rules == currentRules);
+    int newXSize = bot->getRootBoard().x_size;
+    int newYSize = bot->getRootBoard().y_size;
+    Board board(newXSize, newYSize);
+    bool suc = board.setFEN(fen, nextPlayer);
+    if(!suc)
+      return false;
+
+    BoardHistory hist(board, nextPlayer, currentRules);
+    vector<Move> newMoveHistory;
+    setPositionAndRules(nextPlayer, board, hist, board, nextPlayer, newMoveHistory);
+    clearStatsForNewGame();
+    return true;
+  }
+
   void clearBoard() {
     assert(bot->getRootHist().rules == currentRules);
     int newXSize = bot->getRootBoard().x_size;
@@ -1934,6 +1950,34 @@ int MainCmds::gtp(const vector<string>& args) {
           response = "illegal move";
         }
         maybeStartPondering = true;
+      }
+    }
+
+    // export FEN
+    else if(command == "getfen") {
+      if(pieces.size() != 0) {
+        responseIsError = true;
+        response = "Expected zero arguments for getfen but got '" + Global::concat(pieces, " ") + "'";
+      } else
+        response = engine->bot->getRootBoard().getFEN();
+    } 
+    else if(command == "setfen") {
+      if(pieces.size() != 2) {
+        responseIsError = true;
+        response = "Expected FEN string and nextplayer for setfen but got '" + Global::concat(pieces, " ") + "'";
+      } else if(pieces[1] != "b" && pieces[1] != "w" && pieces[1] != "x" && pieces[1] != "o") {
+        responseIsError = true;
+        response =
+          "The second parameter of setfen should be 'b'or'x' for black, or 'w'or'o' for white. But got '" + pieces[1] + "' ";
+      } else {
+        string fen = pieces[0];
+        Player nextPla = (pieces[1] == "w"||pieces[1] == "o") ? C_WHITE : C_BLACK;  
+        bool suc = engine->setFEN(fen, nextPla);
+        if(!suc) {
+          responseIsError = true;
+          response = "Illegal FEN";
+        }
+        maybeStartPondering = false;
       }
     }
 
