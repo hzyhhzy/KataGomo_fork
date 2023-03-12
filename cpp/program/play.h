@@ -109,6 +109,7 @@ class GameInitializer {
   double komiBigStdevProb;
   float komiBigStdev;
 
+  double randomInitialStonesProb;
   double banLocProb;
   double banLocAreaPropAvg;
   double banLocAreaPropMax;

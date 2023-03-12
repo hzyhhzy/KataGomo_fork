@@ -55,8 +55,9 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
   komiBigStdevProb = cfg.contains("komiBigStdevProb") ? cfg.getDouble("komiBigStdevProb", 0.0, 1.0) : 0.0;
   komiBigStdev = cfg.contains("komiBigStdev") ? cfg.getFloat("komiBigStdev", 0.0f, 1000.0f) : 2.0f;
 
+  randomInitialStonesProb = cfg.contains("randomInitialStonesProb") ? cfg.getDouble("randomInitialStonesProb", 0.0, 1.0) : 0.0;
   banLocProb = cfg.contains("banLocProb") ? cfg.getDouble("banLocProb", 0.0, 1.0) : 0.0;
-  banLocAreaPropAvg = cfg.contains("banLocAreaPropAvg") ? cfg.getDouble("banLocAreaPropAvg", 0.0, 1.0) : 0.2;
+  banLocAreaPropAvg = cfg.contains("banLocAreaPropAvg") ? cfg.getDouble("banLocAreaPropAvg", 0.0, 1.0) : 0.12;
   banLocAreaPropMax = cfg.contains("banLocAreaPropMax") ? cfg.getDouble("banLocAreaPropMax", 0.001, 1.0) : 0.5;
 
 
@@ -395,21 +396,99 @@ void GameInitializer::createGameSharedUnsynchronized(
     int xSize = allowedBSizes[xSizeIdx];
     int ySize = allowedBSizes[ySizeIdx];
     board = Board(xSize,ySize);
-    //place banned locs
-    if(rand.nextBool(banLocProb))
-    { 
-      double banLocAreaProp;
 
-      do {
-        banLocAreaProp = banLocAreaPropAvg * rand.nextExponential();
-      } while(banLocAreaProp > banLocAreaPropMax);
-
-      for(int loc = 0; loc < Board::MAX_ARR_SIZE; loc++) {
-        if(board.colors[loc] == C_EMPTY)
-          if(rand.nextBool(banLocAreaProp))
-            board.setStone(loc, C_BAN);
+    if(rand.nextBool(randomInitialStonesProb)) {
+      int initialBlackStones = 1 + int(1.0 * rand.nextExponential());
+      int initialWhiteStones = 1 + int(1.0 * rand.nextExponential());
+      if(initialWhiteStones + initialBlackStones > board.x_size * board.y_size) {
+        initialBlackStones = 1;
+        initialWhiteStones = 1;
       }
-      
+      for(int y = 0; y < board.y_size; y++)
+        for(int x = 0; x < board.x_size; x++) {
+          Loc loc = Location::getLoc(x, y, board.x_size);
+          board.setStone(loc, C_EMPTY);
+        }
+      for(int s = 0; s < initialBlackStones; s++) {
+        Loc loc;
+        do {
+          int x = rand.nextUInt64() % board.x_size;
+          int y = rand.nextUInt64() % board.y_size;
+          loc = Location::getLoc(x, y, board.x_size);
+        } while(board.colors[loc] != C_EMPTY);
+        board.setStone(loc, C_BLACK);
+      }
+      for(int s = 0; s < initialWhiteStones; s++) {
+        Loc loc;
+        do {
+          int x = rand.nextUInt64() % board.x_size;
+          int y = rand.nextUInt64() % board.y_size;
+          loc = Location::getLoc(x, y, board.x_size);
+        } while(board.colors[loc] != C_EMPTY);
+        board.setStone(loc, C_WHITE);
+      }
+
+    }
+    
+
+    //place banned locs
+    if(rand.nextBool(banLocProb)) {
+      if(board.x_size == 7 && board.y_size == 7 && rand.nextBool(0.15)) { //smaller boards
+        if(rand.nextBool(0.8))//6x6 board
+        {
+          for(int y = 0; y < board.y_size; y++)
+            for(int x = 0; x < board.x_size; x++) {
+              Loc loc = Location::getLoc(x, y, board.x_size);
+              if(x == board.x_size - 1 || y == board.y_size - 1)
+                board.setStone(loc, C_BAN);
+              else
+                board.setStone(loc, C_EMPTY);
+            }
+          
+          // initial stones
+          if(rand.nextBool(0.5)) {
+            board.setStone(Location::getLoc(0, 0, board.x_size), C_BLACK);
+            board.setStone(Location::getLoc(board.x_size - 2, board.y_size - 2, board.x_size), C_BLACK);
+            board.setStone(Location::getLoc(0, board.y_size - 2, board.x_size), C_WHITE);
+            board.setStone(Location::getLoc(board.x_size - 2, 0, board.x_size), C_WHITE);
+          } else {
+            board.setStone(Location::getLoc(0, 0, board.x_size), C_WHITE);
+            board.setStone(Location::getLoc(board.x_size - 2, board.y_size - 2, board.x_size), C_WHITE);
+            board.setStone(Location::getLoc(0, board.y_size - 2, board.x_size), C_BLACK);
+            board.setStone(Location::getLoc(board.x_size - 2, 0, board.x_size), C_BLACK);
+          }
+        }
+        else //5x5 board
+        {
+          for(int y = 0; y < board.y_size; y++)
+            for(int x = 0; x < board.x_size; x++) {
+              Loc loc = Location::getLoc(x, y, board.x_size);
+              if(x == board.x_size - 1 || y == board.y_size - 1 || x == 0 || y == 0)
+                board.setStone(loc, C_BAN);
+              else
+                board.setStone(loc, C_EMPTY);
+            }
+
+          // initial stones
+          board.setStone(Location::getLoc(1, 1, board.x_size), C_BLACK);
+          board.setStone(Location::getLoc(board.x_size - 2, board.y_size - 2, board.x_size), C_BLACK);
+          board.setStone(Location::getLoc(1, board.y_size - 2, board.x_size), C_WHITE);
+          board.setStone(Location::getLoc(board.x_size - 2, 1, board.x_size), C_WHITE);
+        }
+      } 
+      else { //randomly place several gaps
+        double banLocAreaProp;
+
+        do {
+          banLocAreaProp = banLocAreaPropAvg * rand.nextExponential();
+        } while(banLocAreaProp > banLocAreaPropMax);
+
+        for(int loc = 0; loc < Board::MAX_ARR_SIZE; loc++) {
+          if(board.colors[loc] == C_EMPTY)
+            if(rand.nextBool(banLocAreaProp))
+              board.setStone(loc, C_BAN);
+        }
+      }
     }
 
     pla = P_BLACK;
