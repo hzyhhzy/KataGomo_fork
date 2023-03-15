@@ -229,7 +229,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   if(isCopyStone || hashCountBeforePlay>=2)
     posHashHistoryCount.clear();
 
-  bool isLegalPass = moveLoc == Board::PASS_LOC && (!GameLogic::hasLegalMove(board));
+  bool isLegalPass = moveLoc == Board::PASS_LOC && board.stage == 0 && (!GameLogic::hasLegalMoveAssumeStage0(board));
 
   board.playMoveAssumeLegal(moveLoc,movePla);
 

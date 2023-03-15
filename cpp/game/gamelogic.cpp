@@ -66,7 +66,7 @@ GameLogic::MovePriority GameLogic::getMovePriority(const Board& board, const Boa
   return MP;
 }
 
-bool GameLogic::hasLegalMove(const Board& board) {
+bool GameLogic::hasLegalMoveAssumeStage0(const Board& board) {
   if(board.stage == 1)
     return true;//pass is never allowed in stage 1
   assert(board.stage == 0);
@@ -126,7 +126,7 @@ Color GameLogic::checkWinnerAfterPlayed(
       else
         return C_EMPTY;
     } else if(hist.rules.loopPassRule == Rules::LOOPDRAW_PASSCONTINUE) {
-      bool hasLegalMoveNextMove = hasLegalMove(board);
+      bool hasLegalMoveNextMove = hasLegalMoveAssumeStage0(board);
       if(!hasLegalMoveNextMove) {  // double pass, normal ending
         int whiteScore = board.numPlaStonesOnBoard(C_WHITE) - board.numPlaStonesOnBoard(C_BLACK);
         if(whiteScore > 0)

@@ -535,7 +535,7 @@ void NNInputs::fillRowV7(
   // mid state
   if(board.stage == 0)  // choose
   {
-    if(!GameLogic::hasLegalMove(board))
+    if(!GameLogic::hasLegalMoveAssumeStage0(board))
       rowGlobal[1] = 1.0f;
 
   } else if(board.stage == 1)  // place
