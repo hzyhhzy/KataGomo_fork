@@ -697,6 +697,8 @@ void NNEvaluator::evaluate(
       for(int i = 0; i < policySize; i++) {
         Loc loc = NNPos::posToLoc(i, xSize, ySize, nnXLen, nnYLen);
         isLegal[i] = history.isLegal(board, loc, nextPlayer);
+        if(loc == Board::PASS_LOC && GameLogic::hasLegalMove(board)) 
+          isLegal[i] = false;//pass is not allowed
       }
     } 
     else  // assume all other moves are illegal
@@ -705,7 +707,7 @@ void NNEvaluator::evaluate(
         isLegal[i] = false;
       }
       isLegal[NNPos::locToPos(resultsBeforeNN.myOnlyLoc, xSize, nnXLen, nnYLen)] = true;
-      isLegal[NNPos::locToPos(Board::PASS_LOC, xSize, nnXLen, nnYLen)] = true;
+      isLegal[NNPos::locToPos(Board::PASS_LOC, xSize, nnXLen, nnYLen)] = false;
     }
 
     for(int i = 0; i<policySize; i++) {
