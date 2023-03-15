@@ -73,6 +73,8 @@ namespace Location
 
   std::string toString(Loc loc, int x_size, int y_size);
   std::string toString(Loc loc, const Board& b);
+  std::string toStringUCI(Loc loc, int x_size, int y_size);
+  std::string toStringUCI(Loc loc, const Board& b);
   std::string toStringMach(Loc loc, int x_size);
   std::string toStringMach(Loc loc, const Board& b);
 

@@ -567,6 +567,31 @@ string Location::toString(Loc loc, const Board& b) {
   return toString(loc,b.x_size,b.y_size);
 }
 
+string Location::toStringUCI(Loc loc, int x_size, int y_size) {
+  if(x_size > 26 * 26)
+    return toStringMach(loc, x_size);
+  if(loc == Board::PASS_LOC)
+    return string("0000");
+  if(loc == Board::NULL_LOC)
+    return string("null");
+  const char* xChar = "abcdefghijklmnopqrstuvwxyz";
+  int x = getX(loc, x_size);
+  int y = getY(loc, x_size);
+  if(x >= x_size || x < 0 || y < 0 || y >= y_size)
+    return toStringMach(loc, x_size);
+
+  char buf[128];
+  if(x <= 25)
+    sprintf(buf, "%c%d", xChar[x], y_size - y);
+  else
+    sprintf(buf, "%c%c%d", xChar[x / 26 - 1], xChar[x % 26], y_size - y);
+  return string(buf);
+}
+
+string Location::toStringUCI(Loc loc, const Board& b) {
+  return toStringUCI(loc, b.x_size, b.y_size);
+}
+
 string Location::toStringMach(Loc loc, const Board& b) {
   return toStringMach(loc,b.x_size);
 }

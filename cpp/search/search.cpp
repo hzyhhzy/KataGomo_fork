@@ -72,7 +72,7 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const strin
    rootSymmetries(),
    rootPruneOnlySymmetries(),
    searchParams(params),numSearchesBegun(0),searchNodeAge(0),
-   plaThatSearchIsFor(C_EMPTY),plaThatSearchIsForLastSearch(C_EMPTY),
+   plaThatSearchIsFor(rootBoard.nextPla),plaThatSearchIsForLastSearch(C_EMPTY),
    lastSearchNumPlayouts(0),
    effectiveSearchTimeCarriedOver(0.0),
    randSeed(rSeed),
@@ -147,7 +147,7 @@ int Search::getPos(Loc moveLoc) const {
 void Search::setPosition(Player pla, const Board& board, const BoardHistory& history) {
   clearSearch();
   rootPla = pla;
-  plaThatSearchIsFor = C_EMPTY;
+  plaThatSearchIsFor = board.nextPla;
   rootBoard = board;
   rootHistory = history;
   avoidMoveUntilByLocBlack.clear();
@@ -157,7 +157,7 @@ void Search::setPosition(Player pla, const Board& board, const BoardHistory& his
 void Search::setPlayerAndClearHistory(Player pla) {
   clearSearch();
   rootPla = pla;
-  plaThatSearchIsFor = C_EMPTY;
+  plaThatSearchIsFor = rootBoard.nextPla;
   Rules rules = rootHistory.rules;
   rootHistory.clear(rootBoard,rootPla,rules);
 
@@ -516,7 +516,7 @@ void Search::beginSearch(bool pondering) {
     plaThatSearchIsFor = rootPla;
   //If we begin the game with a ponder, then assume that "we" are the opposing side until we see otherwise.
   if(plaThatSearchIsFor == C_EMPTY)
-    plaThatSearchIsFor = rootBoard.nextnextPla();
+    plaThatSearchIsFor = rootBoard.nextPla;
 
   if(plaThatSearchIsForLastSearch != plaThatSearchIsFor) {
     //In the case we are doing playoutDoublingAdvantage without a specific player (so, doing the root player)
