@@ -202,7 +202,7 @@ Color GameLogic::checkWinnerAfterPlayed(
   }
 
   // extremely long game, draw
-  if(hist.moveHistory.size() > Board::MAX_ARR_SIZE * 100) {
+  if(hist.moveHistory.size() > board.x_size * board.y_size * 30) {
     cout << "Game too long without loop" << endl;
     return C_EMPTY;
   }
