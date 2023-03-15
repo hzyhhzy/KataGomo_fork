@@ -23,16 +23,16 @@ bool GameLogic::isLegal(const Board& board, Player pla, Loc loc) {
     return false;
   }
 
-  if(loc == Board::PASS_LOC)  // pass is lose, but not illegal
-    return true;
-
-  if(!board.isOnBoard(loc))
+  if(loc != Board::PASS_LOC && (!board.isOnBoard(loc)))
     return false;
 
   if(board.stage == 0)  // choose or copy a piece
   {
+    if(loc==Board::PASS_LOC) {
+      return !hasLegalMoveAssumeStage0(board);
+    }
     if(board.colors[loc] == pla)
-      return true;
+      return hasLegalMoveAssumeStage1(board, loc);
     else if(board.colors[loc] == C_EMPTY) {
       for(int i = 0; i < 8; i++)
         if(board.colors[loc + board.adj_offsets[i]] == pla)
@@ -43,6 +43,9 @@ bool GameLogic::isLegal(const Board& board, Player pla, Loc loc) {
   } 
   else if(board.stage == 1)  // place the piece
   {
+    if(loc == Board::PASS_LOC) {
+      return !hasLegalMoveAssumeStage1(board, board.midLocs[0]);
+    }
     Loc chosenMove = board.midLocs[0];
     if(board.colors[loc] != C_EMPTY)
       return false;
@@ -92,6 +95,30 @@ bool GameLogic::hasLegalMoveAssumeStage0(const Board& board) {
   }
   return false;
 
+}
+
+bool GameLogic::hasLegalMoveAssumeStage1(const Board& board, Loc chosenLoc) {
+  if(!board.isOnBoard(chosenLoc))
+    chosenLoc = board.midLocs[0];
+  if(!board.isOnBoard(chosenLoc))
+    return false;
+  int x = Location::getX(chosenLoc, board.x_size);
+  int y = Location::getY(chosenLoc, board.x_size);
+  // find place to jump
+  for(int dy = -2; dy <= 2; dy++) {
+    for(int dx = -2; dx <= 2; dx++) {
+      if(dx * dx + dy * dy <= 2)
+        continue;
+      int x1 = x + dx;
+      int y1 = y + dy;
+      if(x1 < 0 || x1 >= board.x_size || y1 < 0 || y1 >= board.y_size)
+        continue;
+      Loc loc1 = Location::getLoc(x1, y1, board.x_size);
+      if(board.colors[loc1] == C_EMPTY)
+        return true;
+    }
+  }
+  return false;
 }
 
 

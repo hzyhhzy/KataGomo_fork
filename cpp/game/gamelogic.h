@@ -26,6 +26,7 @@ namespace GameLogic {
   static const MovePriority MP_ILLEGAL = -1;//illegal moves
 
   bool isLegal(const Board& board, Player pla, Loc loc);
+  bool isLegalStrict(const Board& board, Player pla, Loc loc);
 
   MovePriority getMovePriorityAssumeLegal(const Board& board, const BoardHistory& hist, Player pla, Loc loc);
   MovePriority getMovePriority(const Board& board, const BoardHistory& hist, Player pla, Loc loc);
@@ -33,6 +34,7 @@ namespace GameLogic {
   //C_EMPTY = draw, C_WALL = not finished 
   Color checkWinnerAfterPlayed(const Board& board, const BoardHistory& hist, Player pla, Loc loc, bool isLegalPass);
   bool hasLegalMoveAssumeStage0(const Board& board);
+  bool hasLegalMoveAssumeStage1(const Board& board, Loc chosenLoc);
 
 
   //some results calculated before calculating NN
