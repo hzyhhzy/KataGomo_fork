@@ -86,6 +86,12 @@ static void maybeApplyWideRootNoise(
   }
 }
 
+inline double noResultUtilityDecrease(double mean, double decrease, Color color) {
+  if(color == C_BLACK)
+    decrease = -decrease;
+  return mean - tanh(atanh(mean * 0.999999) - decrease);
+}
+
 
 double Search::getExploreSelectionValueOfChild(
   const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
@@ -103,6 +109,7 @@ double Search::getExploreSelectionValueOfChild(
   int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
   double utilityAvg = child->stats.utilityAvg.load(std::memory_order_acquire);
   double childWeight = child->stats.getChildWeight(childEdgeVisits,childVisits);
+  double noResultValueAvg = child->stats.noResultValueAvg.load(std::memory_order_acquire);
 
   //It's possible that childVisits is actually 0 here with multithreading because we're visiting this node while a child has
   //been expanded but its thread not yet finished its first visit.
@@ -113,6 +120,11 @@ double Search::getExploreSelectionValueOfChild(
     childUtility = fpuValue;
   else {
     childUtility = utilityAvg;
+    double parentNoResultValueAvg = parent.stats.noResultValueAvg.load(std::memory_order_acquire);
+    double d = searchParams.noResultUtilityReduce * (1 - parentNoResultValueAvg);
+    childUtility =
+      utilityAvg - noResultValueAvg * noResultUtilityDecrease(searchParams.noResultUtilityForWhite, d, parent.nextPla);
+
 
   }
 

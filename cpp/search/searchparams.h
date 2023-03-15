@@ -8,6 +8,7 @@ struct SearchParams {
   //Utility function parameters
   double winLossUtilityFactor;     //Scaling for [-1,1] value for winning/losing
   double noResultUtilityForWhite; //Utility of having a no-result game (simple ko rules or nonterminating territory encore) 
+  double noResultUtilityReduce;   // Decrease draw utility for both side (if positive)
 
   //Search tree exploration parameters
   double cpuctExploration;  //Constant factor on exploration, should also scale up linearly with magnitude of utility
