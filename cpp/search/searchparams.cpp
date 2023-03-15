@@ -8,7 +8,8 @@
 SearchParams::SearchParams()
   :winLossUtilityFactor(1.0),
    noResultUtilityForWhite(0.0),
-   noResultUtilityReduce(0.0),
+   noResultUtilityReduceEarly(0.0),
+   noResultUtilityReduceNearDraw(0.0),
    cpuctExploration(1.0),
    cpuctExplorationLog(0.0),
    cpuctExplorationBase(500),

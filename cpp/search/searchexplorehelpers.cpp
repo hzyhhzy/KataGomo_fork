@@ -7,9 +7,14 @@
 //------------------------
 
 static double cpuctExploration(double totalChildWeight, const SearchParams& searchParams) {
-  return searchParams.cpuctExploration +
-    searchParams.cpuctExplorationLog * log((totalChildWeight + searchParams.cpuctExplorationBase) / searchParams.cpuctExplorationBase);
+  if(searchParams.cpuctExplorationLog>=0)
+    return searchParams.cpuctExploration +
+      searchParams.cpuctExplorationLog * log((totalChildWeight + searchParams.cpuctExplorationBase) / searchParams.cpuctExplorationBase);
+  else
+    return searchParams.cpuctExploration*
+      pow((totalChildWeight + searchParams.cpuctExplorationBase) / searchParams.cpuctExplorationBase, -searchParams.cpuctExplorationLog);
 }
+
 
 //Tiny constant to add to numerator of puct formula to make it positive
 //even when visits = 0.
@@ -121,7 +126,7 @@ double Search::getExploreSelectionValueOfChild(
   else {
     childUtility = utilityAvg;
     double parentNoResultValueAvg = parent.stats.noResultValueAvg.load(std::memory_order_acquire);
-    double d = searchParams.noResultUtilityReduce * (1 - parentNoResultValueAvg);
+    double d = searchParams.noResultUtilityReduceEarly * (1 - parentNoResultValueAvg) + searchParams.noResultUtilityReduceNearDraw * parentNoResultValueAvg;
     childUtility =
       utilityAvg - noResultValueAvg * noResultUtilityDecrease(searchParams.noResultUtilityForWhite, d, parent.nextPla);
 
