@@ -155,7 +155,7 @@ Color GameLogic::checkWinnerAfterPlayed(
     } else if(hist.rules.loopPassRule == Rules::LOOPDRAW_PASSCONTINUE) {
       bool hasLegalMoveNextMove = hasLegalMoveAssumeStage0(board);
       if(!hasLegalMoveNextMove) {  // double pass, normal ending
-        int whiteScore = board.numPlaStonesOnBoard(C_WHITE) - board.numPlaStonesOnBoard(C_BLACK);
+        int whiteScore = board.numPlaStonesOnBoard(C_WHITE) - board.numPlaStonesOnBoard(C_BLACK) + hist.rules.komi;
         if(whiteScore > 0)
           return C_WHITE;
         else if(whiteScore < 0)
