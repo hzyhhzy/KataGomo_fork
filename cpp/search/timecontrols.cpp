@@ -188,37 +188,22 @@ void TimeControls::getTime(const Board& board, const BoardHistory& hist, double 
   int numStonesOnBoard = board.numStonesOnBoard();
 
   //Very crude way to estimate game progress
-  double approxTurnsLeftAbsolute;
-  double approxTurnsLeftIncrement; //Turns left in which we plan to spend our main time
-  double approxTurnsLeftByoYomi;   //Turns left in which we plan to spend our main time
-  {
-    double typicalGameLengthToAllowForAbsolute = 0.95 * boardArea + 20.0;
-    double typicalGameLengthToAllowForIncrement = 0.75 * boardArea + 15.0;
-    double typicalGameLengthToAllowForByoYomi = 0.50 * boardArea + 10.0;
-
-    double minApproxTurnsLeftAbsolute = 0.15 * boardArea + 30.0;
-    double minApproxTurnsLeftIncrement = 0.10 * boardArea + 20.0;
-    double minApproxTurnsLeftByoYomi = 0.02 * boardArea + 4.0;
-
-    approxTurnsLeftAbsolute = std::max(typicalGameLengthToAllowForAbsolute - numStonesOnBoard, minApproxTurnsLeftAbsolute);
-    approxTurnsLeftIncrement = std::max(typicalGameLengthToAllowForIncrement - numStonesOnBoard, minApproxTurnsLeftIncrement);
-    approxTurnsLeftByoYomi = std::max(typicalGameLengthToAllowForByoYomi - numStonesOnBoard, minApproxTurnsLeftByoYomi);
-
-    //Multiply by 0.5 since we only make half the moves
-    approxTurnsLeftAbsolute *= 0.5;
-    approxTurnsLeftIncrement *= 0.5;
-    approxTurnsLeftByoYomi *= 0.5;
+  double approxTurnsLeft;
+  { 
+    approxTurnsLeft = (boardArea - numStonesOnBoard + 3) * 6;
+    approxTurnsLeft *= 0.5;
   }
 
-  auto divideTimeEvenlyForGame = [approxTurnsLeftAbsolute,approxTurnsLeftIncrement,approxTurnsLeftByoYomi,this](double time, bool isIncrementOrAbs, bool isByoYomi) {
-    double mainTimeToUseIfAbsolute = time / approxTurnsLeftAbsolute;
+
+  auto divideTimeEvenlyForGame = [approxTurnsLeft,this](double time, bool isIncrementOrAbs, bool isByoYomi) {
+    double mainTimeToUseIfAbsolute = time / approxTurnsLeft;
 
     if(isIncrementOrAbs) {
       double mainTimeToUse;
       if(time <= 0)
         mainTimeToUse = time;
       else {
-        mainTimeToUse = time / approxTurnsLeftIncrement;
+        mainTimeToUse = time / approxTurnsLeft;
         //Make sure that if the increment is really very small, we don't choose a policy that is all that much more extreme than absolute time.
         mainTimeToUse = std::min(mainTimeToUse, mainTimeToUseIfAbsolute + 2.0 * increment);
       }
@@ -240,12 +225,12 @@ void TimeControls::getTime(const Board& board, const BoardHistory& hist, double 
 
         //If our desired time is longer than optimal (because in reality saving time for deep enough in the midgame is more important)
         //then attempt to stretch it out to some degree.
-        if(approxTurnsLeftByoYomi > theoreticalOptimalTurnsToSpendOurTime)
-          approxTurnsLeftToUse = std::min(approxTurnsLeftByoYomi, theoreticalOptimalTurnsToSpendOurTime * 1.75);
+        if(approxTurnsLeft > theoreticalOptimalTurnsToSpendOurTime)
+          approxTurnsLeftToUse = std::min(approxTurnsLeft, theoreticalOptimalTurnsToSpendOurTime * 1.75);
 
         //If we'd be even slower than absolute time, then of course move as if absolute time.
-        if(approxTurnsLeftToUse > approxTurnsLeftAbsolute)
-          approxTurnsLeftToUse = approxTurnsLeftAbsolute;
+        if(approxTurnsLeftToUse > approxTurnsLeft)
+          approxTurnsLeftToUse = approxTurnsLeft;
         //Make sure that at the very end of our main time, we don't do silly things
         if(approxTurnsLeftToUse < 1)
           approxTurnsLeftToUse = 1;
