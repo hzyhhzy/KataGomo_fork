@@ -43,12 +43,12 @@ GameInitializer::GameInitializer(ConfigParser& cfg, Logger& logger, const string
 
 void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
 
-  allowedLoopPassRuleStrs = cfg.getStrings("loopPassRules", Rules::loopPassRuleStrings());
+  allowedxxxRuleStrs = cfg.getStrings("xxxRules", Rules::xxxRuleStrings());
 
-  for(size_t i = 0; i < allowedLoopPassRuleStrs.size(); i++)
-    allowedLoopPassRules.push_back(Rules::parseLoopPassRule(allowedLoopPassRuleStrs[i]));
-  if(allowedLoopPassRules.size() <= 0)
-    throw IOError("loopPassRules must have at least one value in " + cfg.getFileName());
+  for(size_t i = 0; i < allowedxxxRuleStrs.size(); i++)
+    allowedxxxRules.push_back(Rules::parsexxxRule(allowedxxxRuleStrs[i]));
+  if(allowedxxxRules.size() <= 0)
+    throw IOError("xxxRules must have at least one value in " + cfg.getFileName());
 
   komiMean = cfg.contains("komiMean") ? cfg.getFloat("komiMean", -1000, 1000) : 0.0f;
   komiStdev = cfg.contains("komiStdev") ? cfg.getFloat("komiStdev", 0.0f, 1000.0f) : 0.0f;
@@ -307,7 +307,7 @@ Rules GameInitializer::createRules() {
 
 Rules GameInitializer::createRulesUnsynchronized() {
   Rules rules;
-  rules.loopPassRule = allowedLoopPassRules[rand.nextUInt((uint32_t)allowedLoopPassRules.size())];
+  rules.xxxRule = allowedxxxRules[rand.nextUInt((uint32_t)allowedxxxRules.size())];
 
   int boardArea = Board::MAX_LEN * Board::MAX_LEN;
 
@@ -398,96 +398,27 @@ void GameInitializer::createGameSharedUnsynchronized(
     board = Board(xSize,ySize);
 
     if(rand.nextBool(randomInitialStonesProb)) {
-      int initialBlackStones = 1 + int(1.0 * rand.nextExponential());
-      int initialWhiteStones = 1 + int(1.0 * rand.nextExponential());
-      if(initialWhiteStones + initialBlackStones > board.x_size * board.y_size) {
-        initialBlackStones = 1;
-        initialWhiteStones = 1;
-      }
       for(int y = 0; y < board.y_size; y++)
         for(int x = 0; x < board.x_size; x++) {
           Loc loc = Location::getLoc(x, y, board.x_size);
-          board.setStone(loc, C_EMPTY);
+          Color c = rand.nextUInt(3);
+          board.setStone(loc, c);
         }
-      for(int s = 0; s < initialBlackStones; s++) {
-        Loc loc;
-        do {
-          int x = rand.nextUInt64() % board.x_size;
-          int y = rand.nextUInt64() % board.y_size;
-          loc = Location::getLoc(x, y, board.x_size);
-        } while(board.colors[loc] != C_EMPTY);
-        board.setStone(loc, C_BLACK);
-      }
-      for(int s = 0; s < initialWhiteStones; s++) {
-        Loc loc;
-        do {
-          int x = rand.nextUInt64() % board.x_size;
-          int y = rand.nextUInt64() % board.y_size;
-          loc = Location::getLoc(x, y, board.x_size);
-        } while(board.colors[loc] != C_EMPTY);
-        board.setStone(loc, C_WHITE);
-      }
-
     }
     
 
     //place banned locs
     if(rand.nextBool(banLocProb)) {
-      if(board.x_size == 7 && board.y_size == 7 && rand.nextBool(0.15)) { //smaller boards
-        if(rand.nextBool(0.8))//6x6 board
-        {
-          for(int y = 0; y < board.y_size; y++)
-            for(int x = 0; x < board.x_size; x++) {
-              Loc loc = Location::getLoc(x, y, board.x_size);
-              if(x == board.x_size - 1 || y == board.y_size - 1)
-                board.setStone(loc, C_BAN);
-              else
-                board.setStone(loc, C_EMPTY);
-            }
-          
-          // initial stones
-          if(rand.nextBool(0.5)) {
-            board.setStone(Location::getLoc(0, 0, board.x_size), C_BLACK);
-            board.setStone(Location::getLoc(board.x_size - 2, board.y_size - 2, board.x_size), C_BLACK);
-            board.setStone(Location::getLoc(0, board.y_size - 2, board.x_size), C_WHITE);
-            board.setStone(Location::getLoc(board.x_size - 2, 0, board.x_size), C_WHITE);
-          } else {
-            board.setStone(Location::getLoc(0, 0, board.x_size), C_WHITE);
-            board.setStone(Location::getLoc(board.x_size - 2, board.y_size - 2, board.x_size), C_WHITE);
-            board.setStone(Location::getLoc(0, board.y_size - 2, board.x_size), C_BLACK);
-            board.setStone(Location::getLoc(board.x_size - 2, 0, board.x_size), C_BLACK);
-          }
-        }
-        else //5x5 board
-        {
-          for(int y = 0; y < board.y_size; y++)
-            for(int x = 0; x < board.x_size; x++) {
-              Loc loc = Location::getLoc(x, y, board.x_size);
-              if(x == board.x_size - 1 || y == board.y_size - 1 || x == 0 || y == 0)
-                board.setStone(loc, C_BAN);
-              else
-                board.setStone(loc, C_EMPTY);
-            }
+      double banLocAreaProp;
 
-          // initial stones
-          board.setStone(Location::getLoc(1, 1, board.x_size), C_BLACK);
-          board.setStone(Location::getLoc(board.x_size - 2, board.y_size - 2, board.x_size), C_BLACK);
-          board.setStone(Location::getLoc(1, board.y_size - 2, board.x_size), C_WHITE);
-          board.setStone(Location::getLoc(board.x_size - 2, 1, board.x_size), C_WHITE);
-        }
-      } 
-      else { //randomly place several gaps
-        double banLocAreaProp;
+      do {
+        banLocAreaProp = banLocAreaPropAvg * rand.nextExponential();
+      } while(banLocAreaProp > banLocAreaPropMax);
 
-        do {
-          banLocAreaProp = banLocAreaPropAvg * rand.nextExponential();
-        } while(banLocAreaProp > banLocAreaPropMax);
-
-        for(int loc = 0; loc < Board::MAX_ARR_SIZE; loc++) {
-          if(board.colors[loc] == C_EMPTY)
-            if(rand.nextBool(banLocAreaProp))
-              board.setStone(loc, C_BAN);
-        }
+      for(int loc = 0; loc < Board::MAX_ARR_SIZE; loc++) {
+        if(board.colors[loc] == C_EMPTY)
+          if(rand.nextBool(banLocAreaProp))
+            board.setStone(loc, C_BAN);
       }
     }
 

@@ -9,21 +9,21 @@ using json = nlohmann::json;
 
 Rules::Rules() {
   //Defaults if not set - closest match to TT rules
-  loopPassRule = LOOPDRAW_PASSSCORING;
+  xxxRule = XXXRULE0;
   komi = 0;
 }
 
 Rules::Rules(
-  int loopPassRule,
+  int xxxRule,
   int komi
 )
-  :loopPassRule(loopPassRule), komi(komi) {}
+  :xxxRule(xxxRule), komi(komi) {}
 
 Rules::~Rules() {
 }
 
 bool Rules::operator==(const Rules& other) const {
-  return loopPassRule == other.loopPassRule && komi == other.komi;
+  return xxxRule == other.xxxRule && komi == other.komi;
 }
 
 bool Rules::operator!=(const Rules& other) const {
@@ -33,48 +33,48 @@ bool Rules::operator!=(const Rules& other) const {
 
 Rules Rules::getTrompTaylorish() {
   Rules rules;
-  rules.loopPassRule = LOOPDRAW_PASSSCORING;
+  rules.xxxRule = XXXRULE0;
   return rules;
 }
 
 
 
-map<string,int> Rules::loopPassRuleStringsMap() {
+map<string,int> Rules::xxxRuleStringsMap() {
   return {
-    pair<string, int>("LOOPDRAW_PASSSCORING", 0),
-    pair<string, int>("LOOPDRAW_PASSCONTINUE", 1),
-    pair<string, int>("LOOPLOSE_PASSSCORING", 2),
-    pair<string, int>("LOOPSCORING_PASSSCORING", 3)
+    pair<string, int>("XXXRULE0", 0),
+    pair<string, int>("XXXRULE1", 1),
+    pair<string, int>("XXXRULE2", 2),
+    pair<string, int>("XXXRULE3", 3)
   };
 }
 
-std::set<std::string> Rules::loopPassRuleStrings() {
+std::set<std::string> Rules::xxxRuleStrings() {
   set<string> ruleSet;
-  auto ruleMap = Rules::loopPassRuleStringsMap();
+  auto ruleMap = Rules::xxxRuleStringsMap();
   for(auto r = ruleMap.begin(); r != ruleMap.end(); r++) {
     ruleSet.insert(r->first);
   }
   return ruleSet;
 }
 
-int Rules::parseLoopPassRule(const string& s) {
-  auto ruleMap = loopPassRuleStringsMap();
+int Rules::parsexxxRule(const string& s) {
+  auto ruleMap = xxxRuleStringsMap();
   if(ruleMap.count(s))
     return ruleMap[s];
-  else throw IOError("Rules::parseScoringRule: Invalid scoring rule: " + s);
+  else throw IOError("Rules::parsexxxRule: Invalid xxx rule: " + s);
 }
 
-string Rules::writeLoopPassRule(int scoringRule) {
-  auto ruleMap = loopPassRuleStringsMap();
+string Rules::writexxxRule(int xxxRule) {
+  auto ruleMap = xxxRuleStringsMap();
   for(auto s=ruleMap.begin();s!=ruleMap.end();s++) {
-    if(s->second == scoringRule)
+    if(s->second == xxxRule)
       return s->first;
   }
   return string("UNKNOWN");
 }
 
 ostream& operator<<(ostream& out, const Rules& rules) {
-  out << "looppass" << Rules::writeLoopPassRule(rules.loopPassRule) << "komi" << rules.komi;
+  out << "xxx" << Rules::writexxxRule(rules.xxxRule) << "komi" << rules.komi;
   return out;
 }
 
@@ -93,7 +93,7 @@ string Rules::toJsonString() const {
 //which is the default for parsing and if not otherwise specified
 json Rules::toJson() const {
   json ret;
-  ret["looppass"] = writeLoopPassRule(loopPassRule);
+  ret["xxx"] = writexxxRule(xxxRule);
   ret["komi"] = komi;
   return ret;
 }
@@ -103,8 +103,8 @@ Rules Rules::updateRules(const string& k, const string& v, Rules oldRules) {
   Rules rules = oldRules;
   string key = Global::trim(k);
   string value = Global::trim(Global::toUpper(v));
-  if(key == "looppass")
-    rules.loopPassRule = Rules::parseLoopPassRule(value);
+  if(key == "xxx")
+    rules.xxxRule = Rules::parsexxxRule(value);
   else if(key == "komi") {
     int newKomi = oldRules.komi;
     bool suc = Global::tryStringToInt(value, newKomi);
@@ -122,7 +122,7 @@ static Rules parseRulesHelper(const string& sOrig) {
   string lowercased = Global::trim(Global::toLower(sOrig));
   
   if(lowercased == "tromp-taylor" || lowercased == "tromp_taylor" || lowercased == "tromp taylor" || lowercased == "tromptaylor") {
-    rules.loopPassRule= Rules::LOOPDRAW_PASSSCORING;
+    rules.xxxRule= Rules::XXXRULE0;
     rules.komi = 0;
   }
   else if(sOrig.length() > 0 && sOrig[0] == '{') {
@@ -165,11 +165,11 @@ static Rules parseRulesHelper(const string& sOrig) {
       if(s.length() <= 0)
         break;
 
-      if(startsWithAndStrip(s,"looppass")) {
-        auto ruleMap = Rules::loopPassRuleStringsMap();
+      if(startsWithAndStrip(s,"xxx")) {
+        auto ruleMap = Rules::xxxRuleStringsMap();
         for(auto r = ruleMap.begin(); r != ruleMap.end(); r++) {
           if(startsWithAndStrip(s, r->first)) {
-            rules.loopPassRule = r->second;
+            rules.xxxRule = r->second;
             continue;
           }
         }
@@ -223,7 +223,7 @@ bool Rules::tryParseRules(const string& sOrig, Rules& buf) {
 
 
 
-const Hash128 Rules::ZOBRIST_LOOPPASS_RULE_HASH[4] = {
+const Hash128 Rules::ZOBRIST_XXX_RULE_HASH[4] = {
   Hash128(0xcfe353052ab23e7aULL, 0x243466cc5740fa07ULL),
   Hash128(0x3bdac963636f8efbULL, 0x7f5d9b5d76a70889ULL),
   Hash128(0xd4aecfb2904ed7d1ULL, 0x9adba41979253974ULL),

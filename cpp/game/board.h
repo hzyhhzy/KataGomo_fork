@@ -19,9 +19,6 @@
 //eg: Chess has 2 stages: moving which piece, and where to place.
 static const int STAGE_NUM_EACH_PLA = 2;
 
-//max moves num of a game
-static const int MAX_MOVE_NUM = 100 * COMPILE_MAX_BOARD_LEN * COMPILE_MAX_BOARD_LEN;
-
 
 //TYPES AND CONSTANTS-----------------------------------------------------------------
 
@@ -154,6 +151,7 @@ struct Board
   //Sets the specified stone if possible, including overwriting existing stones.
   //Resolves any captures and/or suicides that result from setting that stone, including deletions of the stone itself.
   //Returns false if location or color were out of range.
+  bool setNextPlayer(Player pla);
   bool setStone(Loc loc, Color color);
 
   // Same, but sets multiple stones, and only requires that the final configuration contain no zero-liberty groups.
@@ -167,11 +165,7 @@ struct Board
   //Plays the specified move, assuming it is legal.
   void playMoveAssumeLegal(Loc loc, Player pla);
 
-  // who plays the next next move
-  Player nextnextPla() const;
 
-  // who plays the last move
-  Player prevPla() const;
 
 
   

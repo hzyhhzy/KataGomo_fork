@@ -535,8 +535,8 @@ void NNInputs::fillRowV7(
   // mid state
   if(board.stage == 0)  // choose
   {
-    if(!GameLogic::hasLegalMoveAssumeStage0(board))
-      rowGlobal[1] = 1.0f;
+    //if(!GameLogic::hasLegalMoveAssumeStage0(board))
+    //  rowGlobal[1] = 1.0f;
 
   } else if(board.stage == 1)  // place
   {
@@ -553,12 +553,12 @@ void NNInputs::fillRowV7(
 
 
   //Scoring
-  if(hist.rules.loopPassRule == Rules::LOOPDRAW_PASSSCORING) {
-  } else if(hist.rules.loopPassRule == Rules::LOOPDRAW_PASSCONTINUE) {
+  if(hist.rules.xxxRule == Rules::XXXRULE0) {
+  } else if(hist.rules.xxxRule == Rules::XXXRULE1) {
     rowGlobal[2] = 1.0f;
-  } else if(hist.rules.loopPassRule == Rules::LOOPLOSE_PASSSCORING) {
+  } else if(hist.rules.xxxRule == Rules::XXXRULE2) {
     rowGlobal[3] = 1.0f;
-  } else if(hist.rules.loopPassRule == Rules::LOOPSCORING_PASSSCORING) {
+  } else if(hist.rules.xxxRule == Rules::XXXRULE3) {
     rowGlobal[4] = 1.0f;
   } else
     ASSERT_UNREACHABLE;

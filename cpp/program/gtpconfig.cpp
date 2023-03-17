@@ -80,9 +80,9 @@ logToStderr = false
 
 $$KO_RULE
 
-$$LOOPPASS_RULE
+$$XXX_RULE
 # options: 
-# LOOPDRAW_PASSSCORING, LOOPDRAW_PASSCONTINUE, LOOPLOSE_PASSSCORING, LOOPSCORING_PASSSCORING 
+# XXXRULE0,XXXRULE1,XXXRULE2,XXXRULE3 
 
 
 $$TAX_RULE
@@ -468,7 +468,7 @@ string GTPConfig::makeConfig(
     assert(pos != string::npos);
     config.replace(pos, key.size(), replacement);
   };
-  replace("$$LOOPPASSRULE", "loopPassRule = "+Rules::writeLoopPassRule(rules.loopPassRule)+" ");
+  replace("$$XXXRULE", "xxxRule = "+Rules::writexxxRule(rules.xxxRule)+" ");
 
 
 

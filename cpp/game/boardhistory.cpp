@@ -229,7 +229,7 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   if(isCopyStone || hashCountBeforePlay>=2)
     posHashHistoryCount.clear();
 
-  bool isLegalPass = moveLoc == Board::PASS_LOC && board.stage == 0 && (!GameLogic::hasLegalMoveAssumeStage0(board));
+  bool isLegalPass = false; // for Clobber, pass is always illegal
 
   board.playMoveAssumeLegal(moveLoc,movePla);
 
@@ -262,7 +262,7 @@ Hash128 BoardHistory::getSituationRulesHash(const Board& board, const BoardHisto
   hash ^= Board::ZOBRIST_PLAYER_HASH[nextPlayer];
 
   //Fold in the ko, scoring, and suicide rules
-  hash ^= Rules::ZOBRIST_LOOPPASS_RULE_HASH[hist.rules.loopPassRule];
+  hash ^= Rules::ZOBRIST_XXX_RULE_HASH[hist.rules.xxxRule];
   if(hist.rules.komi != 0) {
     hash = Hash128(Hash::murmurMix(hash.hash0 + hist.rules.komi), Hash::nasam(hash.hash1 - hist.rules.komi));
   }
