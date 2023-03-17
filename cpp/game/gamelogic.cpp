@@ -17,8 +17,8 @@
 using namespace std;
 
 
-bool GameLogic::isLegal(const Board& board, Player pla, Loc loc) {
-  if(pla != board.nextPla) {
+bool Board::isLegal(Loc loc, Player pla) const{
+  if(pla != nextPla) {
     std::cout << "Error next player ";
     return false;
   }
@@ -27,29 +27,77 @@ bool GameLogic::isLegal(const Board& board, Player pla, Loc loc) {
   if(loc == Board::PASS_LOC)
     return true;
 
-  if(!board.isOnBoard(loc))
+  if(!isOnBoard(loc))
     return false;
 
-  if(board.stage == 0)  // choose a piece
+  if(stage == 0)  // choose a piece
   {
-    if(board.colors[loc] == pla)
+    if(colors[loc] == pla)
       return true;
     else
       return false;
   } 
-  else if(board.stage == 1)  // place the piece
+  else if(stage == 1)  // place the piece
   {
-    Loc chosenMove = board.midLocs[0];
+    Loc chosenMove = midLocs[0];
     if(chosenMove == loc)
       return false;
-    if(board.colors[loc] != getOpp(pla)) //for Clobber, only capture moves are legal
+    if(colors[loc] != getOpp(pla)) //for Clobber, only capture moves are legal
       return false;
-    int disSqr = Location::euclideanDistanceSquared(chosenMove, loc, board.x_size);
+    int disSqr = Location::euclideanDistanceSquared(chosenMove, loc, x_size);
     return disSqr <= 1; //for Clobber, only horizontal and vertical moves are legal
   }
   ASSERT_UNREACHABLE;
   return false;
 }
+
+
+// Plays the specified move, assuming it is legal.
+void Board::playMoveAssumeLegal(Loc loc, Player pla) {
+  if(pla != nextPla) {
+    std::cout << "Error next player ";
+  }
+
+  if(loc == PASS_LOC) {
+    pos_hash ^= ZOBRIST_STAGENUM_HASH[stage];
+    stage = 0;
+    pos_hash ^= ZOBRIST_STAGENUM_HASH[stage];
+
+    setNextPlayer(getOpp(nextPla));
+
+    return;
+  }
+  assert(isOnBoard(loc));
+
+  Player opp = getOpp(pla);
+
+  if(stage == 0)  // choose
+  {
+    stage = 1;
+    pos_hash ^= ZOBRIST_STAGENUM_HASH[0];
+    pos_hash ^= ZOBRIST_STAGENUM_HASH[1];
+
+    midLocs[0] = loc;
+    pos_hash ^= ZOBRIST_STAGELOC_HASH[loc][0];
+  } else if(stage == 1)  // place
+  {
+    stage = 0;
+    pos_hash ^= ZOBRIST_STAGENUM_HASH[1];
+    pos_hash ^= ZOBRIST_STAGENUM_HASH[0];
+
+    Loc chosenLoc = midLocs[0];
+    setStone(chosenLoc, C_EMPTY);
+    setStone(loc, pla);
+
+    for(int i = 0; i < STAGE_NUM_EACH_PLA - 1; i++) {
+      pos_hash ^= ZOBRIST_STAGELOC_HASH[midLocs[i]][i];
+      midLocs[i] = Board::NULL_LOC;
+    }
+    setNextPlayer(getOpp(nextPla));
+  } else
+    ASSERT_UNREACHABLE;
+}
+
 
 GameLogic::MovePriority GameLogic::getMovePriorityAssumeLegal(const Board& board, const BoardHistory& hist, Player pla, Loc loc) {
   //if it's easy to judge whether one move will end the game and win, you can write the logics here, then use this function in resultsBeforeNN

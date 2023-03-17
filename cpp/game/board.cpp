@@ -215,11 +215,6 @@ bool Board::isOnBoard(Loc loc) const {
   return loc >= 0 && loc < MAX_ARR_SIZE && colors[loc] != C_WALL;
 }
 
-//Check if moving here is illegal.
-bool Board::isLegal(Loc loc, Player pla) const
-{
-  return GameLogic::isLegal(*this, pla, loc);
-}
 
 bool Board::isEmpty() const {
   for(int y = 0; y < y_size; y++) {
@@ -302,57 +297,6 @@ bool Board::setStones(std::vector<Move> placements) {
       return false;
   }
   return true;
-}
-
-//Plays the specified move, assuming it is legal.
-void Board::playMoveAssumeLegal(Loc loc, Player pla)
-{
-  if(pla != nextPla) {
-    std::cout << "Error next player ";
-  }
-
-
-  if(loc == PASS_LOC) {
-    pos_hash ^= ZOBRIST_STAGENUM_HASH[stage];
-    stage = 0;
-    pos_hash ^= ZOBRIST_STAGENUM_HASH[stage];
-
-    setNextPlayer(getOpp(nextPla));
-
-    return;
-  }
-  assert(isOnBoard(loc));
-
-  Player opp = getOpp(pla);
-
-  if(stage == 0)  // choose
-  {
-    stage = 1;
-    pos_hash ^= ZOBRIST_STAGENUM_HASH[0];
-    pos_hash ^= ZOBRIST_STAGENUM_HASH[1];
-
-    midLocs[0] = loc;
-    pos_hash ^= ZOBRIST_STAGELOC_HASH[loc][0];
-  }
-  else if(stage == 1)  //place
-  {
-    stage = 0;
-    pos_hash ^= ZOBRIST_STAGENUM_HASH[1];
-    pos_hash ^= ZOBRIST_STAGENUM_HASH[0];
-
-    Loc chosenLoc = midLocs[0];
-    setStone(chosenLoc, C_EMPTY);
-    setStone(loc, pla);
-
-    for(int i = 0; i < STAGE_NUM_EACH_PLA - 1; i++) {
-      pos_hash ^= ZOBRIST_STAGELOC_HASH[midLocs[i]][i];
-      midLocs[i] = Board::NULL_LOC;
-    }
-    setNextPlayer(getOpp(nextPla));
-  } 
-  else
-    ASSERT_UNREACHABLE;
-
 }
 
 
