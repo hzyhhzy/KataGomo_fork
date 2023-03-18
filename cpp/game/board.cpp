@@ -152,10 +152,7 @@ void Board::init(int xS, int yS)
 
 
   //initial stones
-  setStone(Location::getLoc(0, 0, x_size), C_BLACK);
-  setStone(Location::getLoc(x_size - 1, y_size - 1, x_size), C_BLACK);
-  setStone(Location::getLoc(0, y_size - 1, x_size), C_WHITE);
-  setStone(Location::getLoc(x_size - 1, 0, x_size), C_WHITE);
+  setInitialStones();
 }
 
 void Board::initHash()

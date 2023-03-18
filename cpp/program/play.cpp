@@ -416,13 +416,13 @@ void GameInitializer::createGameSharedUnsynchronized(
       } while(banLocAreaProp > banLocAreaPropMax);
 
       for(int loc = 0; loc < Board::MAX_ARR_SIZE; loc++) {
-        if(board.colors[loc] == C_EMPTY)
-          if(rand.nextBool(banLocAreaProp))
+         if(rand.nextBool(banLocAreaProp))
             board.setStone(loc, C_BAN);
       }
     }
 
-    pla = P_BLACK;
+    pla = rand.nextBool(0.5)?P_BLACK:P_WHITE;
+    board.setNextPlayer(pla);
     hist.clear(board,pla,rules);
 
     otherGameProps.isSgfPos = false;

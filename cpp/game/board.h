@@ -213,6 +213,7 @@ struct Board
 
   private:
   void init(int xS, int yS);
+  void setInitialStones();
 
   friend std::ostream& operator<<(std::ostream& out, const Board& board);
 
