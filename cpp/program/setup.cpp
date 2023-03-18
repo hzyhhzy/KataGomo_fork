@@ -681,12 +681,11 @@ Rules Setup::loadSingleRules(
   if(cfg.contains("rules")) {
     if(cfg.contains("xxxRule")) throw StringError("Cannot both specify 'rules' and individual rules like xxxRule");
     rules = Rules::parseRules(cfg.getString("rules"));
-  }
-  else {
+  } else if(cfg.contains("xxxRule")) {
     string xxxRule = cfg.getString("xxxRule", Rules::xxxRuleStrings());
     rules.xxxRule = Rules::parsexxxRule(xxxRule);
-
-
+  } else {
+    rules.xxxRule = Rules::XXXRULE0;
   }
 
   return rules;
