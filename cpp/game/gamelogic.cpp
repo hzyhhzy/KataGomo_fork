@@ -20,7 +20,7 @@ void Board::setInitialStones() {
   for(int y = 0; y < y_size; y++)
     for(int x = 0; x < x_size; x++) {
       Color c = (x + y) % 2 == 1 ? C_BLACK : C_WHITE;
-      setStone(Location::getLoc(0, 0, x_size), c);
+      setStone(Location::getLoc(x, y, x_size), c);
     }
 }
 
