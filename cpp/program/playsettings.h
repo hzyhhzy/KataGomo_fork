@@ -48,6 +48,11 @@ struct PlaySettings {
   double resignThreshold; //Require that mcts win value is less than this
   double resignConsecTurns; //Require that both players have agreed on it continuously for this many turns
 
+  //Similar to resigning, draw if drawrate is very high
+  double judgeDrawProb;
+  double judgeDrawThreshold;  // Require that mcts win value is less than this
+  double judgeDrawConsecTurns;  // Require that both players have agreed on it continuously for this many turns
+
   //Enable full data recording and a variety of other minor tweaks applying only for self-play training.
   bool forSelfPlay;
 
