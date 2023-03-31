@@ -1527,6 +1527,43 @@ int MainCmds::gtp(const vector<string>& args) {
       }
     }
 
+    else if(command == "rule") {
+      if(pieces.size() != 1) {
+        responseIsError = true;
+        response = "Expected one arguments for rule but got '" + Global::concat(pieces, " ") + "'";
+      } else {
+
+        bool parseSuccess = true;
+        string r = pieces[0];
+        Rules newRules = engine->getCurrentRules();
+        if(r == "0" || r == "ps")
+          newRules.loopPassRule = Rules::LOOPDRAW_PASSSCORING;
+        else if(r == "1" || r == "pc")
+          newRules.loopPassRule = Rules::LOOPDRAW_PASSCONTINUE;
+        else if(r == "2" || r == "ll")
+          newRules.loopPassRule = Rules::LOOPLOSE_PASSSCORING;
+        else if(r == "3" || r == "ls")
+          newRules.loopPassRule = Rules::LOOPSCORING_PASSSCORING;
+        else
+          parseSuccess = false;
+
+        if(parseSuccess) {
+          string error;
+          bool suc = engine->setRules(newRules, error);
+          if(!suc) {
+            responseIsError = true;
+            response = error;
+          }
+          logger.write("Changed rules to " + newRules.toStringMaybeNice());
+          if(!logger.isLoggingToStderr())
+            cerr << "Changed rules to " + newRules.toStringMaybeNice() << endl;
+        } else {
+          responseIsError = true;
+          response = "Unknown rule";
+        }
+      }
+    }
+
     else if(command == "kgs-rules") {
       bool parseSuccess = false;
       Rules newRules;
