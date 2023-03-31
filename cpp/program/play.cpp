@@ -1347,6 +1347,9 @@ FinishedGameData* Play::runGame(
     }
   }
 
+  bool judgeDraw = gameRand.nextBool(playSettings.judgeDrawProb);
+  bool allowResign = gameRand.nextBool(playSettings.allowResignationProb);
+
 
   //Set in the starting board and history to gameData and both bots
   gameData->startBoard = board;
@@ -1477,7 +1480,7 @@ FinishedGameData* Play::runGame(
       }
     }
 
-    if(playSettings.allowResignation || playSettings.reduceVisits) {
+    {
       ReportedSearchValues values = toMoveBot->getRootValuesRequireSuccess();
       historicalMctsWinLossValues.push_back(values.winLossValue);
       historicalMctsDrawValues.push_back(values.noResultValue);
@@ -1501,7 +1504,7 @@ FinishedGameData* Play::runGame(
     hist.makeBoardMoveAssumeLegal(board,loc,pla);
 
     //Check for resignation
-    if(playSettings.allowResignation && historicalMctsWinLossValues.size() >= playSettings.resignConsecTurns) {
+    if(allowResign && historicalMctsWinLossValues.size() >= playSettings.resignConsecTurns) {
       //Play at least some moves no matter what
       int minTurnForResignation = 1 + board.x_size * board.y_size / 5;
       if(i >= minTurnForResignation) {
@@ -1528,6 +1531,31 @@ FinishedGameData* Play::runGame(
       }
     }
 
+    
+    // Check for judge draw
+    if(judgeDraw && historicalMctsDrawValues.size() >= playSettings.judgeDrawConsecTurns) {
+      // Play at least some moves no matter what
+      int minTurnForDraw = 1 + board.x_size * board.y_size / 5;
+      if(i >= minTurnForDraw) {
+        if(std::isnan(playSettings.judgeDrawThreshold))
+          throw StringError("std::isnan(playSettings.judgeDrawThreshold)");
+
+        bool shouldDraw = true;
+        for(int j = 0; j < playSettings.resignConsecTurns; j++) {
+          double drawValue = historicalMctsDrawValues[historicalMctsDrawValues.size() - j - 1];
+          bool drawThisTurn = false;
+          if(drawThisTurn < playSettings.judgeDrawThreshold) {
+            shouldDraw = false;
+            break;
+          }
+        }
+
+        if(shouldDraw)
+          hist.setWinner(C_EMPTY);
+      }
+    }
+
+
     testAssert(hist.moveHistory.size() < 0x1FFFffff);
     int nextTurnIdx = (int)hist.moveHistory.size();
     maybeCheckForNewNNEval(nextTurnIdx);
@@ -1543,8 +1571,8 @@ FinishedGameData* Play::runGame(
 
 
   if(recordFullData) {
-    if(hist.isResignation)
-      throw StringError("Recording full data currently incompatible with resignation");
+    //if(hist.isResignation)
+    //  throw StringError("Recording full data currently incompatible with resignation");
 
     ValueTargets finalValueTargets;
 
