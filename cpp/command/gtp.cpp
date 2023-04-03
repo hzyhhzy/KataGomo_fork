@@ -362,6 +362,8 @@ struct GTPEngine {
     bool suc = board.setFEN(fen, nextPlayer);
     if(!suc)
       return false;
+    if(bot->getRootBoard().x_size != board.x_size || bot->getRootBoard().y_size != board.y_size)
+      return false; //setfen should not change board size
 
     BoardHistory hist(board, nextPlayer, currentRules);
     vector<Move> newMoveHistory;
