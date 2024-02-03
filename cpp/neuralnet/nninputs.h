@@ -45,8 +45,17 @@ struct MiscNNInputParams {
 
 namespace NNInputs {
 
+  //2021
   const int NUM_FEATURES_SPATIAL_V7 = 22;
   const int NUM_FEATURES_GLOBAL_V7 = 19;
+
+  //2022 multi-rules, vcn,fpw,mm
+  const int NUM_FEATURES_SPATIAL_V101 = 22;
+  const int NUM_FEATURES_GLOBAL_V101 = 39;
+
+  //2024 nnue
+  const int NUM_FEATURES_SPATIAL_V102 = 32;
+  const int NUM_FEATURES_GLOBAL_V102 = 64;
 
   Hash128 getHash(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
@@ -57,7 +66,16 @@ namespace NNInputs {
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
     const MiscNNInputParams& nnInputParams, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
   );
-
+  
+  void fillRowV101(
+    const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
+    const MiscNNInputParams& nnInputParams, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
+  );
+  
+  void fillRowV102(
+    const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
+    const MiscNNInputParams& nnInputParams, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
+  );
 }
 
 struct NNOutput {
