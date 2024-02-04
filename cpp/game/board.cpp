@@ -23,6 +23,8 @@ Hash128 Board::ZOBRIST_SIZE_Y_HASH[MAX_LEN+1];
 Hash128 Board::ZOBRIST_BOARD_HASH[MAX_ARR_SIZE][4];
 Hash128 Board::ZOBRIST_PLAYER_HASH[4];
 Hash128 Board::ZOBRIST_MOVENUM_HASH[MAX_ARR_SIZE];
+Hash128 Board::ZOBRIST_BPASSNUM_HASH[MAX_ARR_SIZE];
+Hash128 Board::ZOBRIST_WPASSNUM_HASH[MAX_ARR_SIZE];
 Hash128 Board::ZOBRIST_BOARD_HASH2[MAX_ARR_SIZE][4];
 const Hash128 Board::ZOBRIST_GAME_IS_OVER = //Based on sha256 hash of Board::ZOBRIST_GAME_IS_OVER
   Hash128(0xb6f9e465597a77eeULL, 0xf1d583d960a4ce7fULL);
@@ -109,6 +111,8 @@ Board::Board(const Board& other)
 
   movenum = other.movenum;
   stonenum = other.stonenum;
+  blackPassNum = other.blackPassNum;
+  whitePassNum = other.whitePassNum;
   pos_hash = other.pos_hash;
 
   memcpy(adj_offsets, other.adj_offsets, sizeof(short)*8);
@@ -128,7 +132,8 @@ void Board::init(int xS, int yS)
 
   movenum = 0;
   stonenum = 0;
-
+  blackPassNum = 0;
+  whitePassNum = 0;
   for(int y = 0; y < y_size; y++)
   {
     for(int x = 0; x < x_size; x++)
@@ -173,8 +178,12 @@ void Board::initHash()
 
   for(int i = 0; i < MAX_ARR_SIZE; i++) {
     ZOBRIST_MOVENUM_HASH[i] = nextHash();
+    ZOBRIST_BPASSNUM_HASH[i] = nextHash();
+    ZOBRIST_WPASSNUM_HASH[i] = nextHash();
   }
   ZOBRIST_MOVENUM_HASH[0] = Hash128();
+  ZOBRIST_BPASSNUM_HASH[0] = Hash128();
+  ZOBRIST_WPASSNUM_HASH[0] = Hash128();
 
   //Reseed the random number generator so that these size hashes are also
   //not affected by the size of the board we compile with
@@ -301,6 +310,17 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
   //Pass?
   if(loc == PASS_LOC)
   {
+    if (pla == C_BLACK)
+    {
+      pos_hash ^= ZOBRIST_BPASSNUM_HASH[blackPassNum];
+      blackPassNum += 1;
+      pos_hash ^= ZOBRIST_BPASSNUM_HASH[blackPassNum];
+    }
+    if(pla == C_WHITE) {
+      pos_hash ^= ZOBRIST_WPASSNUM_HASH[whitePassNum];
+      whitePassNum += 1;
+      pos_hash ^= ZOBRIST_WPASSNUM_HASH[whitePassNum];
+    }
     return;
   }
   setStone(loc, pla);
@@ -356,6 +376,8 @@ void Board::checkConsistency() const {
   }
 
   tmp_pos_hash ^= ZOBRIST_MOVENUM_HASH[movenum];
+  tmp_pos_hash ^= ZOBRIST_BPASSNUM_HASH[blackPassNum];
+  tmp_pos_hash ^= ZOBRIST_WPASSNUM_HASH[whitePassNum];
 
   if(pos_hash != tmp_pos_hash)
     throw StringError(errLabel + "Pos hash does not match expected");

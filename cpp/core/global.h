@@ -20,6 +20,20 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include "config.h"
+
+// Player
+typedef int8_t Player;
+static constexpr Player P_BLACK = 1;
+static constexpr Player P_WHITE = 2;
+
+// Color of a point on the board
+typedef int8_t Color;
+static constexpr Color C_EMPTY = 0;
+static constexpr Color C_BLACK = 1;
+static constexpr Color C_WHITE = 2;
+static constexpr Color C_WALL = 3;
+static constexpr int NUM_BOARD_COLORS = 4;
 
 //GLOBAL DEFINES AND FLAGS----------------------------------------------------
 #ifdef __GNUG__  //On g++ only

@@ -12,25 +12,13 @@
 #include "../external/nlohmann_json/json.hpp"
 
 #ifndef COMPILE_MAX_BOARD_LEN
-#define COMPILE_MAX_BOARD_LEN 19
+static_assert(false, "COMPILE_MAX_BOARD_LEN should be defined in core/config.h");
 #endif
 
 //TYPES AND CONSTANTS-----------------------------------------------------------------
 
 struct Board;
 
-//Player
-typedef int8_t Player;
-static constexpr Player P_BLACK = 1;
-static constexpr Player P_WHITE = 2;
-
-//Color of a point on the board
-typedef int8_t Color;
-static constexpr Color C_EMPTY = 0;
-static constexpr Color C_BLACK = 1;
-static constexpr Color C_WHITE = 2;
-static constexpr Color C_WALL = 3;
-static constexpr int NUM_BOARD_COLORS = 4;
 
 static inline Color getOpp(Color c)
 {return c ^ 3;}
@@ -113,6 +101,8 @@ struct Board
   static Hash128 ZOBRIST_SIZE_Y_HASH[MAX_LEN+1];
   static Hash128 ZOBRIST_BOARD_HASH[MAX_ARR_SIZE][4];
   static Hash128 ZOBRIST_MOVENUM_HASH[MAX_ARR_SIZE];
+  static Hash128 ZOBRIST_BPASSNUM_HASH[MAX_ARR_SIZE];
+  static Hash128 ZOBRIST_WPASSNUM_HASH[MAX_ARR_SIZE];
   static Hash128 ZOBRIST_BOARD_HASH2[MAX_ARR_SIZE][4];
   static Hash128 ZOBRIST_PLAYER_HASH[4];
   static const Hash128 ZOBRIST_GAME_IS_OVER;
@@ -175,6 +165,9 @@ struct Board
   Color colors[MAX_ARR_SIZE];  //Color of each location on the board.
   int movenum; //how many moves
   int stonenum; //how many stones on board
+
+  int blackPassNum; //pass count of black/white, used for VCT/VC2
+  int whitePassNum;
 
   /* PointList empty_list; //List of all empty locations on board */
 
