@@ -35,6 +35,15 @@ static constexpr Color C_WHITE = 2;
 static constexpr Color C_WALL = 3;
 static constexpr int NUM_BOARD_COLORS = 4;
 
+typedef char MovePriority;
+static const MovePriority MP_NORMAL = 126;
+static const MovePriority MP_FIVE = 1;
+static const MovePriority MP_OPPOFOUR = 2;
+static const MovePriority MP_MYLIFEFOUR = 3;
+static const MovePriority MP_VCF = 4;
+static const MovePriority MP_USELESS = 127;
+static const MovePriority MP_ILLEGAL = -1;
+
 //GLOBAL DEFINES AND FLAGS----------------------------------------------------
 #ifdef __GNUG__  //On g++ only
 

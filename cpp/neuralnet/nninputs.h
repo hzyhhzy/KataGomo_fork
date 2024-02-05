@@ -35,12 +35,20 @@ struct MiscNNInputParams {
   double noResultUtilityForWhite = 0.0;
   double playoutDoublingAdvantage = 0.0;
   float nnPolicyTemperature = 1.0f;
+
+  bool useVCFInput = true;
+  bool useForbiddenInput = true;
+
   GameLogic::ResultsBeforeNN resultsBeforeNN = GameLogic::ResultsBeforeNN();
+
   // If no symmetry is specified, it will use default or random based on config, unless node is already cached.
   int symmetry = NNInputs::SYMMETRY_NOTSPECIFIED;
 
   static const Hash128 ZOBRIST_PLAYOUT_DOUBLINGS;
   static const Hash128 ZOBRIST_NN_POLICY_TEMP;
+  static const Hash128 ZOBRIST_NO_RESULT_UTILITY;
+  static const Hash128 ZOBRIST_USE_VCF;
+  static const Hash128 ZOBRIST_USE_FORBIDDEN_FEATURE;
 };
 
 namespace NNInputs {

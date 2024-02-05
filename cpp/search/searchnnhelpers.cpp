@@ -13,6 +13,8 @@ void Search::computeRootNNEvaluation(NNResultBuf& nnResultBuf) {
   bool skipCache = false;
   MiscNNInputParams nnInputParams;
   nnInputParams.noResultUtilityForWhite = searchParams.noResultUtilityForWhite;
+  nnInputParams.useForbiddenInput = searchParams.useForbiddenInput;
+  nnInputParams.useVCFInput = searchParams.useVCFInput && hist.rules.maxMoves == 0;
   nnInputParams.nnPolicyTemperature = searchParams.nnPolicyTemperature;
   if(searchParams.playoutDoublingAdvantage != 0) {
     Player playoutDoublingAdvantagePla = getPlayoutDoublingAdvantagePla();
@@ -37,6 +39,8 @@ bool Search::initNodeNNOutput(
 ) {
   MiscNNInputParams nnInputParams;
   nnInputParams.noResultUtilityForWhite = searchParams.noResultUtilityForWhite;
+  nnInputParams.useForbiddenInput = searchParams.useForbiddenInput;
+  nnInputParams.useVCFInput = searchParams.useVCFInput && thread.history.rules.maxMoves == 0;
   nnInputParams.nnPolicyTemperature = searchParams.nnPolicyTemperature;
   if(searchParams.playoutDoublingAdvantage != 0) {
     Player playoutDoublingAdvantagePla = getPlayoutDoublingAdvantagePla();

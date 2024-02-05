@@ -1,4 +1,5 @@
 #include "../game/gamelogic.h"
+#include "../vcfsolver/VCFsolver.h"
 
 /*
  * gamelogic.cpp
@@ -19,12 +20,12 @@ using namespace std;
 
 static int connectionLengthOneDirection(
   const Board& board,
-  const BoardHistory& hist,
   Player pla,
+  bool isSixWin,
   Loc loc,
   short adj,
-  bool& isLife) {
-  (void)hist;
+  bool& isLife) 
+{
   Loc tmploc = loc;
   int conNum = 0;
   isLife = false;
@@ -36,8 +37,15 @@ static int connectionLengthOneDirection(
       conNum++;
     else if(board.colors[tmploc] == C_EMPTY) {
       isLife = true;
+
+      if(!isSixWin) {
+        tmploc += adj;
+        if(board.isOnBoard(tmploc) && board.colors[tmploc] == pla)
+          isLife = false;
+      }
       break;
-    } else
+    } 
+    else
       break;
   }
   return conNum;
@@ -45,20 +53,21 @@ static int connectionLengthOneDirection(
 
 static GameLogic::MovePriority getMovePriorityOneDirectionAssumeLegal(
   const Board& board,
-  const BoardHistory& hist,
   Player pla,
+  bool isSixWinMe,
+  bool isSixWinOpp,
   Loc loc,
   int adj)  {
   Player opp = getOpp(pla);
   bool isMyLife1, isMyLife2, isOppLife1, isOppLife2;
-  int myConNum = connectionLengthOneDirection(board, hist, pla, loc, adj, isMyLife1) +
-                 connectionLengthOneDirection(board, hist, pla, loc, -adj, isMyLife2) + 1;
-  int oppConNum = connectionLengthOneDirection(board, hist, opp, loc, adj, isOppLife1) +
-                  connectionLengthOneDirection(board, hist, opp, loc, -adj, isOppLife2) + 1;
-  if(myConNum >= 5)
+  int myConNum = connectionLengthOneDirection(board, pla, isSixWinMe, loc, adj, isMyLife1) +
+                 connectionLengthOneDirection(board, pla, isSixWinMe, loc, -adj, isMyLife2) + 1;
+  int oppConNum = connectionLengthOneDirection(board, opp, isSixWinOpp, loc, adj, isOppLife1) +
+                  connectionLengthOneDirection(board, opp, isSixWinOpp, loc, -adj, isOppLife2) + 1;
+  if(myConNum == 5 || (myConNum > 5 && isSixWinMe))
     return GameLogic::MP_SUDDEN_WIN;
 
-  if(oppConNum >= 5)
+  if(oppConNum == 5 || (oppConNum > 5 && isSixWinOpp))
     return GameLogic::MP_ONLY_NONLOSE_MOVES;
 
   if(myConNum == 4 && isMyLife1 && isMyLife2)
@@ -72,9 +81,19 @@ GameLogic::MovePriority GameLogic::getMovePriorityAssumeLegal(const Board& board
     return MP_NORMAL;
   MovePriority MP = MP_NORMAL;
 
+  bool isSixWinMe = hist.rules.basicRule == Rules::BASICRULE_FREESTYLE  ? true
+                    : hist.rules.basicRule == Rules::BASICRULE_STANDARD ? false
+                    : hist.rules.basicRule == Rules::BASICRULE_RENJU    ? (pla == C_WHITE)
+                                                                  : true;
+
+  bool isSixWinOpp = hist.rules.basicRule == Rules::BASICRULE_FREESTYLE ? true
+                     : hist.rules.basicRule == Rules::BASICRULE_STANDARD ? false
+                     : hist.rules.basicRule == Rules::BASICRULE_RENJU    ? (pla == C_BLACK)
+                                                                   : true;
+
   int adjs[4] = {1, (board.x_size + 1), (board.x_size + 1) + 1, (board.x_size + 1) - 1};// +x +y +x+y -x+y
   for(int i = 0; i < 4; i++) {
-    MovePriority tmpMP = getMovePriorityOneDirectionAssumeLegal(board, hist, pla, loc, adjs[i]);
+    MovePriority tmpMP = getMovePriorityOneDirectionAssumeLegal(board, pla, isSixWinMe, isSixWinOpp, loc, adjs[i]);
     if(tmpMP < MP)
       MP = tmpMP;
   }
@@ -118,11 +137,15 @@ GameLogic::ResultsBeforeNN::ResultsBeforeNN() {
   myOnlyLoc = Board::NULL_LOC;
 }
 
-void GameLogic::ResultsBeforeNN::init(const Board& board, const BoardHistory& hist, Color nextPlayer) {
-  if(inited)
+void GameLogic::ResultsBeforeNN::init(const Board& board, const BoardHistory& hist, Color nextPlayer, bool hasVCF) {
+  if(hist.rules.VCNRule != Rules::VCNRULE_NOVC && hist.rules.maxMoves != 0)
+    throw StringError("ResultBeforeNN::init() can not support VCN and maxMoves simutaneously");
+  bool willCalculateVCF = hasVCF && hist.rules.maxMoves == 0;
+  if(inited && (calculatedVCF || (!willCalculateVCF)))
     return;
   inited = true;
 
+  Color opp = getOpp(nextPlayer);
 
   // check five and four
   bool oppHasFour = false;
@@ -132,30 +155,70 @@ void GameLogic::ResultsBeforeNN::init(const Board& board, const BoardHistory& hi
     for(int y = 0; y < board.y_size; y++) {
       Loc loc = Location::getLoc(x, y, board.x_size);
       MovePriority mp = getMovePriority(board, hist, nextPlayer, loc);
-      if(mp == MP_SUDDEN_WIN) {
+      if(mp == MP_FIVE) {
         winner = nextPlayer;
         myOnlyLoc = loc;
         return;
-      } else if(mp == MP_ONLY_NONLOSE_MOVES) {
+      } else if(mp == MP_OPPOFOUR) {
         oppHasFour = true;
         myOnlyLoc = loc;
-      } else if(mp == MP_WINNING) {
+      } else if(mp == MP_MYLIFEFOUR) {
         IHaveLifeFour = true;
         myLifeFourLoc = loc;
       }
     }
+
+  if(hist.rules.VCNRule != Rules::VCNRULE_NOVC) {
+    int vcLevel = hist.rules.vcLevel() + board.blackPassNum + board.whitePassNum;
+    
+    Color vcSide = hist.rules.vcSide();
+    if(vcSide == nextPlayer) {
+      if(vcLevel == 5) {
+        winner = opp;
+        myOnlyLoc = Board::NULL_LOC;
+        return;
+      }
+    } else if(vcSide == opp) {
+      if(vcLevel == 5) {
+        winner = nextPlayer;
+        myOnlyLoc = Board::PASS_LOC;
+        return;
+      } else if(vcLevel == 4) {
+        if(!oppHasFour) {
+          winner = nextPlayer;
+          myOnlyLoc = Board::PASS_LOC;
+          return;
+        }
+      }
+    }
+  }
 
   // opp has four
   if(oppHasFour)
     return;
 
   // I have life four, opp has no four
-  if(IHaveLifeFour) {
-    winner = nextPlayer;
+  if(IHaveLifeFour && (!oppHasFour)) {
+    int remainMovenum = hist.rules.maxMoves == 0 ? 10000 : hist.rules.maxMoves - board.movenum;
+    if(remainMovenum >= 3)
+      winner = nextPlayer;
     myOnlyLoc = myLifeFourLoc;
     return;
   }
 
+  if(!willCalculateVCF)
+    return;
 
-  return;
+  // check VCF
+  calculatedVCF = true;
+  uint16_t oppvcfloc;
+  VCFsolver::run(board, hist.rules, getOpp(nextPlayer), oppVCFresult, oppvcfloc);
+
+  uint16_t myvcfloc;
+  VCFsolver::run(board, hist.rules, nextPlayer, myVCFresult, myvcfloc);
+  if(myVCFresult == 1) {
+    winner = nextPlayer;
+    myOnlyLoc = myvcfloc;
+    return;
+  }
 }

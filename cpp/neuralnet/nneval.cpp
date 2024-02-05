@@ -617,7 +617,7 @@ void NNEvaluator::evaluate(
   buf.boardYSizeForServer = board.y_size;
 
   MiscNNInputParams nnInputParamsWithResultsBeforeNN = nnInputParams;
-  nnInputParamsWithResultsBeforeNN.resultsBeforeNN.init(board, history, nextPlayer);
+  nnInputParamsWithResultsBeforeNN.resultsBeforeNN.init(board, history, nextPlayer, nnInputParams.useVCFInput);
 
   if(!debugSkipNeuralNet) {
     int rowSpatialLen = NNModelVersion::getNumSpatialFeatures(modelVersion) * nnXLen * nnYLen;

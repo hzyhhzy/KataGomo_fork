@@ -3,6 +3,7 @@
 #include "../core/rand.h"
 #include "../search/asyncbot.h"
 using namespace RandomOpening;
+using namespace std;
 
 static Loc getRandomNearbyMove(Board& board, Rand& gameRand, double avgDist) {
   int xsize = board.x_size, ysize = board.y_size;
@@ -150,8 +151,18 @@ static bool tryInitializeBalancedRandomOpening(
 
   std::vector<float> randomMoveNumProb;
 
-  randomMoveNumProb = std::vector<float>{35, 30, 25, 20, 15, 10, 5, 1, 0, 0, 0, 0};
-
+  if(hist.rules.VCNRule == Rules::VCNRULE_NOVC)
+    randomMoveNumProb = vector<float>{35, 30, 25, 20, 15, 10, 5, 1, 0, 0, 0, 0};
+  else if(hist.rules.VCNRule == Rules::VCNRULE_VC1_B)
+    randomMoveNumProb = vector<float>{0.1, 0.1, 25, 20, 15, 10, 5, 1, 0, 0, 0, 0};
+  else if(hist.rules.VCNRule == Rules::VCNRULE_VC1_W)
+    randomMoveNumProb = vector<float>{0.1, 0.1, 0.1, 20, 15, 10, 5, 1, 0, 0, 0, 0};
+  else if(hist.rules.VCNRule == Rules::VCNRULE_VC2_B)
+    randomMoveNumProb = vector<float>{0.1, 0.1, 0.1, 0.1, 35, 30, 25, 20, 15, 10, 5, 1};
+  else if(hist.rules.VCNRule == Rules::VCNRULE_VC2_W)
+    randomMoveNumProb = vector<float>{0.1, 0.1, 0.1, 0.1, 0.1, 30, 25, 20, 15, 10, 5, 1};
+  else
+    cout << Rules::writeVCNRule(hist.rules.VCNRule) << " does not support balanced openings init" << endl;
   int maxRandomMoveNum = randomMoveNumProb.size();
 
   static const double avgRandomDistFactor = 1.0;

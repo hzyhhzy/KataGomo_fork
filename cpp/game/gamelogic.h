@@ -36,10 +36,16 @@ namespace GameLogic {
   //part of NN input, and then change policy/value according to this
   struct ResultsBeforeNN {
     bool inited;
+    bool calculatedVCF;
     Color winner;
     Loc myOnlyLoc;
+
+    uint8_t myVCFresult;
+    uint8_t oppVCFresult;
+
+
     ResultsBeforeNN();
-    void init(const Board& board, const BoardHistory& hist, Color nextPlayer);
+    void init(const Board& board, const BoardHistory& hist, Color nextPlayer, bool hasVCF);
   };
 }
 

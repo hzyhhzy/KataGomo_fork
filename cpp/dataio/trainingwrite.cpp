@@ -302,6 +302,10 @@ void TrainingWriteBuffers::addRow(
     if(!isSidePosition)
       nnInputParams.playoutDoublingAdvantage = getOpp(nextPlayer) == data.playoutDoublingAdvantagePla ? -data.playoutDoublingAdvantage : data.playoutDoublingAdvantage;
 
+    nnInputParams.useForbiddenInput = rand.nextBool(TRAINING_DATA_FORBIDDEN_FEATURE_PROB);
+    nnInputParams.useVCFInput = rand.nextBool(TRAINING_DATA_VCF_PROB) && hist.rules.maxMoves == 0;
+    nnInputParams.resultsBeforeNN.init(board, hist, nextPlayer, nnInputParams.useVCFInput);
+
     bool inputsUseNHWC = false;
     float* rowBin = binaryInputNCHWUnpacked;
     float* rowGlobal = globalInputNC.data + curRows * numGlobalChannels;
@@ -423,7 +427,7 @@ void TrainingWriteBuffers::addRow(
 
   //Various other data
   rowGlobal[47] = 0.0f;
-  rowGlobal[48] = (hist.rules.scoringRule == Rules::SCORING_AREA) ? 1.0f : 0.0f;
+  rowGlobal[48] = 1.0f;
 
   //Earlier neural net metadata
   rowGlobal[49] = data.changedNeuralNets.size() > 0 ? 1.0f : 0.0f;

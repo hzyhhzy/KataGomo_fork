@@ -2353,6 +2353,131 @@ int MainCmds::gtp(const vector<string>& args) {
       engine->stopAndWait();
     }
 
+    else if(command == "maxmoves" || command == "mm")  // Maxmoves settings
+    {
+      int tmp;
+      if(pieces.size() != 1 || (!Global::tryStringToInt(pieces[0], tmp))) {
+        responseIsError = true;
+        response = "Expected one integer arguments for maxmoves but got '" + Global::concat(pieces, " ") + "'";
+      } else {
+        Rules currentRules = engine->getCurrentRules();
+        Rules newRules;
+        bool parseSuccess = false;
+        try {
+          newRules = Rules::updateRules("maxmoves", pieces[0], currentRules);
+          parseSuccess = true;
+        } catch(const StringError& err) {
+          responseIsError = true;
+          response = err.what();
+        }
+        if(parseSuccess) {
+          string error;
+          bool suc = engine->setRules(newRules, error);
+          if(!suc) {
+            responseIsError = true;
+            response = error;
+          }
+          logger.write("Changed rules to " + newRules.toString());
+          if(!logger.isLoggingToStderr())
+            cerr << "Changed rules to " + newRules.toString() << endl;
+        }
+      }
+    } 
+    else if(command == "firstpasswin" || command == "fpw")  // Maxmoves settings
+    {
+      int tmp;
+      if(
+        pieces.size() != 1 || (pieces[0] != "on" && pieces[0] != "off" && pieces[0] != "true" && pieces[0] != "false" &&
+                               pieces[0] != "open" && pieces[0] != "close")) {
+        responseIsError = true;
+        response = "Expected one arguments for firstpasswin but got '" + Global::concat(pieces, " ") + "'";
+      } else {
+        Rules currentRules = engine->getCurrentRules();
+        Rules newRules;
+
+        string fpw = "false";
+        if(pieces[0] == "on" || pieces[0] == "open" || pieces[0] == "true")
+          fpw = "true";
+
+        bool parseSuccess = false;
+        try {
+          newRules = Rules::updateRules("firstpasswin", fpw, currentRules);
+          parseSuccess = true;
+        } catch(const StringError& err) {
+          responseIsError = true;
+          response = err.what();
+        }
+        if(parseSuccess) {
+          string error;
+          bool suc = engine->setRules(newRules, error);
+          if(!suc) {
+            responseIsError = true;
+            response = error;
+          }
+          logger.write("Changed rules to " + newRules.toString());
+          if(!logger.isLoggingToStderr())
+            cerr << "Changed rules to " + newRules.toString() << endl;
+        }
+      }
+    } 
+    else if(Rules::basicRuleStrings().count(Global::toUpper(command)))  // Is Command a basic rule?
+    {
+      if(pieces.size() != 0) {
+        responseIsError = true;
+        response = "Expected zero arguments for BasicRule but got '" + Global::concat(pieces, " ") + "'";
+      } else {
+        Rules currentRules = engine->getCurrentRules();
+        Rules newRules;
+        bool parseSuccess = false;
+        try {
+          newRules = Rules::updateRules("basicrule", command, currentRules);
+          parseSuccess = true;
+        } catch(const StringError& err) {
+          responseIsError = true;
+          response = err.what();
+        }
+        if(parseSuccess) {
+          string error;
+          bool suc = engine->setRules(newRules, error);
+          if(!suc) {
+            responseIsError = true;
+            response = error;
+          }
+          logger.write("Changed rules to " + newRules.toString());
+          if(!logger.isLoggingToStderr())
+            cerr << "Changed rules to " + newRules.toString() << endl;
+        }
+      }
+    } 
+    else if(Rules::VCNRuleStrings().count(Global::toUpper(command)))  // Is Command a VCN rule?
+    {
+      if(pieces.size() != 0) {
+        responseIsError = true;
+        response = "Expected zero arguments for VCNrule but got '" + Global::concat(pieces, " ") + "'";
+      } else {
+        Rules currentRules = engine->getCurrentRules();
+        Rules newRules;
+        bool parseSuccess = false;
+        try {
+          newRules = Rules::updateRules("vcnrule", command, currentRules);
+          parseSuccess = true;
+        } catch(const StringError& err) {
+          responseIsError = true;
+          response = err.what();
+        }
+        if(parseSuccess) {
+          string error;
+          bool suc = engine->setRules(newRules, error);
+          if(!suc) {
+            responseIsError = true;
+            response = error;
+          }
+          logger.write("Changed rules to " + newRules.toString());
+          if(!logger.isLoggingToStderr())
+            cerr << "Changed rules to " + newRules.toString() << endl;
+        }
+      }
+    }
     else {
       responseIsError = true;
       response = "unknown command";

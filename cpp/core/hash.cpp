@@ -178,3 +178,7 @@ Hash128 Hash128::ofString(const string& s) {
   uint64_t h0 = Global::hexStringToUInt64(s.substr(16,16));
   return Hash128(h0,h1);
 }
+
+Hash128 Hash128::mixInt(Hash128 h, int64_t t) {
+  return Hash128(Hash::murmurMix(h.hash0 ^ t), Hash::splitMix64(h.hash1 ^ t));
+}

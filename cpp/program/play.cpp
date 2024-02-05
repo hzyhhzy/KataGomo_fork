@@ -42,13 +42,27 @@ GameInitializer::GameInitializer(ConfigParser& cfg, Logger& logger, const string
 }
 
 void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
+  allowedBasicRuleStrs = cfg.getStrings("basicRules", Rules::basicRuleStrings());
 
-  allowedScoringRuleStrs = cfg.getStrings("scoringRules", Rules::scoringRuleStrings());
+  for(size_t i = 0; i < allowedBasicRuleStrs.size(); i++)
+    allowedBasicRules.push_back(Rules::parseBasicRule(allowedBasicRuleStrs[i]));
 
-  for(size_t i = 0; i < allowedScoringRuleStrs.size(); i++)
-    allowedScoringRules.push_back(Rules::parseScoringRule(allowedScoringRuleStrs[i]));
-  if(allowedScoringRules.size() <= 0)
-    throw IOError("scoringRules must have at least one value in " + cfg.getFileName());
+  if(allowedBasicRules.size() <= 0)
+    throw IOError("basicRules must have at least one value in " + cfg.getFileName());
+
+  allowedVCNRuleStrs = cfg.getStrings("VCNRules", Rules::VCNRuleStrings());
+
+  for(size_t i = 0; i < allowedVCNRuleStrs.size(); i++)
+    allowedVCNRules.push_back(Rules::parseVCNRule(allowedVCNRuleStrs[i]));
+
+  if(allowedVCNRules.size() <= 0)
+    throw IOError("VCNRules must have at least one value in " + cfg.getFileName());
+
+  allowedFirstPassWinRules = cfg.getBools("firstPassWinRules");
+  if(allowedFirstPassWinRules.size() <= 0)
+    throw IOError("firstPassWinRules must have at least one value in " + cfg.getFileName());
+
+  moveLimitProb = cfg.contains("moveLimitProb") ? cfg.getDouble("moveLimitProb", 0.0, 1.0) : 0.0;
 
 
   allowedBSizes = cfg.getInts("bSizes", 2, Board::MAX_LEN);
@@ -263,13 +277,6 @@ void GameInitializer::createGame(
   }
 }
 
-Rules GameInitializer::randomizeScoringAndTaxRules(Rules rules, Rand& randToUse) const {
-  rules.scoringRule = allowedScoringRules[randToUse.nextUInt((uint32_t)allowedScoringRules.size())];
-
-
-  return rules;
-}
-
 bool GameInitializer::isAllowedBSize(int xSize, int ySize) {
   if(!contains(allowedBSizes,xSize))
     return false;
@@ -303,7 +310,12 @@ Rules GameInitializer::createRules() {
 
 Rules GameInitializer::createRulesUnsynchronized() {
   Rules rules;
-  rules.scoringRule = allowedScoringRules[rand.nextUInt((uint32_t)allowedScoringRules.size())];
+  rules.basicRule = allowedBasicRules[rand.nextUInt(allowedBasicRules.size())];
+  rules.VCNRule = allowedVCNRules[rand.nextUInt(allowedVCNRules.size())];
+  if(rules.VCNRule == Rules::VCNRULE_NOVC)
+    rules.firstPassWin = allowedFirstPassWinRules[rand.nextUInt(allowedFirstPassWinRules.size())];
+  else
+    rules.firstPassWin = false;
 
   return rules;
 }
@@ -384,6 +396,14 @@ void GameInitializer::createGameSharedUnsynchronized(
   else {
     int xSize = allowedBSizes[xSizeIdx];
     int ySize = allowedBSizes[ySizeIdx];
+    if(!rules.firstPassWin && rules.VCNRule == Rules::VCNRULE_NOVC && rand.nextBool(moveLimitProb)) {
+      int maxMoves = rand.nextExponential() * 30 + 30 - rand.nextExponential() * 5;
+      if(maxMoves > xSize * ySize - 5)
+        maxMoves = 0;
+      if(maxMoves < 10)
+        maxMoves = 0;
+      rules.maxMoves = maxMoves;
+    }
     board = Board(xSize,ySize);
     pla = P_BLACK;
     hist.clear(board,pla,rules);

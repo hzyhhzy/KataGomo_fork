@@ -10,6 +10,7 @@
 #include "../core/global.h"
 #include "../core/hash.h"
 #include "../external/nlohmann_json/json.hpp"
+#include "../game/rules.h"
 
 #ifndef COMPILE_MAX_BOARD_LEN
 static_assert(false, "COMPILE_MAX_BOARD_LEN should be defined in core/config.h");
