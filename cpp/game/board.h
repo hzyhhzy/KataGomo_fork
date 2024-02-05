@@ -128,6 +128,8 @@ struct Board
   int numStonesOnBoard() const;
   int numPlaStonesOnBoard(Player pla) const;
 
+  bool isForbidden(Loc loc) const;
+  bool isForbiddenAlreadyPlayed(Loc loc) const;
 
   //Sets the specified stone if possible, including overwriting existing stones.
   //Resolves any captures and/or suicides that result from setting that stone, including deletions of the stone itself.

@@ -1,5 +1,6 @@
 #include "../game/gamelogic.h"
 #include "../vcfsolver/VCFsolver.h"
+#include "../forbiddenPoint/ForbiddenPointFinder.h"
 
 /*
  * gamelogic.cpp
@@ -107,7 +108,78 @@ GameLogic::MovePriority GameLogic::getMovePriority(const Board& board, const Boa
   if(!board.isLegal(loc, pla))
     return MP_ILLEGAL;
   MovePriority MP = getMovePriorityAssumeLegal(board, hist, pla, loc);
+
+  if(MP == MP_MYLIFEFOUR && hist.rules.basicRule == Rules::BASICRULE_RENJU && pla == C_BLACK && board.isForbidden(loc))
+    return MP_NORMAL;
   return MP;
+}
+
+bool Board::isForbidden(Loc loc) const {
+  if(loc == PASS_LOC) {
+    return false;
+  }
+  if(!(loc >= 0 && loc < MAX_ARR_SIZE && (colors[loc] == C_EMPTY)))
+    return false;
+  if(x_size == y_size) {
+    int x = Location::getX(loc, x_size);
+    int y = Location::getY(loc, x_size);
+    int nearbyBlack = 0;
+    // x++; y++;
+    for(int i = std::max(x - 2, 0); i <= std::min(x + 2, x_size - 1); i++)
+      for(int j = std::max(y - 2, 0); j <= std::min(y + 2, y_size - 1); j++) {
+        int xd = i - x;
+        int yd = j - y;
+        xd = xd > 0 ? xd : -xd;
+        yd = yd > 0 ? yd : -yd;
+        if(((xd + yd) != 3) && (colors[Location::getLoc(i, j, x_size)] == C_BLACK))
+          nearbyBlack++;
+      }
+
+    if(nearbyBlack >= 2) {
+      CForbiddenPointFinder fpf(x_size);
+      for(int x = 0; x < x_size; x++)
+        for(int y = 0; y < y_size; y++) {
+          fpf.SetStone(x, y, colors[Location::getLoc(x, y, x_size)]);
+        }
+      if(fpf.isForbiddenNoNearbyCheck(Location::getX(loc, x_size), Location::getY(loc, x_size)))
+        return true;
+    }
+  }
+  return false;
+}
+bool Board::isForbiddenAlreadyPlayed(Loc loc) const {
+  if(loc == PASS_LOC) {
+    return false;
+  }
+  if(!(loc >= 0 && loc < MAX_ARR_SIZE && (colors[loc] == C_BLACK)))
+    return false;
+  if(x_size == y_size) {
+    int x = Location::getX(loc, x_size);
+    int y = Location::getY(loc, x_size);
+    int nearbyBlack = 0;
+    // x++; y++;
+    for(int i = std::max(x - 2, 0); i <= std::min(x + 2, x_size - 1); i++)
+      for(int j = std::max(y - 2, 0); j <= std::min(y + 2, y_size - 1); j++) {
+        int xd = i - x;
+        int yd = j - y;
+        xd = xd > 0 ? xd : -xd;
+        yd = yd > 0 ? yd : -yd;
+        if(((xd + yd) != 3) && (colors[Location::getLoc(i, j, x_size)] == C_BLACK))
+          nearbyBlack++;
+      }
+
+    if(nearbyBlack >= 3) {
+      CForbiddenPointFinder fpf(x_size);
+      for(int x = 0; x < x_size; x++)
+        for(int y = 0; y < y_size; y++) {
+          fpf.SetStone(x, y, colors[Location::getLoc(x, y, x_size)]);
+        }
+      fpf.SetStone(Location::getX(loc, x_size), Location::getY(loc, x_size), C_EMPTY);
+      if(fpf.isForbiddenNoNearbyCheck(Location::getX(loc, x_size), Location::getY(loc, x_size)))
+        return true;
+    }
+  }
+  return false;
 }
 
 
@@ -119,22 +191,78 @@ Color GameLogic::checkWinnerAfterPlayed(
   Player pla,
   Loc loc) {
 
-  if(loc == Board::PASS_LOC)
-    return getOpp(pla);  //pass is not allowed
-  
-  if(getMovePriorityAssumeLegal(board, hist, pla, loc) == MP_SUDDEN_WIN)
-    return pla;
 
-  if(board.movenum >= board.x_size * board.y_size)
-    return C_EMPTY;
+
+  
+  if((hist.rules.maxMoves != 0 || hist.rules.VCNRule != Rules::VCNRULE_NOVC) && hist.rules.firstPassWin) {
+    throw StringError("GameLogic::checkWinnerAfterPlayed This rule is not supported");
+  }
+
+  Player opp = getOpp(pla);
+  int myPassNum = pla == C_BLACK ? board.blackPassNum : board.whitePassNum;
+  int oppPassNum = pla == C_WHITE ? board.blackPassNum : board.whitePassNum;
+
+  if(loc == Board::PASS_LOC) {
+    if(hist.rules.VCNRule == Rules::VCNRULE_NOVC) {
+      if(oppPassNum > 0) {
+        if(!hist.rules.firstPassWin)  // 常规和棋
+        {
+          return C_EMPTY;
+        } else  // 对方先pass
+        {
+          return opp;
+        }
+      }
+    } else {
+      Color VCside = hist.rules.vcSide();
+      int VClevel = hist.rules.vcLevel();
+
+      if(VCside == pla)  // VCN不允许己方pass
+      {
+        return opp;
+      } else  // pass次数足够则判胜
+      {
+        if(myPassNum >= 6 - VClevel) {
+          return pla;
+        }
+      }
+    }
+  }
+
+  if(hist.rules.basicRule == Rules::BASICRULE_RENJU && pla == C_BLACK)  // 禁手判定
+  {
+    if(board.isForbiddenAlreadyPlayed(loc)) {
+      return opp;
+    }
+  }
+
+  // 连五判定
+  if(getMovePriorityAssumeLegal(board, hist, pla, loc) == MP_SUDDEN_WIN) {
+    return pla;
+  }
+
+  // maxmoves判定
+  if(hist.rules.maxMoves != 0 && board.movenum >= hist.rules.maxMoves) {
+    if(hist.rules.VCNRule == Rules::VCNRULE_NOVC) {
+      return C_EMPTY;
+    } else  // 和棋判进攻方负
+    {
+      static_assert(Rules::VCNRULE_VC1_W == Rules::VCNRULE_VC1_B + 10, "Ensure VCNRule%10==N, VCNRule/10+1==color");
+      Color VCside = hist.rules.vcSide();
+      return getOpp(VCside);
+    }
+  }
 
   return C_WALL;
 }
 
 GameLogic::ResultsBeforeNN::ResultsBeforeNN() {
   inited = false;
+  calculatedVCF = false;
   winner = C_WALL;
   myOnlyLoc = Board::NULL_LOC;
+  myVCFresult = 0;
+  oppVCFresult = 0;
 }
 
 void GameLogic::ResultsBeforeNN::init(const Board& board, const BoardHistory& hist, Color nextPlayer, bool hasVCF) {

@@ -15,6 +15,8 @@
 #include "core/using.h"
 //------------------------
 
+#include "vcfsolver/VCFsolver.h"
+
 static void printHelp(const vector<string>& args) {
   cout << endl;
   if(args.size() >= 1)
@@ -124,6 +126,9 @@ int main(int argc, const char* const* argv) {
     printHelp(args);
     return 0;
   }
+
+  // init
+  VCFsolver::init();
 
 #if defined(OS_IS_WINDOWS)
   //On windows, uncaught exceptions reaching toplevel don't normally get printed out,

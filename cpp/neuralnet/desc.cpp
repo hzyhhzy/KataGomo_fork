@@ -240,7 +240,7 @@ ActivationLayerDesc::ActivationLayerDesc() : activation(ACTIVATION_RELU) {}
 
 ActivationLayerDesc::ActivationLayerDesc(istream& in, int version) {
   in >> name;
-  if(version >= 11) {
+  if(version >= 11 && version != 101) {
     string kind;
     in >> kind;
     if(kind == "ACTIVATION_IDENTITY")
