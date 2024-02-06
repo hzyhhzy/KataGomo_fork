@@ -81,7 +81,7 @@ def main(args):
     writeln(modelconfigs.get_num_bin_input_features(model_config))
     writeln(modelconfigs.get_num_global_input_features(model_config))
 
-    if version <= 12:
+    if version <= 12 or version == 101 or version == 102:
         assert model.td_score_multiplier == 20.0
         assert model.scoremean_multiplier == 20.0
         assert model.scorestdev_multiplier == 20.0
@@ -98,7 +98,7 @@ def main(args):
         writeln(model.shortterm_value_error_multiplier)
         writeln(model.shortterm_score_error_multiplier)
 
-    if version >= 15:
+    if version >= 15 and version != 101 and version != 102:
         # Write some dummy placeholders for future features
         writeln(0)
         writeln(0)
@@ -295,7 +295,7 @@ def main(args):
         writeln(model.c_mid-model.c_gpool)
         writeln(model.c_gpool)
         writeln(model.c_gpool)
-        if version >= 15:
+        if version >= 15 and version != 101 and version != 102:
             # Write some dummy placeholders for future features
             writeln(0)
             writeln(0)
@@ -328,7 +328,7 @@ def main(args):
         write_activation(name+".act2", policyhead.act2)
 
         # Write the this-move prediction and the optimistic policy prediction
-        if version <= 11:
+        if version <= 11 or version == 101 or version == 102:
             assert policyhead.conv2p.weight.shape[0] == 4
             write_conv_weight(name+".conv2p", torch.stack((policyhead.conv2p.weight[0],), dim=0))
             assert policyhead.linear_pass.weight.shape[0] == 4

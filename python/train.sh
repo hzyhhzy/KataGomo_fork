@@ -59,22 +59,22 @@ else
     exit 1
 fi
 
+   # -main-loss-scale 1.0 \
+    #-intermediate-loss-scale 0.0 \
 time python ./train.py \
      -traindir "$BASEDIR"/train/"$TRAININGNAME" \
      -datadir "$BASEDIR"/shuffleddata/current/ \
      -exportdir "$BASEDIR"/"$EXPORT_SUBDIR" \
      -exportprefix "$TRAININGNAME" \
-     -pos-len 19 \
+     -pos-len 15 \
      -batch-size "$BATCHSIZE" \
      -model-kind "$MODELKIND" \
      -max-epochs-this-instance 1 \
      -lr-scale 1\
-     -samples-per-epoch 500000 \
+     -samples-per-epoch 1000000 \
     -soft-policy-weight-scale 8.0 \
     -value-loss-scale 0.6 \
     -td-value-loss-scales 0.6,0.6,0.6 \
-    -main-loss-scale 0.2 \
-    -intermediate-loss-scale 0.8 \
     -lookahead-alpha 0.5 \
     -lookahead-k 6 \
 	  -swa-scale 1.0\
