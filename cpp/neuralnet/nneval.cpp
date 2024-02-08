@@ -695,7 +695,7 @@ void NNEvaluator::evaluate(
     bool isLegal[NNPos::MAX_NN_POLICY_SIZE];
     int legalCount = 0;
 
-    GameLogic::ResultsBeforeNN resultsBeforeNN = nnInputParamsWithResultsBeforeNN.resultsBeforeNN;
+    const GameLogic::ResultsBeforeNN& resultsBeforeNN = nnInputParamsWithResultsBeforeNN.resultsBeforeNN;
     if(resultsBeforeNN.myOnlyLoc == Board::NULL_LOC) {
       for(int i = 0; i < policySize; i++) {
         Loc loc = NNPos::posToLoc(i, xSize, ySize, nnXLen, nnYLen);
@@ -708,7 +708,8 @@ void NNEvaluator::evaluate(
         isLegal[i] = false;
       }
       isLegal[NNPos::locToPos(resultsBeforeNN.myOnlyLoc, xSize, nnXLen, nnYLen)] = true;
-      isLegal[NNPos::locToPos(Board::PASS_LOC, xSize, nnXLen, nnYLen)] = true;
+      if(resultsBeforeNN.winner != nextPlayer)
+        isLegal[NNPos::locToPos(Board::PASS_LOC, xSize, nnXLen, nnYLen)] = true;
     }
 
     for(int i = 0; i<policySize; i++) {
@@ -781,6 +782,7 @@ void NNEvaluator::evaluate(
           winProb = 0.0;
           lossProb = 0.0;
           noResultProb = 1.0;
+          ASSERT_UNREACHABLE;
         } 
         else if(resultsBeforeNN.winner == nextPlayer) {  // next player win
           winProb = 1.0;
