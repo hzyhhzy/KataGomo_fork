@@ -493,7 +493,7 @@ class Metrics:
         target_futurepos = target_value_nchw[:, 2:4, :, :]
         target_scoring = target_value_nchw[:, 4, :, :] / 120.0
 
-        if raw_model.config["version"] <= 11 or raw_model.config["version"] == 101 or raw_model.config["version"] == 102:
+        if raw_model.config["version"] <= 11 or (raw_model.config["version"] >= 101 and raw_model.config["version"] <= 199):
             assert raw_model.policy_head.num_policy_outputs == 4
             policy_opt_loss_scale = 1.000
             long_policy_opt_loss_scale = 0.0
@@ -530,7 +530,7 @@ class Metrics:
             global_weight,
         ).sum()
 
-        if raw_model.config["version"] <= 11 or raw_model.config["version"] == 101 or raw_model.config["version"] == 102:
+        if raw_model.config["version"] <= 11 or (raw_model.config["version"] >= 101 and raw_model.config["version"] <= 199):
             target_weight_longoptimistic_policy = torch.zeros_like(global_weight)
             loss_longoptimistic_policy = torch.zeros_like(loss_policy_player)
         else:
@@ -565,7 +565,7 @@ class Metrics:
         assert target_weight_longoptimistic_policy.shape[0] == n
         target_weight_longoptimistic_policy_sum = (global_weight * target_weight_longoptimistic_policy).sum()
 
-        if raw_model.config["version"] <= 11 or raw_model.config["version"] == 101 or raw_model.config["version"] == 102:
+        if raw_model.config["version"] <= 11 or (raw_model.config["version"] >= 101 and raw_model.config["version"] <= 199):
             target_weight_shortoptimistic_policy = torch.zeros_like(global_weight)
             loss_shortoptimistic_policy = torch.zeros_like(loss_policy_player)
         else:

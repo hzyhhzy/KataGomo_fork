@@ -77,7 +77,8 @@ time python ./train.py \
     -td-value-loss-scales 0.6,0.6,0.6 \
     -lookahead-alpha 0.5 \
     -lookahead-k 6 \
-	  -swa-scale 1.0\
+    -swa-scale 1.0\
+    -use-fp16 \
      $EXTRAFLAG \
      "$@" \
      2>&1 | tee -a "$BASEDIR"/train/"$TRAININGNAME"/stdout.txt

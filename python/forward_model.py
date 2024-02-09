@@ -120,7 +120,7 @@ def main(args):
             print(f"Pass {policy[0,pos_len*pos_len]}")
             for y in range(pos_len):
                 print(" ".join(["%5.2f%%" % (100.0 * prob) for prob in policy[0,y*pos_len:(y+1)*pos_len]]))
-            if model_config["version"] >= 12 and model_config["version"] != 101 and model_config["version"] != 102:
+            if model_config["version"] >= 12 and not(model_config["version"] >= 101 and model_config["version"] <= 199):
                 print("LongOptPolicy")
                 print(f"Pass {policy[4,pos_len*pos_len]}")
                 for y in range(pos_len):

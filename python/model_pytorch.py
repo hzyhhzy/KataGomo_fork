@@ -1069,7 +1069,7 @@ class PolicyHead(torch.nn.Module):
         self.config = config
         self.activation = activation
 
-        if config["version"] <= 11 or config["version"] == 101 or config["version"] == 102:
+        if config["version"] <= 11 or (config["version"] >= 101 and config["version"] <= 199):
             self.num_policy_outputs = 4
         else:
             self.num_policy_outputs = 6
@@ -1092,7 +1092,7 @@ class PolicyHead(torch.nn.Module):
         self.gpool = KataGPool()
 
         self.linear_g = torch.nn.Linear(3 * c_g1, c_p1, bias=False)
-        if config["version"] <= 14 or config["version"] == 101 or config["version"] == 102:
+        if config["version"] <= 14 or (config["version"] >= 101 and config["version"] <= 199):
             self.linear_pass = torch.nn.Linear(3 * c_g1, self.num_policy_outputs, bias=False)
         else:
             self.linear_pass = torch.nn.Linear(3 * c_g1, c_p1, bias=True)
@@ -1118,7 +1118,7 @@ class PolicyHead(torch.nn.Module):
         init_weights(self.conv1p.weight, self.activation, scale=p_scale)
         init_weights(self.conv1g.weight, self.activation, scale=1.0)
         init_weights(self.linear_g.weight, self.activation, scale=g_scale)
-        if self.config["version"] <= 14 or self.config["version"] == 101 or self.config["version"] == 102:
+        if self.config["version"] <= 14 or (self.config["version"] >= 101 and self.config["version"] <= 199):
             init_weights(self.linear_pass.weight, "identity", scale=scale_output)
         else:
             init_weights(self.linear_pass.weight, self.activation, scale=1.0)
@@ -1130,7 +1130,7 @@ class PolicyHead(torch.nn.Module):
         reg_dict["output"].append(self.conv1p.weight)
         reg_dict["output"].append(self.conv1g.weight)
         reg_dict["output"].append(self.linear_g.weight)
-        if self.config["version"] <= 14 or self.config["version"] == 101 or self.config["version"] == 102:
+        if self.config["version"] <= 14 or (self.config["version"] >= 101 and self.config["version"] <= 199):
             reg_dict["output"].append(self.linear_pass.weight)
         else:
             reg_dict["output"].append(self.linear_pass.weight)
@@ -1155,7 +1155,7 @@ class PolicyHead(torch.nn.Module):
         outg = self.actg(outg)
         outg = self.gpool(outg, mask=mask, mask_sum_hw=mask_sum_hw).squeeze(-1).squeeze(-1) # NC
 
-        if self.config["version"] <= 14 or self.config["version"] == 101 or self.config["version"] == 102:
+        if self.config["version"] <= 14 or (self.config["version"] >= 101 and self.config["version"] <= 199):
             outpass = self.linear_pass(outg) # NC
         else:
             outpass = self.linear_pass(outg) # NC
@@ -1360,7 +1360,7 @@ class Model(torch.nn.Module):
         self.num_total_blocks = len(self.block_kind)
         self.pos_len = pos_len
 
-        if config["version"] <= 12 or config["version"] == 101 or config["version"] == 102:
+        if config["version"] <= 12 or (config["version"] >= 101 and config["version"] <= 199):
             self.td_score_multiplier = 20.0
             self.scoremean_multiplier = 20.0
             self.scorestdev_multiplier = 20.0
@@ -1766,7 +1766,7 @@ class Model(torch.nn.Module):
         pred_scorestdev = SoftPlusWithGradientFloorFunction.apply(out_miscvalue[:, 1], 0.05, False) * self.scorestdev_multiplier
         pred_lead = out_miscvalue[:, 2] * self.lead_multiplier
         pred_variance_time = SoftPlusWithGradientFloorFunction.apply(out_miscvalue[:, 3], 0.05, False) * self.variance_time_multiplier
-        if self.config["version"] < 14 or self.config["version"] == 101 or self.config["version"] == 102:
+        if self.config["version"] < 14 or (self.config["version"] >= 101 and self.config["version"] <= 199):
             pred_shortterm_value_error = SoftPlusWithGradientFloorFunction.apply(out_moremiscvalue[:,0], 0.05, False) * self.shortterm_value_error_multiplier
             pred_shortterm_score_error = SoftPlusWithGradientFloorFunction.apply(out_moremiscvalue[:,1], 0.05, False) * self.shortterm_score_error_multiplier
         else:
