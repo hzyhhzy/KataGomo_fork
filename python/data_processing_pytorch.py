@@ -47,7 +47,7 @@ def read_npz_training_data(
         # Just discard stuff that doesn't divide evenly
         num_whole_steps = num_samples // (batch_size * world_size)
 
-        logging.info(f"Beginning {npz_file} with {num_whole_steps * world_size} usable batches, my rank is {rank}")
+        #logging.info(f"Beginning {npz_file} with {num_whole_steps * world_size} usable batches, my rank is {rank}")
         for n in range(num_whole_steps):
             start = (n * world_size + rank) * batch_size
             end = start + batch_size

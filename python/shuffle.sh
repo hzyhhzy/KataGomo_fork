@@ -47,7 +47,7 @@ echo "Beginning shuffle at" $(date "+%Y-%m-%d %H:%M:%S")
          -num-processes "$NTHREADS" \
          -batch-size "$BATCHSIZE" \
          -min-rows 60000 \
-         -keep-target-rows 1100000 \
+         -keep-target-rows 2100000 \
          -only-include-md5-path-prop-lbound 0.00 \
          -only-include-md5-path-prop-ubound 0.95 \
          -output-npz \

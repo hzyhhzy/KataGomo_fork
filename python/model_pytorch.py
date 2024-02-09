@@ -61,6 +61,32 @@ def init_weights(tensor, activation, scale, fan_tensor=None):
     else:
         torch.nn.init.trunc_normal_(tensor, mean=0.0, std=std, a=-2.0*std, b=2.0*std)
 
+class SoftPlusWithGradientFloorFunction(torch.autograd.Function):
+    """
+    Same as softplus, except on backward pass, we never let the gradient decrease below grad_floor.
+    Equivalent to having a dynamic learning rate depending on stop_grad(x) where x is the input.
+    If square, then also squares the result while halving the input, and still also keeping the same gradient.
+    """
+    @staticmethod
+    def forward(ctx, x: torch.Tensor, grad_floor: float, square: bool):
+        ctx.save_for_backward(x)
+        ctx.grad_floor = grad_floor # grad_floor is not a tensor
+        if square:
+            return torch.square(torch.nn.functional.softplus(0.5 * x))
+        else:
+            return torch.nn.functional.softplus(x)
+
+    @staticmethod
+    def backward(ctx, grad_output: torch.Tensor):
+        (x,) = ctx.saved_tensors
+        grad_floor = ctx.grad_floor
+        grad_x = None
+        grad_grad_floor = None
+        grad_square = None
+        if ctx.needs_input_grad[0]:
+            grad_x = grad_output * (grad_floor + (1.0 - grad_floor) / (1.0 + torch.exp(-x)))
+        return grad_x, grad_grad_floor, grad_square
+
 class BiasMask(torch.nn.Module):
     def __init__(
         self,
@@ -1040,9 +1066,19 @@ class NestedNestedBottleneckResBlock(torch.nn.Module):
 class PolicyHead(torch.nn.Module):
     def __init__(self, c_in, c_p1, c_g1, config, activation):
         super(PolicyHead, self).__init__()
+        self.config = config
         self.activation = activation
 
-        self.num_policy_outputs = 4
+        if config["version"] <= 11 or (config["version"] >= 101 and config["version"] <= 199):
+            self.num_policy_outputs = 4
+        else:
+            self.num_policy_outputs = 6
+        # Output 0: policy prediction
+        # Output 1: opponent reply policy prediction
+        # Output 2: soft policy prediction
+        # Output 3: soft opponent reply policy prediction
+        # Output 4: long-term-optimistic policy prediction
+        # Output 5: short-term-optimistic policy prediction
 
         self.conv1p = torch.nn.Conv2d(c_in, c_p1, kernel_size=1, padding="same", bias=False)
         self.conv1g = torch.nn.Conv2d(c_in, c_g1, kernel_size=1, padding="same", bias=False)
@@ -1056,7 +1092,12 @@ class PolicyHead(torch.nn.Module):
         self.gpool = KataGPool()
 
         self.linear_g = torch.nn.Linear(3 * c_g1, c_p1, bias=False)
-        self.linear_pass = torch.nn.Linear(3 * c_g1, self.num_policy_outputs, bias=False)
+        if config["version"] <= 14 or (config["version"] >= 101 and config["version"] <= 199):
+            self.linear_pass = torch.nn.Linear(3 * c_g1, self.num_policy_outputs, bias=False)
+        else:
+            self.linear_pass = torch.nn.Linear(3 * c_g1, c_p1, bias=True)
+            self.act_pass = act(self.activation)
+            self.linear_pass2 = torch.nn.Linear(c_p1, self.num_policy_outputs, bias=False)
 
         self.bias2 = BiasMask(
             c_p1,
@@ -1071,19 +1112,31 @@ class PolicyHead(torch.nn.Module):
         # Scaling so that variance on the p and g branches adds up to 1.0
         p_scale = 0.8
         g_scale = 0.6
+        bias_scale = 0.2
         # Extra scaling for outputs
         scale_output = 0.3
         init_weights(self.conv1p.weight, self.activation, scale=p_scale)
         init_weights(self.conv1g.weight, self.activation, scale=1.0)
         init_weights(self.linear_g.weight, self.activation, scale=g_scale)
-        init_weights(self.linear_pass.weight, "identity", scale=scale_output)
+        if self.config["version"] <= 14 or (self.config["version"] >= 101 and self.config["version"] <= 199):
+            init_weights(self.linear_pass.weight, "identity", scale=scale_output)
+        else:
+            init_weights(self.linear_pass.weight, self.activation, scale=1.0)
+            init_weights(self.linear_pass.bias, self.activation, scale=bias_scale, fan_tensor=self.linear_pass.weight)
+            init_weights(self.linear_pass2.weight, "identity", scale=scale_output)
         init_weights(self.conv2p.weight, "identity", scale=scale_output)
 
     def add_reg_dict(self, reg_dict:Dict[str,List]):
         reg_dict["output"].append(self.conv1p.weight)
         reg_dict["output"].append(self.conv1g.weight)
         reg_dict["output"].append(self.linear_g.weight)
-        reg_dict["output"].append(self.linear_pass.weight)
+        if self.config["version"] <= 14 or (self.config["version"] >= 101 and self.config["version"] <= 199):
+            reg_dict["output"].append(self.linear_pass.weight)
+        else:
+            reg_dict["output"].append(self.linear_pass.weight)
+            reg_dict["output_noreg"].append(self.linear_pass.bias)
+            reg_dict["output"].append(self.linear_pass2.weight)
+
         reg_dict["output"].append(self.conv2p.weight)
         self.biasg.add_reg_dict(reg_dict)
         self.bias2.add_reg_dict(reg_dict)
@@ -1102,7 +1155,13 @@ class PolicyHead(torch.nn.Module):
         outg = self.actg(outg)
         outg = self.gpool(outg, mask=mask, mask_sum_hw=mask_sum_hw).squeeze(-1).squeeze(-1) # NC
 
-        outpass = self.linear_pass(outg) # NC
+        if self.config["version"] <= 14 or (self.config["version"] >= 101 and self.config["version"] <= 199):
+            outpass = self.linear_pass(outg) # NC
+        else:
+            outpass = self.linear_pass(outg) # NC
+            outpass = self.act_pass(outpass) # NC
+            outpass = self.linear_pass2(outpass) # NC
+
         outg = self.linear_g(outg).unsqueeze(-1).unsqueeze(-1) # NCHW
 
         outp = outp + outg
@@ -1301,6 +1360,23 @@ class Model(torch.nn.Module):
         self.num_total_blocks = len(self.block_kind)
         self.pos_len = pos_len
 
+        if config["version"] <= 12 or (config["version"] >= 101 and config["version"] <= 199):
+            self.td_score_multiplier = 20.0
+            self.scoremean_multiplier = 20.0
+            self.scorestdev_multiplier = 20.0
+            self.lead_multiplier = 20.0
+            self.variance_time_multiplier = 40.0
+            self.shortterm_value_error_multiplier = 0.25
+            self.shortterm_score_error_multiplier = 30.0
+        else:
+            self.td_score_multiplier = 20.0
+            self.scoremean_multiplier = 20.0
+            self.scorestdev_multiplier = 20.0
+            self.lead_multiplier = 20.0
+            self.variance_time_multiplier = 40.0
+            self.shortterm_value_error_multiplier = 0.25
+            self.shortterm_score_error_multiplier = 150.0
+
         self.trunk_normless = "trunk_normless" in config and config["trunk_normless"]
 
         if "has_intermediate_head" in config and config["has_intermediate_head"]:
@@ -1313,13 +1389,13 @@ class Model(torch.nn.Module):
         self.activation = "relu" if "activation" not in config else config["activation"]
 
         if config["initial_conv_1x1"]:
-            self.conv_spatial = torch.nn.Conv2d(22, self.c_trunk, kernel_size=1, padding="same", bias=False)
+            self.conv_spatial = torch.nn.Conv2d(modelconfigs.get_num_bin_input_features(config), self.c_trunk, kernel_size=1, padding="same", bias=False)
         else:
-            self.conv_spatial = torch.nn.Conv2d(22, self.c_trunk, kernel_size=3, padding="same", bias=False)
-        self.linear_global = torch.nn.Linear(19, self.c_trunk, bias=False)
+            self.conv_spatial = torch.nn.Conv2d(modelconfigs.get_num_bin_input_features(config), self.c_trunk, kernel_size=3, padding="same", bias=False)
+        self.linear_global = torch.nn.Linear(modelconfigs.get_num_global_input_features(config), self.c_trunk, bias=False)
 
-        self.bin_input_shape = [22, pos_len, pos_len]
-        self.global_input_shape = [19]
+        self.bin_input_shape = [modelconfigs.get_num_bin_input_features(config), pos_len, pos_len]
+        self.global_input_shape = [modelconfigs.get_num_global_input_features(config)]
 
         self.blocks = torch.nn.ModuleList()
         for block_config in self.block_kind:
@@ -1523,7 +1599,7 @@ class Model(torch.nn.Module):
             self.intermediate_value_head.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
 
     # Returns a tuple of tuples of outputs
-    # The outer tuple indexes different sets of heads, such as if the net also computes intermediate heads for self-distillation.
+    # The outer tuple indexes different sets of heads, such as if the net also computes intermediate heads.
     #   0 is the main output, 1 is intermediate.
     # The inner tuple ranges over the outputs of a set of heads (policy, value, etc).
     def forward(self, input_spatial, input_global):
@@ -1681,17 +1757,21 @@ class Model(torch.nn.Module):
         policy_logits = out_policy
         value_logits = out_value
         td_value_logits = torch.stack((out_miscvalue[:,4:7], out_miscvalue[:,7:10], out_moremiscvalue[:,2:5]), dim=1)
-        pred_td_score = out_moremiscvalue[:,5:8] * 20.0
+        pred_td_score = out_moremiscvalue[:,5:8] * self.td_score_multiplier
         ownership_pretanh = out_ownership
         pred_scoring = out_scoring
         futurepos_pretanh = out_futurepos
         seki_logits = out_seki
-        pred_scoremean = out_miscvalue[:, 0] * 20.0
-        pred_scorestdev = torch.nn.functional.softplus(out_miscvalue[:, 1]) * 20.0
-        pred_lead = out_miscvalue[:, 2] * 20.0
-        pred_variance_time = torch.nn.functional.softplus(out_miscvalue[:, 3]) * 40.0
-        pred_shortterm_value_error = torch.nn.functional.softplus(out_moremiscvalue[:,0]) * 0.25
-        pred_shortterm_score_error = torch.nn.functional.softplus(out_moremiscvalue[:,1]) * 30.0
+        pred_scoremean = out_miscvalue[:, 0] * self.scoremean_multiplier
+        pred_scorestdev = SoftPlusWithGradientFloorFunction.apply(out_miscvalue[:, 1], 0.05, False) * self.scorestdev_multiplier
+        pred_lead = out_miscvalue[:, 2] * self.lead_multiplier
+        pred_variance_time = SoftPlusWithGradientFloorFunction.apply(out_miscvalue[:, 3], 0.05, False) * self.variance_time_multiplier
+        if self.config["version"] < 14 or (self.config["version"] >= 101 and self.config["version"] <= 199):
+            pred_shortterm_value_error = SoftPlusWithGradientFloorFunction.apply(out_moremiscvalue[:,0], 0.05, False) * self.shortterm_value_error_multiplier
+            pred_shortterm_score_error = SoftPlusWithGradientFloorFunction.apply(out_moremiscvalue[:,1], 0.05, False) * self.shortterm_score_error_multiplier
+        else:
+            pred_shortterm_value_error = SoftPlusWithGradientFloorFunction.apply(out_moremiscvalue[:,0], 0.05, True) * self.shortterm_value_error_multiplier
+            pred_shortterm_score_error = SoftPlusWithGradientFloorFunction.apply(out_moremiscvalue[:,1], 0.05, True) * self.shortterm_score_error_multiplier
         scorebelief_logits = out_scorebelief_logprobs
 
         return (
@@ -1711,4 +1791,3 @@ class Model(torch.nn.Module):
             pred_shortterm_score_error, # N
             scorebelief_logits, # N, 2 * (self.pos_len*self.pos_len + EXTRA_SCORE_DISTR_RADIUS)
         )
-
