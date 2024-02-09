@@ -867,7 +867,7 @@ void NNInputs::fillRowV102(
   assert(board.y_size <= nnYLen);
   std::fill(rowBin, rowBin + NUM_FEATURES_SPATIAL_V102 * nnXLen * nnYLen, false);
   std::fill(rowGlobal, rowGlobal + NUM_FEATURES_GLOBAL_V102, 0.0f);
-
+  throw StringError("V102 input is not implemented until now");
   Player pla = nextPlayer;
   Player opp = getOpp(pla);
   int xSize = board.x_size;

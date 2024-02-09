@@ -1156,10 +1156,10 @@ void ModelDesc::loadFromFileMaybeGZipped(const string& fileName, ModelDesc& desc
 
 
 Rules ModelDesc::getSupportedRules(const Rules& desiredRules, bool& supported) const {
-  static_assert(NNModelVersion::latestModelVersionImplemented == 102, "");
+  static_assert(NNModelVersion::latestModelVersionImplemented == 103, "");
   Rules rules = desiredRules;
   supported = true;
-  if(version <= 102) {
+  if(version <= 103) {
   }
   else {
     ASSERT_UNREACHABLE;
