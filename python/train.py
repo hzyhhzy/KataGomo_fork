@@ -899,8 +899,10 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         for metric in metrics:
             if metric not in metric_sums:
                 metrics_to_print[metric] = metrics[metric]
-
-        logging.info(", ".join(["%s = %f" % (metric, metrics_to_print[metric]) for metric in metrics_to_print]))
+        if ("p0loss" in metrics_to_print) and ("time_since_last_print" in metrics_to_print):#train
+            logging.info(f"{exportprefix}: nsamp={int(metrics_to_print['nsamp'])}, time={metrics_to_print['time_since_last_print']:.2f}, p0loss={metrics_to_print['p0loss']:.4f}, vloss={metrics_to_print['vloss']:.4f}")
+        else:#val
+            logging.info(", ".join(["%s = %f" % (metric, metrics_to_print[metric]) for metric in metrics_to_print]))
         if metrics_out:
             metrics_out.write(json.dumps(metrics_to_print) + "\n")
             metrics_out.flush()
