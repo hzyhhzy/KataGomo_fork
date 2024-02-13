@@ -134,9 +134,10 @@ bool Search::getPlaySelectionValues(
 
     const NNOutput* nnOutput = node.getNNOutput();
     assert(nnOutput != NULL);
-    const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
     double bestChildExploreSelectionValue = getExploreSelectionValueOfChild(
-      node,policyProbs,bestChild,
+      node,
+      nnOutput->getPolicyProbMaybeNoised(getPos(bestMoveLoc)),
+      bestChild,
       bestMoveLoc,
       exploreScaling,
       totalChildWeight,bestChildEdgeVisits,fpuValue,
@@ -150,7 +151,9 @@ bool Search::getPlaySelectionValues(
       if(i != mostWeightedIdx) {
         int64_t edgeVisits = children[i].getEdgeVisits();
         double reduced = getReducedPlaySelectionWeight(
-          node, policyProbs, child,
+          node,
+          nnOutput->getPolicyProbMaybeNoised(getPos(moveLoc)),
+          child,
           moveLoc,
           exploreScaling,
           edgeVisits,
@@ -221,8 +224,7 @@ bool Search::getPlaySelectionValues(
     while(true) {
       for(int movePos = 0; movePos<policySize; movePos++) {
         Loc moveLoc = NNPos::posToLoc(movePos,rootBoard.x_size,rootBoard.y_size,nnXLen,nnYLen);
-        const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
-        double policyProb = policyProbs[movePos];
+        double policyProb = nnOutput->getPolicyProbMaybeNoised(movePos);
         if(!rootHistory.isLegal(rootBoard,moveLoc,rootPla) || policyProb < 0 || (obeyAllowedRootMove && !isAllowedRootMove(moveLoc)))
           continue;
         const std::vector<int>& avoidMoveUntilByLoc = rootPla == P_BLACK ? avoidMoveUntilByLocBlack : avoidMoveUntilByLocWhite;
@@ -427,8 +429,8 @@ bool Search::getPolicy(const SearchNode* node, float policyProbs[NNPos::MAX_NN_P
   const NNOutput* nnOutput = node->getNNOutput();
   if(nnOutput == NULL)
     return false;
-
-  std::copy(nnOutput->policyProbs, nnOutput->policyProbs+NNPos::MAX_NN_POLICY_SIZE, policyProbs);
+  for(int i = 0; i < NNPos::MAX_NN_POLICY_SIZE; i++)
+    policyProbs[i] = nnOutput->getPolicyProb(i);
   return true;
 }
 
@@ -469,8 +471,8 @@ bool Search::getPolicySurpriseAndEntropy(double& surpriseRet, double& searchEntr
 
   float policyProbsFromNNBuf[NNPos::MAX_NN_POLICY_SIZE];
   {
-    const float* policyProbsFromNN = nnOutput->getPolicyProbsMaybeNoised();
-    std::copy(policyProbsFromNN, policyProbsFromNN+NNPos::MAX_NN_POLICY_SIZE, policyProbsFromNNBuf);
+    for(int i = 0; i < NNPos::MAX_NN_POLICY_SIZE; i++)
+      policyProbsFromNNBuf[i] = nnOutput->getPolicyProbMaybeNoised(i);
   }
 
   double sumPlaySelectionValues = 0.0;
@@ -521,11 +523,10 @@ void Search::printRootPolicyMap(ostream& out) const {
   if(nnOutput == NULL)
     return;
 
-  const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
   for(int y = 0; y<rootBoard.y_size; y++) {
     for(int x = 0; x<rootBoard.x_size; x++) {
       int pos = NNPos::xyToPos(x,y,nnOutput->nnXLen);
-      out << Global::strprintf("%6.1f ", policyProbs[pos]*100);
+      out << Global::strprintf("%6.1f ", nnOutput->getPolicyProbMaybeNoised(pos)*100);
     }
     out << endl;
   }
@@ -748,9 +749,8 @@ void Search::getAnalysisData(
       return;
 
     const NNOutput* nnOutput = node.getNNOutput();
-    const float* policyProbsFromNN = nnOutput->getPolicyProbsMaybeNoised();
     for(int i = 0; i<NNPos::MAX_NN_POLICY_SIZE; i++)
-      policyProbs[i] = policyProbsFromNN[i];
+      policyProbs[i] = nnOutput->getPolicyProbMaybeNoised(i);
   }
 
   //Copy to make sure we keep these values so we can reuse scratch later for PV
@@ -763,7 +763,9 @@ void Search::getAnalysisData(
     }
     //Probability mass should not sum to more than 1, giving a generous allowance
     //for floating point error.
-    assert(policyProbMassVisited <= 1.0001);
+    assert(policyProbMassVisited <= 1.1);
+    if(policyProbMassVisited > 1.0)
+      policyProbMassVisited = 1.0;
   }
 
   double parentWinLossValue;

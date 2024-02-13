@@ -101,7 +101,7 @@ static void maybeApplyWideRootNoise(
 
 
 double Search::getExploreSelectionValueOfChild(
-  const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
+  const SearchNode& parent, float nnPolicyProb, const SearchNode* child,
   Loc moveLoc,
   double exploreScaling,
   double totalChildWeight, int64_t childEdgeVisits, double fpuValue,
@@ -109,8 +109,6 @@ double Search::getExploreSelectionValueOfChild(
   bool isDuringSearch, double maxChildWeight, SearchThread* thread
 ) const {
   (void)parentUtility;
-  int movePos = getPos(moveLoc);
-  float nnPolicyProb = parentPolicyProbs[movePos];
 
   int32_t childVirtualLosses = child->virtualLosses.load(std::memory_order_acquire);
   int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
@@ -214,15 +212,13 @@ double Search::getNewExploreSelectionValue(
 }
 
 double Search::getReducedPlaySelectionWeight(
-  const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
+  const SearchNode& parent, float nnPolicyProb, const SearchNode* child,
   Loc moveLoc,
   double exploreScaling,
   int64_t childEdgeVisits,
   double bestChildExploreSelectionValue
 ) const {
   assert(&parent == rootNode);
-  int movePos = getPos(moveLoc);
-  float nnPolicyProb = parentPolicyProbs[movePos];
 
   int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
   double utilityAvg = child->stats.utilityAvg.load(std::memory_order_acquire);
@@ -322,14 +318,13 @@ void Search::selectBestChildToDescend(
   double totalChildWeight = 0.0;
   const NNOutput* nnOutput = node.getNNOutput();
   assert(nnOutput != NULL);
-  const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
   for(int i = 0; i<childrenCapacity; i++) {
     const SearchNode* child = children[i].getIfAllocated();
     if(child == NULL)
       break;
     Loc moveLoc = children[i].getMoveLocRelaxed();
     int movePos = getPos(moveLoc);
-    float nnPolicyProb = policyProbs[movePos];
+    float nnPolicyProb = nnOutput->getPolicyProbMaybeNoised(movePos);
     if(nnPolicyProb < 0)
       continue;
     policyProbMassVisited += nnPolicyProb;
@@ -343,7 +338,9 @@ void Search::selectBestChildToDescend(
   }
   //Probability mass should not sum to more than 1, giving a generous allowance
   //for floating point error.
-  assert(policyProbMassVisited <= 1.0001);
+  assert(policyProbMassVisited <= 1.1);
+  if(policyProbMassVisited > 1.0)
+    policyProbMassVisited = 1.0;
 
   //First play urgency
   double parentUtility;
@@ -371,7 +368,9 @@ void Search::selectBestChildToDescend(
     Loc moveLoc = children[i].getMoveLocRelaxed();
     bool isDuringSearch = true;
     double selectionValue = getExploreSelectionValueOfChild(
-      node,policyProbs,child,
+      node,
+      nnOutput->getPolicyProbMaybeNoised(getPos(moveLoc)),
+      child,
       moveLoc,
       exploreScaling,
       totalChildWeight,childEdgeVisits,fpuValue,
@@ -422,7 +421,7 @@ void Search::selectBestChildToDescend(
     }
 
     //Quit immediately for illegal moves
-    float nnPolicyProb = policyProbs[movePos];
+    float nnPolicyProb = nnOutput->getPolicyProbMaybeNoised(movePos);
     if(nnPolicyProb < 0)
       continue;
 

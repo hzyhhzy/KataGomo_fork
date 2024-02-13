@@ -1402,7 +1402,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
       if(m < sgfMoves.size()) {
         moves.push_back(sgfMoves[m]);
         int pos = NNPos::locToPos(sgfMoves[m].loc,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen);
-        policyPriors.push_back(nnOutput->policyProbs[pos]);
+        policyPriors.push_back(nnOutput->getPolicyProb(pos));
       }
 
       if(m >= sgfMoves.size())
@@ -1627,7 +1627,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         nnEval->evaluate(board,hist,pla,nnInputParams,buf,skipCache);
         shared_ptr<NNOutput>& nnOutput = buf.result;
         int pos = NNPos::locToPos(sample.hintLoc,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen);
-        double prob = nnOutput->policyProbs[pos];
+        double prob = nnOutput->getPolicyProb(pos);
         assert(prob >= 0.0);
         acc += log(prob + 1e-30);
         count += 1;

@@ -556,16 +556,15 @@ int MainCmds::genbook(const vector<string>& args) {
           ptrs.push_back(std::move(buf.result));
         }
         std::shared_ptr<NNOutput> result(new NNOutput(ptrs));
-        float* policyProbs = result->policyProbs;
-        float moveLocPolicy = policyProbs[search->getPos(moveLoc)];
+        float moveLocPolicy = result->getPolicyProb(search->getPos(moveLoc));
         assert(moveLocPolicy >= 0);
         vector<std::pair<Loc,float>> extraMoveLocsToExpand;
         for(int pos = 0; pos<NNPos::MAX_NN_POLICY_SIZE; pos++) {
           Loc loc = NNPos::posToLoc(pos, board.x_size, board.y_size, result->nnXLen, result->nnYLen);
           if(loc == Board::NULL_LOC || loc == moveLoc)
             continue;
-          if(policyProbs[pos] > 0.0 && policyProbs[pos] > 1.5 * moveLocPolicy + 0.05f)
-            extraMoveLocsToExpand.push_back(std::make_pair(loc,policyProbs[pos]));
+          if(result->getPolicyProb(pos) > 0.0 && result->getPolicyProb(pos) > 1.5 * moveLocPolicy + 0.05f)
+            extraMoveLocsToExpand.push_back(std::make_pair(loc, result->getPolicyProb(pos)));
         }
         std::sort(
           extraMoveLocsToExpand.begin(),

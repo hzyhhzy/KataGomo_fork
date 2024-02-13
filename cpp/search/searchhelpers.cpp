@@ -137,7 +137,9 @@ std::shared_ptr<NNOutput>* Search::maybeAddPolicyNoiseAndTemp(SearchThread& thre
 
   float* noisedPolicyProbs = new float[NNPos::MAX_NN_POLICY_SIZE];
   newNNOutput->noisedPolicyProbs = noisedPolicyProbs;
-  std::copy(newNNOutput->policyProbs, newNNOutput->policyProbs + NNPos::MAX_NN_POLICY_SIZE, noisedPolicyProbs);
+
+  for(int i = 0; i < NNPos::MAX_NN_POLICY_SIZE; i++) 
+    noisedPolicyProbs[i] = newNNOutput->getPolicyProb(i);
 
   if(searchParams.rootPolicyTemperature != 1.0 || searchParams.rootPolicyTemperatureEarly != 1.0) {
     double rootPolicyTemperature = interpolateEarly(
