@@ -80,7 +80,7 @@ NNOutput::NNOutput(const NNOutput& other) {
   else
     noisedPolicyProbs = NULL;
 
-  std::copy(other.policyProbs, other.policyProbs+NNPos::MAX_NN_POLICY_SIZE, policyProbs);
+  std::copy(other.policyProbsQuantized, other.policyProbsQuantized + NNPos::MAX_NN_POLICY_SIZE, policyProbsQuantized);
 }
 
 NNOutput::NNOutput(const vector<shared_ptr<NNOutput>>& others) {
@@ -121,24 +121,27 @@ NNOutput::NNOutput(const vector<shared_ptr<NNOutput>>& others) {
   //Just give up if they don't all match in move legality
   {
     bool mismatch = false;
+    float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
     std::fill(policyProbs, policyProbs + NNPos::MAX_NN_POLICY_SIZE, 0.0f);
     for(int i = 0; i<len; i++) {
       const NNOutput& other = *(others[i]);
       for(int pos = 0; pos<NNPos::MAX_NN_POLICY_SIZE; pos++) {
-        if(i > 0 && (policyProbs[pos] < 0) != (other.policyProbs[pos] < 0))
+        float p = other.getPolicyProb(pos);
+        if(i > 0 && (policyProbs[pos] < 0) != (p < 0))
           mismatch = true;
-        policyProbs[pos] += other.policyProbs[pos];
+        policyProbs[pos] += p;
       }
     }
     //In case of mismatch, just take the first one
     //This should basically never happen, only on true hash collisions
     if(mismatch) {
       const NNOutput& other = *(others[0]);
-      std::copy(other.policyProbs, other.policyProbs + NNPos::MAX_NN_POLICY_SIZE, policyProbs);
+      std::copy(
+        other.policyProbsQuantized, other.policyProbsQuantized + NNPos::MAX_NN_POLICY_SIZE, policyProbsQuantized);
     }
     else {
-      for(int pos = 0; pos<NNPos::MAX_NN_POLICY_SIZE; pos++)
-        policyProbs[pos] /= floatLen;
+      for(int pos = 0; pos < NNPos::MAX_NN_POLICY_SIZE; pos++)
+        policyProbsQuantized[pos] = policyQuant(policyProbs[pos] / floatLen);
     }
   }
 
@@ -166,7 +169,7 @@ NNOutput& NNOutput::operator=(const NNOutput& other) {
   else
     noisedPolicyProbs = NULL;
 
-  std::copy(other.policyProbs, other.policyProbs+NNPos::MAX_NN_POLICY_SIZE, policyProbs);
+  std::copy(other.policyProbsQuantized, other.policyProbsQuantized + NNPos::MAX_NN_POLICY_SIZE, policyProbsQuantized);
 
   return *this;
 }
@@ -191,7 +194,7 @@ void NNOutput::debugPrint(ostream& out, const Board& board) {
   for(int y = 0; y<board.y_size; y++) {
     for(int x = 0; x<board.x_size; x++) {
       int pos = NNPos::xyToPos(x,y,nnXLen);
-      float prob = policyProbs[pos];
+      float prob = getPolicyProb(pos);
       if(prob < 0)
         out << "   - ";
       else

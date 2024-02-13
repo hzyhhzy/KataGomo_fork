@@ -26,7 +26,7 @@ NNResultBuf::~NNResultBuf() {
   if(rowSpatial != NULL)
     delete[] rowSpatial;
   if(rowGlobal != NULL)
-    delete[] rowGlobal;
+    delete[] rowGlobal;\
 }
 
 //-------------------------------------------------------------------------------------
@@ -420,6 +420,8 @@ void NNEvaluator::serve(
   }
 
   vector<NNOutput*> outputBuf;
+  vector<float> policyBuf;
+  policyBuf.resize(NNPos::MAX_NN_POLICY_SIZE * maxNumRows);
 
   unique_lock<std::mutex> lock(bufferMutex);
   while(true) {
@@ -462,8 +464,7 @@ void NNEvaluator::serve(
         unique_lock<std::mutex> resultLock(resultBuf->resultMutex);
         assert(resultBuf->hasResult == false);
         resultBuf->result = std::make_shared<NNOutput>();
-
-        float* policyProbs = resultBuf->result->policyProbs;
+        float* policyProbs = resultBuf->policyResult;
         for(int i = 0; i<NNPos::MAX_NN_POLICY_SIZE; i++)
           policyProbs[i] = 0;
 
@@ -518,8 +519,9 @@ void NNEvaluator::serve(
         }
       }
 
-      NeuralNet::getOutput(gpuHandle, buf.inputBuffers, numRows, buf.resultBufs, outputBuf);
+      NeuralNet::getOutput(gpuHandle, buf.inputBuffers, numRows, buf.resultBufs, outputBuf, policyBuf.data());
       assert(outputBuf.size() == numRows);
+      assert(policyBuf.size() >= numRows * NNPos::MAX_NN_POLICY_SIZE);
 
       m_numRowsProcessed.fetch_add(numRows, std::memory_order_relaxed);
       m_numBatchesProcessed.fetch_add(1, std::memory_order_relaxed);
@@ -534,6 +536,11 @@ void NNEvaluator::serve(
         unique_lock<std::mutex> resultLock(resultBuf->resultMutex);
         assert(resultBuf->hasResult == false);
         resultBuf->result = std::shared_ptr<NNOutput>(outputBuf[row]);
+        //resultBuf->policyResult = policyBuf[row];
+        std::copy(
+          policyBuf.data() + row * NNPos::MAX_NN_POLICY_SIZE,
+          policyBuf.data() + (row + 1) * NNPos::MAX_NN_POLICY_SIZE,
+          resultBuf->policyResult);
         resultBuf->hasResult = true;
         resultBuf->clientWaitingForResult.notify_all();
         resultLock.unlock();
@@ -684,7 +691,7 @@ void NNEvaluator::evaluate(
   //and causing policy weights to be different, which would reduce performance of successive searches in a game
   //by making the successive searches distribute their playouts less coherently and using the cache more poorly.
   
-    float* policy = buf.result->policyProbs;
+    float* policy = buf.policyResult;
 
     float nnPolicyInvTemperature = 1.0f / nnInputParams.nnPolicyTemperature;
 
@@ -858,7 +865,9 @@ void NNEvaluator::evaluate(
       throw StringError("NNEval value postprocessing not implemented for model version");
     }
   
-
+  //copy policy
+    for(int i = 0; i < NNPos::MAX_NN_POLICY_SIZE; i++)
+      buf.result->policyProbsQuantized[i] = NNOutput::policyQuant(policy[i]);
 
 
   //And record the nnHash in the result and put it into the table

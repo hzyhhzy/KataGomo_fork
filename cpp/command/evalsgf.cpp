@@ -332,12 +332,11 @@ int MainCmds::evalsgf(const vector<string>& args) {
   if(printPolicy) {
     const NNOutput* nnOutput = search->rootNode->getNNOutput();
     if(nnOutput != NULL) {
-      const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
       cout << "Root policy: " << endl;
       for(int y = 0; y<board.y_size; y++) {
         for(int x = 0; x<board.x_size; x++) {
           int pos = NNPos::xyToPos(x,y,nnOutput->nnXLen);
-          double prob = policyProbs[pos];
+          double prob = nnOutput->getPolicyProbMaybeNoised(pos);
           if(prob < 0)
             cout << "  -  " << " ";
           else
@@ -345,19 +344,18 @@ int MainCmds::evalsgf(const vector<string>& args) {
         }
         cout << endl;
       }
-      double prob = policyProbs[NNPos::locToPos(Board::PASS_LOC,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen)];
+      double prob = nnOutput->getPolicyProbMaybeNoised(NNPos::locToPos(Board::PASS_LOC,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen));
       cout << "Pass " << Global::strprintf("%5.2f",prob*100) << endl;
     }
   }
   if(printLogPolicy) {
     const NNOutput* nnOutput = search->rootNode->getNNOutput();
     if(nnOutput != NULL) {
-      const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
       cout << "Root policy: " << endl;
       for(int y = 0; y<board.y_size; y++) {
         for(int x = 0; x<board.x_size; x++) {
           int pos = NNPos::xyToPos(x,y,nnOutput->nnXLen);
-          double prob = policyProbs[pos];
+          double prob = nnOutput->getPolicyProbMaybeNoised(pos);
           if(prob < 0)
             cout << "  _  " << " ";
           else
@@ -365,7 +363,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
         }
         cout << endl;
       }
-      double prob = policyProbs[NNPos::locToPos(Board::PASS_LOC,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen)];
+      double prob =  nnOutput->getPolicyProbMaybeNoised(NNPos::locToPos(Board::PASS_LOC,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen));
       cout << "Pass " << Global::strprintf("%+5.2f",log(prob)) << endl;
     }
   }
@@ -373,7 +371,9 @@ int MainCmds::evalsgf(const vector<string>& args) {
   if(printDirichletShape) {
     const NNOutput* nnOutput = search->rootNode->getNNOutput();
     if(nnOutput != NULL) {
-      const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
+      float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
+      for(int i = 0; i < NNPos::MAX_NN_POLICY_SIZE; i++)
+        policyProbs[i] = nnOutput->getPolicyProbMaybeNoised(i);
       double alphaDistr[NNPos::MAX_NN_POLICY_SIZE];
       int policySize = nnOutput->nnXLen * nnOutput->nnYLen;
       Search::computeDirichletAlphaDistribution(policySize, policyProbs, alphaDistr);

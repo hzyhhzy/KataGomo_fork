@@ -48,7 +48,6 @@ int PlayUtils::chooseRandomLegalMoves(const Board& board, const BoardHistory& hi
 Loc PlayUtils::chooseRandomPolicyMove(
   const NNOutput* nnOutput, const Board& board, const BoardHistory& hist, Player pla, Rand& gameRand, double temperature, bool allowPass, Loc banMove
 ) {
-  const float* policyProbs = nnOutput->policyProbs;
   int nnXLen = nnOutput->nnXLen;
   int nnYLen = nnOutput->nnYLen;
   int numLegalMoves = 0;
@@ -58,8 +57,8 @@ Loc PlayUtils::chooseRandomPolicyMove(
     Loc loc = NNPos::posToLoc(pos,board.x_size,board.y_size,nnXLen,nnYLen);
     if((loc == Board::PASS_LOC && !allowPass) || loc == banMove)
       continue;
-    if(policyProbs[pos] > 0.0 && hist.isLegal(board,loc,pla)) {
-      double relProb = policyProbs[pos];
+    if(nnOutput->getPolicyProb(pos) > 0.0 && hist.isLegal(board, loc, pla)) {
+      double relProb = nnOutput->getPolicyProb(pos);
       relProbs[numLegalMoves] = relProb;
       locs[numLegalMoves] = loc;
       numLegalMoves += 1;
@@ -96,7 +95,7 @@ Loc PlayUtils::getGameInitializationMove(
   int policySize = NNPos::getPolicySize(nnXLen,nnYLen);
   for(int movePos = 0; movePos<policySize; movePos++) {
     Loc moveLoc = NNPos::posToLoc(movePos,board.x_size,board.y_size,nnXLen,nnYLen);
-    double policyProb = nnOutput->policyProbs[movePos];
+    double policyProb = nnOutput->getPolicyProb(movePos);
     if(!hist.isLegal(board,moveLoc,pla) || policyProb <= 0)
       continue;
     locs.push_back(moveLoc);

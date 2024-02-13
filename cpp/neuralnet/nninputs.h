@@ -87,6 +87,67 @@ namespace NNInputs {
 }
 
 struct NNOutput {
+  static inline uint8_t policyQuant(float p)
+  {
+    if(p < 0)
+      return 0;
+    int32_t t = p * (1 << 15);
+    if(t >= (1 << 15))
+      return 255;
+
+    if(t >= (1 << 14))  // 1
+      return 7 * 32 + (t - (1 << 14)) / (1 << 9);
+    else if(t >= (1 << 13))  // 1/2
+      return 6 * 32 + (t - (1 << 13)) / (1 << 8);
+    else if(t >= (1 << 12))  // 1/4
+      return 5 * 32 + (t - (1 << 12)) / (1 << 7);
+    else if(t >= (1 << 11))  // 1/8
+      return 4 * 32 + (t - (1 << 11)) / (1 << 6);
+    else if(t >= (1 << 10))  // 1/16
+      return 7 * 16 + (t - (1 << 10)) / (1 << 6);
+    else if(t >= (1 << 9))  // 1/32
+      return 6 * 16 + (t - (1 << 9)) / (1 << 5);
+    else if(t >= (1 << 8))  // 1/64
+      return 5 * 16 + (t - (1 << 8)) / (1 << 4);
+    else if(t >= (1 << 7))  // 1/128
+      return 4 * 16 + (t - (1 << 7)) / (1 << 3);
+    else if(t >= (1 << 6))  // 1/512~1/256
+      return 3 * 16 + (t - (1 << 6)) / (1 << 2);
+    else if(t >= (15 << 1))  // 15/16384~1/512
+      return 31 + (t - (15 << 1)) / (1 << 1);
+    else  // <15/16384
+      return 1 + t;
+    // min=1/32768
+    
+  }
+
+  static inline float policyDequant(uint8_t t)
+  {
+    if(t == 0)
+      return -1;
+    if(t < 31)
+      return (-0.5 + t) / 32768;
+    if(t < 3 * 16)
+      return (t + 0.5 - 1 * 16) / 16384;
+    if(t < 4 * 16)
+      return (t + 0.5 - 2 * 16) / 8192;
+    if(t < 5 * 16)
+      return (t + 0.5 - 3 * 16) / 4096;
+    if(t < 6 * 16)
+      return (t + 0.5 - 4 * 16) / 2048;
+    if(t < 7 * 16)
+      return (t + 0.5 - 5 * 16) / 1024;
+    if(t < 4 * 32)
+      return (t + 0.5 - 6 * 16) / 512;
+    if(t < 5 * 32)
+      return (t + 0.5 - 3 * 32) / 512;
+    if(t < 6 * 32)
+      return (t + 0.5 - 4 * 32) / 256;
+    if(t < 7 * 32)
+      return (t + 0.5 - 5 * 32) / 128;
+    return (t + 0.5 - 6 * 32) / 64;
+  }
+
   Hash128 nnHash; //NNInputs - getHash
 
   //Initially from the perspective of the player to move at the time of the eval, fixed up later in nnEval.cpp
@@ -104,7 +165,7 @@ struct NNOutput {
 
   //Indexed by pos rather than loc
   //Values in here will be set to negative for illegal moves, including superko
-  float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
+  int8_t policyProbsQuantized[NNPos::MAX_NN_POLICY_SIZE];
 
   int nnXLen;
   int nnYLen;
@@ -122,10 +183,11 @@ struct NNOutput {
 
   NNOutput& operator=(const NNOutput&);
 
-  inline float* getPolicyProbsMaybeNoised() { return noisedPolicyProbs != NULL ? noisedPolicyProbs : policyProbs; }
-  inline const float* getPolicyProbsMaybeNoised() const { return noisedPolicyProbs != NULL ? noisedPolicyProbs : policyProbs; }
+  inline float getPolicyProb(int pos) const { return policyDequant(policyProbsQuantized[pos]); }
+  inline float getPolicyProbMaybeNoised(int pos) const { return noisedPolicyProbs != NULL ? noisedPolicyProbs[pos] : policyDequant(policyProbsQuantized[pos]); }
   void debugPrint(std::ostream& out, const Board& board);
   inline int getPos(Loc loc, const Board& board) const { return NNPos::locToPos(loc, board.x_size, nnXLen, nnYLen ); }
+
 };
 
 namespace SymmetryHelpers {

@@ -452,7 +452,7 @@ private:
     Player pla
   ) const;
   double getExploreSelectionValueOfChild(
-    const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
+    const SearchNode& parent, float nnPolicyProb, const SearchNode* child,
     Loc moveLoc,
     double exploreScaling,
     double totalChildWeight, int64_t childEdgeVisits, double fpuValue,
@@ -468,7 +468,7 @@ private:
     double maxChildWeight, SearchThread* thread
   ) const;
   double getReducedPlaySelectionWeight(
-    const SearchNode& parent, const float* parentPolicyProbs, const SearchNode* child,
+    const SearchNode& parent, float nnPolicyProb, const SearchNode* child,
     Loc moveLoc,
     double exploreScaling,
     int64_t childEdgeVisits,

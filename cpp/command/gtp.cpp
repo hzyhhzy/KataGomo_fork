@@ -888,7 +888,7 @@ struct GTPEngine {
 
           NNOutput* nnOutput = buf.result.get();
           int pos = NNPos::locToPos(prevLoc,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen);
-          policyStr += Global::strprintf("%.2f%% ", 100.0 * (nnOutput->policyProbs[pos]));
+          policyStr += Global::strprintf("%.2f%% ", 100.0 * (nnOutput->getPolicyProb(pos)));
         }
       }
     }
@@ -927,7 +927,7 @@ struct GTPEngine {
         for(int y = 0; y<board.y_size; y++) {
           for(int x = 0; x<board.x_size; x++) {
             int pos = NNPos::xyToPos(x,y,nnOutput->nnXLen);
-            float prob = nnOutput->policyProbs[pos];
+            float prob = nnOutput->getPolicyProb(pos);
             if(prob < 0)
               out << "    NAN ";
             else
@@ -938,7 +938,7 @@ struct GTPEngine {
         out << "policyPass ";
         {
           int pos = NNPos::locToPos(Board::PASS_LOC,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen);
-          float prob = nnOutput->policyProbs[pos];
+          float prob = nnOutput->getPolicyProb(pos);
           if(prob < 0)
             out << "    NAN "; // Probably shouldn't ever happen for pass unles the rules change, but we handle it anyways
           else

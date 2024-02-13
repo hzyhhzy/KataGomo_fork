@@ -117,7 +117,8 @@ namespace NeuralNet {
     InputBuffers* buffers,
     int numBatchEltsFilled,
     NNResultBuf** inputBufs,
-    std::vector<NNOutput*>& outputs
+    std::vector<NNOutput*>& outputs,
+    float* outputPolicys
   );
 
 
