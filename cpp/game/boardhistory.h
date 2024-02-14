@@ -84,7 +84,7 @@ struct BoardHistory {
 
   void printBasicInfo(std::ostream& out, const Board& board) const;
   void printDebugInfo(std::ostream& out, const Board& board) const;
-  Hash128 BoardHistory::getRulesHash() const;
+  Hash128 getRulesHash() const;
   //Compute a hash that takes into account the full situation, the rules, discretized komi, and any immediate ko prohibitions.
   static Hash128 getSituationRulesHash(
     const Board& board,
