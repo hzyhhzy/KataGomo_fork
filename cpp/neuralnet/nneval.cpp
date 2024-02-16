@@ -19,7 +19,8 @@ NNResultBuf::NNResultBuf()
     result(nullptr),
     errorLogLockout(false),
     // If no symmetry is specified, it will use default or random based on config.
-    symmetry(NNInputs::SYMMETRY_NOTSPECIFIED)
+    symmetry(NNInputs::SYMMETRY_NOTSPECIFIED),
+    pla(C_EMPTY)
 {}
 
 NNResultBuf::~NNResultBuf() {
@@ -516,6 +517,11 @@ void NNEvaluator::serve(
             buf.resultBufs[row]->symmetry = defaultSymmetry;
           }
         }
+        //transpose if player is white
+        if(buf.resultBufs[row]->pla == P_WHITE)
+          buf.resultBufs[row]->symmetry ^= 0x4;
+        else 
+          assert(buf.resultBufs[row]->pla == P_BLACK);
       }
 
       NeuralNet::getOutput(gpuHandle, buf.inputBuffers, numRows, buf.resultBufs, outputBuf);
@@ -593,6 +599,7 @@ void NNEvaluator::evaluate(
 ) {
   assert(!isKilled);
   buf.hasResult = false;
+  buf.pla = nextPlayer;
 
   if(board.x_size > nnXLen || board.y_size > nnYLen)
     throw StringError("NNEvaluator was configured with nnXLen = " + Global::intToString(nnXLen) +

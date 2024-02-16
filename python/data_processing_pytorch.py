@@ -61,7 +61,8 @@ def read_npz_training_data(
 
 
             if randomize_symmetries:
-                symm = int(rand.integers(0,8))
+                #symm = int(rand.integers(0,8))
+                symm = 2 * int(rand.integers(0, 2))  # 0:no sym   2:xy-flip or rotate 180 degree   others are not allowed
                 batch_binaryInputNCHW = apply_symmetry(batch_binaryInputNCHW, symm)
                 batch_policyTargetsNCMove = apply_symmetry_policy(batch_policyTargetsNCMove, symm, pos_len)
                 batch_valueTargetsNCHW = apply_symmetry(batch_valueTargetsNCHW, symm)

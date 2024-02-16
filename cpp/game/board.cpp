@@ -42,14 +42,15 @@ int Location::getY(Loc loc, int x_size)
 }
 void Location::getAdjacentOffsets(short adj_offsets[8], int x_size)
 {
+  //first 6 are connections on Hex board
   adj_offsets[0] = -(x_size+1);
   adj_offsets[1] = -1;
   adj_offsets[2] = 1;
   adj_offsets[3] = (x_size+1);
-  adj_offsets[4] = -(x_size+1)-1;
-  adj_offsets[5] = -(x_size+1)+1;
-  adj_offsets[6] = (x_size+1)-1;
-  adj_offsets[7] = (x_size+1)+1;
+  adj_offsets[4] = -(x_size + 1) + 1;
+  adj_offsets[5] = (x_size + 1) - 1;
+  adj_offsets[6] = - (x_size + 1) - 1;
+  adj_offsets[7] = (x_size + 1) + 1;
 }
 
 bool Location::isAdjacent(Loc loc0, Loc loc1, int x_size)
@@ -57,28 +58,6 @@ bool Location::isAdjacent(Loc loc0, Loc loc1, int x_size)
   return loc0 == loc1 - (x_size+1) || loc0 == loc1 - 1 || loc0 == loc1 + 1 || loc0 == loc1 + (x_size+1);
 }
 
-
-Loc Location::getCenterLoc(int x_size, int y_size) {
-  if(x_size % 2 == 0 || y_size % 2 == 0)
-    return Board::NULL_LOC;
-  return getLoc(x_size / 2, y_size / 2, x_size);
-}
-
-Loc Location::getCenterLoc(const Board& b) {
-  return getCenterLoc(b.x_size,b.y_size);
-}
-
-bool Location::isCentral(Loc loc, int x_size, int y_size) {
-  int x = getX(loc,x_size);
-  int y = getY(loc,x_size);
-  return x >= (x_size-1)/2 && x <= x_size/2 && y >= (y_size-1)/2 && y <= y_size/2;
-}
-
-bool Location::isNearCentral(Loc loc, int x_size, int y_size) {
-  int x = getX(loc,x_size);
-  int y = getY(loc,x_size);
-  return x >= (x_size-1)/2-1 && x <= x_size/2+1 && y >= (y_size-1)/2-1 && y <= y_size/2+1;
-}
 
 
 #define FOREACHADJ(BLOCK) {int ADJOFFSET = -(x_size+1); {BLOCK}; ADJOFFSET = -1; {BLOCK}; ADJOFFSET = 1; {BLOCK}; ADJOFFSET = x_size+1; {BLOCK}};
@@ -313,17 +292,6 @@ Hash128 Board::getSitHash(Player pla) const {
   return h;
 }
 
-int Location::distance(Loc loc0, Loc loc1, int x_size) {
-  int dx = getX(loc1,x_size) - getX(loc0,x_size);
-  int dy = (loc1-loc0-dx) / (x_size+1);
-  return (dx >= 0 ? dx : -dx) + (dy >= 0 ? dy : -dy);
-}
-
-int Location::euclideanDistanceSquared(Loc loc0, Loc loc1, int x_size) {
-  int dx = getX(loc1,x_size) - getX(loc0,x_size);
-  int dy = (loc1-loc0-dx) / (x_size+1);
-  return dx*dx + dy*dy;
-}
 
 //TACTICAL STUFF--------------------------------------------------------------------
 
@@ -450,14 +418,18 @@ string Location::toStringMach(Loc loc, int x_size)
     return string("pass");
   if(loc == Board::NULL_LOC)
     return string("null");
+
+  int x = getX(loc, x_size), y = getY(loc, x_size);
+  int x_print = 2 * x + y + 1, y_print = 2 * y + 1;
+
   char buf[128];
-  sprintf(buf,"(%d,%d)",getX(loc,x_size),getY(loc,x_size));
+  sprintf(buf, "(%d,%d)", x_print, y_print);
   return string(buf);
 }
 
 string Location::toString(Loc loc, int x_size, int y_size)
 {
-  if(x_size > 25*25)
+  if(x_size > 25 * 5 || y_size > 25 * 5)
     return toStringMach(loc,x_size);
   if(loc == Board::PASS_LOC)
     return string("pass");
@@ -468,12 +440,13 @@ string Location::toString(Loc loc, int x_size, int y_size)
   int y = getY(loc,x_size);
   if(x >= x_size || x < 0 || y < 0 || y >= y_size)
     return toStringMach(loc,x_size);
+  int x_print = 2 * x + y + 1, y_print = 2 * y + 1, y_size_print = y_size * 2 + 1;
 
   char buf[128];
-  if(x <= 24)
-    sprintf(buf,"%c%d",xChar[x],y_size-y);
+  if(x_print <= 24)
+    sprintf(buf, "%c%d", xChar[x_print], y_size_print - y_print);
   else
-    sprintf(buf,"%c%c%d",xChar[x/25-1],xChar[x%25],y_size-y);
+    sprintf(buf, "%c%c%d", xChar[x_print / 25 - 1], xChar[x_print % 25], y_size_print - y_print);
   return string(buf);
 }
 
@@ -520,6 +493,14 @@ bool Location::tryOfString(const string& str, int x_size, int y_size, Loc& resul
     bool sucY = Global::tryStringToInt(pieces[1],y);
     if(!sucX || !sucY)
       return false;
+    if(y % 2 == 0)
+      return false;
+    y = (y - 1) / 2;
+    if((x - y) % 2 == 0)
+      return false;
+    x = (x - y - 1) / 2;
+    if(x < 0 || y < 0 || x >= x_size || y >= y_size)
+      return false;
     result = Location::getLoc(x,y,x_size);
     return true;
   }
@@ -544,7 +525,13 @@ bool Location::tryOfString(const string& str, int x_size, int y_size, Loc& resul
     bool sucY = Global::tryStringToInt(s,y);
     if(!sucY)
       return false;
-    y = y_size - y;
+    y = y_size * 2 + 1 - y;
+    if(y % 2 == 0)
+      return false;
+    y = (y - 1) / 2;
+    if((x - y) % 2 == 0)
+      return false;
+    x = (x - y - 1) / 2;
     if(x < 0 || y < 0 || x >= x_size || y >= y_size)
       return false;
     result = Location::getLoc(x,y,x_size);

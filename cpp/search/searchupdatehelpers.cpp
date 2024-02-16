@@ -32,7 +32,7 @@ void Search::addLeafValue(
       utility += biasFactor * newEntryDeltaUtilitySum / newEntryWeightSum;
   }
 
-  utility += getPatternBonus(node.patternBonusHash,getOpp(node.nextPla));
+  //utility += getPatternBonus(node.patternBonusHash,getOpp(node.nextPla));
 
   double utilitySq = utility * utility;
   double weightSq = weight * weight;

@@ -202,7 +202,7 @@ void NNOutput::debugPrint(ostream& out, const Board& board) {
 
 static void copyWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int cSize, bool useNHWC, int symmetry, bool reverse) {
   bool transpose = (symmetry & 0x4) != 0 && hSize == wSize;
-  bool flipX = (symmetry & 0x2) != 0;
+  bool flipX = (symmetry & 0x1) != 0;
   bool flipY = (symmetry & 0x1) != 0;
   if(transpose && !reverse)
     std::swap(flipX,flipY);
@@ -271,16 +271,10 @@ void SymmetryHelpers::copyOutputsWithSymmetry(const float* src, float* dst, int 
 }
 
 int SymmetryHelpers::invert(int symmetry) {
-  if(symmetry == 5)
-    return 6;
-  if(symmetry == 6)
-    return 5;
   return symmetry;
 }
 
 int SymmetryHelpers::compose(int firstSymmetry, int nextSymmetry) {
-  if(isTranspose(firstSymmetry))
-    nextSymmetry = (nextSymmetry & 0x4) | ((nextSymmetry & 0x2) >> 1) | ((nextSymmetry & 0x1) << 1);
   return firstSymmetry ^ nextSymmetry;
 }
 
@@ -290,7 +284,7 @@ int SymmetryHelpers::compose(int firstSymmetry, int nextSymmetry, int nextNextSy
 
 Loc SymmetryHelpers::getSymLoc(int x, int y, int xSize, int ySize, int symmetry) {
   bool transpose = (symmetry & 0x4) != 0;
-  bool flipX = (symmetry & 0x2) != 0;
+  bool flipX = (symmetry & 0x1) != 0;
   bool flipY = (symmetry & 0x1) != 0;
   if(flipX) { x = xSize - x - 1; }
   if(flipY) { y = ySize - y - 1; }
@@ -319,7 +313,7 @@ Loc SymmetryHelpers::getSymLoc(Loc loc, int xSize, int ySize, int symmetry) {
 
 Board SymmetryHelpers::getSymBoard(const Board& board, int symmetry) {
   bool transpose = (symmetry & 0x4) != 0;
-  bool flipX = (symmetry & 0x2) != 0;
+  bool flipX = (symmetry & 0x1) != 0;
   bool flipY = (symmetry & 0x1) != 0;
   Board symBoard(
     transpose ? board.y_size : board.x_size,
@@ -356,7 +350,7 @@ void SymmetryHelpers::markDuplicateMoveLocs(
 
 
   //If board has different sizes of x and y, we will not search symmetries involved with transpose.
-  int symmetrySearchUpperBound = board.x_size == board.y_size ? SymmetryHelpers::NUM_SYMMETRIES : SymmetryHelpers::NUM_SYMMETRIES_WITHOUT_TRANSPOSE;
+  int symmetrySearchUpperBound = SymmetryHelpers::NUM_SYMMETRIES;
 
   for(int symmetry = 1; symmetry < symmetrySearchUpperBound; symmetry++) {
     if(onlySymmetries != NULL && !contains(*onlySymmetries,symmetry))
@@ -521,23 +515,7 @@ void NNInputs::fillRowV7(
     }
   }
 
-  if(resultsBeforeNN.inited) {
-    rowGlobal[1] = 1.0;
-    rowGlobal[2] = resultsBeforeNN.winner == C_EMPTY;
-    rowGlobal[3] = resultsBeforeNN.winner == nextPlayer;
-    rowGlobal[4] = resultsBeforeNN.winner == getOpp(nextPlayer);
-    if(board.isOnBoard(resultsBeforeNN.myOnlyLoc))
-      setRowBin(
-        rowBin,
-        NNPos::locToPos(resultsBeforeNN.myOnlyLoc, board.x_size, nnXLen, nnYLen),
-        3,
-        1.0f,
-        posStride,
-        featureStride);
-    else if(resultsBeforeNN.myOnlyLoc == Board::PASS_LOC)
-      rowGlobal[5] = 1.0;
-  }
-
+  rowGlobal[0] = nextPlayer == C_WHITE ? 1.0 : 0.0;
 
   //Global features.
   //The first 5 of them were set already above to flag which of the past 5 moves were passes.
@@ -546,10 +524,6 @@ void NNInputs::fillRowV7(
   if(hist.rules.scoringRule == Rules::SCORING_AREA) {}
   else
     ASSERT_UNREACHABLE;
-
-  
-  // Parameter 0 noResultUtilityForWhite
-  rowGlobal[0] = pla == C_WHITE ? nnInputParams.noResultUtilityForWhite : -nnInputParams.noResultUtilityForWhite;
 
   // Parameter 15 is used because there's actually a discontinuity in how training behavior works when this is
   // nonzero, no matter how slightly.
