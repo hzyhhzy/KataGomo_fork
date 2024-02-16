@@ -2784,7 +2784,8 @@ void NeuralNet::getOutput(
   InputBuffers* inputBuffers,
   int numBatchEltsFilled,
   NNResultBuf** inputBufs,
-  vector<NNOutput*>& outputs
+  vector<NNOutput*>& outputs,
+  float *outPolicys
 ) {
   assert(numBatchEltsFilled <= inputBuffers->maxBatchSize);
   assert(numBatchEltsFilled > 0);
@@ -2982,7 +2983,7 @@ void NeuralNet::getOutput(
     assert(output->nnYLen == nnYLen);
 
     const float* policySrcBuf = inputBuffers->policyResults + row * inputBuffers->singlePolicyResultElts;
-    float* policyProbs = output->policyProbs;
+    float* policyProbs = outPolicys + row * NNPos::MAX_NN_POLICY_SIZE;
 
     //These are not actually correct, the client does the postprocessing to turn them into
     //policy probabilities and white game outcome probabilities
