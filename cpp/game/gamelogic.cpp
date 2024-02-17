@@ -76,7 +76,7 @@ static bool checkConnectionHelper(int8_t* buf, int xs, int ys, int x0, int y0) {
 static bool checkConnection(Player pla, const Board& board)
 {
   int xs = board.x_size, ys = board.y_size;
-  Player opp = getOpp(opp);
+  Player opp = getOpp(pla);
   // firstly, copy the board
   //0 empty, 1 pla, 2 opp or marked as jump gap, 3 top connection, 4 bottom connection
   //always connect at y axis. if white, transpose
@@ -248,7 +248,7 @@ void Board::initCaptureTable() {
     }
 
   }
-
+  IS_CAPTURETABLE_INITALIZED = true;
 }
 
 bool Board::isDeadOrCaptured(Loc loc) const {
