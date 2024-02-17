@@ -26,7 +26,12 @@ namespace GameLogic {
   static const MovePriority MP_ILLEGAL = -1;//illegal moves
 
   //C_EMPTY = draw, C_WALL = not finished 
-  Color checkWinnerAfterPlayed(const Board& board, const BoardHistory& hist, Player pla, Loc loc);
+  Color checkWinnerAfterPlayed(
+    const Board& board,
+    const BoardHistory& hist,
+    Player pla,
+    Loc loc,
+    int8_t* bufferForCheckingWinner);
 
 
   //some results calculated before calculating NN

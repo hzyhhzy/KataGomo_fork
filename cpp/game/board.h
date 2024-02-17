@@ -12,7 +12,7 @@
 #include "../external/nlohmann_json/json.hpp"
 
 #ifndef COMPILE_MAX_BOARD_LEN
-#define COMPILE_MAX_BOARD_LEN 19
+#define COMPILE_MAX_BOARD_LEN 13
 #endif
 
 //TYPES AND CONSTANTS-----------------------------------------------------------------
@@ -139,7 +139,7 @@ struct Board
   int numStonesOnBoard() const;
   int numPlaStonesOnBoard(Player pla) const;
   bool isDeadOrCaptured(Loc loc) const;
-
+  bool checkConnection(int8_t* buf, Player pla) const;
 
   //Sets the specified stone if possible, including overwriting existing stones.
   //Resolves any captures and/or suicides that result from setting that stone, including deletions of the stone itself.

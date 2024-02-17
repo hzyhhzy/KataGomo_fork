@@ -27,6 +27,9 @@ struct BoardHistory {
   int currentRecentBoardIdx;
   Player presumedNextMovePla;
 
+  //this is just reserved RAM. so no need to be filled in construct functions or copy functions
+  int8_t bufferForCheckingWinner[Board::MAX_ARR_SIZE];
+
 
 
                                          
