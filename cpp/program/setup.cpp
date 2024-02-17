@@ -479,7 +479,7 @@ vector<SearchParams> Setup::loadParams(
 
     if(cfg.contains("useUncertainty"+idxStr)) params.useUncertainty = cfg.getBool("useUncertainty"+idxStr);
     else if(cfg.contains("useUncertainty"))   params.useUncertainty = cfg.getBool("useUncertainty");
-    else                                      params.useUncertainty = (setupFor != SETUP_FOR_DISTRIBUTED && setupFor != SETUP_FOR_OTHER);
+    else                                      params.useUncertainty = false;
     if(cfg.contains("uncertaintyCoeff"+idxStr)) params.uncertaintyCoeff = cfg.getDouble("uncertaintyCoeff"+idxStr, 0.0001, 1.0);
     else if(cfg.contains("uncertaintyCoeff"))   params.uncertaintyCoeff = cfg.getDouble("uncertaintyCoeff", 0.0001, 1.0);
     else                                        params.uncertaintyCoeff = 0.25;
