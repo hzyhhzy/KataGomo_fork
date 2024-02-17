@@ -697,12 +697,17 @@ void NNEvaluator::evaluate(
     float maxPolicy = -1e25f;
     bool isLegal[NNPos::MAX_NN_POLICY_SIZE];
     int legalCount = 0;
+    bool isDeadOrCaptured[NNPos::MAX_NN_POLICY_SIZE];
+    bool hasNonDeadMoves = false;
 
     GameLogic::ResultsBeforeNN resultsBeforeNN = nnInputParamsWithResultsBeforeNN.resultsBeforeNN;
     if(resultsBeforeNN.myOnlyLoc == Board::NULL_LOC) {
       for(int i = 0; i < policySize; i++) {
         Loc loc = NNPos::posToLoc(i, xSize, ySize, nnXLen, nnYLen);
         isLegal[i] = history.isLegal(board, loc, nextPlayer);
+        isDeadOrCaptured[i] = board.isDeadOrCaptured(loc);
+        if(!isDeadOrCaptured[i])
+          hasNonDeadMoves=true;
       }
     } 
     else  // assume all other moves are illegal
@@ -712,6 +717,13 @@ void NNEvaluator::evaluate(
       }
       isLegal[NNPos::locToPos(resultsBeforeNN.myOnlyLoc, xSize, nnXLen, nnYLen)] = true;
       isLegal[NNPos::locToPos(Board::PASS_LOC, xSize, nnXLen, nnYLen)] = true;
+    }
+
+    if (hasNonDeadMoves)
+    {
+      for(int i = 0; i < policySize; i++) {
+        isLegal[i] &= (!isDeadOrCaptured[i]);
+      }
     }
 
     for(int i = 0; i<policySize; i++) {

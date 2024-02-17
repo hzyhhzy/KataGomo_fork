@@ -88,6 +88,7 @@ struct Board
   //Initialize the zobrist hash.
   //MUST BE CALLED AT PROGRAM START!
   static void initHash();
+  static void initCaptureTable();//called in initHash for convenience
 
   //Board parameters and Constants----------------------------------------
 
@@ -111,6 +112,13 @@ struct Board
   static Hash128 ZOBRIST_PLAYER_HASH[4];
   static const Hash128 ZOBRIST_GAME_IS_OVER;
 
+  static bool IS_CAPTURETABLE_INITALIZED;
+  // 4^6=4096
+  // 4 means empty,black,white,any. "any" means the color outside the board at corner, which can be considered as any color
+  // 6 means 6 neighbors
+  // value=0 means no result, 1 means dead, 2 means captured or dominated(black captured is equal to white dominated)
+  static int8_t CAPTURE_TABLE[4096];
+
   //Structs---------------------------------------
 
   //Constructors---------------------------------
@@ -130,6 +138,7 @@ struct Board
   //Count the number of stones on the board
   int numStonesOnBoard() const;
   int numPlaStonesOnBoard(Player pla) const;
+  bool isDeadOrCaptured(Loc loc) const;
 
 
   //Sets the specified stone if possible, including overwriting existing stones.

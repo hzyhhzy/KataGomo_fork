@@ -133,7 +133,178 @@ static bool checkConnection(Player pla, const Board& board)
   return connected;
 }
 
+void Board::initCaptureTable() {
+  //first, dead locations
+  //3 basic shapes
+  {
+    //  x x
+    // x . x
+    //  # #
+    int t[6] = {1, 1, 1, 1, 0, 0};
+    // two # loc
+    for(int a = 0; a < 3; a++)
+      for(int b = 0; b < 3; b++) {
+        t[4] = a;
+        t[5] = b;
+        int id = t[0] + t[1] * 4 + t[2] * 16 + t[3] * 64 + t[4] * 256 + t[5] * 1024;
+        CAPTURE_TABLE[id] = 1;
+      }
+  }
+  {
+    //  x x
+    // x . #
+    //  # o
+    int t[6] = {1, 1, 1, 0, 2, 0};
+    // two # loc
+    for(int a = 0; a < 3; a++)
+      for(int b = 0; b < 3; b++) {
+        t[3] = a;
+        t[5] = b;
+        int id = t[0] + t[1] * 4 + t[2] * 16 + t[3] * 64 + t[4] * 256 + t[5] * 1024;
+        CAPTURE_TABLE[id] = 1;
+      }
+  }
+  {
+    //  x #
+    // x . o
+    //  # o
+    int t[6] = {1, 1, 0, 2, 2, 0};
+    // two # loc
+    for(int a = 0; a < 3; a++)
+      for(int b = 0; b < 3; b++) {
+        t[2] = a;
+        t[5] = b;
+        int id = t[0] + t[1] * 4 + t[2] * 16 + t[3] * 64 + t[4] * 256 + t[5] * 1024;
+        CAPTURE_TABLE[id] = 1;
+      }
+  }
 
+  // 6 rotates
+  for(int id = 0; id < 4096; id++) {
+    if(CAPTURE_TABLE[id] != 1)
+      continue;
+    int t = id;
+    for(int rot = 0; rot < 6; rot++) {
+      t = 1024 * (t % 4) + t / 4;
+      CAPTURE_TABLE[t] = 1;
+    }
+  }
+  // color inverse
+  for(int id = 0; id < 4096; id++) {
+    if(CAPTURE_TABLE[id] != 1)
+      continue;
+    int a = id;
+
+    int t[6];
+    for (int i = 0; i < 6; i++)
+    {
+      int c = a % 4;
+      t[i] = c == 1 ? 2 : c == 2 ? 1 : 0;
+      a /= 4;
+    }
+    int id2 = t[0] + t[1] * 4 + t[2] * 16 + t[3] * 64 + t[4] * 256 + t[5] * 1024;
+    CAPTURE_TABLE[id2] = 1;
+  }
+
+  //next, captured or dominated 
+  //replace any stone of dead shapes with C_EMPTY
+  
+  for(int id = 0; id < 4096; id++) {
+    if(CAPTURE_TABLE[id] != 1)
+      continue;
+    for (int i = 0; i < 6; i++)
+    {
+      int id2 = id & (~(3 << (2 * i)));//replace each stone with 0
+      if(CAPTURE_TABLE[id2] == 0)
+        CAPTURE_TABLE[id2] = 2;
+    }
+  }
+
+  //finally, consider "any" color
+  //replace each location with 3
+
+  for(int id = 0; id < 4096; id++) {
+    if(CAPTURE_TABLE[id] == 0)
+      continue;
+
+    for(int k = 0; k < 64; k++) {
+      int m = k;
+      int c = 0;
+      for (int i = 0; i < 6; i++)
+      {
+        c *= 4;
+        if (m % 2)
+        {
+          c |= 3;
+        }
+        m /= 2;
+      }
+      int id2 = id | c;//replace each loc with 3
+
+      if(CAPTURE_TABLE[id2] == 0)
+        CAPTURE_TABLE[id2] = CAPTURE_TABLE[id];
+      else if(CAPTURE_TABLE[id2] == 2 && CAPTURE_TABLE[id] == 1)
+        CAPTURE_TABLE[id2] = 1;
+    }
+
+  }
+
+}
+
+bool Board::isDeadOrCaptured(Loc loc) const {
+  assert(IS_CAPTURETABLE_INITALIZED);
+  if(!isOnBoard(loc))
+    return true;
+  if(colors[loc] != C_EMPTY)
+    return true;
+  // connect locations
+  static const int dxs[6] = {0, 1, 1, 0, -1, -1};
+  static const int dys[6] = {-1, -1, 0, 1, 1, 0};
+
+  int x0 = Location::getX(loc, x_size);
+  int y0 = Location::getY(loc, x_size);
+
+  int surroundings = 0;
+  for (int d = 0; d < 6; d++) {
+    int x = x0 + dxs[d];
+    int y = y0 + dys[d];
+    Color c = C_WALL;
+    if(x >= 0 && x < x_size && y >= 0 && y < y_size)
+      c = colors[Location::getLoc(x, y, x_size)];
+    else if(x == -1) {
+      if(y >= 1 && y < y_size)
+        c = C_WHITE;
+      else
+        c = C_WALL;
+    } 
+    else if(x == x_size) {
+      if(y >= 0 && y < y_size - 1)
+        c = C_WHITE;
+      else
+        c = C_WALL;
+    }
+    else if(y == -1) {
+      if(x >= 1 && x < x_size)
+        c = C_BLACK;
+      else
+        c = C_WALL;
+    } 
+    else if(y == y_size) {
+      if(x >= 0 && x < x_size - 1)
+        c = C_BLACK;
+      else
+        c = C_WALL;
+    }
+    else ASSERT_UNREACHABLE;
+
+
+    surroundings *= 4;
+    surroundings += c;
+  }
+
+  return CAPTURE_TABLE[surroundings] != 0;
+
+}
 
 Color GameLogic::checkWinnerAfterPlayed(
   const Board& board,

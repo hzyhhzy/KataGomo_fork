@@ -27,6 +27,8 @@ Hash128 Board::ZOBRIST_BOARD_HASH2[MAX_ARR_SIZE][4];
 const Hash128 Board::ZOBRIST_GAME_IS_OVER = //Based on sha256 hash of Board::ZOBRIST_GAME_IS_OVER
   Hash128(0xb6f9e465597a77eeULL, 0xf1d583d960a4ce7fULL);
 
+bool Board::IS_CAPTURETABLE_INITALIZED = false;
+int8_t Board::CAPTURE_TABLE[4096];
 //LOCATION--------------------------------------------------------------------------------
 Loc Location::getLoc(int x, int y, int x_size)
 {
@@ -123,8 +125,11 @@ void Board::init(int xS, int yS)
   Location::getAdjacentOffsets(adj_offsets,x_size);
 }
 
+
 void Board::initHash()
 {
+  if(!IS_CAPTURETABLE_INITALIZED)
+    initCaptureTable();
   if(IS_ZOBRIST_INITALIZED)
     return;
   Rand rand("Board::initHash()");
@@ -227,6 +232,7 @@ int Board::numPlaStonesOnBoard(Player pla) const {
   }
   return num;
 }
+
 
 bool Board::setStone(Loc loc, Color color)
 {
