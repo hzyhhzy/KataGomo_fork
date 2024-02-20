@@ -1015,9 +1015,11 @@ static SearchLimitsThisMove getSearchLimitsThisMove(
 
     //Hardcoded limit here to ensure sanity
     if(numAlterVisits < 5)
-      throw StringError("ERROR: asymmetric playout doubling resulted in fewer than 5 visits");
+      numAlterVisits = 5;
+      //throw StringError("ERROR: asymmetric playout doubling resulted in fewer than 5 visits");
     if(numAlterPlayouts < 5)
-      throw StringError("ERROR: asymmetric playout doubling resulted in fewer than 5 playouts");
+      numAlterPlayouts = 5;
+      //throw StringError("ERROR: asymmetric playout doubling resulted in fewer than 5 playouts");
   }
 
   SearchLimitsThisMove limits;
