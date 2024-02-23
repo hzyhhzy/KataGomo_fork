@@ -870,7 +870,7 @@ void NNInputs::fillRowV102(
   assert(board.y_size <= nnYLen);
   std::fill(rowBin, rowBin + NUM_FEATURES_SPATIAL_V102 * nnXLen * nnYLen, false);
   std::fill(rowGlobal, rowGlobal + NUM_FEATURES_GLOBAL_V102, 0.0f);
-  throw StringError("V102 input is not implemented until now");
+  //throw StringError("V102 input is not implemented until now");
   Player pla = nextPlayer;
   Player opp = getOpp(pla);
   int xSize = board.x_size;
@@ -963,9 +963,9 @@ void NNInputs::fillRowV102(
 
       // Features 1,2 - pla,opp stone
       if(stone == pla)
-        setRowBin(rowBin, pos, 1, 1.0f, posStride, featureStride);
+        setRowBin(rowBin, pos, 8, 1.0f, posStride, featureStride);
       else if(stone == opp)
-        setRowBin(rowBin, pos, 2, 1.0f, posStride, featureStride);
+        setRowBin(rowBin, pos, 9, 1.0f, posStride, featureStride);
 
       if(hasForbiddenFeature) {
         if(pla == C_BLACK) {
@@ -1081,5 +1081,15 @@ void NNInputs::fillRowV102(
     rowGlobal[35] = exp(-(maxmoves - movenum) / 5.0);
     rowGlobal[36] = exp(-(maxmoves - movenum) / 1.5);
     rowGlobal[37] = 2 * ((int(maxmoves - movenum)) % 2) - 1;
+
+    for(int c = 0; c < 7; c++) {
+      for(int y = 0; y < ySize; y++) {
+        for(int x = 0; x < xSize; x++) {
+          int pos = NNPos::xyToPos(x, y, nnXLen);
+          setRowBin(rowBin, pos, 10 + c, rowGlobal[31 + c], posStride, featureStride);
+        }
+      }
+      rowGlobal[31 + c] = 0;
+    }
   }
 }

@@ -65,6 +65,10 @@ namespace NNInputs {
   const int NUM_FEATURES_SPATIAL_V102 = 32;
   const int NUM_FEATURES_GLOBAL_V102 = 64;
 
+  const int NNINPUT_V102_SPATIAL_FLOAT_NUM_CHANNELS = 10;  // spatial nninput but not 0 or 1
+  const int NNINPUT_V102_SPATIAL_FLOAT_CHANNELS[NNINPUT_V102_SPATIAL_FLOAT_NUM_CHANNELS] =
+    {8, 9, 10, 11, 12, 13, 14, 15, 16, 17};
+
   Hash128 getHash(
     const Board& board, const BoardHistory& boardHistory, Player nextPlayer,
     const MiscNNInputParams& nnInputParams

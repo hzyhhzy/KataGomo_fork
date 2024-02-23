@@ -156,7 +156,9 @@ void FinishedGameData::printDebug(ostream& out) const {
 
 //Don't forget to update everything else in the header file and the code below too if changing any of these
 //And update the python code
-static const int POLICY_TARGET_NUM_CHANNELS = 2;
+static const int POLICY_TARGET_NUM_CHANNELS_RAW = 2;
+static const int POLICY_TARGET_NUM_CHANNELS =
+  POLICY_TARGET_NUM_CHANNELS_RAW + NNInputs::NNINPUT_V102_SPATIAL_FLOAT_NUM_CHANNELS;
 static const int GLOBAL_TARGET_NUM_CHANNELS = 64;
 static const int VALUE_SPATIAL_TARGET_NUM_CHANNELS = 5;
 
@@ -194,19 +196,19 @@ static void packBits(const float* binaryFloats, int len, uint8_t* bits) {
   for(int i = 0; i < len; i += 8) {
     if(i + 8 <= len) {
       bits[i >> 3] =
-        ((uint8_t)binaryFloats[i + 0] << 7) |
-        ((uint8_t)binaryFloats[i + 1] << 6) |
-        ((uint8_t)binaryFloats[i + 2] << 5) |
-        ((uint8_t)binaryFloats[i + 3] << 4) |
-        ((uint8_t)binaryFloats[i + 4] << 3) |
-        ((uint8_t)binaryFloats[i + 5] << 2) |
-        ((uint8_t)binaryFloats[i + 6] << 1) |
-        ((uint8_t)binaryFloats[i + 7] << 0);
+        ((uint8_t)(binaryFloats[i + 0] > 0) << 7) |
+        ((uint8_t)(binaryFloats[i + 1] > 0) << 6) |
+        ((uint8_t)(binaryFloats[i + 2] > 0) << 5) |
+        ((uint8_t)(binaryFloats[i + 3] > 0) << 4) |
+        ((uint8_t)(binaryFloats[i + 4] > 0) << 3) |
+        ((uint8_t)(binaryFloats[i + 5] > 0) << 2) |
+        ((uint8_t)(binaryFloats[i + 6] > 0) << 1) |
+        ((uint8_t)(binaryFloats[i + 7] > 0) << 0);
     }
     else {
       bits[i >> 3] = 0;
       for(int di = 0; i + di < len; di++) {
-        bits[i >> 3] |= ((uint8_t)binaryFloats[i + di] << (7-di));
+        bits[i >> 3] |= ((uint8_t)(binaryFloats[i + di] > 0) << (7 - di));
       }
     }
   }
@@ -266,6 +268,10 @@ static void fillValueTDTargets(const vector<ValueTargets>& whiteValueTargetsByTu
   buf[3] = 0.0f;
 }
 
+static float getRowBin(float* rowBin, int pos, int feature, int featureStride) {
+  return rowBin[pos + feature * featureStride];
+}
+
 void TrainingWriteBuffers::addRow(
   const Board& board, const BoardHistory& hist, Player nextPlayer,
   int turnIdx,
@@ -295,6 +301,7 @@ void TrainingWriteBuffers::addRow(
   assert(data.hasFullData);
   assert(curRows < maxRows);
 
+  float* rowBin = binaryInputNCHWUnpacked;
   {
     MiscNNInputParams nnInputParams;
     nnInputParams.noResultUtilityForWhite = data.noResultUtilityForWhite;
@@ -307,7 +314,6 @@ void TrainingWriteBuffers::addRow(
     nnInputParams.resultsBeforeNN.init(board, hist, nextPlayer, nnInputParams.useVCFInput);
 
     bool inputsUseNHWC = false;
-    float* rowBin = binaryInputNCHWUnpacked;
     float* rowGlobal = globalInputNC.data + curRows * numGlobalChannels;
     static_assert(NNModelVersion::latestInputsVersionImplemented == 102, "");
     if(inputsVersion == 7) {
@@ -518,10 +524,45 @@ void TrainingWriteBuffers::addRow(
   }
 
 
-    rowGlobal[34] = 0.0f;
-    for(int i = 0; i<posArea; i++) {
-      rowOwnership[i+posArea*4] = 0;
+  rowGlobal[34] = 0.0f;
+  for(int i = 0; i<posArea; i++) {
+    rowOwnership[i+posArea*4] = 0;
+  }
+
+  //float spatial nninput
+  if(inputsVersion == 102) {
+    for(int f = 0; f < NNInputs::NNINPUT_V102_SPATIAL_FLOAT_NUM_CHANNELS; f++) {
+      int fe = NNInputs::NNINPUT_V102_SPATIAL_FLOAT_CHANNELS[f];
+      for (int pos = 0; pos < posArea; pos++)
+      {
+        float v = getRowBin(rowBin, pos, fe, posArea);
+        if(!(v <= 4.01 && v >= -4.01))
+          throw StringError(
+            "float spatial nninput should be in [-4,4] range, got " + to_string(v) + " in rowBin channel " +
+            to_string(fe));
+        int vi = v * 8192.0;
+        if(vi > 32767)
+          vi = 32767;
+        if(vi < -32767)
+          vi = -32767;
+        //cout << f << " " << fe << " " << v << endl;
+        int pt = pos + policySize * (POLICY_TARGET_NUM_CHANNELS_RAW + f);
+        rowPolicy[pt] = vi;
+      }
+      rowPolicy[posArea + policySize * (POLICY_TARGET_NUM_CHANNELS_RAW + f)] = 0;
     }
+  } 
+  else {
+    static_assert(NNModelVersion::latestInputsVersionImplemented == 102, "");
+    throw StringError("if you want to disable float spatial nninput, VALUE_SPATIAL_TARGET_NUM_CHANNELS should be changed, do not forget");
+    for(int f = 0; f < NNInputs::NNINPUT_V102_SPATIAL_FLOAT_NUM_CHANNELS; f++) {
+      for(int pos = 0; pos < posArea; pos++) {
+        int pt = pos + policySize * (POLICY_TARGET_NUM_CHANNELS_RAW + f);
+        rowPolicy[pt] = 0;
+      }
+      rowPolicy[posArea + policySize * (POLICY_TARGET_NUM_CHANNELS_RAW + f)] = 0;
+    }
+  }
 
   curRows++;
 }

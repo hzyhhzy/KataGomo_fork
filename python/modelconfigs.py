@@ -65,8 +65,20 @@ def get_num_global_input_features(config: ModelConfig):
     else:
         assert(False)
 
+#how many spatial float inputs, and start from which channel
+def get_spatial_float_input_features_num_and_start_channel(config: ModelConfig):
+    version = get_version(config)
+    if version == 10 or version == 11 or version == 12 or version == 13 or version == 14 or version == 15:
+        return 0,0
+    elif version == 101 or version == 102:
+        return 0,0
+    elif version == 103:
+        return 10,8
+    else:
+        assert(False)
+
 b1c6nbt = {
-    "version":102,
+    "version":103,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -88,7 +100,7 @@ b1c6nbt = {
 }
 
 b2c16 = {
-    "version":102,
+    "version":103,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -111,7 +123,7 @@ b2c16 = {
 }
 
 b4c32 = {
-    "version":102,
+    "version":103,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -136,7 +148,7 @@ b4c32 = {
 }
 
 b6c96 = {
-    "version":102,
+    "version":103,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -163,7 +175,7 @@ b6c96 = {
 }
 
 b10c128 = {
-    "version":102,
+    "version":103,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -194,7 +206,7 @@ b10c128 = {
 }
 
 b5c192nbt = {
-    "version":102,
+    "version":103,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -220,7 +232,7 @@ b5c192nbt = {
 }
 
 b15c192 = {
-    "version":102,
+    "version":103,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -256,7 +268,7 @@ b15c192 = {
 }
 
 b20c256 = {
-    "version":102,
+    "version":103,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -297,7 +309,7 @@ b20c256 = {
 }
 
 b30c256bt = {
-    "version":102,
+    "version":103,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -348,7 +360,7 @@ b30c256bt = {
 }
 
 b24c320bt = {
-    "version":102,
+    "version":103,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -393,7 +405,7 @@ b24c320bt = {
 }
 
 b20c384bt = {
-    "version":102,
+    "version":103,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -435,7 +447,7 @@ b20c384bt = {
 
 
 b10c512lbt = {
-    "version":102,
+    "version":103,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -467,7 +479,7 @@ b10c512lbt = {
 
 
 b15c384lbt = {
-    "version":102,
+    "version":103,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -503,7 +515,7 @@ b15c384lbt = {
 }
 
 b18c320lbt = {
-    "version":102,
+    "version":103,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -542,7 +554,7 @@ b18c320lbt = {
 }
 
 b23c256lbt = {
-    "version":102,
+    "version":103,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -586,7 +598,7 @@ b23c256lbt = {
 }
 
 b12c384llbt = {
-    "version":102,
+    "version":103,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -620,7 +632,7 @@ b12c384llbt = {
 
 
 b10c384nbt = {
-    "version":102,
+    "version":103,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -651,7 +663,7 @@ b10c384nbt = {
 }
 
 b10c256nbt = {
-    "version":102,
+    "version":103,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -683,7 +695,7 @@ b10c256nbt = {
 
 
 b10c480nb3t = {
-    "version":102,
+    "version":103,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -715,7 +727,7 @@ b10c480nb3t = {
 
 
 b7c384lnbt = {
-    "version":102,
+    "version":103,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -743,7 +755,7 @@ b7c384lnbt = {
 }
 
 b5c512nnbt = {
-    "version":102,
+    "version":103,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -771,7 +783,7 @@ b5c512nnbt = {
 
 
 b20c384lbt = {
-    "version":102,
+    "version":103,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -813,7 +825,7 @@ b20c384lbt = {
 
 
 b30c320 = {
-    "version":102,
+    "version":103,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -864,7 +876,7 @@ b30c320 = {
 }
 
 b40c256 = {
-    "version":102,
+    "version":103,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -925,7 +937,7 @@ b40c256 = {
 }
 
 b18c384nbt = {
-    "version":102,
+    "version":103,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -964,7 +976,7 @@ b18c384nbt = {
 }
 
 b14c448nbt = {
-    "version":102,
+    "version":103,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -999,7 +1011,7 @@ b14c448nbt = {
 }
 
 b40c384 = {
-    "version":102,
+    "version":103,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1061,7 +1073,7 @@ b40c384 = {
 
 
 b60c320 = {
-    "version":102,
+    "version":103,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1143,7 +1155,7 @@ b60c320 = {
 
 
 b41c384nbt = {
-    "version":102,
+    "version":103,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1205,7 +1217,7 @@ b41c384nbt = {
 }
 
 b32c448nbt = {
-    "version":102,
+    "version":103,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1259,7 +1271,7 @@ b32c448nbt = {
 
 
 b28c512nbt = {
-    "version":102,
+    "version":103,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1308,7 +1320,7 @@ b28c512nbt = {
 }
 
 b20c640nbt = {
-    "version":102,
+    "version":103,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1349,7 +1361,7 @@ b20c640nbt = {
 }
 
 sandbox = {
-    "version":102,
+    "version":103,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,

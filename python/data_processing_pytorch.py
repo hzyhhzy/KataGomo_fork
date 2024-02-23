@@ -21,6 +21,7 @@ def read_npz_training_data(
     rand = np.random.default_rng(seed=list(os.urandom(12)))
     num_bin_features = modelconfigs.get_num_bin_input_features(model_config)
     num_global_features = modelconfigs.get_num_global_input_features(model_config)
+    num_spatial_float_features, spatial_float_start_channel=modelconfigs.get_spatial_float_input_features_num_and_start_channel(model_config)
 
     for npz_file in npz_files:
         with np.load(npz_file) as npz:
@@ -42,6 +43,17 @@ def read_npz_training_data(
 
         assert binaryInputNCHW.shape[1] == num_bin_features
         assert globalInputNC.shape[1] == num_global_features
+
+        #spatial_float_input
+        assert policyTargetsNCMove.shape[1] == 2 + num_spatial_float_features
+        if(num_spatial_float_features!=0):
+            spatial_float_end_channel=spatial_float_start_channel+num_spatial_float_features
+            assert spatial_float_end_channel<=binaryInputNCHW.shape[1]
+            spatial_float_data=policyTargetsNCMove[:,2:,:-1].reshape(binaryInputNCHW.shape[0], num_spatial_float_features, pos_len, pos_len)
+            spatial_float_data=spatial_float_data/8192.0 #[-4,4]
+            binaryInputNCHW[:,spatial_float_start_channel:spatial_float_end_channel,:,:]=spatial_float_data
+            policyTargetsNCMove=policyTargetsNCMove[:,:2,:]
+
 
         num_samples = binaryInputNCHW.shape[0]
         # Just discard stuff that doesn't divide evenly
