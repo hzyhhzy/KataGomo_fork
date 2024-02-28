@@ -63,6 +63,10 @@ struct FinishedGameData {
   double noResultUtilityForWhite;
   Player playoutDoublingAdvantagePla;
   double playoutDoublingAdvantage;
+
+  double policyLocalFocusPow;  // pow=0 means not localized
+  double policyLocalFocusDist;
+
   bool hitTurnLimit;
 
   //Metadata about how the game was initialized

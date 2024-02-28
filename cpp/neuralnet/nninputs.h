@@ -35,6 +35,8 @@ struct MiscNNInputParams {
   double noResultUtilityForWhite = 0.0;
   double playoutDoublingAdvantage = 0.0;
   float nnPolicyTemperature = 1.0f;
+  double policyLocalFocusPow = 0.0f;  
+  double policyLocalFocusDist = 5.0f;
   GameLogic::ResultsBeforeNN resultsBeforeNN = GameLogic::ResultsBeforeNN();
   // If no symmetry is specified, it will use default or random based on config, unless node is already cached.
   int symmetry = NNInputs::SYMMETRY_NOTSPECIFIED;

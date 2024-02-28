@@ -420,7 +420,13 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("noResultUtilityForWhite"+idxStr)) params.noResultUtilityForWhite = cfg.getDouble("noResultUtilityForWhite"+idxStr, -1.0, 1.0);
     else if(cfg.contains("noResultUtilityForWhite"))   params.noResultUtilityForWhite = cfg.getDouble("noResultUtilityForWhite",        -1.0, 1.0);
     else                                               params.noResultUtilityForWhite = 0.0;
-
+    
+    if(cfg.contains("policyLocalFocusPow"+idxStr)) params.policyLocalFocusPow = cfg.getDouble("policyLocalFocusPow"+idxStr, 0.0, 3.0);
+    else if(cfg.contains("policyLocalFocusPow"))   params.policyLocalFocusPow = cfg.getDouble("policyLocalFocusPow",        0.0, 3.0);
+    else                                               params.policyLocalFocusPow = 0.0;
+    if(cfg.contains("policyLocalFocusDist"+idxStr)) params.policyLocalFocusDist = cfg.getDouble("policyLocalFocusDist"+idxStr, 0.5, 50.0);
+    else if(cfg.contains("policyLocalFocusDist"))   params.policyLocalFocusDist = cfg.getDouble("policyLocalFocusDist",        0.5, 50.0);
+    else                                               params.policyLocalFocusDist = 5.0;
 
     if(cfg.contains("cpuctExploration"+idxStr)) params.cpuctExploration = cfg.getDouble("cpuctExploration"+idxStr, 0.0, 10.0);
     else if(cfg.contains("cpuctExploration"))   params.cpuctExploration = cfg.getDouble("cpuctExploration",        0.0, 10.0);

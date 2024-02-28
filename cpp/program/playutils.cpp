@@ -82,6 +82,8 @@ Loc PlayUtils::getGameInitializationMove(
   NNEvaluator* nnEval = (pla == P_BLACK ? botB : botW)->nnEvaluator;
   MiscNNInputParams nnInputParams;
   nnInputParams.noResultUtilityForWhite = (pla == P_BLACK ? botB : botW)->searchParams.noResultUtilityForWhite;
+  nnInputParams.policyLocalFocusDist = (pla == P_BLACK ? botB : botW)->searchParams.policyLocalFocusDist;
+  nnInputParams.policyLocalFocusPow = (pla == P_BLACK ? botB : botW)->searchParams.policyLocalFocusPow;
   nnEval->evaluate(board,hist,pla,nnInputParams,buf,false);
   std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
 

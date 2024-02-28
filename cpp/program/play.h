@@ -107,8 +107,13 @@ class GameInitializer {
 
   double allowRectangleProb;
 
-
+  
   double noResultRandRadius;
+  double policyLocalFocusProb;
+  double policyLocalFocusPowAvg;
+  double policyLocalFocusDistAvg;
+  double policyLocalFocusPowStdev;
+  double policyLocalFocusDistStdev;
 
   std::vector<Sgf::PositionSample> startPoses;
   std::vector<double> startPosCumProbs;

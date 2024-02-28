@@ -740,6 +740,27 @@ void NNEvaluator::evaluate(
         maxPolicy = policyValue;
     }
 
+    //policyLocalFocus
+    if(nnInputParams.policyLocalFocusPow > 0 && history.moveHistory.size() >= 1 && board.isOnBoard(history.moveHistory[history.moveHistory.size()-1].loc)) {
+      Loc lastMove = history.moveHistory[history.moveHistory.size() - 1].loc;
+      int lastMoveX = Location::getX(lastMove, board.x_size);
+      int lastMoveY = Location::getY(lastMove, board.x_size);
+
+      double plfDistInv = 1.0 / nnInputParams.policyLocalFocusDist;
+      for(int y = 0; y < board.y_size; y++) {
+        for(int x = 0; x < board.x_size; x++) {
+          double dx = lastMoveX - x;
+          double dy = lastMoveY - y;
+          double dist = sqrt(dx * dx + dy * dy + dx * dy);//distance on Hex board
+          double factor = -log(1 + dist * plfDistInv);
+          factor *= nnInputParams.policyLocalFocusPow;
+          int pos = NNPos::xyToPos(x, y, nnXLen);
+          policy[pos] += factor;
+        }
+      }
+    }
+
+
     assert(legalCount > 0);
 
     float policySum = 0.0f;

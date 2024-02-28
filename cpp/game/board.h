@@ -12,7 +12,7 @@
 #include "../external/nlohmann_json/json.hpp"
 
 #ifndef COMPILE_MAX_BOARD_LEN
-#define COMPILE_MAX_BOARD_LEN 13
+#define COMPILE_MAX_BOARD_LEN 19
 #endif
 
 //TYPES AND CONSTANTS-----------------------------------------------------------------
@@ -108,6 +108,7 @@ struct Board
   static Hash128 ZOBRIST_SIZE_Y_HASH[MAX_LEN+1];
   static Hash128 ZOBRIST_BOARD_HASH[MAX_ARR_SIZE][4];
   static Hash128 ZOBRIST_MOVENUM_HASH[MAX_ARR_SIZE];
+  static Hash128 ZOBRIST_LASTMOVE_HASH[MAX_ARR_SIZE];
   static Hash128 ZOBRIST_BOARD_HASH2[MAX_ARR_SIZE][4];
   static Hash128 ZOBRIST_PLAYER_HASH[4];
   static const Hash128 ZOBRIST_GAME_IS_OVER;

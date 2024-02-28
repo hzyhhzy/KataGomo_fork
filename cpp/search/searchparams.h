@@ -9,6 +9,11 @@ struct SearchParams {
   double winLossUtilityFactor;     //Scaling for [-1,1] value for winning/losing
   double noResultUtilityForWhite; //Utility of having a no-result game (simple ko rules or nonterminating territory encore) 
 
+  //Make the policy more localized to the last move
+  //policy*=pow(1/(1+x/b), a), d is distance, a is Pow, b is Dist
+  double policyLocalFocusPow; //pow=0 means not localized
+  double policyLocalFocusDist;
+
   //Search tree exploration parameters
   double cpuctExploration;  //Constant factor on exploration, should also scale up linearly with magnitude of utility
   double cpuctExplorationLog; //Constant factor on log-scaling exploration, should also scale up linearly with magnitude of utility

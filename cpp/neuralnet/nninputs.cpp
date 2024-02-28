@@ -449,10 +449,25 @@ Hash128 NNInputs::getHash(
   }
 
   // Fold in noResultUtilityForWhite
-  int64_t noResultUtilityForWhiteDiscretized = (int64_t)(nnInputParams.noResultUtilityForWhite * 2048.0f);
-  hash.hash0 ^= Hash::murmurMix((uint64_t)noResultUtilityForWhiteDiscretized);
-  hash.hash1 = Hash::rrmxmx(hash.hash1 + (uint64_t)noResultUtilityForWhiteDiscretized);
-  hash.hash0 += hash.hash1;
+  if(nnInputParams.noResultUtilityForWhite != 0) {
+    int64_t noResultUtilityForWhiteDiscretized = (int64_t)(nnInputParams.noResultUtilityForWhite * 2048.0f);
+    hash.hash0 ^= Hash::murmurMix((uint64_t)noResultUtilityForWhiteDiscretized);
+    hash.hash1 = Hash::rrmxmx(hash.hash1 + (uint64_t)noResultUtilityForWhiteDiscretized);
+    hash.hash0 += hash.hash1;
+  }
+
+  // Fold in policyLocalFocus
+  if(nnInputParams.policyLocalFocusPow != 0) {
+    int64_t policyLocalFocusPowDiscretized = (int64_t)(nnInputParams.policyLocalFocusPow * 2048.0f);
+    hash.hash0 ^= Hash::basicLCong2(hash.hash1 + (uint64_t)policyLocalFocusPowDiscretized);
+    hash.hash1 = Hash::splitMix64(hash.hash0 + (uint64_t)policyLocalFocusPowDiscretized);
+    hash.hash0 += hash.hash1;
+
+    int64_t policyLocalFocusDistDiscretized = (int64_t)(nnInputParams.policyLocalFocusDist * 2048.0f);
+    hash.hash0 ^= Hash::basicLCong2(hash.hash1 + (uint64_t)policyLocalFocusDistDiscretized);
+    hash.hash1 = Hash::splitMix64(hash.hash0 + (uint64_t)policyLocalFocusDistDiscretized);
+    hash.hash0 += hash.hash1;
+  }
 
   return hash;
 }
@@ -513,6 +528,19 @@ void NNInputs::fillRowV7(
         setRowBin(rowBin,pos,2, 1.0f, posStride, featureStride);
 
     }
+  }
+
+  //policyLocalFocus
+  if(
+    nnInputParams.policyLocalFocusPow > 0 && hist.moveHistory.size() >= 1 &&
+    board.isOnBoard(hist.moveHistory[hist.moveHistory.size() - 1].loc)) {
+    Loc lastMove = hist.moveHistory[hist.moveHistory.size() - 1].loc;
+
+    int pos = NNPos::locToPos(lastMove, board.x_size, nnXLen, nnYLen);
+    setRowBin(rowBin, pos, 3, 1.0f, posStride, featureStride);
+    rowGlobal[1] = 1.0;
+    rowGlobal[2] = nnInputParams.policyLocalFocusPow * 3.0;
+    rowGlobal[3] = 3.0 / nnInputParams.policyLocalFocusDist;
   }
 
   rowGlobal[0] = nextPlayer == C_WHITE ? 1.0 : 0.0;

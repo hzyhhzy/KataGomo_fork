@@ -23,6 +23,7 @@ Hash128 Board::ZOBRIST_SIZE_Y_HASH[MAX_LEN+1];
 Hash128 Board::ZOBRIST_BOARD_HASH[MAX_ARR_SIZE][4];
 Hash128 Board::ZOBRIST_PLAYER_HASH[4];
 Hash128 Board::ZOBRIST_MOVENUM_HASH[MAX_ARR_SIZE];
+Hash128 Board::ZOBRIST_LASTMOVE_HASH[MAX_ARR_SIZE];
 Hash128 Board::ZOBRIST_BOARD_HASH2[MAX_ARR_SIZE][4];
 const Hash128 Board::ZOBRIST_GAME_IS_OVER = //Based on sha256 hash of Board::ZOBRIST_GAME_IS_OVER
   Hash128(0xb6f9e465597a77eeULL, 0xf1d583d960a4ce7fULL);
@@ -157,6 +158,7 @@ void Board::initHash()
 
   for(int i = 0; i < MAX_ARR_SIZE; i++) {
     ZOBRIST_MOVENUM_HASH[i] = nextHash();
+    ZOBRIST_LASTMOVE_HASH[i] = nextHash();
   }
   ZOBRIST_MOVENUM_HASH[0] = Hash128();
 
