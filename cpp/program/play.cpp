@@ -1244,6 +1244,9 @@ FinishedGameData* Play::runGame(
     }
   };
 
+  bool thisGameAllowResignation = playSettings.allowResignation &&
+                                  ((!(playSettings.forSelfPlay)) || gameRand.nextBool(playSettings.selfplayResignProb));
+  
 
   double balanceOpeningProb = playSettings.forSelfPlay ? 0.99 : 1.0;
 
@@ -1423,9 +1426,9 @@ FinishedGameData* Play::runGame(
     hist.makeBoardMoveAssumeLegal(board,loc,pla);
 
     //Check for resignation
-    if(playSettings.allowResignation && historicalMctsWinLossValues.size() >= playSettings.resignConsecTurns) {
+    if(playSettings.allowResignation && thisGameAllowResignation && historicalMctsWinLossValues.size() >= playSettings.resignConsecTurns) {
       //Play at least some moves no matter what
-      int minTurnForResignation = 1 + board.x_size * board.y_size / 5;
+      int minTurnForResignation = 1 + board.x_size * board.y_size / 10;
       if(i >= minTurnForResignation) {
         if(playSettings.resignThreshold > 0 || std::isnan(playSettings.resignThreshold))
           throw StringError("playSettings.resignThreshold > 0 || std::isnan(playSettings.resignThreshold)");
@@ -1465,8 +1468,8 @@ FinishedGameData* Play::runGame(
 
 
   if(recordFullData) {
-    if(hist.isResignation)
-      throw StringError("Recording full data currently incompatible with resignation");
+    //if(hist.isResignation)
+    //  throw StringError("Recording full data currently incompatible with resignation");
 
     ValueTargets finalValueTargets;
 

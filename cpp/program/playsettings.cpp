@@ -11,7 +11,10 @@ PlaySettings::PlaySettings()
    policySurpriseDataWeight(0.0),valueSurpriseDataWeight(0.0),scaleDataWeight(1.0),
    recordTreePositions(false),recordTreeThreshold(0),recordTreeTargetWeight(0.0f),
    noResolveTargetWeights(false),
-   allowResignation(false),resignThreshold(0.0),resignConsecTurns(1),
+    allowResignation(false),
+    selfplayResignProb(0.0),
+    resignThreshold(0.0),
+    resignConsecTurns(1),
    forSelfPlay(false),
     normalAsymmetricPlayoutProb(0.0),
     maxAsymmetricRatio(2.0),
@@ -46,6 +49,15 @@ PlaySettings PlaySettings::loadForGatekeeper(ConfigParser& cfg) {
 
 PlaySettings PlaySettings::loadForSelfplay(ConfigParser& cfg) {
   PlaySettings playSettings;
+  playSettings.allowResignation = cfg.getBool("allowResignation");
+  if(playSettings.allowResignation) {
+    playSettings.selfplayResignProb =
+      cfg.contains("selfplayResignProb") ? cfg.getDouble("selfplayResignProb", 0.0, 1.0) : 0.9;
+    playSettings.resignThreshold =
+      cfg.getDouble("resignThreshold", -1.0, 0.0);  // Threshold on [-1,1], regardless of winLossUtilityFactor
+    playSettings.resignConsecTurns = cfg.getInt("resignConsecTurns", 1, 100);
+  }
+
   playSettings.initGamesWithPolicy = cfg.getBool("initGamesWithPolicy");
   playSettings.policyInitAvgMoveNum =
     cfg.contains("policyInitAvgMoveNum") ? cfg.getDouble("policyInitAvgMoveNum", 0.0, 100.0) : 12.0;

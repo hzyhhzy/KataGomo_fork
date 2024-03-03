@@ -758,7 +758,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
     else
       assert(lastTargets.noResult == 1.0f);
 
-    assert(!data.endHist.isResignation);
+    //assert(!data.endHist.isResignation);
   }
   #endif
 
