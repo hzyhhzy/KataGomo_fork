@@ -411,6 +411,16 @@ struct GTPEngine {
     bot->setParams(params);
     bot->clearSearch();
   }
+  void setPolicyLocalFocusPow(double x) {
+    params.policyLocalFocusPow = x;
+    bot->setParams(params);
+    bot->clearSearch();
+  }
+  void setPolicyLocalFocusDist(double x) {
+    params.policyLocalFocusDist = x;
+    bot->setParams(params);
+    bot->clearSearch();
+  }
   void setNoResultUtilityForWhite(double x) {
     if(x > 1)
       x = 1;
@@ -1577,6 +1587,22 @@ int MainCmds::gtp(const vector<string>& args) {
           else {
             responseIsError = true;
             response = "Invalid value for " + pieces[0] + ", must be float from 0.01 to 100.0";
+          }
+        }
+        else if(pieces[0] == "policyLocalFocusPow") {
+          if(Global::tryStringToDouble(pieces[1],d) && d >= 0.0 && d <= 5.0)
+            engine->setPolicyLocalFocusPow(d);
+          else {
+            responseIsError = true;
+            response = "Invalid value for " + pieces[0] + ", must be float from 0.0 to 5.0";
+          }
+        } 
+        else if(pieces[0] == "policyLocalFocusDist") {
+          if(Global::tryStringToDouble(pieces[1], d) && d >= 0.5 && d <= 50.0)
+            engine->setPolicyLocalFocusDist(d);
+          else {
+            responseIsError = true;
+            response = "Invalid value for " + pieces[0] + ", must be float from 0.5 to 50.0";
           }
         }
         else if(pieces[0] == "analysisWideRootNoise") {

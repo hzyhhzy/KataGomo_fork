@@ -15,6 +15,9 @@ PlaySettings::PlaySettings()
     selfplayResignProb(0.0),
     resignThreshold(0.0),
     resignConsecTurns(1),
+   completelyRandomOpeningProb(0.1),
+   completelyRandomOpeningFillRateAvg(0.01),
+   specialOpeningProb(0.02),
    forSelfPlay(false),
     normalAsymmetricPlayoutProb(0.0),
     maxAsymmetricRatio(2.0),
@@ -57,6 +60,14 @@ PlaySettings PlaySettings::loadForSelfplay(ConfigParser& cfg) {
       cfg.getDouble("resignThreshold", -1.0, 0.0);  // Threshold on [-1,1], regardless of winLossUtilityFactor
     playSettings.resignConsecTurns = cfg.getInt("resignConsecTurns", 1, 100);
   }
+
+  
+  playSettings.completelyRandomOpeningProb =
+    cfg.contains("completelyRandomOpeningProb") ? cfg.getDouble("completelyRandomOpeningProb", 0.0, 1.0) : 0.1;
+  playSettings.completelyRandomOpeningFillRateAvg =
+    cfg.contains("completelyRandomOpeningFillRateAvg") ? cfg.getDouble("completelyRandomOpeningFillRateAvg", 0.0, 0.5) : 0.01;
+  playSettings.specialOpeningProb =
+    cfg.contains("specialOpeningProb") ? cfg.getDouble("specialOpeningProb", 0.0, 1.0) : 0.02;
 
   playSettings.initGamesWithPolicy = cfg.getBool("initGamesWithPolicy");
   playSettings.policyInitAvgMoveNum =

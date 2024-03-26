@@ -49,6 +49,13 @@ struct PlaySettings {
   double resignThreshold; //Require that mcts win value is less than this
   double resignConsecTurns; //Require that both players have agreed on it continuously for this many turns
 
+  //special openings
+  double completelyRandomOpeningProb;//randomly put some stones on the board
+  double completelyRandomOpeningFillRateAvg;  // avg fill rate of random stones (15x15 board, ~225*p black stones and
+                                              // ~225*p white stones)
+  double specialOpeningProb;  //Gale board, or many positions never shows in normal games
+
+
   //Enable full data recording and a variety of other minor tweaks applying only for self-play training.
   bool forSelfPlay;
 

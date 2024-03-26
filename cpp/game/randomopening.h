@@ -13,4 +13,9 @@ namespace RandomOpening {
     Rand& gameRand,
     bool forSelfplay);
 
+  void initializeSpecialOpening(Board& board, BoardHistory& hist, Player& nextPlayer, Rand& gameRand);
+  void initializeCompletelyRandomOpening(Board& board, BoardHistory& hist, Player& nextPlayer, Rand& gameRand, double areaPropAvg);
+
+  
+  void randomFillBoard(Board& board, Rand& gameRand, double bProb, double wProb);
 }

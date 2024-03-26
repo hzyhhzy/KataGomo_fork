@@ -1247,15 +1247,39 @@ FinishedGameData* Play::runGame(
   bool thisGameAllowResignation = playSettings.allowResignation &&
                                   ((!(playSettings.forSelfPlay)) || gameRand.nextBool(playSettings.selfplayResignProb));
   
+  bool gameInited = false;
 
-  double balanceOpeningProb = playSettings.forSelfPlay ? 0.99 : 1.0;
+  // special opening
+  if(!gameInited) {
+    if(gameRand.nextBool(playSettings.specialOpeningProb))
+    {
+      RandomOpening::initializeSpecialOpening(board, hist, pla, gameRand);
+      gameInited = true;
+    }
+  }
 
-  if(gameRand.nextBool(balanceOpeningProb)) {
-    if(board.numStonesOnBoard() != 0)
-      cout << "board not empty when initialize opening" << endl;
-    else {
-      if(board.numStonesOnBoard() == 0)  // no lib opening
-        RandomOpening::initializeBalancedRandomOpening(botB, botW, board, hist, pla, gameRand, playSettings.forSelfPlay);
+  //random initial stones opening
+  if(!gameInited) {
+    if(gameRand.nextBool(playSettings.completelyRandomOpeningProb)) {
+      RandomOpening::initializeCompletelyRandomOpening(
+        board, hist, pla, gameRand, playSettings.completelyRandomOpeningFillRateAvg);
+      gameInited = true;
+    }
+  }
+
+  //one move opening
+  if(!gameInited)
+  {
+    double balanceOpeningProb = playSettings.forSelfPlay ? 0.99 : 1.0;
+    if(gameRand.nextBool(balanceOpeningProb)) {
+      if(board.numStonesOnBoard() != 0)
+        cout << "board not empty when initialize opening" << endl;
+      else {
+        if(board.numStonesOnBoard() == 0)  // no lib opening
+          RandomOpening::initializeBalancedRandomOpening(
+            botB, botW, board, hist, pla, gameRand, playSettings.forSelfPlay);
+        gameInited = true;
+      }
     }
   }
 
