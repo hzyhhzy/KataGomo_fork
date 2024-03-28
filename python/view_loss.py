@@ -1,6 +1,6 @@
 baseDir="../data/train/"
-lossItems={"p0loss":(1.5,2.5),"vloss":(0.5,0.9),"loss":(0,0)} #name,ylim,  0 means default
-trainDirs=["b10c256n"];
+lossItems={"p0loss":(1.5,2.0),"vloss":(0.4,0.9),"loss":(0,0)} #name,ylim,  0 means default
+trainDirs=["b18c384n","b10c384n","b10c384nr"];
 lossTypes=["train","val"]
 outputFile="../loss.png"
 
