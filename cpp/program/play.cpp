@@ -1453,8 +1453,11 @@ FinishedGameData* Play::runGame(
         finalValueTargets.win = 1.0f;
       else if(hist.winner == C_BLACK)
         finalValueTargets.loss = 1.0f;
-      else 
-        finalValueTargets.noResult = 1.0f;
+      else {
+        finalValueTargets.win = 0.5f;
+        finalValueTargets.loss = 0.5f;
+        finalValueTargets.noResult = 0.0f;
+      }
 
 
 

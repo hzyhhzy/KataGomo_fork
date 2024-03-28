@@ -1,4 +1,5 @@
 #include "../game/gamelogic.h"
+#include "../game/board.h"
 
 /*
  * gamelogic.cpp
@@ -19,8 +20,9 @@ using namespace std;
 
 
 
-bool GameLogic::isLegal(const Board& board, Player pla, Loc loc) {
-  if(pla != board.nextPla) {
+// Check if moving here is illegal.
+bool Board::isLegal(Loc loc, Player pla) const {
+  if(pla != nextPla) {
     std::cout << "Error next player ";
     return false;
   }
@@ -28,64 +30,77 @@ bool GameLogic::isLegal(const Board& board, Player pla, Loc loc) {
   if(loc == Board::PASS_LOC)  // pass is lose, but not illegal
     return true;
 
-  if(!board.isOnBoard(loc))
+  if(!isOnBoard(loc))
     return false;
 
-  if(board.stage == 0)  // choose a piece
+  if(colors[loc] != C_EMPTY)
+    return false;
+
+  int x = Location::getX(loc, x_size);
+  int y = Location::getY(loc, x_size);
+  if((x + y) % 2 == 0)
+    return false;//node or area
+  return true;
+}
+
+
+bool Board::isSurrounded(Loc loc) const {
+  if(!isOnBoard(loc))
+    return false;
+  for (int i = 0; i < 4; i++)
   {
-    return board.colors[loc] == pla;
+    Loc l = loc + adj_offsets[i];
+    assert(isOnBoard(l));
+    if(colors[l] != C_BLACK)
+      return false;
+  }
+  return true;
+}
+
+// Plays the specified move, assuming it is legal.
+void Board::playMoveAssumeLegal(Loc loc, Player pla) {
+  if(pla != nextPla) {
+    std::cout << "Error next player ";
+  }
+
+  pos_hash ^= ZOBRIST_MOVENUM_HASH[movenum];
+  movenum++;
+  pos_hash ^= ZOBRIST_MOVENUM_HASH[movenum];
+
+  if(!isOnBoard(loc))
+    return;
+  setStone(loc, C_BLACK);
+  int x = Location::getX(loc, x_size);
+  int y = Location::getY(loc, x_size);
+
+  int newAreaNum = 0;
+  if(x % 2 == 0 && y % 2 == 1)  // vertical line
+  {
+    newAreaNum += isSurrounded(loc + adj_offsets[1]);
+    newAreaNum += isSurrounded(loc + adj_offsets[2]);
+  }
+  else if(x % 2 == 1 && y % 2 == 0)  // horizontal line
+  {
+    newAreaNum += isSurrounded(loc + adj_offsets[0]);
+    newAreaNum += isSurrounded(loc + adj_offsets[3]);
   } 
-  else if(board.stage == 1)  // place the piece
+  else
+    ASSERT_UNREACHABLE;
+
+
+
+  if(newAreaNum == 0)  
   {
-    Color c = board.colors[loc];
-    Color opp = getOpp(pla);
-    Loc chosenMove = board.midLocs[0];
-    int x0 = Location::getX(chosenMove, board.x_size);
-    int y0 = Location::getY(chosenMove, board.x_size);
-    int x1 = Location::getX(loc, board.x_size);
-    int y1 = Location::getY(loc, board.x_size);
-    int dy = y1 - y0;
-    int dx = x1 - x0;
-    if(!((pla == C_BLACK && dy == -1) || (pla == C_WHITE && dy == 1)))
-      return false;
-    if(dx == 1 || dx == -1)
-      return c == opp || c == C_EMPTY;
-    else if(dx == 0)
-      return c == C_EMPTY;
-    else
-      return false;
+    nextPla = getOpp(nextPla);
+    pos_hash ^= ZOBRIST_NEXTPLA_HASH[getOpp(nextPla)];
+    pos_hash ^= ZOBRIST_NEXTPLA_HASH[nextPla];
+  } 
+  else //continue playing
+  {
+    int scoreChange = pla == P_BLACK ? newAreaNum : -newAreaNum;
+    setScore(currentScoreBlackMinusWhite + scoreChange);
   }
-  ASSERT_UNREACHABLE;
-  return false;
 }
-
-GameLogic::MovePriority GameLogic::getMovePriorityAssumeLegal(const Board& board, const BoardHistory& hist, Player pla, Loc loc) {
-  if(loc == Board::PASS_LOC)
-    return MP_NORMAL;
-
-  int y = Location::getY(loc, board.x_size);
-  if(board.stage == 0) {
-    if((pla == C_BLACK && y == 1) || (pla == C_WHITE && y == board.y_size - 2))
-      return MP_WINNING;
-  }
-  else if(board.stage == 1) {
-    if((pla == C_BLACK && y == 0) || (pla == C_WHITE && y == board.y_size - 1))
-      return MP_SUDDEN_WIN;
-  }
-
-
-  return MP_NORMAL;
-}
-
-GameLogic::MovePriority GameLogic::getMovePriority(const Board& board, const BoardHistory& hist, Player pla, Loc loc) {
-  if(loc == Board::PASS_LOC)
-    return MP_NORMAL;
-  if(!board.isLegal(loc, pla))
-    return MP_ILLEGAL;
-  MovePriority MP = getMovePriorityAssumeLegal(board, hist, pla, loc);
-  return MP;
-}
-
 
 
 
@@ -97,10 +112,16 @@ Color GameLogic::checkWinnerAfterPlayed(
   if(loc == Board::PASS_LOC)
     return getOpp(pla);  //pass is not allowed
   
-  
-  int y = Location::getY(loc, board.x_size);
-  if((pla == C_BLACK && y == 0) || (pla == C_WHITE && y == board.y_size - 1))
-      return pla;
+  int stoneNum = board.numStonesOnBoard();
+  if (stoneNum == (board.x_size * board.y_size - 1) / 2)
+  {
+    int finalScore = board.currentScoreBlackMinusWhite - board.komi;
+    if(finalScore > 0)
+      return C_BLACK;
+    if(finalScore < 0)
+      return C_WHITE;
+    return C_EMPTY;
+  }
 
 
   return C_WALL;
@@ -116,20 +137,7 @@ void GameLogic::ResultsBeforeNN::init(const Board& board, const BoardHistory& hi
   if(inited)
     return;
   inited = true;
-
-
-  for(int x = 0; x < board.x_size; x++)
-    for(int y = 0; y < board.y_size; y++) {
-      Loc loc = Location::getLoc(x, y, board.x_size);
-      MovePriority mp = getMovePriority(board, hist, nextPlayer, loc);
-      if(mp == MP_SUDDEN_WIN || mp == MP_WINNING) {
-        winner = nextPlayer;
-        myOnlyLoc = loc;
-        return;
-      }
-    }
-
-
+  
 
   return;
 }

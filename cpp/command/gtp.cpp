@@ -412,6 +412,28 @@ struct GTPEngine {
     bot->setParams(params);
     bot->clearSearch();
   }
+
+  void setKomi(int k) {
+    assert(bot->getRootHist().rules == currentRules);
+
+    vector<Move> moveHistoryCopy = moveHistory;
+
+    Board undoneBoard = initialBoard;
+    undoneBoard.setKomi(k);
+    BoardHistory undoneHist(undoneBoard, initialPla, currentRules);
+    undoneHist.setInitialTurnNumber(bot->getRootHist().initialTurnNumber);
+    vector<Move> emptyMoveHistory;
+    setPositionAndRules(initialPla, undoneBoard, undoneHist, initialBoard, initialPla, emptyMoveHistory);
+
+    for(int i = 0; i < moveHistoryCopy.size(); i++) {
+      Loc moveLoc = moveHistoryCopy[i].loc;
+      Player movePla = moveHistoryCopy[i].pla;
+      bool suc = play(moveLoc, movePla);
+      assert(suc);
+      (void)suc;  // Avoid warning when asserts are off
+    }
+  }
+
   void setNumSearchThreads(int numThreads) {
     params.numThreads = numThreads;
     bot->setParams(params);
@@ -1384,12 +1406,22 @@ int MainCmds::gtp(const vector<string>& args) {
         responseIsError = true;
         response = "Expected single float argument for komi but got '" + Global::concat(pieces," ") + "'";
       } 
-      else if(isnan(newKomi) || newKomi < -10 || newKomi > 10) {
+      else if(isnan(newKomi) || newKomi <= -Board::MAX_ARR_SIZE || newKomi >= Board::MAX_ARR_SIZE) {
         responseIsError = true;
         response = "unacceptable komi";
       } 
       else {
-        engine->setNoResultUtilityForWhite(newKomi / 10.0);
+        int xsize = engine->bot->getRootBoard().x_size;
+        int ysize = engine->bot->getRootBoard().y_size;
+        bool areaIsOdd = ((xsize - 1) * (ysize - 1) / 4) % 2 == 1;
+        int nearestDrawKomi =
+          areaIsOdd ? int((newKomi - 1 + 65536) / 2) * 2 + 1 - 65536 : int((newKomi + 65536) / 2) * 2 - 65536;
+        int newKomiInt = 0;
+        if(newKomi == float(nearestDrawKomi))
+          newKomiInt = nearestDrawKomi;
+        else
+          newKomiInt = nearestDrawKomi + 1;
+        engine->setKomi(newKomiInt);
         // In case the controller tells us komi every move, restart pondering afterward.
         maybeStartPondering = engine->bot->getRootHist().moveHistory.size() > 0;
       }

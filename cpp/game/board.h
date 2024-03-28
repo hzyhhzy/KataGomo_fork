@@ -12,7 +12,7 @@
 #include "../external/nlohmann_json/json.hpp"
 
 #ifndef COMPILE_MAX_BOARD_LEN 
-#define COMPILE_MAX_BOARD_LEN 8
+#define COMPILE_MAX_BOARD_LEN 13
 #endif
 
 //how many stages in each move
@@ -120,8 +120,7 @@ struct Board
   static Hash128 ZOBRIST_SIZE_X_HASH[MAX_LEN+1];
   static Hash128 ZOBRIST_SIZE_Y_HASH[MAX_LEN+1];
   static Hash128 ZOBRIST_BOARD_HASH[MAX_ARR_SIZE][NUM_BOARD_COLORS];
-  static Hash128 ZOBRIST_STAGENUM_HASH[STAGE_NUM_EACH_PLA];
-  static Hash128 ZOBRIST_STAGELOC_HASH[MAX_ARR_SIZE][STAGE_NUM_EACH_PLA];
+  static Hash128 ZOBRIST_CURRENT_SCORE_HASH[MAX_ARR_SIZE * 4];//safe for komi
   static Hash128 ZOBRIST_NEXTPLA_HASH[4];
   static Hash128 ZOBRIST_MOVENUM_HASH[MAX_MOVE_NUM];
   static Hash128 ZOBRIST_PLAYER_HASH[4];
@@ -158,8 +157,13 @@ struct Board
   // valid state. Also returns false if any location is specified more than once.
   bool setStones(std::vector<Move> placements);
 
+  void setScore(int s);
+  void setKomi(int newKomi);
+
   //Plays the specified move, assuming it is legal.
   void playMoveAssumeLegal(Loc loc, Player pla);
+
+  bool isSurrounded(Loc loc) const;//whether one grid is surrounded by four edge
 
   // who plays the next next move
   Player nextnextPla() const;
@@ -189,7 +193,19 @@ struct Board
 
   int x_size;                  //Horizontal size of board
   int y_size;                  //Vertical size of board
+
+
+  //m*n board is (2m+1)*(2n+1) in Board class
+  //(even,even) are nodes, (odd,odd) are areas, these locations can not be played
+  //(even,odd) and (odd,even) are edges, where players can play
+  //all played edges will be marked as C_BLACK
+  //all other positions will be marked as C_EMPTY, owners of squares are not needed to mark out, just count the total
   Color colors[MAX_ARR_SIZE];  //Color of each location on the board.
+
+  int komi;
+  int currentScoreBlackMinusWhite;//real score of this game
+  //real score = currentScoreBlackMinusWhite - komi
+
   int movenum; //how many moves
 
   /* PointList empty_list; //List of all empty locations on board */
@@ -198,17 +214,8 @@ struct Board
 
   short adj_offsets[8]; //Indices 0-3: Offsets to add for adjacent points. Indices 4-7: Offsets for diagonal points. 2 and 3 are +x and +y.
 
-  
-  //which stage. Normally 0 = choosing piece. 1 = where to place
-  int stage;
-
   //who plays the next move
   Color nextPla;
-
-  //一步内每一阶段的选点
-  //例如：象棋类midLoc[0]是选择的棋子，midLoc[1]是落点
-  Loc midLocs[STAGE_NUM_EACH_PLA];
-
 
   private:
   void init(int xS, int yS);

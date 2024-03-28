@@ -22,7 +22,7 @@ using namespace nvinfer1;
 
 // Define this to use plan cache instead of timing cache, which enables instant
 // initialization at the cost of excessive disk space usage
-//#define CACHE_TENSORRT_PLAN
+#define CACHE_TENSORRT_PLAN
 
 static void checkCudaError(const cudaError_t status, const char* opName, const char* file, const char* func, int line) {
   if(status != cudaSuccess)

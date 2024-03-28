@@ -888,7 +888,7 @@ bool Search::playoutDescend(
     nnEvaluator->waitForNextNNEvalIfAny();
    
       double winLossValue = thread.history.winner == C_WHITE ? 1.0 : thread.history.winner == C_BLACK ? -1.0 : 0.0;
-      double noResultValue = thread.history.winner == C_EMPTY ? 1.0 : 0.0;
+      double noResultValue = 0.0;
       double weight = (searchParams.useUncertainty && nnEvaluator->supportsShorttermError()) ? searchParams.uncertaintyMaxWeight : 1.0;
       addLeafValue(node, winLossValue, noResultValue, weight, true, false);
       return true;

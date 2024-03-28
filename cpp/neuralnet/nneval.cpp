@@ -775,9 +775,9 @@ void NNEvaluator::evaluate(
 
         
         if(resultsBeforeNN.winner == C_EMPTY) {  // draw
-          winProb = 0.0;
-          lossProb = 0.0;
-          noResultProb = 1.0;
+          winProb = 0.5;
+          lossProb = 0.5;
+          noResultProb = 0.0;
         } 
         else if(resultsBeforeNN.winner == nextPlayer) {  // next player win
           winProb = 1.0;

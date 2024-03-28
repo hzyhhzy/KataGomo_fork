@@ -364,15 +364,6 @@ void SymmetryHelpers::markDuplicateMoveLocs(
 
     bool isBoardSym = true;
 
-    //check chosen pieces first
-    for(int i = 0; i < board.stage; i++) {
-      Loc loc = board.midLocs[i];
-      if(board.isOnBoard(loc)) {
-        Loc symLoc = getSymLoc(loc, board, symmetry);
-        if(symLoc != loc)
-          isBoardSym = false;
-      }
-    }
 
     for(int y = 0; y < board.y_size; y++) {
       for(int x = 0; x < board.x_size; x++) {
@@ -520,34 +511,28 @@ void NNInputs::fillRowV7(
       //Feature 0 - on board
       setRowBin(rowBin,pos,0, 1.0f, posStride, featureStride);
 
+      if(x % 2 == 0 && y % 2 == 0)  // nodes
+      {
+        setRowBin(rowBin, pos, 1, 1.0f, posStride, featureStride);
+        continue;
+      }
+
+      if(x % 2 == 1 && y % 2 == 1)  // areas
+      {
+        setRowBin(rowBin, pos, 2, 1.0f, posStride, featureStride);
+        continue;
+      }
+
       Color stone = board.colors[loc];
 
-      //Features 1,2 - pla,opp stone
-      //Features 3,4,5 - 1,2,3 libs
-      if(stone == pla)
-        setRowBin(rowBin,pos,1, 1.0f, posStride, featureStride);
-      else if(stone == opp)
-        setRowBin(rowBin,pos,2, 1.0f, posStride, featureStride);
+      if(stone == C_BLACK)
+        setRowBin(rowBin,pos,3, 1.0f, posStride, featureStride);
 
     }
   }
 
-  // mid state
-  if(board.stage == 0)  // choose
-  {
-    // do nothing
-  } else if(board.stage == 1)  // place
-  {
-    rowGlobal[0] = 1.0f;
-    Loc chosenMove = board.midLocs[0];
-    if(!board.isOnBoard(chosenMove)) {
-      std::cout << "nninput: chosen move not on board ";
-    } else {
-      int pos = NNPos::locToPos(chosenMove, board.x_size, nnXLen, nnYLen);
-      setRowBin(rowBin, pos, 3, 1.0f, posStride, featureStride);
-    }
-  } else
-    ASSERT_UNREACHABLE;
+
+
 
   if(resultsBeforeNN.inited) {
     rowGlobal[1] = 1.0;
@@ -572,6 +557,15 @@ void NNInputs::fillRowV7(
   else
     ASSERT_UNREACHABLE;
 
+
+  int boardArea = (board.x_size - 1) * (board.y_size - 1) / 4;
+  double score = board.currentScoreBlackMinusWhite - board.komi;
+  rowGlobal[6] = score * 0.2;
+  rowGlobal[7] = score * 1.0 / sqrt(boardArea);
+  rowGlobal[8] = score * 5.0 / boardArea;
+  rowGlobal[9] = boardArea % 2;
+  rowGlobal[10] = board.komi % 2;
+
   
   // Parameter 15 is used because there's actually a discontinuity in how training behavior works when this is
   // nonzero, no matter how slightly.
@@ -581,5 +575,5 @@ void NNInputs::fillRowV7(
   }
 
   // noResultUtilityForWhite
-  rowGlobal[17] = pla == C_WHITE ? nnInputParams.noResultUtilityForWhite : -nnInputParams.noResultUtilityForWhite;
+  //rowGlobal[17] = pla == C_WHITE ? nnInputParams.noResultUtilityForWhite : -nnInputParams.noResultUtilityForWhite;
 }
