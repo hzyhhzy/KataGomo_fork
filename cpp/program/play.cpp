@@ -56,6 +56,11 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
 
   allowRectangleProb = cfg.contains("allowRectangleProb") ? cfg.getDouble("allowRectangleProb",0.0,1.0) : 0.0;
 
+  komiMean = cfg.contains("komiMean") ? cfg.getFloat("komiMean", -Board::MAX_ARR_SIZE, Board::MAX_ARR_SIZE) : 0.0f;
+  komiStdev = cfg.contains("komiStdev") ? cfg.getFloat("komiStdev", 0.0f, 60.0f) : 0.0f;
+  komiBigStdevProb = cfg.contains("komiBigStdevProb") ? cfg.getDouble("komiBigStdevProb", 0.0, 1.0) : 0.0;
+  komiBigStdev = cfg.contains("komiBigStdev") ? cfg.getFloat("komiBigStdev", 0.0f, 60.0f) : 5.0f;
+
   auto generateCumProbs = [](const vector<Sgf::PositionSample> poses, double lambda, double& effectiveSampleSize) {
     int minInitialTurnNumber = 0;
     for(size_t i = 0; i<poses.size(); i++)
@@ -355,9 +360,19 @@ void GameInitializer::createGameSharedUnsynchronized(
     }
   }
 
+  int komi = 0;
+
+  { 
+    double mean = komiMean;
+    double stdev = rand.nextBool(komiBigStdevProb) ? komiBigStdev : komiStdev;
+    double komiD = mean + stdev * rand.nextGaussianTruncated(5);
+    komi = round(komiD);
+  }
+
   if(posSample != NULL) {
     const Sgf::PositionSample& startPos = *posSample;
     board = startPos.board;
+    board.setKomi(komi);
     pla = startPos.nextPla;
     hist.clear(board,pla,rules);
     hist.setInitialTurnNumber(startPos.initialTurnNumber);
@@ -384,7 +399,8 @@ void GameInitializer::createGameSharedUnsynchronized(
   else {
     int xSize = allowedBSizes[xSizeIdx];
     int ySize = allowedBSizes[ySizeIdx];
-    board = Board(xSize,ySize);
+    board = Board(xSize, ySize);
+    board.setKomi(komi);
     pla = P_BLACK;
     hist.clear(board,pla,rules);
 

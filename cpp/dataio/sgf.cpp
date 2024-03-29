@@ -1454,6 +1454,7 @@ void WriteSgf::writeSgf(
   out << "PW[" << wName << "]";
 
   out << "RU[" << (tryNicerRulesString ? rules.toStringMaybeNice() : rules.toString()) << "]";
+  out << "KM[" << initialBoard.komi << "]";
   printGameResult(out,endHist);
 
   bool hasAB = false;

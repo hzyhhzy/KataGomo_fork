@@ -107,6 +107,10 @@ class GameInitializer {
 
   double allowRectangleProb;
 
+  double komiMean;
+  double komiStdev;
+  double komiBigStdevProb;
+  double komiBigStdev;
 
   double noResultRandRadius;
 
