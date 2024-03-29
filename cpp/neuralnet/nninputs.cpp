@@ -560,9 +560,11 @@ void NNInputs::fillRowV7(
 
   int boardArea = (board.x_size - 1) * (board.y_size - 1) / 4;
   double score = board.currentScoreBlackMinusWhite - board.komi;
-  rowGlobal[6] = score * 0.2;
+  if(nextPlayer == C_WHITE)
+    score = -score;
+  rowGlobal[6] = score * 0.25;
   rowGlobal[7] = score * 1.0 / sqrt(boardArea);
-  rowGlobal[8] = score * 5.0 / boardArea;
+  rowGlobal[8] = score * 4.0 / boardArea;
   rowGlobal[9] = boardArea % 2;
   rowGlobal[10] = board.komi % 2;
 
