@@ -472,6 +472,7 @@ struct GTPEngine {
     vector<Move> moveHistoryCopy = moveHistory;
 
     Board undoneBoard = initialBoard;
+    undoneBoard.setKomi(bot->getRootBoard().komi);
     BoardHistory undoneHist(undoneBoard,initialPla,currentRules);
     undoneHist.setInitialTurnNumber(bot->getRootHist().initialTurnNumber);
     vector<Move> emptyMoveHistory;

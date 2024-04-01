@@ -1241,8 +1241,19 @@ FinishedGameData* Play::runGame(
     }
   };
 
-
-
+  //surrounding opening
+  if(playSettings.forSelfPlay && gameRand.nextBool(0.2) && board.x_size > 3 && board.y_size > 3) {
+    for(int i = 0; i < (board.x_size - 1) / 2; i++) {
+      board.setStone(Location::getLoc(1 + 2 * i, 0, board.x_size), C_BLACK);
+      board.setStone(Location::getLoc(1 + 2 * i, board.y_size - 1, board.x_size), C_BLACK);
+    }
+    for(int i = 0; i < (board.y_size - 1) / 2; i++) {
+      board.setStone(Location::getLoc(0, 1 + 2 * i, board.x_size), C_BLACK);
+      board.setStone(Location::getLoc(board.x_size - 1, 1 + 2 * i, board.x_size), C_BLACK);
+    }
+    Rules rule = hist.rules;
+    hist.clear(board, pla, rule);
+  }
 
   if(playSettings.initGamesWithPolicy && otherGameProps.allowPolicyInit) {
     double avgPolicyInitMoveNum =
