@@ -51,8 +51,8 @@ void RandomOpening::initializeBalancedRandomOpening(
 }
 
 void RandomOpening::initializeSpecialOpening(Board& board, BoardHistory& hist, Player& nextPlayer, Rand& gameRand) {
-  int r = gameRand.nextInt() % 100;
-  if (r < 40)//Gale's game
+  int r = gameRand.nextUInt(100);
+  if (r < 15)//Gale's game
   {
     for(int x = 0; x < board.x_size; x++)
       for(int y = 0; y < board.y_size; y++) {
@@ -70,7 +70,7 @@ void RandomOpening::initializeSpecialOpening(Board& board, BoardHistory& hist, P
     randomFillBoard(board, gameRand, fillProb, fillProb);
     nextPlayer = gameRand.nextBool(0.5) ? C_BLACK : C_WHITE;
   }
-  else if(r < 80)  //transfinite opening 1
+  else if(r < 40)  //transfinite opening 1
   {
     for(int i = 0; i < board.x_size - 1; i++) {
       int x = i + 1;
@@ -112,6 +112,41 @@ void RandomOpening::initializeSpecialOpening(Board& board, BoardHistory& hist, P
 
 
     nextPlayer = gameRand.nextBool(0.2) ? C_BLACK : C_WHITE;
+  } 
+  else if(r < 80)  // infinite template problem
+  {
+    for(int i = 0; i < board.y_size - 1; i++) {
+      int x = board.x_size - 1;
+      int y = i;
+      Loc loc = Location::getLoc(x, y, board.x_size);
+      board.setStone(loc, C_BLACK);
+    }
+    for(int i = 0; i < board.y_size - 1; i++) {
+      int x = 0;
+      int y = i;
+      Loc loc = Location::getLoc(x, y, board.x_size);
+      board.setStone(loc, C_BLACK);
+    }
+    for(int i = 0; i < board.x_size - 2; i++) {
+      int x = i + 2;
+      int y = board.y_size - 1;
+      Loc loc = Location::getLoc(x, y, board.x_size);
+      board.setStone(loc, C_WHITE);
+    }
+
+    {
+      board.setStone(Location::getLoc(0, board.y_size - 1, board.x_size), C_WHITE);
+      board.setStone(Location::getLoc(1, board.y_size - 2, board.x_size), C_WHITE);
+      board.setStone(Location::getLoc(2, board.y_size - 3, board.x_size), C_WHITE);
+      board.setStone(Location::getLoc(1, board.y_size - 1, board.x_size), C_BLACK);
+      board.setStone(Location::getLoc(2, board.y_size - 2, board.x_size), C_BLACK);
+    }
+    Loc loc1 = Location::getLoc(0, 0, board.x_size);
+    while(board.colors[loc1] != C_EMPTY) {
+      loc1 = Location::getLoc(gameRand.nextUInt(board.x_size), gameRand.nextUInt(board.y_size), board.x_size);
+    }
+    board.setStone(loc1, C_WHITE);
+    nextPlayer = C_WHITE;
   }
   else //rotated normal board
   {
