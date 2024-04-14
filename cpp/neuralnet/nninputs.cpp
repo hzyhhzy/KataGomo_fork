@@ -565,8 +565,12 @@ void NNInputs::fillRowV7(
   rowGlobal[6] = score * 0.25;
   rowGlobal[7] = score * 1.0 / sqrt(boardArea);
   rowGlobal[8] = score * 4.0 / boardArea;
-  rowGlobal[9] = boardArea % 2;
-  rowGlobal[10] = board.komi % 2;
+  rowGlobal[9] = boardArea % 2;//xsize%2 OR ysize%2
+  rowGlobal[10] = board.komi & 1;
+
+  rowGlobal[11] = board.numStonesOnBoard() % 2;
+  rowGlobal[12] = board.currentScoreBlackMinusWhite & 1;
+  rowGlobal[13] = ((board.x_size - 1 + board.y_size - 1) / 2) % 2;  // xsize%2 XOR ysize%2
 
   
   // Parameter 15 is used because there's actually a discontinuity in how training behavior works when this is
