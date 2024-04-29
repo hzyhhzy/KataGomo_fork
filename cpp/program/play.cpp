@@ -1253,7 +1253,7 @@ FinishedGameData* Play::runGame(
   if(!gameInited) {
     if(gameRand.nextBool(playSettings.specialOpeningProb))
     {
-      RandomOpening::initializeSpecialOpening(board, hist, pla, gameRand);
+      RandomOpening::initializeSpecialOpening(botB, botW, board, hist, pla, gameRand);
       gameInited = true;
     }
   }

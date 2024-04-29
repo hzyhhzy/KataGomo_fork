@@ -13,7 +13,13 @@ namespace RandomOpening {
     Rand& gameRand,
     bool forSelfplay);
 
-  void initializeSpecialOpening(Board& board, BoardHistory& hist, Player& nextPlayer, Rand& gameRand);
+  void initializeSpecialOpening(
+    Search* botB,
+    Search* botW,
+    Board& board,
+    BoardHistory& hist,
+    Player& nextPlayer,
+    Rand& gameRand);
   void initializeCompletelyRandomOpening(Board& board, BoardHistory& hist, Player& nextPlayer, Rand& gameRand, double areaPropAvg);
 
   
