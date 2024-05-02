@@ -204,9 +204,9 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
   if(allowedBSizes.size() != allowedBSizeRelProbs.size())
     throw IOError("bSizes and bSizeRelProbs must have same number of values in " + cfg.getFileName());
 
-  minBoardXSize = allowedBSizes[0];
+  minBoardXSize = 3;
   minBoardYSize = allowedBSizes[0];
-  maxBoardXSize = allowedBSizes[0];
+  maxBoardXSize = Board::MAX_LEN;
   maxBoardYSize = allowedBSizes[0];
   for(int bSize: allowedBSizes) {
     minBoardXSize = std::min(minBoardXSize, bSize);
@@ -341,11 +341,12 @@ void GameInitializer::createGameSharedUnsynchronized(
     return;
   }
 
-
-  int xSizeIdx = rand.nextUInt(allowedBSizeRelProbs.data(),allowedBSizeRelProbs.size());
-  int ySizeIdx = xSizeIdx;
-  if(allowRectangleProb > 0 && rand.nextBool(allowRectangleProb))
-    ySizeIdx = rand.nextUInt(allowedBSizeRelProbs.data(),allowedBSizeRelProbs.size());
+  
+  int ySizeIdx = rand.nextUInt(allowedBSizeRelProbs.data(), allowedBSizeRelProbs.size());
+  //int xSizeIdx = rand.nextUInt(allowedBSizeRelProbs.data(), allowedBSizeRelProbs.size());
+  //int ySizeIdx = xSizeIdx;
+  //if(allowRectangleProb > 0 && rand.nextBool(allowRectangleProb))
+   // ySizeIdx = rand.nextUInt(allowedBSizeRelProbs.data(),allowedBSizeRelProbs.size());
 
   Rules rules = createRulesUnsynchronized();
 
@@ -395,8 +396,18 @@ void GameInitializer::createGameSharedUnsynchronized(
     otherGameProps.hintPosHash = board.pos_hash;
   }
   else {
-    int xSize = allowedBSizes[xSizeIdx];
     int ySize = allowedBSizes[ySizeIdx];
+    const int xSizesMean[16] = {3, 3, 3, 3, 4, 7, 10, 14, 17, 26, 35, 44, 55, 66, 79, 91};
+    if(ySize >= 16)
+      ASSERT_UNREACHABLE;
+    int xSize = xSizesMean[ySize] + round(rand.nextGaussianTruncated(4));
+    //if(rand.nextBool(0.5))
+    //  xSize *= (0.5 + 0.5 * rand.nextDouble());
+    if(xSize > Board::MAX_LEN)
+      xSize = Board::MAX_LEN;
+    if(xSize < ySize + 2)
+      xSize = ySize + 2;
+
     board = Board(xSize,ySize);
     pla = P_BLACK;
     hist.clear(board,pla,rules);

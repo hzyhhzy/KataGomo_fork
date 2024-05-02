@@ -129,15 +129,22 @@ static Loc parseSgfLocOrPass(const string& s, int xSize, int ySize) {
 }
 
 static void writeSgfLoc(ostream& out, Loc loc, int xSize, int ySize) {
+  bool useNumber = false;
   if(xSize >= 53 || ySize >= 53)
-    throw StringError("Writing coordinates for SGF files for board sizes >= 53 is not implemented");
+    useNumber = true;
+    //throw StringError("Writing coordinates for SGF files for board sizes >= 53 is not implemented");
   if(loc == Board::PASS_LOC || loc == Board::NULL_LOC)
     return;
   int x = Location::getX(loc,xSize);
   int y = Location::getY(loc,xSize);
-  const char* chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  out << chars[x];
-  out << chars[y];
+  if(useNumber) {
+    out << x << "_" << y;
+  } 
+  else {
+    const char* chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    out << chars[x];
+    out << chars[y];
+  }
 }
 
 bool SgfNode::hasProperty(const char* key) const {

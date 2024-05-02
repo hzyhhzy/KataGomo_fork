@@ -7,6 +7,8 @@ using namespace std;
 
 template<typename T>
 static void selfTransposeNCHW(T* src, int n, int c, int h, int w) {
+  return;
+  /*
   T* buf = new T[n * c * h * w];
   for(int i = 0; i < n; i++) {
     for(int j = 0; j < c; j++) {
@@ -21,6 +23,64 @@ static void selfTransposeNCHW(T* src, int n, int c, int h, int w) {
     }
   }
   std::copy(buf, buf + n * c * h * w, src);
+
+  delete buf;
+  */
+}
+template<typename T>
+static void extraSymmetryNCHW(T* src, int n, int c, int hd, int wd, int hb, int wb, int checkMode) { //for some boards with extra symmetry, such as trapezium
+  //check whether is edge template
+  //cout << n << " " << c << " " << hb << " " << wb << " " << endl;
+
+  if(n != 1)
+    throw StringError("extra symmetry just support one single board");
+
+  if(checkMode == 1) {
+    for(int i = 1; i < hb - 1; i++) {
+      int x = hb - i - 2;
+      int y = i;
+
+      int spos = NNPos::xyToPos(x, y, wd);
+      int blackOrWhiteStone = src[spos + 1 * hd * wd] + src[spos + 2 * hd * wd];
+      if(blackOrWhiteStone != 1) {
+        for(int y1 = 0; y1 < hd; y1++) {
+          for(int x1 = 0; x1 < wd; x1++) {
+            int p = NNPos::xyToPos(x1, y1, wd);
+            int c = src[p + 1 * hd * wd] + src[p + 2 * hd * wd] * 2 + 4 * (1 - src[p + 0 * hd * wd]);
+            cout << c << " ";
+          }
+          cout << endl;
+        }
+        throw StringError("This is not trapezium board, extra symmetry is not valid");
+      }
+
+    }
+    
+  }
+
+
+  T* buf = new T[n * c * hd * wd];
+  std::copy(src, src + n * c * hd * wd, buf);
+  for(int i = 0; i < n; i++) {
+    for(int j = 0; j < c; j++) {
+      int bias = i * c * hd * wd + j * hd * wd;
+      for(int y = 0; y < hb; y++) {
+        for(int x = 0; x < wb; x++) {
+          int x1 = wb - x - 1 + (hb - y - 1);//symmetried pos
+          if(y == 0)
+            x1 -= 1;
+          if(x1 >= wb)
+            continue;
+          if(x1 < 0)
+            ASSERT_UNREACHABLE;
+          int spos = NNPos::xyToPos(x, y, wd);
+          int dpos = NNPos::xyToPos(x1,y, wd);
+          buf[dpos + bias] = src[spos + bias];
+        }
+      }
+    }
+  }
+  std::copy(buf, buf + n * c * hd * wd, src);
 
   delete buf;
 }
@@ -306,7 +366,8 @@ void TrainingWriteBuffers::addRow(
   bool isSidePosition,
   int numNeuralNetsBehindLatest,
   const FinishedGameData& data,
-  Rand& rand
+  Rand& rand,
+  int extraSymmetry
 ) {
   (void)finalBoard;
   static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
@@ -338,8 +399,10 @@ void TrainingWriteBuffers::addRow(
     else
       ASSERT_UNREACHABLE;
     
-    if(nextPlayer == C_WHITE)
-      selfTransposeNCHW(rowBin, 1, numBinaryChannels, dataYLen, dataXLen);
+    //if(nextPlayer == C_WHITE)
+    //  selfTransposeNCHW(rowBin, 1, numBinaryChannels, dataYLen, dataXLen);
+    if(extraSymmetry == 1)
+      extraSymmetryNCHW(rowBin, 1, numBinaryChannels, dataYLen, dataXLen, board.y_size, board.x_size, 1);
 
     //Pack bools bitwise into uint8_t
     uint8_t* rowBinPacked = binaryInputNCHWPacked.data + curRows * numBinaryChannels * packedBoardArea;
@@ -375,9 +438,10 @@ void TrainingWriteBuffers::addRow(
     rowGlobal[28] = 0.0f;
   }
 
-  if(nextPlayer == C_WHITE) {
-    for(int i = 0; i < POLICY_TARGET_NUM_CHANNELS; i++)
-      selfTransposeNCHW(rowPolicy + i * policySize, 1, 1, dataYLen, dataXLen);
+  if(extraSymmetry == 1) {
+    for(int i = 0; i < POLICY_TARGET_NUM_CHANNELS; i++) {
+      extraSymmetryNCHW(rowPolicy + i * policySize, 1, 1, dataYLen, dataXLen, board.y_size, board.x_size, 0);
+    }
   }
 
   //Fill td-like value targets
@@ -539,8 +603,8 @@ void TrainingWriteBuffers::addRow(
     rowOwnership[i+posArea*4] = 0;
   }
 
-  if(nextPlayer == C_WHITE)
-    selfTransposeNCHW(rowOwnership, 1, 5, dataYLen, dataXLen);
+  if(extraSymmetry == 1)
+    extraSymmetryNCHW(rowOwnership, 1, 5, dataYLen, dataXLen, board.y_size, board.x_size, 0);
   curRows++;
 }
 
@@ -729,7 +793,7 @@ bool TrainingDataWriter::flushIfNonempty(string& resultingFilename) {
   return true;
 }
 
-void TrainingDataWriter::writeGame(const FinishedGameData& data) {
+void TrainingDataWriter::writeGame(const FinishedGameData& data, int extraSymmetry) {
   int numMoves = (int)(data.endHist.moveHistory.size() - data.startHist.moveHistory.size());
   assert(numMoves >= 0);
   assert(data.startHist.moveHistory.size() <= data.endHist.moveHistory.size());
@@ -828,7 +892,8 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             isSidePosition,
             numNeuralNetsBehindLatest,
             data,
-            rand
+            rand,
+            extraSymmetry
           );
           writeAndClearIfFull();
         }
@@ -879,7 +944,8 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             isSidePosition,
             numNeuralNetsBehindLatest,
             data,
-            rand
+            rand,
+            extraSymmetry
           );
           writeAndClearIfFull();
         }

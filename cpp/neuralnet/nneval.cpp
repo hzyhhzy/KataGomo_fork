@@ -518,10 +518,10 @@ void NNEvaluator::serve(
           }
         }
         //transpose if player is white
-        if(buf.resultBufs[row]->pla == P_WHITE)
-          buf.resultBufs[row]->symmetry ^= 0x4;
-        else 
-          assert(buf.resultBufs[row]->pla == P_BLACK);
+        //if(buf.resultBufs[row]->pla == P_WHITE)
+        //  buf.resultBufs[row]->symmetry ^= 0x4;
+        //else 
+        //  assert(buf.resultBufs[row]->pla == P_BLACK);
       }
 
       NeuralNet::getOutput(gpuHandle, buf.inputBuffers, numRows, buf.resultBufs, outputBuf);
@@ -602,9 +602,10 @@ void NNEvaluator::evaluate(
   buf.pla = nextPlayer;
 
   if(board.x_size > nnXLen || board.y_size > nnYLen)
-    throw StringError("NNEvaluator was configured with nnXLen = " + Global::intToString(nnXLen) +
-                      " nnYLen = " + Global::intToString(nnYLen) +
-                      " but was asked to evaluate board with larger x or y size");
+    throw StringError(
+      "NNEvaluator was configured with nnXLen = " + Global::intToString(nnXLen) +
+      " nnYLen = " + Global::intToString(nnYLen) + " but was asked to evaluate board with larger x or y size " +
+      Global::intToString(board.x_size) + "x" + Global::intToString(board.y_size));
   if(requireExactNNLen) {
     if(board.x_size != nnXLen || board.y_size != nnYLen)
       throw StringError("NNEvaluator was configured with nnXLen = " + Global::intToString(nnXLen) +
