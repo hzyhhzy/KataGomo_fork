@@ -80,6 +80,7 @@ class NNEvaluator {
   NNEvaluator(
     const std::string& modelName,
     const std::string& modelFileName,
+    const std::string& nnueModelPath,
     const std::string& expectedSha256,
     Logger* logger,
     int maxBatchSize,
@@ -145,6 +146,16 @@ class NNEvaluator {
     NNResultBuf& buf,
     bool skipCache
   );
+
+  //if searchthread has its own nnueSearch, then use it.
+  void evaluate(
+    Board& board,
+    const BoardHistory& history,
+    Player nextPlayer,
+    const MiscNNInputParams& nnInputParams,
+    NNResultBuf& buf,
+    bool skipCache,
+    NNUE::MCTSsearch* nnueSearch);
 
   //If there is at least one evaluate ongoing, wait until at least one finishes.
   //Returns immediately if there isn't one ongoing right now.
@@ -243,12 +254,13 @@ class NNEvaluator {
   int m_currentResultBufsIdx; //Index of the current resultBufs being filled.
   int m_oldestResultBufsIdx; //Index of the oldest resultBufs that still needs to be processed by a server thread
 
-  //NNUE module
-  NNUEV2::ModelWeight* nnueModel;
-  NNUEHashTable* nnueCacheTable;
 
 
  public:
+  // NNUE module
+  NNUEV2::ModelWeight* nnueModel;
+  NNUEHashTable* nnueCacheTable;
+
   //Helper, for internal use only
   void serve(NNServerBuf& buf, Rand& rand, int gpuIdxForThisThread, int serverThreadIdx);
 };

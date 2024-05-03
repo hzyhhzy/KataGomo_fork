@@ -57,6 +57,7 @@ NNServerBuf::~NNServerBuf() {
 NNEvaluator::NNEvaluator(
   const string& mName,
   const string& mFileName,
+  const string& nnueModelPath,
   const string& expectedSha256,
   Logger* lg,
   int maxBatchSize,
@@ -97,6 +98,7 @@ NNEvaluator::NNEvaluator(
    computeContext(NULL),
    loadedModel(NULL),
    nnCacheTable(NULL),
+   nnueCacheTable(NULL),
    logger(lg),
    numServerThreadsEverSpawned(0),
    serverThreads(),
@@ -119,7 +121,8 @@ NNEvaluator::NNEvaluator(
    m_resultBufss(NULL),
    m_currentResultBufsLen(0),
    m_currentResultBufsIdx(0),
-   m_oldestResultBufsIdx(0)
+   m_oldestResultBufsIdx(0),
+   nnueModel(NULL) 
 {
   if(nnXLen > NNPos::MAX_BOARD_LEN)
     throw StringError("Maximum supported nnEval board size is " + Global::intToString(NNPos::MAX_BOARD_LEN));
@@ -155,6 +158,11 @@ NNEvaluator::NNEvaluator(
 
   if(nnueCacheSizePowerOfTwo >= 0)
     nnueCacheTable = new NNUEHashTable(nnueCacheSizePowerOfTwo, nnueMutexPoolSizePowerofTwo);
+
+  if(nnueModelPath != "") {
+    nnueModel = new NNUEV2::ModelWeight();
+    nnueModel->loadParamMaybeBinary(nnueModelPath);
+  }
 
   if(!debugSkipNeuralNet) {
     vector<int> gpuIdxs = gpuIdxByServerThread;
@@ -205,6 +213,8 @@ NNEvaluator::~NNEvaluator() {
   delete nnCacheTable;
   if(nnueCacheTable != NULL)
     delete nnueCacheTable;
+  if(nnueModel != NULL)
+    delete nnueModel;
 }
 
 string NNEvaluator::getModelName() const {
@@ -606,8 +616,8 @@ void NNEvaluator::evaluate(
   Player nextPlayer,
   const MiscNNInputParams& nnInputParams,
   NNResultBuf& buf,
-  bool skipCache
-) {
+  bool skipCache,
+  NNUE::MCTSsearch* nnueSearch) {
   assert(!isKilled);
   buf.hasResult = false;
 
@@ -634,7 +644,7 @@ void NNEvaluator::evaluate(
   buf.boardYSizeForServer = board.y_size;
 
   GameLogic::ResultsBeforeNN resultsBeforeNN;
-  resultsBeforeNN.init(board, history, nextPlayer, nnInputParams.useVCFInput);
+  resultsBeforeNN.initRBN(board, history, nextPlayer, nnInputParams.useVCFInput, nnInputParams.nnueSearchN, nnueSearch);
 
   if(!debugSkipNeuralNet) {
     int rowSpatialLen = NNModelVersion::getNumSpatialFeatures(modelVersion) * nnXLen * nnYLen;
@@ -884,6 +894,29 @@ void NNEvaluator::evaluate(
   if(nnCacheTable != NULL)
     nnCacheTable->set(buf.result);
 
+}
+
+void NNEvaluator::evaluate(
+  Board& board,
+  const BoardHistory& history,
+  Player nextPlayer,
+  const MiscNNInputParams& nnInputParams,
+  NNResultBuf& buf,
+  bool skipCache
+  ) {
+  NNUE::MCTSsearch* nnueSearch = NULL;
+  if(nnInputParams.nnueSearchN > 0)
+    nnueSearch = new NNUE::MCTSsearch(nnueModel, nnueCacheTable);
+  evaluate(
+    board,
+    history,
+    nextPlayer,
+    nnInputParams,
+    buf,
+    skipCache,
+    nnueSearch);
+  if(nnueSearch != NULL)
+    delete nnueSearch;
 }
 
 //Uncomment this to lower the effective hash size down to one where we get true collisions

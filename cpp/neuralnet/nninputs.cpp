@@ -472,6 +472,13 @@ Hash128 NNInputs::getHash(
   hash.hash1 = Hash::rrmxmx(hash.hash1 + (uint64_t)noResultUtilityForWhiteDiscretized);
   hash.hash0 += hash.hash1;
 
+  // Fold in nnueSearchN
+  if(nnInputParams.nnueSearchN != 0) {
+    hash.hash0 ^= Hash::nasam((uint64_t)nnInputParams.nnueSearchN);
+    hash.hash1 = Hash::splitMix64(hash.hash1 + (uint64_t)nnInputParams.nnueSearchN);
+    hash.hash0 += hash.hash1;
+  }
+
   return hash;
 }
 
@@ -510,7 +517,7 @@ void NNInputs::fillRowV7(
   }
 
   if(!resultsBeforeNN.inited) {
-    resultsBeforeNN.init(board, hist, nextPlayer, nnInputParams.useVCFInput);
+    throw StringError("resultsBeforeNN not inited");
   }
 
   // 为了兼容旧版本，输入层的顺序很乱
@@ -653,7 +660,7 @@ void NNInputs::fillRowV101(
   }
 
   if(!resultsBeforeNN.inited) {
-    resultsBeforeNN.init(board, hist, nextPlayer, nnInputParams.useVCFInput);
+    throw StringError("resultsBeforeNN not inited");
   }
 
   // 为了兼容旧版本，输入层的顺序很乱
@@ -888,7 +895,7 @@ void NNInputs::fillRowV102(
   }
 
   if(!resultsBeforeNN.inited) {
-    resultsBeforeNN.init(board, hist, nextPlayer, nnInputParams.useVCFInput);
+    throw StringError("resultsBeforeNN not inited");
   }
 
   // 为了兼容旧版本，输入层的顺序很乱

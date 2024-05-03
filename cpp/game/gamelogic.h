@@ -10,7 +10,7 @@
 #define GAME_GAMELOGIC_H_
 
 #include "../game/boardhistory.h"
-
+#include "../nnue/MCTSsearch.h"
 /*
 * Other game logics:
 * Board::
@@ -37,15 +37,23 @@ namespace GameLogic {
   struct ResultsBeforeNN {
     bool inited;
     bool calculatedVCF;
+    bool calculatedNNUE;
     Color winner;
     Loc myOnlyLoc;
 
     uint8_t myVCFresult;
     uint8_t oppVCFresult;
 
+    int64_t nnueVisitsTotal;
+    double nnueRootValue;
+    double nnueRootDraw;
+    Loc nnueBestLoc;
+    float nnueValueMap[MaxBS * MaxBS + 1];
+    float nnueDrawMap[MaxBS * MaxBS + 1];
+    float nnueVisits[MaxBS * MaxBS + 1];
 
     ResultsBeforeNN();
-    void init(const Board& board, const BoardHistory& hist, Color nextPlayer, bool hasVCF);
+    void initRBN(const Board& board, const BoardHistory& hist, Color nextPlayer, bool hasVCF, int nnueSearchN, NNUE::MCTSsearch* nnueSearch);
   };
 }
 

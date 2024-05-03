@@ -259,17 +259,36 @@ Color GameLogic::checkWinnerAfterPlayed(
 GameLogic::ResultsBeforeNN::ResultsBeforeNN() {
   inited = false;
   calculatedVCF = false;
+  calculatedNNUE = false;
   winner = C_WALL;
   myOnlyLoc = Board::NULL_LOC;
   myVCFresult = 0;
   oppVCFresult = 0;
+
+  nnueRootDraw = 0;
+  nnueRootValue = 0;
+  nnueVisitsTotal = 0;
+  nnueBestLoc = Board::NULL_LOC;
+
+  for(int i = 0; i < MaxBS * MaxBS + 1; i++) {
+    nnueValueMap[i] = 0;
+    nnueDrawMap[i] = 0;
+    nnueVisits[i] = 0;
+  }
 }
 
-void GameLogic::ResultsBeforeNN::init(const Board& board, const BoardHistory& hist, Color nextPlayer, bool hasVCF) {
+void GameLogic::ResultsBeforeNN::initRBN(
+  const Board& board,
+  const BoardHistory& hist,
+  Color nextPlayer,
+  bool hasVCF,
+  int nnueSearchN,
+  NNUE::MCTSsearch* nnueSearch) {
   if(hist.rules.VCNRule != Rules::VCNRULE_NOVC && hist.rules.maxMoves != 0)
     throw StringError("ResultBeforeNN::init() can not support VCN and maxMoves simutaneously");
+  bool willCalculateNNUE = nnueSearchN > 0;
   bool willCalculateVCF = hasVCF && hist.rules.maxMoves == 0;
-  if(inited && (calculatedVCF || (!willCalculateVCF)))
+  if(inited && (calculatedVCF || (!willCalculateVCF)) && (!willCalculateNNUE))
     return;
   inited = true;
 
@@ -334,19 +353,48 @@ void GameLogic::ResultsBeforeNN::init(const Board& board, const BoardHistory& hi
     return;
   }
 
-  if(!willCalculateVCF)
-    return;
+  if(willCalculateVCF) {
+    // check VCF
+    calculatedVCF = true;
+    uint16_t oppvcfloc;
+    VCFsolver::run(board, hist.rules, getOpp(nextPlayer), oppVCFresult, oppvcfloc);
 
-  // check VCF
-  calculatedVCF = true;
-  uint16_t oppvcfloc;
-  VCFsolver::run(board, hist.rules, getOpp(nextPlayer), oppVCFresult, oppvcfloc);
+    uint16_t myvcfloc;
+    VCFsolver::run(board, hist.rules, nextPlayer, myVCFresult, myvcfloc);
+    if(myVCFresult == 1) {
+      winner = nextPlayer;
+      myOnlyLoc = myvcfloc;
+      return;
+    }
+  }
 
-  uint16_t myvcfloc;
-  VCFsolver::run(board, hist.rules, nextPlayer, myVCFresult, myvcfloc);
-  if(myVCFresult == 1) {
-    winner = nextPlayer;
-    myOnlyLoc = myvcfloc;
-    return;
+  if (willCalculateNNUE)
+  {
+    if(nnueSearch == NULL)
+      throw StringError("ResultBeforeNN::init() nnueSearchN>0 but nnueSearch is null");
+    nnueSearch->setBoard(board);
+    NU_Loc nuBestLoc;
+    nnueSearch->fullsearch(nextPlayer, nnueSearchN, nuBestLoc);
+    nnueBestLoc = NNUE::NULoc2Loc(nuBestLoc, board.x_size);
+
+    if(nnueSearch->rootNode == NULL)
+      throw StringError("Failed to search nnue");
+    const NNUE::MCTSnode& root = *nnueSearch->rootNode;
+    nnueVisitsTotal = root.visits;
+    if(nnueVisitsTotal <= 0)
+      ASSERT_UNREACHABLE;
+    nnueRootValue = (root.WRtotal.win - root.WRtotal.loss) / nnueVisitsTotal;
+    nnueRootDraw = root.WRtotal.draw / nnueVisitsTotal;
+
+    for (int i = 0; i > root.childrennum; i++)
+    {
+      const NNUE::MCTSnode* c = root.children[i].ptr;
+      if(c == NULL || c->visits <= 0)
+        ASSERT_UNREACHABLE;
+      NU_Loc loc = root.children[i].loc;
+      nnueValueMap[loc] = (c->WRtotal.loss - c->WRtotal.win) / c->visits;
+      nnueDrawMap[loc] = c->WRtotal.draw / c->visits;
+      nnueVisits[loc] = c->visits;
+    }
   }
 }

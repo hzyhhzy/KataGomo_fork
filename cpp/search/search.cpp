@@ -48,6 +48,8 @@ SearchThread::SearchThread(int tIdx, const Search& search)
    oldNNOutputsToCleanUp(),
    illegalMoveHashes()
 {
+  if(search.nnEvaluator->nnueModel != NULL)
+    nnueSearch = new NNUE::MCTSsearch(search.nnEvaluator->nnueModel, search.nnEvaluator->nnueCacheTable);
   statsBuf.resize(NNPos::MAX_NN_POLICY_SIZE);
   graphPath.reserve(256);
 
@@ -58,6 +60,8 @@ SearchThread::~SearchThread() {
   for(size_t i = 0; i<oldNNOutputsToCleanUp.size(); i++)
     delete oldNNOutputsToCleanUp[i];
   oldNNOutputsToCleanUp.resize(0);
+  if(nnueSearch != NULL)
+    delete nnueSearch;
 }
 
 //-----------------------------------------------------------------------------------------

@@ -263,6 +263,14 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     if(setupFor != SETUP_FOR_DISTRIBUTED && cfg.contains("nnForcedSymmetry"))
       forcedSymmetry = cfg.getInt("nnForcedSymmetry",0,SymmetryHelpers::NUM_SYMMETRIES-1);
 
+
+    string nnueModelPath = "";
+    if(cfg.contains("nnueModel" + idxStr))
+      nnueModelPath = cfg.getString("nnueModel" + idxStr);
+    else if(cfg.contains("nnueModel"))
+      nnueModelPath = cfg.getString("nnueModel");
+
+
     logger.write(
       "After dedups: nnModelFile" + idxStr + " = " + nnModelFile
       + " useFP16 " + useFP16Mode.toString()
@@ -323,6 +331,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     NNEvaluator* nnEval = new NNEvaluator(
       nnModelName,
       nnModelFile,
+      nnueModelPath,
       expectedSha256,
       &logger,
       nnMaxBatchSize,

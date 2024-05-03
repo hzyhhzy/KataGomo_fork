@@ -232,7 +232,8 @@ struct TrainingWriteBuffers {
     bool isSidePosition,
     int numNeuralNetsBehindLatest,
     const FinishedGameData& data,
-    Rand& rand
+    Rand& rand,
+    NNUE::MCTSsearch* nnueSearch
   );
 
   void writeToZipFile(const std::string& fileName);
@@ -247,7 +248,7 @@ class TrainingDataWriter {
   TrainingDataWriter(const std::string& outputDir, std::ostream* debugOut, int inputsVersion, int maxRowsPerFile, double firstFileMinRandProp, int dataXLen, int dataYLen, int onlyWriteEvery, const std::string& randSeed);
   ~TrainingDataWriter();
 
-  void writeGame(const FinishedGameData& data);
+  void writeGame(const FinishedGameData& data, const NNUEV2::ModelWeight* nnueModel, NNUEHashTable* nnueCacheTable);
   void flushIfNonempty();
   bool flushIfNonempty(std::string& resultingFilename);
 

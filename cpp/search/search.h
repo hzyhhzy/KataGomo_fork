@@ -61,6 +61,9 @@ struct SearchThread {
   //Just controls some debug output
   std::set<Hash128> illegalMoveHashes;
 
+  //nnue
+  NNUE::MCTSsearch* nnueSearch;
+
   SearchThread(int threadIdx, const Search& search);
   ~SearchThread();
 

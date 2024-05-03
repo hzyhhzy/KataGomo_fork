@@ -360,9 +360,9 @@ void SelfplayManager::runDataWriteLoopImpl(ModelData* modelData) {
     assert(gameData != NULL);
 
     if(rand.nextBool(validationProp))
-      modelData->vdataWriter->writeGame(*gameData);
+      modelData->vdataWriter->writeGame(*gameData, modelData->nnEval->nnueModel, modelData->nnEval->nnueCacheTable);
     else
-      modelData->tdataWriter->writeGame(*gameData);
+      modelData->tdataWriter->writeGame(*gameData, modelData->nnEval->nnueModel, modelData->nnEval->nnueCacheTable);
 
     if(modelData->sgfOut != NULL) {
       assert(gameData->startHist.moveHistory.size() <= gameData->endHist.moveHistory.size());

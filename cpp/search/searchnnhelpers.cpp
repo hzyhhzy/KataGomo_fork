@@ -61,7 +61,8 @@ bool Search::initNodeNNOutput(
       nnEvaluator->evaluate(
         thread.board, thread.history, thread.pla,
         nnInputParams,
-        thread.nnResultBuf, skipCacheThisIteration
+        thread.nnResultBuf, skipCacheThisIteration,
+        thread.nnueSearch
       );
       ptrs.push_back(std::move(thread.nnResultBuf.result));
     }
@@ -71,7 +72,8 @@ bool Search::initNodeNNOutput(
     nnEvaluator->evaluate(
       thread.board, thread.history, thread.pla,
       nnInputParams,
-      thread.nnResultBuf, skipCache
+      thread.nnResultBuf, skipCache,
+      thread.nnueSearch
     );
     result = new std::shared_ptr<NNOutput>(std::move(thread.nnResultBuf.result));
   }

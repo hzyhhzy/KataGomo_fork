@@ -31,6 +31,11 @@ namespace NNUE
 
   enum MCTSsureResult : int16_t { MC_Win = 1, MC_LOSE = -1, MC_DRAW = 2, MC_UNCERTAIN = 0 };
   inline NU_Loc MakeLoc(int x, int y) { return NU_Loc(x + y * MaxBS); }
+  inline Loc NULoc2Loc(NU_Loc nl, int x_size) {
+    return nl == NU_LOC_PASS   ? Board::PASS_LOC
+           : nl == NU_LOC_NULL ? Board::NULL_LOC
+                               : Location::getLoc(nl % MaxBS, nl / MaxBS, x_size);
+  }
   inline std::string locstr(NU_Loc loc)
   {
     return std::string(1, char('A' + loc % MaxBS)) + std::to_string(int(MaxBS - loc / MaxBS));

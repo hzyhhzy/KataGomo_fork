@@ -38,6 +38,7 @@ struct MiscNNInputParams {
 
   bool useVCFInput = true;
   bool useForbiddenInput = true;
+  int nnueSearchN = 0;
 
   // If no symmetry is specified, it will use default or random based on config, unless node is already cached.
   int symmetry = NNInputs::SYMMETRY_NOTSPECIFIED;

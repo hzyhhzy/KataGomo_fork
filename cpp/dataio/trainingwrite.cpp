@@ -290,7 +290,8 @@ void TrainingWriteBuffers::addRow(
   bool isSidePosition,
   int numNeuralNetsBehindLatest,
   const FinishedGameData& data,
-  Rand& rand
+  Rand& rand,
+  NNUE::MCTSsearch* nnueSearch
 ) {
   (void)finalBoard;
   static_assert(NNModelVersion::latestInputsVersionImplemented == 102, "");
@@ -313,7 +314,7 @@ void TrainingWriteBuffers::addRow(
     nnInputParams.useVCFInput = rand.nextBool(TRAINING_DATA_VCF_PROB) && hist.rules.maxMoves == 0;
 
     GameLogic::ResultsBeforeNN resultsBeforeNN = GameLogic::ResultsBeforeNN();
-    resultsBeforeNN.init(board, hist, nextPlayer, nnInputParams.useVCFInput);
+    resultsBeforeNN.initRBN(board, hist, nextPlayer, nnInputParams.useVCFInput, nnInputParams.nnueSearchN, nnueSearch);
 
     bool inputsUseNHWC = false;
     float* rowGlobal = globalInputNC.data + curRows * numGlobalChannels;
@@ -763,7 +764,10 @@ bool TrainingDataWriter::flushIfNonempty(string& resultingFilename) {
   return true;
 }
 
-void TrainingDataWriter::writeGame(const FinishedGameData& data) {
+void TrainingDataWriter::writeGame(
+  const FinishedGameData& data,
+  const NNUEV2::ModelWeight* nnueModel,
+  NNUEHashTable* nnueCacheTable) {
   int numMoves = (int)(data.endHist.moveHistory.size() - data.startHist.moveHistory.size());
   assert(numMoves >= 0);
   assert(data.startHist.moveHistory.size() <= data.endHist.moveHistory.size());
@@ -776,6 +780,10 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
   assert(data.searchEntropyByTurn.size() == numMoves);
   assert(data.whiteValueTargetsByTurn.size() == numMoves+1);
   assert(data.nnRawStatsByTurn.size() == numMoves);
+
+  NNUE::MCTSsearch* nnueSearch = NULL;
+  if(nnueModel != NULL)
+    nnueSearch = new NNUE::MCTSsearch(nnueModel, nnueCacheTable);
 
   //Some sanity checks
   #ifndef NDEBUG
@@ -862,7 +870,8 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             isSidePosition,
             numNeuralNetsBehindLatest,
             data,
-            rand
+            rand,
+            nnueSearch
           );
           writeAndClearIfFull();
         }
@@ -913,7 +922,8 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             isSidePosition,
             numNeuralNetsBehindLatest,
             data,
-            rand
+            rand,
+            nnueSearch
           );
           writeAndClearIfFull();
         }
@@ -924,4 +934,6 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
 
   }
 
+  if(nnueSearch != NULL)
+    delete nnueSearch;
 }
