@@ -11,8 +11,10 @@
 
 #include "../NNUEglobal.h"
 
-
-struct MCTSnode;
+namespace NNUE
+{
+  struct MCTSnode;
+}
 
 class NNUEHashTable
 {
@@ -65,6 +67,6 @@ public:
   NNUEHashTable& operator=(const NNUEHashTable& other) = delete;
 
   // These are thread-safe. For get, ret will be set to nullptr upon a failure to find.
-  bool get(Hash128 hash, MCTSnode& node);
-  void set(Hash128 hash, const MCTSnode& node);
+  bool get(Hash128 hash, NNUE::MCTSnode& node);
+  void set(Hash128 hash, const NNUE::MCTSnode& node);
 };
