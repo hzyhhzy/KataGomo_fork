@@ -60,7 +60,7 @@ void FileUtils::open(ofstream& out, const string& filename, std::ios_base::openm
 std::string FileUtils::weaklyCanonical(const std::string& path) {
   gfs::path srcPath(gfs::u8path(path));
   try {
-    return gfs::weakly_canonical(srcPath).u8string();
+    return gfs::weakly_canonical(srcPath).string();
   }
   catch(const gfs::filesystem_error&) {
     return path;
@@ -286,9 +286,9 @@ void FileUtils::collectFiles(const string& dirname, std::function<bool(const str
     for(const gfs::directory_entry& entry: gfs::recursive_directory_iterator(gfs::u8path(dirname))) {
       if(!gfs::is_directory(entry.status())) {
         const gfs::path& path = entry.path();
-        string fileName = path.filename().u8string();
+        string fileName = path.filename().string();
         if(fileFilter(fileName)) {
-          collected.push_back(path.u8string());
+          collected.push_back(path.string());
         }
       }
     }

@@ -273,7 +273,7 @@ namespace {
         gfs::path dirPath = iter->path();
         if(gfs::is_directory(dirPath))
           continue;
-        string file = dirPath.u8string();
+        string file = dirPath.string();
         if(Global::isSuffix(file,".results.csv")) {
           vector<string> lines = FileUtils::readFileLines(file,'\n');
           for(int i = 0; i<lines.size(); i++) {

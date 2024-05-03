@@ -64,7 +64,7 @@ bool LoadModel::findLatestModel(const string& modelsDir, Logger& logger, string&
   gfs::path latestPath;
   for(const auto& dirEntry: gfs::recursive_directory_iterator(gfs::u8path(modelsDir))) {
     gfs::path filePath = dirEntry.path();
-    if(gfs::is_regular_file(filePath) && endsWithAnySuffix(filePath.filename().u8string(), ACCEPTABLE_MODEL_SUFFIXES)) {
+    if(gfs::is_regular_file(filePath) && endsWithAnySuffix(filePath.filename().string(), ACCEPTABLE_MODEL_SUFFIXES)) {
       gfs::file_time_type thisTime = gfs::last_write_time(filePath);
       if(!hasLatestTime || thisTime > latestTime) {
         hasLatestTime = true;
@@ -79,13 +79,13 @@ bool LoadModel::findLatestModel(const string& modelsDir, Logger& logger, string&
   modelDir = "/dev/null";
   modelTime = (std::time_t)(0);
   if(hasLatestTime) {
-    modelFile = latestPath.u8string();
-    modelDir = latestPath.parent_path().u8string();
-    if(contains(GENERIC_MODEL_NAMES, latestPath.filename().u8string())) {
-      modelName = latestPath.parent_path().filename().u8string();
+    modelFile = latestPath.string();
+    modelDir = latestPath.parent_path().string();
+    if(contains(GENERIC_MODEL_NAMES, latestPath.filename().string())) {
+      modelName = latestPath.parent_path().filename().string();
     }
     else {
-      modelName = latestPath.filename().u8string();
+      modelName = latestPath.filename().string();
     }
     modelTime = to_time_t(latestTime);
   }
@@ -111,7 +111,7 @@ void LoadModel::deleteModelsOlderThan(const string& modelsDir, Logger& logger, c
     gfs::path filePath = iter->path();
     if(gfs::is_directory(filePath))
       continue;
-    string filePathStr = filePath.u8string();
+    string filePathStr = filePath.string();
     if(Global::isSuffix(filePathStr,".bin.gz") ||
        Global::isSuffix(filePathStr,".txt.gz") ||
        Global::isSuffix(filePathStr,".bin") ||
@@ -124,12 +124,12 @@ void LoadModel::deleteModelsOlderThan(const string& modelsDir, Logger& logger, c
   }
 
   for(size_t i = 0; i<pathsToRemove.size(); i++) {
-    logger.write("Deleting old unused model file: " + pathsToRemove[i].u8string());
+    logger.write("Deleting old unused model file: " + pathsToRemove[i].string());
     try {
       gfs::remove(pathsToRemove[i]);
     }
     catch(gfs::filesystem_error& e) {
-      logger.write("Warning: could not delete " + pathsToRemove[i].u8string() + ": " + e.what());
+      logger.write("Warning: could not delete " + pathsToRemove[i].string() + ": " + e.what());
     }
   }
 

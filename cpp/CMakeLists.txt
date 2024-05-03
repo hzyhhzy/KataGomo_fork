@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.18.2)
 project(katago)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 20)
 
 include_directories(external)
 include_directories(external/tclap-1.2.2/include)
@@ -248,6 +248,15 @@ add_executable(katago
   forbiddenPoint/ForbiddenPointFinder.cpp
   vcfsolver/VCFsolver.cpp
   vcfsolver/VCFHashTable.cpp
+  nnue/Eva_nnuev2.cpp
+  nnue/Evaluator.cpp
+  nnue/ExtraStates.cpp  
+  nnue/MCTSsearch.cpp
+  nnue/NNUEglobal.cpp
+  nnue/utils.cpp
+  nnue/VCF/VCFsolver.cpp
+  nnue/HashTable/NNUEHashTable.cpp
+  nnue/HashTable/VCFHashTable.cpp
   main.cpp
   )
 
