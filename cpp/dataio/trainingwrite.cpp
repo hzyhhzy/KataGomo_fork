@@ -311,7 +311,9 @@ void TrainingWriteBuffers::addRow(
 
     nnInputParams.useForbiddenInput = rand.nextBool(TRAINING_DATA_FORBIDDEN_FEATURE_PROB);
     nnInputParams.useVCFInput = rand.nextBool(TRAINING_DATA_VCF_PROB) && hist.rules.maxMoves == 0;
-    nnInputParams.resultsBeforeNN.init(board, hist, nextPlayer, nnInputParams.useVCFInput);
+
+    GameLogic::ResultsBeforeNN resultsBeforeNN = GameLogic::ResultsBeforeNN();
+    resultsBeforeNN.init(board, hist, nextPlayer, nnInputParams.useVCFInput);
 
     bool inputsUseNHWC = false;
     float* rowGlobal = globalInputNC.data + curRows * numGlobalChannels;
@@ -319,19 +321,20 @@ void TrainingWriteBuffers::addRow(
     if(inputsVersion == 7) {
       assert(NNInputs::NUM_FEATURES_SPATIAL_V7 == numBinaryChannels);
       assert(NNInputs::NUM_FEATURES_GLOBAL_V7 == numGlobalChannels);
-      NNInputs::fillRowV7(board, hist, nextPlayer, nnInputParams, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
+      NNInputs::fillRowV7(
+        board, hist, nextPlayer, nnInputParams, resultsBeforeNN, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
     } 
     else if(inputsVersion == 101) {
       assert(NNInputs::NUM_FEATURES_SPATIAL_V101 == numBinaryChannels);
       assert(NNInputs::NUM_FEATURES_GLOBAL_V101 == numGlobalChannels);
       NNInputs::fillRowV101(
-        board, hist, nextPlayer, nnInputParams, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
+        board, hist, nextPlayer, nnInputParams, resultsBeforeNN, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
     } 
     else if(inputsVersion == 102) {
       assert(NNInputs::NUM_FEATURES_SPATIAL_V102 == numBinaryChannels);
       assert(NNInputs::NUM_FEATURES_GLOBAL_V102 == numGlobalChannels);
       NNInputs::fillRowV102(
-        board, hist, nextPlayer, nnInputParams, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
+        board, hist, nextPlayer, nnInputParams, resultsBeforeNN, dataXLen, dataYLen, inputsUseNHWC, rowBin, rowGlobal);
     }
     else
       ASSERT_UNREACHABLE;

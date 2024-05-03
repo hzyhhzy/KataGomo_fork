@@ -66,5 +66,5 @@ public:
 
   // These are thread-safe. For get, ret will be set to nullptr upon a failure to find.
   bool get(Hash128 hash, MCTSnode& node);
-  void    set(Hash128 hash, const MCTSnode& node);
+  void set(Hash128 hash, const MCTSnode& node);
 };

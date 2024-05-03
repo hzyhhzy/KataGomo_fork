@@ -228,6 +228,18 @@ void MCTSsearch::clearBoard()
   rootNode = NULL;
 }
 
+void MCTSsearch::setBoard(const Board& board) {
+  clearBoard();
+  if(board.x_size != MaxBS || board.y_size != MaxBS)
+    throw StringError("NNUE only support fixed board size");
+  for(int y = 0; y < MaxBS; y++)
+    for(int x = 0; x < MaxBS; x++) {
+      Color color = board.colors[Location::getLoc(x,y,board.x_size)];
+      if(color == C_BLACK || color == C_WHITE)
+        play(color, MakeLoc(x, y));
+    }
+}
+
 void MCTSsearch::loadParamFile(std::string filename)
 {
   using namespace std;

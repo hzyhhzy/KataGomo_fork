@@ -286,6 +286,12 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       setupFor == SETUP_FOR_MATCH ? 17 :
       setupFor == SETUP_FOR_ANALYSIS ? 17 :
       cfg.getInt("nnMutexPoolSizePowerOfTwo", -1, 24);
+    
+    int nnueCacheSizePowerOfTwo =
+      cfg.contains("nnueCacheSizePowerOfTwo") ? cfg.getInt("nnueCacheSizePowerOfTwo", -1, 48) : 25;
+
+    int nnueMutexPoolSizePowerOfTwo =
+      cfg.contains("nnueMutexPoolSizePowerOfTwo") ? cfg.getInt("nnueMutexPoolSizePowerOfTwo", -1, 24) : 18;
 
 #ifndef USE_EIGEN_BACKEND
     int nnMaxBatchSize;
@@ -327,6 +333,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       inputsUseNHWC,
       nnCacheSizePowerOfTwo,
       nnMutexPoolSizePowerOfTwo,
+      nnueCacheSizePowerOfTwo,
+      nnueMutexPoolSizePowerOfTwo,
       debugSkipNeuralNet,
       openCLTunerFile,
       homeDataDirOverride,

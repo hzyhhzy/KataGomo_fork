@@ -12,6 +12,7 @@
 #include "../neuralnet/nninputs.h"
 #include "../neuralnet/nninterface.h"
 #include "../search/mutexpool.h"
+#include "../nnue/MCTSsearch.h"
 
 class NNEvaluator;
 
@@ -89,6 +90,8 @@ class NNEvaluator {
     bool inputsUseNHWC,
     int nnCacheSizePowerOfTwo,
     int nnMutexPoolSizePowerofTwo,
+    int nnueCacheSizePowerOfTwo,
+    int nnueMutexPoolSizePowerofTwo,
     bool debugSkipNeuralNet,
     const std::string& openCLTunerFile,
     const std::string& homeDataDirOverride,
@@ -239,6 +242,11 @@ class NNEvaluator {
   int m_currentResultBufsLen; //Number of rows used in in the latest (not yet full) resultBufss.
   int m_currentResultBufsIdx; //Index of the current resultBufs being filled.
   int m_oldestResultBufsIdx; //Index of the oldest resultBufs that still needs to be processed by a server thread
+
+  //NNUE module
+  NNUEV2::ModelWeight* nnueModel;
+  NNUEHashTable* nnueCacheTable;
+
 
  public:
   //Helper, for internal use only

@@ -483,6 +483,7 @@ Hash128 NNInputs::getHash(
 void NNInputs::fillRowV7(
   const Board& board, const BoardHistory& hist, Player nextPlayer,
   const MiscNNInputParams& nnInputParams,
+  GameLogic::ResultsBeforeNN& resultsBeforeNN,
   int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
 ) {
   assert(nnXLen <= NNPos::MAX_BOARD_LEN);
@@ -508,7 +509,6 @@ void NNInputs::fillRowV7(
     posStride = 1;
   }
 
-  GameLogic::ResultsBeforeNN resultsBeforeNN = nnInputParams.resultsBeforeNN;
   if(!resultsBeforeNN.inited) {
     resultsBeforeNN.init(board, hist, nextPlayer, nnInputParams.useVCFInput);
   }
@@ -624,6 +624,7 @@ void NNInputs::fillRowV101(
   const BoardHistory& hist,
   Player nextPlayer,
   const MiscNNInputParams& nnInputParams,
+  GameLogic::ResultsBeforeNN& resultsBeforeNN,
   int nnXLen,
   int nnYLen,
   bool useNHWC,
@@ -651,7 +652,6 @@ void NNInputs::fillRowV101(
     posStride = 1;
   }
 
-  GameLogic::ResultsBeforeNN resultsBeforeNN = nnInputParams.resultsBeforeNN;
   if(!resultsBeforeNN.inited) {
     resultsBeforeNN.init(board, hist, nextPlayer, nnInputParams.useVCFInput);
   }
@@ -859,6 +859,7 @@ void NNInputs::fillRowV102(
   const BoardHistory& hist,
   Player nextPlayer,
   const MiscNNInputParams& nnInputParams,
+  GameLogic::ResultsBeforeNN& resultsBeforeNN,
   int nnXLen,
   int nnYLen,
   bool useNHWC,
@@ -886,7 +887,6 @@ void NNInputs::fillRowV102(
     posStride = 1;
   }
 
-  GameLogic::ResultsBeforeNN resultsBeforeNN = nnInputParams.resultsBeforeNN;
   if(!resultsBeforeNN.inited) {
     resultsBeforeNN.init(board, hist, nextPlayer, nnInputParams.useVCFInput);
   }

@@ -76,8 +76,9 @@ public:
   MCTSsearch(const NNUEV2::ModelWeight* w, NNUEHashTable* ht, MCTSsearch::Param p);
   float    fullsearch(Color color, double factor, NU_Loc &bestmove);
   void play(Color color, NU_Loc loc);
-  void undo( NU_Loc loc);
-  void clearBoard(); 
+  void undo(NU_Loc loc);
+  void clearBoard();
+  void setBoard(const Board& board); 
 
   NU_Loc bestRootMove() const;
   float getRootValue() const;

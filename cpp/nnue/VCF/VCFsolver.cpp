@@ -3,7 +3,7 @@
 #include <random>
 using namespace NNUE;
 using namespace VCF_NNUE;
-VCFHashTable_NNUE VCFsolver_NNUE::hashtable(20, 5);//如果要多线程，可以把第二个数改大
+VCFHashTable_NNUE VCFsolver_NNUE::hashtable(25, 19);//如果要多线程，可以把第二个数改大
 VCF_NNUE::zobristTable VCFsolver_NNUE::zobrist(1919810);
 
 VCF_NNUE::zobristTable::zobristTable(int64_t seed)

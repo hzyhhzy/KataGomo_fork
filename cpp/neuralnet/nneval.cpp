@@ -67,6 +67,8 @@ NNEvaluator::NNEvaluator(
   bool iUseNHWC,
   int nnCacheSizePowerOfTwo,
   int nnMutexPoolSizePowerofTwo,
+  int nnueCacheSizePowerOfTwo,
+  int nnueMutexPoolSizePowerofTwo,
   bool skipNeuralNet,
   const string& openCLTunerFile,
   const string& homeDataDirOverride,
@@ -151,6 +153,9 @@ NNEvaluator::NNEvaluator(
   if(nnCacheSizePowerOfTwo >= 0)
     nnCacheTable = new NNCacheTable(nnCacheSizePowerOfTwo, nnMutexPoolSizePowerofTwo);
 
+  if(nnueCacheSizePowerOfTwo >= 0)
+    nnueCacheTable = new NNUEHashTable(nnueCacheSizePowerOfTwo, nnueMutexPoolSizePowerofTwo);
+
   if(!debugSkipNeuralNet) {
     vector<int> gpuIdxs = gpuIdxByServerThread;
     std::sort(gpuIdxs.begin(), gpuIdxs.end());
@@ -198,6 +203,8 @@ NNEvaluator::~NNEvaluator() {
   loadedModel = NULL;
 
   delete nnCacheTable;
+  if(nnueCacheTable != NULL)
+    delete nnueCacheTable;
 }
 
 string NNEvaluator::getModelName() const {
@@ -307,6 +314,9 @@ void NNEvaluator::clearStats() {
 void NNEvaluator::clearCache() {
   if(nnCacheTable != NULL)
     nnCacheTable->clear();
+  //clear nnue cache is meaningless
+  //if(nnueCacheTable != NULL)
+  //  nnueCacheTable->;
 }
 
 
@@ -623,8 +633,8 @@ void NNEvaluator::evaluate(
   buf.boardXSizeForServer = board.x_size;
   buf.boardYSizeForServer = board.y_size;
 
-  MiscNNInputParams nnInputParamsWithResultsBeforeNN = nnInputParams;
-  nnInputParamsWithResultsBeforeNN.resultsBeforeNN.init(board, history, nextPlayer, nnInputParams.useVCFInput);
+  GameLogic::ResultsBeforeNN resultsBeforeNN;
+  resultsBeforeNN.init(board, history, nextPlayer, nnInputParams.useVCFInput);
 
   if(!debugSkipNeuralNet) {
     int rowSpatialLen = NNModelVersion::getNumSpatialFeatures(modelVersion) * nnXLen * nnYLen;
@@ -649,11 +659,11 @@ void NNEvaluator::evaluate(
 
     static_assert(NNModelVersion::latestInputsVersionImplemented == 102, "");
     if(inputsVersion == 7)
-      NNInputs::fillRowV7(board, history, nextPlayer, nnInputParamsWithResultsBeforeNN, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
+      NNInputs::fillRowV7(board, history, nextPlayer, nnInputParams, resultsBeforeNN, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
     else if(inputsVersion == 101)
-      NNInputs::fillRowV101(board, history, nextPlayer, nnInputParamsWithResultsBeforeNN, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
+      NNInputs::fillRowV101(board, history, nextPlayer, nnInputParams, resultsBeforeNN, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
     else if(inputsVersion == 102)
-      NNInputs::fillRowV102(board, history, nextPlayer, nnInputParamsWithResultsBeforeNN, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
+      NNInputs::fillRowV102(board, history, nextPlayer, nnInputParams, resultsBeforeNN, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatial, buf.rowGlobal);
     else
       ASSERT_UNREACHABLE;
   }
@@ -702,7 +712,6 @@ void NNEvaluator::evaluate(
     bool isLegal[NNPos::MAX_NN_POLICY_SIZE];
     int legalCount = 0;
 
-    const GameLogic::ResultsBeforeNN& resultsBeforeNN = nnInputParamsWithResultsBeforeNN.resultsBeforeNN;
     if(resultsBeforeNN.myOnlyLoc == Board::NULL_LOC) {
       for(int i = 0; i < policySize; i++) {
         Loc loc = NNPos::posToLoc(i, xSize, ySize, nnXLen, nnYLen);
