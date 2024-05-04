@@ -42,6 +42,7 @@ bool Search::initNodeNNOutput(
   nnInputParams.useForbiddenInput = searchParams.useForbiddenInput;
   nnInputParams.useVCFInput = searchParams.useVCFInput && thread.history.rules.maxMoves == 0;
   nnInputParams.nnPolicyTemperature = searchParams.nnPolicyTemperature;
+  nnInputParams.nnueSearchN = 100;
   if(searchParams.playoutDoublingAdvantage != 0) {
     Player playoutDoublingAdvantagePla = getPlayoutDoublingAdvantagePla();
     nnInputParams.playoutDoublingAdvantage = (

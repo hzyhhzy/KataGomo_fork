@@ -760,6 +760,30 @@ void NNEvaluator::evaluate(
       policySum += policy[i];
     }
 
+    if(
+      nnueSearch->rootNode != NULL && nnueSearch->rootNode->visits >= 1 &&
+      nnueSearch->rootNode->sureResult == NNUE::MC_UNCERTAIN) 
+    {
+      for(int i = 0; i < policySize; i++) {
+        policy[i] = 0;
+      }
+      policySum = 0.0f;
+      auto& r = nnueSearch->rootNode;
+      for(int i = 0; i < r->legalChildrennum; i++) {
+        auto& ch = r->children[i];
+        if(ch.ptr != NULL) {
+          policy[ch.loc] = float(ch.ptr->visits) / r->visits;
+        }
+        else
+        {
+          policy[ch.loc] = float(ch.policy) / NNUE::policyQuant;
+        }
+        policySum += policy[ch.loc];
+      }
+    }
+
+
+
     if(!isfinite(policySum)) {
       cout << "Got nonfinite for policy sum" << endl;
       history.printDebugInfo(cout,board);
@@ -826,6 +850,11 @@ void NNEvaluator::evaluate(
           winProb = exp(winLogits - maxLogits);
           lossProb = exp(lossLogits - maxLogits);
           noResultProb = exp(noResultLogits - maxLogits);
+          if (nnueSearch->rootNode != NULL) {
+            winProb = nnueSearch->rootNode->WRtotal.win;
+            lossProb = nnueSearch->rootNode->WRtotal.loss;
+            noResultProb = nnueSearch->rootNode->WRtotal.draw;
+          }
 
         } 
        
