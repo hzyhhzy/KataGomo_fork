@@ -479,6 +479,9 @@ Hash128 NNInputs::getHash(
     hash.hash0 += hash.hash1;
   }
 
+  if(nnInputParams.nnueSearchOverridePolicy)
+    hash ^= Hash128(0xdcf0205c07f05134ULL, 0x6bb55f24d323e505ULL);
+ 
   return hash;
 }
 

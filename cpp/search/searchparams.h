@@ -84,6 +84,9 @@ struct SearchParams {
   bool useVCFInput;        // whether calculate VCF
   bool useForbiddenInput;  // whether use forbiddenPoints feature
 
+  int nnueSearchN;  // num of nnue search nodes
+  bool nnueSearchOverridePolicy;  // whether use search visits to replace policy
+
 
   double subtreeValueBiasFactor; //Dynamically adjust neural net utilties based on empirical stats about their errors in search
   int32_t subtreeValueBiasTableNumShards; //Number of shards for subtreeValueBiasFactor for initial hash lookup and mutexing

@@ -761,6 +761,7 @@ void NNEvaluator::evaluate(
     }
 
     if(
+      nnueSearch != NULL && 
       nnueSearch->rootNode != NULL && nnueSearch->rootNode->visits >= 1 &&
       nnueSearch->rootNode->sureResult == NNUE::MC_UNCERTAIN) 
     {
@@ -771,7 +772,7 @@ void NNEvaluator::evaluate(
       auto& r = nnueSearch->rootNode;
       for(int i = 0; i < r->legalChildrennum; i++) {
         auto& ch = r->children[i];
-        if(ch.ptr != NULL) {
+        if(ch.ptr != NULL && nnInputParams.nnueSearchOverridePolicy) {
           policy[ch.loc] = float(ch.ptr->visits) / r->visits;
         }
         else
@@ -850,7 +851,7 @@ void NNEvaluator::evaluate(
           winProb = exp(winLogits - maxLogits);
           lossProb = exp(lossLogits - maxLogits);
           noResultProb = exp(noResultLogits - maxLogits);
-          if (nnueSearch->rootNode != NULL) {
+          if(nnueSearch != NULL && nnueSearch->rootNode != NULL) {
             winProb = nnueSearch->rootNode->WRtotal.win;
             lossProb = nnueSearch->rootNode->WRtotal.loss;
             noResultProb = nnueSearch->rootNode->WRtotal.draw;

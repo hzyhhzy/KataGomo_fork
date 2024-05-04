@@ -288,8 +288,8 @@ void GameLogic::ResultsBeforeNN::initRBN(
     throw StringError("ResultBeforeNN::init() can not support VCN and maxMoves simutaneously");
   bool willCalculateNNUE = nnueSearchN > 0;
   bool willCalculateVCF = hasVCF && hist.rules.maxMoves == 0;
-  if(inited && (calculatedVCF || (!willCalculateVCF)) && (calculatedNNUE || (!willCalculateNNUE)))
-    return;
+  if(inited)
+    throw StringError("ResultBeforeNN::init() is inited repeatly");
   inited = true;
 
   Color opp = getOpp(nextPlayer);
@@ -375,11 +375,19 @@ void GameLogic::ResultsBeforeNN::initRBN(
       throw StringError("ResultBeforeNN::init() nnueSearchN>0 but nnueSearch is null");
     nnueSearch->setBoard(board);
     NU_Loc nuBestLoc;
-    nnueSearch->fullsearch(nextPlayer, nnueSearchN, nuBestLoc);
+    float value = nnueSearch->fullsearch(nextPlayer, nnueSearchN, nuBestLoc);
     nnueBestLoc = NNUE::NULoc2Loc(nuBestLoc, board.x_size);
 
-    if(nnueSearch->rootNode == NULL)
+    if(nnueSearch->rootNode == NULL) {
+      if (value == 1.0) //probably VCF win
+      {
+        winner = nextPlayer;
+        myOnlyLoc = NNUE::NULoc2Loc(nuBestLoc,board.x_size);
+        return;
+      }
+      //Board::printBoard(cout, board, Board::NULL_LOC, NULL);
       throw StringError("Failed to search nnue");
+    }
     const NNUE::MCTSnode& root = *nnueSearch->rootNode;
     nnueVisitsTotal = root.visits;
     if(nnueVisitsTotal <= 0)

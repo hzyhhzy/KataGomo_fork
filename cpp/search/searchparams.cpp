@@ -58,6 +58,8 @@ SearchParams::SearchParams()
    nnPolicyTemperature(1.0f),
    useVCFInput(true),
    useForbiddenInput(true),
+   nnueSearchN(0),
+   nnueSearchOverridePolicy(false),
    subtreeValueBiasFactor(0.0),
    subtreeValueBiasTableNumShards(65536),
    subtreeValueBiasFreeProp(0.8),

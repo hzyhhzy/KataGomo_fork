@@ -624,6 +624,7 @@ vector<SearchParams> Setup::loadParams(
     else
       params.useVCFInput = true;
 
+
     if(cfg.contains("useForbiddenInput" + idxStr))
       params.useForbiddenInput = cfg.getBool("useForbiddenInput" + idxStr);
     else if(cfg.contains("useForbiddenInput"))
@@ -631,6 +632,19 @@ vector<SearchParams> Setup::loadParams(
     else
       params.useForbiddenInput = true;
 
+    if(cfg.contains("nnueSearchN" + idxStr))
+      params.nnueSearchN = cfg.getInt("nnueSearchN" + idxStr, 0, 100000000);
+    else if(cfg.contains("nnueSearchN"))
+      params.nnueSearchN = cfg.getInt("nnueSearchN", 0, 100000000);
+    else
+      params.nnueSearchN = 0;
+
+    if(cfg.contains("nnueSearchOverridePolicy" + idxStr))
+      params.nnueSearchOverridePolicy = cfg.getBool("nnueSearchOverridePolicy" + idxStr);
+    else if(cfg.contains("nnueSearchOverridePolicy"))
+      params.nnueSearchOverridePolicy = cfg.getBool("nnueSearchOverridePolicy");
+    else
+      params.nnueSearchOverridePolicy = true;
 
     if(cfg.contains("subtreeValueBiasFactor"+idxStr)) params.subtreeValueBiasFactor = cfg.getDouble("subtreeValueBiasFactor"+idxStr, 0.0, 1.0);
     else if(cfg.contains("subtreeValueBiasFactor")) params.subtreeValueBiasFactor = cfg.getDouble("subtreeValueBiasFactor", 0.0, 1.0);
