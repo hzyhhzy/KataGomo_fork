@@ -160,7 +160,7 @@ float MCTSsearch::fullsearch(Color color, double factor, NU_Loc& bestmove)
   {
     rootNode=new MCTSnode(this, color,params.policyTemp);
   }
-  search(rootNode, option.maxNodes, true);
+  search(rootNode, option.maxNodes - 1, true);
   bestmove = bestRootMove();
   return getRootValue();
 }
@@ -325,7 +325,7 @@ void MCTSsearch::undoForSearch(NU_Loc loc)
 
 MCTSsearch::SearchResult MCTSsearch::search(MCTSnode* node, uint64_t remainVisits, bool isRoot)
 {
-  if (remainVisits == 0)remainVisits = INT64_MAX;
+  //if (remainVisits == 0)remainVisits = INT64_MAX;
 
   //正常情况是一次playout一个visit，为了降低开销直接让visit变成（1+expandFactor）倍，新增expandFactor倍的visit
   if (!isRoot)remainVisits = std::min(remainVisits, uint64_t(params.expandFactor * double(node->visits))+1);
