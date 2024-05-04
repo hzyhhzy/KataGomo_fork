@@ -58,6 +58,7 @@ SearchParams::SearchParams()
    nnPolicyTemperature(1.0f),
    useVCFInput(true),
    useForbiddenInput(true),
+   nnueSearchN(0),
    subtreeValueBiasFactor(0.0),
    subtreeValueBiasTableNumShards(65536),
    subtreeValueBiasFreeProp(0.8),
@@ -216,6 +217,7 @@ void SearchParams::printParams(std::ostream& out) {
   PRINTPARAM(avoidRepeatedPatternUtility);
 
   PRINTPARAM(nnPolicyTemperature);
+  PRINTPARAM(nnueSearchN);
 
   PRINTPARAM(subtreeValueBiasFactor);
   PRINTPARAM(subtreeValueBiasTableNumShards);

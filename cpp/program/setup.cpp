@@ -631,6 +631,12 @@ vector<SearchParams> Setup::loadParams(
     else
       params.useForbiddenInput = true;
 
+    if(cfg.contains("nnueSearchN" + idxStr))
+      params.nnueSearchN = cfg.getInt("nnueSearchN" + idxStr, 0, 100000000);
+    else if(cfg.contains("nnueSearchN"))
+      params.nnueSearchN = cfg.getInt("nnueSearchN", 0, 100000000);
+    else
+      params.nnueSearchN = 0;
 
     if(cfg.contains("subtreeValueBiasFactor"+idxStr)) params.subtreeValueBiasFactor = cfg.getDouble("subtreeValueBiasFactor"+idxStr, 0.0, 1.0);
     else if(cfg.contains("subtreeValueBiasFactor")) params.subtreeValueBiasFactor = cfg.getDouble("subtreeValueBiasFactor", 0.0, 1.0);

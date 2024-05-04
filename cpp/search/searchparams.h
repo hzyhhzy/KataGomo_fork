@@ -84,6 +84,8 @@ struct SearchParams {
   bool useVCFInput;        // whether calculate VCF
   bool useForbiddenInput;  // whether use forbiddenPoints feature
 
+  int nnueSearchN; //how many MCTS nodes of NNUE for one nneval. 
+
 
   double subtreeValueBiasFactor; //Dynamically adjust neural net utilties based on empirical stats about their errors in search
   int32_t subtreeValueBiasTableNumShards; //Number of shards for subtreeValueBiasFactor for initial hash lookup and mutexing

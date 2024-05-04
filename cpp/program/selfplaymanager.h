@@ -11,6 +11,7 @@ class SelfplayManager {
  public:
   SelfplayManager(
     double validationProp,
+    TrainingWriteParams wp,
     int maxDataQueueSize,
     Logger* logger,
     int64_t logGamesEvery,
@@ -109,6 +110,7 @@ class SelfplayManager {
 
  private:
   const double validationProp;
+  TrainingWriteParams writeParams;
   const int maxDataQueueSize;
   Logger* logger;
   const int64_t logGamesEvery;

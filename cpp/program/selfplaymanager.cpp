@@ -34,12 +34,14 @@ SelfplayManager::ModelData::~ModelData() {
 
 SelfplayManager::SelfplayManager(
   double vProp,
+  TrainingWriteParams wp,
   int maxDQueueSize,
   Logger* lg,
   int64_t logEvery,
   bool autoCleanup
 ):
   validationProp(vProp),
+  writeParams(wp),
   maxDataQueueSize(maxDQueueSize),
   logger(lg),
   logGamesEvery(logEvery),
@@ -360,9 +362,9 @@ void SelfplayManager::runDataWriteLoopImpl(ModelData* modelData) {
     assert(gameData != NULL);
 
     if(rand.nextBool(validationProp))
-      modelData->vdataWriter->writeGame(*gameData, modelData->nnEval->nnueModel, modelData->nnEval->nnueCacheTable);
+      modelData->vdataWriter->writeGame(*gameData, modelData->nnEval->nnueModel, modelData->nnEval->nnueCacheTable, writeParams);
     else
-      modelData->tdataWriter->writeGame(*gameData, modelData->nnEval->nnueModel, modelData->nnEval->nnueCacheTable);
+      modelData->tdataWriter->writeGame(*gameData, modelData->nnEval->nnueModel, modelData->nnEval->nnueCacheTable, writeParams);
 
     if(modelData->sgfOut != NULL) {
       assert(gameData->startHist.moveHistory.size() <= gameData->endHist.moveHistory.size());

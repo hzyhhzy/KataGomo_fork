@@ -291,6 +291,7 @@ void TrainingWriteBuffers::addRow(
   int numNeuralNetsBehindLatest,
   const FinishedGameData& data,
   Rand& rand,
+  TrainingWriteParams param,
   NNUE::MCTSsearch* nnueSearch
 ) {
   (void)finalBoard;
@@ -310,8 +311,23 @@ void TrainingWriteBuffers::addRow(
     if(!isSidePosition)
       nnInputParams.playoutDoublingAdvantage = getOpp(nextPlayer) == data.playoutDoublingAdvantagePla ? -data.playoutDoublingAdvantage : data.playoutDoublingAdvantage;
 
-    nnInputParams.useForbiddenInput = rand.nextBool(TRAINING_DATA_FORBIDDEN_FEATURE_PROB);
-    nnInputParams.useVCFInput = rand.nextBool(TRAINING_DATA_VCF_PROB) && hist.rules.maxMoves == 0;
+    nnInputParams.useForbiddenInput = rand.nextBool(param.forbiddenFeatureProb);
+    nnInputParams.useVCFInput = rand.nextBool(param.vcfFeatureProb) && hist.rules.maxMoves == 0;
+    if(rand.nextBool(param.nnueFeatureProb)) {
+      double d = 0;
+      for(int i = 0; i < 4; i++) {
+        d += 1 / (1e-6 + sqrt(rand.nextDouble())) - 1;
+      }
+      nnInputParams.nnueSearchN = d * param.nnueMeanSearchN / 4;
+      if(nnInputParams.nnueSearchN > 10000000)
+        nnInputParams.nnueSearchN = 10000000;
+      if(nnInputParams.nnueSearchN < 10)
+        nnInputParams.nnueSearchN = 10;
+    } 
+    else
+    {
+      nnInputParams.nnueSearchN = 0;
+    }
 
     GameLogic::ResultsBeforeNN resultsBeforeNN = GameLogic::ResultsBeforeNN();
     resultsBeforeNN.initRBN(board, hist, nextPlayer, nnInputParams.useVCFInput, nnInputParams.nnueSearchN, nnueSearch);
@@ -767,7 +783,8 @@ bool TrainingDataWriter::flushIfNonempty(string& resultingFilename) {
 void TrainingDataWriter::writeGame(
   const FinishedGameData& data,
   const NNUEV2::ModelWeight* nnueModel,
-  NNUEHashTable* nnueCacheTable) {
+  NNUEHashTable* nnueCacheTable,
+  TrainingWriteParams writeParams) {
   int numMoves = (int)(data.endHist.moveHistory.size() - data.startHist.moveHistory.size());
   assert(numMoves >= 0);
   assert(data.startHist.moveHistory.size() <= data.endHist.moveHistory.size());
@@ -871,6 +888,7 @@ void TrainingDataWriter::writeGame(
             numNeuralNetsBehindLatest,
             data,
             rand,
+            writeParams,
             nnueSearch
           );
           writeAndClearIfFull();
@@ -923,6 +941,7 @@ void TrainingDataWriter::writeGame(
             numNeuralNetsBehindLatest,
             data,
             rand,
+            writeParams,
             nnueSearch
           );
           writeAndClearIfFull();

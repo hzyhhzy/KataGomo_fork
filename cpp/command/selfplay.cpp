@@ -107,11 +107,17 @@ int MainCmds::selfplay(const vector<string>& args) {
   const bool switchNetsMidGame = cfg.getBool("switchNetsMidGame");
   const SearchParams baseParams = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_OTHER);
 
+  TrainingWriteParams writeParams;
+  writeParams.forbiddenFeatureProb = cfg.getDouble("forbiddenFeatureProb", 0.0, 1.0);
+  writeParams.vcfFeatureProb = cfg.getDouble("vcfFeatureProb", 0.0, 1.0);
+  writeParams.nnueFeatureProb = cfg.getDouble("nnueFeatureProb", 0.0, 1.0);
+  writeParams.nnueMeanSearchN = cfg.getDouble("nnueMeanSearchN", 5, 1e8);
+
   //Initialize object for randomizing game settings and running games
   PlaySettings playSettings = PlaySettings::loadForSelfplay(cfg);
   GameRunner* gameRunner = new GameRunner(cfg, playSettings, logger);
   bool autoCleanupAllButLatestIfUnused = true;
-  SelfplayManager* manager = new SelfplayManager(validationProp, maxDataQueueSize, &logger, logGamesEvery, autoCleanupAllButLatestIfUnused);
+  SelfplayManager* manager = new SelfplayManager(validationProp, writeParams, maxDataQueueSize, &logger, logGamesEvery, autoCleanupAllButLatestIfUnused);
 
   const int minBoardXSizeUsed = gameRunner->getGameInitializer()->getMinBoardXSize();
   const int minBoardYSizeUsed = gameRunner->getGameInitializer()->getMinBoardYSize();

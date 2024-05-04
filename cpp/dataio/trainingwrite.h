@@ -19,6 +19,13 @@ struct ValueTargets {
   ~ValueTargets();
 };
 
+struct TrainingWriteParams {
+  double forbiddenFeatureProb;
+  double vcfFeatureProb;
+  double nnueFeatureProb;
+  double nnueMeanSearchN;
+};
+
 //Some basic extra stats to record outputted data about the neural net's raw evaluation on the position.
 struct NNRawStats {
   double whiteWinLoss;
@@ -233,6 +240,7 @@ struct TrainingWriteBuffers {
     int numNeuralNetsBehindLatest,
     const FinishedGameData& data,
     Rand& rand,
+    TrainingWriteParams param,
     NNUE::MCTSsearch* nnueSearch
   );
 
@@ -248,7 +256,11 @@ class TrainingDataWriter {
   TrainingDataWriter(const std::string& outputDir, std::ostream* debugOut, int inputsVersion, int maxRowsPerFile, double firstFileMinRandProp, int dataXLen, int dataYLen, int onlyWriteEvery, const std::string& randSeed);
   ~TrainingDataWriter();
 
-  void writeGame(const FinishedGameData& data, const NNUEV2::ModelWeight* nnueModel, NNUEHashTable* nnueCacheTable);
+  void writeGame(
+    const FinishedGameData& data,
+    const NNUEV2::ModelWeight* nnueModel,
+    NNUEHashTable* nnueCacheTable,
+    TrainingWriteParams writeParams);
   void flushIfNonempty();
   bool flushIfNonempty(std::string& resultingFilename);
 
