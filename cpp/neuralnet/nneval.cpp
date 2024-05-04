@@ -645,7 +645,12 @@ void NNEvaluator::evaluate(
 
   GameLogic::ResultsBeforeNN resultsBeforeNN;
   resultsBeforeNN.initRBN(board, history, nextPlayer, nnInputParams.useVCFInput, nnInputParams.nnueSearchN, nnueSearch);
-
+  if(resultsBeforeNN.winner == C_WALL && nnInputParams.nnueSearchN > 0) {
+    if(!resultsBeforeNN.calculatedNNUE)
+      throw StringError("nnue search should be done");
+    if(nnueSearch->rootNode == NULL)
+      throw StringError("nnue root node should not be null");
+  }
   if(!debugSkipNeuralNet) {
     int rowSpatialLen = NNModelVersion::getNumSpatialFeatures(modelVersion) * nnXLen * nnYLen;
     if(buf.rowSpatial == NULL) {
