@@ -341,8 +341,8 @@ void GameLogic::ResultsBeforeNN::initRBN(
   }
 
   // opp has four
-  if(oppHasFour)
-    return;
+  //if(oppHasFour)
+  //  return;
 
   // I have life four, opp has no four
   if(IHaveLifeFour && (!oppHasFour)) {
@@ -353,7 +353,7 @@ void GameLogic::ResultsBeforeNN::initRBN(
     return;
   }
 
-  if(willCalculateVCF) {
+  if(willCalculateVCF && (!oppHasFour)) {
     // check VCF
     calculatedVCF = true;
     uint16_t oppvcfloc;
