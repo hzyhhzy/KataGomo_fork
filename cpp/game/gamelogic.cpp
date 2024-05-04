@@ -288,7 +288,7 @@ void GameLogic::ResultsBeforeNN::initRBN(
     throw StringError("ResultBeforeNN::init() can not support VCN and maxMoves simutaneously");
   bool willCalculateNNUE = nnueSearchN > 0;
   bool willCalculateVCF = hasVCF && hist.rules.maxMoves == 0;
-  if(inited && (calculatedVCF || (!willCalculateVCF)) && (!willCalculateNNUE))
+  if(inited && (calculatedVCF || (!willCalculateVCF)) && (calculatedNNUE || (!willCalculateNNUE)))
     return;
   inited = true;
 
@@ -370,6 +370,7 @@ void GameLogic::ResultsBeforeNN::initRBN(
 
   if (willCalculateNNUE)
   {
+    calculatedNNUE = true;
     if(nnueSearch == NULL)
       throw StringError("ResultBeforeNN::init() nnueSearchN>0 but nnueSearch is null");
     nnueSearch->setBoard(board);
