@@ -970,9 +970,9 @@ void NNInputs::fillRowV102(
 
       // Features 1,2 - pla,opp stone
       if(stone == pla)
-        setRowBin(rowBin, pos, 8, 1.0f, posStride, featureStride);
+        setRowBin(rowBin, pos, 1, 1.0f, posStride, featureStride);
       else if(stone == opp)
-        setRowBin(rowBin, pos, 9, 1.0f, posStride, featureStride);
+        setRowBin(rowBin, pos, 2, 1.0f, posStride, featureStride);
 
       if(hasForbiddenFeature) {
         if(pla == C_BLACK) {
@@ -1024,7 +1024,48 @@ void NNInputs::fillRowV102(
     else
       ASSERT_UNREACHABLE;
   }
-  
+
+  if(nnInputParams.nnueSearchN > 0 && resultsBeforeNN.winner == C_WALL) {
+    rowGlobal[39] = 1.0;
+    if(!resultsBeforeNN.calculatedNNUE)
+      throw StringError("nnue of nninput not calculated");
+    if(resultsBeforeNN.nnueVisitsTotal <= 0)
+      throw StringError("nnue of nninput not searched");
+    rowGlobal[40] = log10(double(resultsBeforeNN.nnueVisitsTotal)) - 2;
+    rowGlobal[41] = resultsBeforeNN.nnueRootValue;
+    rowGlobal[42] = resultsBeforeNN.nnueRootDraw;
+
+    //8~17 are float channels
+    for(int y = 0; y < ySize; y++) {
+      for(int x = 0; x < xSize; x++) {
+        int pos = NNPos::xyToPos(x, y, nnXLen);
+        NU_Loc nuloc = NNUE::MakeLoc(x, y);
+
+        if(resultsBeforeNN.nnueVisits[nuloc] > 0)
+        {
+          setRowBin(rowBin, pos, 18, 1.0, posStride, featureStride);
+          float nr = resultsBeforeNN.nnueVisits[nuloc] / resultsBeforeNN.nnueVisitsTotal;
+          setRowBin(rowBin, pos, 8, nr, posStride, featureStride);
+          nr = sqrt(nr);
+          setRowBin(rowBin, pos, 9, nr, posStride, featureStride);
+          nr = sqrt(nr);
+          setRowBin(rowBin, pos, 10, nr, posStride, featureStride);
+          setRowBin(rowBin, pos, 11, 1.0 / sqrt(resultsBeforeNN.nnueVisits[nuloc]), posStride, featureStride);//stdev
+          setRowBin(rowBin, pos, 12, resultsBeforeNN.nnueValueMap[nuloc], posStride, featureStride);
+          setRowBin(rowBin, pos, 13, resultsBeforeNN.nnueDrawMap[nuloc], posStride, featureStride);
+        }
+
+      }
+    }
+    //pass
+    float passVisit = resultsBeforeNN.nnueVisits[NNUE::NU_LOC_PASS];
+    if(passVisit > 0) {
+      rowGlobal[43] = 1.0;
+      rowGlobal[44] = sqrt(passVisit / resultsBeforeNN.nnueVisitsTotal);
+      rowGlobal[45] = resultsBeforeNN.nnueValueMap[NNUE::NU_LOC_PASS];
+      rowGlobal[46] = resultsBeforeNN.nnueDrawMap[NNUE::NU_LOC_PASS];
+    }
+  }
 
   int myPassNum = nextPlayer == C_BLACK ? board.blackPassNum : board.whitePassNum;
   int oppPassNum = nextPlayer == C_WHITE ? board.blackPassNum : board.whitePassNum;
@@ -1089,14 +1130,5 @@ void NNInputs::fillRowV102(
     rowGlobal[36] = exp(-(maxmoves - movenum) / 1.5);
     rowGlobal[37] = 2 * ((int(maxmoves - movenum)) % 2) - 1;
 
-    for(int c = 0; c < 7; c++) {
-      for(int y = 0; y < ySize; y++) {
-        for(int x = 0; x < xSize; x++) {
-          int pos = NNPos::xyToPos(x, y, nnXLen);
-          setRowBin(rowBin, pos, 10 + c, rowGlobal[31 + c], posStride, featureStride);
-        }
-      }
-      rowGlobal[31 + c] = 0;
-    }
   }
 }

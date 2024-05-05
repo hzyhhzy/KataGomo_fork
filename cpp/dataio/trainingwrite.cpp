@@ -315,14 +315,16 @@ void TrainingWriteBuffers::addRow(
     nnInputParams.useVCFInput = rand.nextBool(param.vcfFeatureProb) && hist.rules.maxMoves == 0;
     if(rand.nextBool(param.nnueFeatureProb)) {
       double d = 0;
-      for(int i = 0; i < 4; i++) {
+      for(int i = 0; i < 2; i++) {
         d += 1 / (1e-6 + sqrt(rand.nextDouble())) - 1;
       }
-      nnInputParams.nnueSearchN = d * param.nnueMeanSearchN / 4;
+      nnInputParams.nnueSearchN = d * param.nnueMeanSearchN / 2;
       if(nnInputParams.nnueSearchN > 10000000)
         nnInputParams.nnueSearchN = 10000000;
       if(nnInputParams.nnueSearchN < 10)
         nnInputParams.nnueSearchN = 10;
+      //cout << nnInputParams.nnueSearchN << " ";
+      //cout.flush();
     } 
     else
     {

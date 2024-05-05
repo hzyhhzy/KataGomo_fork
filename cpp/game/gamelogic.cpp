@@ -395,7 +395,7 @@ void GameLogic::ResultsBeforeNN::initRBN(
     nnueRootValue = (root.WRtotal.win - root.WRtotal.loss) / nnueVisitsTotal;
     nnueRootDraw = root.WRtotal.draw / nnueVisitsTotal;
 
-    for (int i = 0; i > root.childrennum; i++)
+    for (int i = 0; i < root.childrennum; i++)
     {
       const NNUE::MCTSnode* c = root.children[i].ptr;
       if(c == NULL || c->visits <= 0)
