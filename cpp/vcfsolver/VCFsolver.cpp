@@ -12,7 +12,7 @@ VCFHashTable VCFsolver::hashtable(20, 2);
 uint64_t VCFsolver::MAXNODE = 50000;
 #else
 VCFHashTable VCFsolver::hashtable(25, 19);
-uint64_t VCFsolver::MAXNODE = 10000;
+uint64_t VCFsolver::MAXNODE = 5000;
 #endif
 
 

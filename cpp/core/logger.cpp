@@ -55,7 +55,9 @@ Logger::Logger(
   }
 
   if(!header.empty()) {
-    write(header);
+    const bool quietSelfplay = cfg ? (cfg->contains("quietSelfplay") ? cfg->getBool("quietSelfplay") : false) : false;
+    if(!quietSelfplay)
+      write(header);
   }
 }
 

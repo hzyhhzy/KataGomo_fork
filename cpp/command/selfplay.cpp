@@ -107,6 +107,9 @@ int MainCmds::selfplay(const vector<string>& args) {
 
   const bool switchNetsMidGame = cfg.getBool("switchNetsMidGame");
   const bool stopIfNewNet = cfg.getBool("stopIfNewNet");
+  const bool quietSelfplay = cfg.contains("quietSelfplay")
+                              ? cfg.getBool("quietSelfplay")
+                              : false;
   const SearchParams baseParams = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_OTHER);
 
   //Initialize object for randomizing game settings and running games
@@ -245,8 +248,9 @@ int MainCmds::selfplay(const vector<string>& args) {
       throw StringError("Either could not load latest neural net or access/write appopriate directories");
   }
 
-  //Check for unused config keys
-  cfg.warnUnusedKeys(cerr,&logger);
+  //Check for unused config keys 
+  if(!quietSelfplay)
+    cfg.warnUnusedKeys(cerr,&logger);
 
   //Shared across all game loop threads
   std::atomic<int64_t> numGamesStarted(0);
@@ -255,6 +259,7 @@ int MainCmds::selfplay(const vector<string>& args) {
     &manager,
     &logger,
     switchNetsMidGame,
+    quietSelfplay,
     &numGamesStarted,
     maxGamesTotal,
     &baseParams,
@@ -275,12 +280,12 @@ int MainCmds::selfplay(const vector<string>& args) {
 
       if(prevModelName != nnEval->getModelName()) {
         prevModelName = nnEval->getModelName();
-        if(threadIdx%20==0)
+        if(threadIdx % 20 == 0 && (!quietSelfplay))
           logger.write("Game loop thread " + Global::intToString(threadIdx) + " starting game on new neural net: " + prevModelName);
       }
 
       //Callback that runGame will call periodically to ask us if we have a new neural net
-      std::function<NNEvaluator*()> checkForNewNNEval = [&manager,&nnEval,&prevModelName,&logger,&threadIdx]() -> NNEvaluator* {
+      std::function<NNEvaluator*()> checkForNewNNEval = [&manager,&nnEval,&prevModelName,&logger,&threadIdx,quietSelfplay]() -> NNEvaluator* {
         NNEvaluator* newNNEval = manager->acquireLatest();
         assert(newNNEval != NULL);
         if(newNNEval == nnEval) {
@@ -291,7 +296,7 @@ int MainCmds::selfplay(const vector<string>& args) {
 
         nnEval = newNNEval;
         prevModelName = nnEval->getModelName();
-        if(threadIdx % 20 == 0)
+        if(threadIdx % 20 == 0 && (!quietSelfplay))
           logger.write("Game loop thread " + Global::intToString(threadIdx) + " changing midgame to new neural net: " + prevModelName);
         return nnEval;
       };
@@ -332,7 +337,7 @@ int MainCmds::selfplay(const vector<string>& args) {
         break;
     }
 
-    if(threadIdx % 20 == 0)
+    if(threadIdx % 20 == 0 && (!quietSelfplay))
       logger.write("Game loop thread " + Global::intToString(threadIdx) + " terminating");
   };
   auto gameLoopProtected = [&logger,&gameLoop](int threadIdx) {
