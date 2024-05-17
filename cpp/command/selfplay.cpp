@@ -43,6 +43,7 @@ int MainCmds::selfplay(const vector<string>& args) {
   try {
     KataGoCommandLine cmd("Generate training data via self play.");
     cmd.addConfigFileArg("","");
+    cmd.addOverrideConfigArg();
 
     TCLAP::ValueArg<string> modelsDirArg("","models-dir","Dir to poll and load models from",true,string(),"DIR");
     TCLAP::ValueArg<string> outputDirArg("","output-dir","Dir to output files",true,string(),"DIR");
@@ -105,6 +106,7 @@ int MainCmds::selfplay(const vector<string>& args) {
   const int64_t logGamesEvery = cfg.getInt64("logGamesEvery",1,1000000);
 
   const bool switchNetsMidGame = cfg.getBool("switchNetsMidGame");
+  const bool stopIfNewNet = cfg.getBool("stopIfNewNet");
   const SearchParams baseParams = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_OTHER);
 
   //Initialize object for randomizing game settings and running games
@@ -134,7 +136,7 @@ int MainCmds::selfplay(const vector<string>& args) {
 
   //Returns true if a new net was loaded.
   auto loadLatestNeuralNetIntoManager =
-    [inputsVersion,&manager,maxRowsPerTrainFile,maxRowsPerValFile,firstFileRandMinProp,dataBoardLen,
+    [inputsVersion,&manager,maxRowsPerTrainFile,maxRowsPerValFile,firstFileRandMinProp,dataBoardLen,stopIfNewNet,
      &modelsDir,&outputDir,&logger,&cfg,numGameThreads,
      minBoardXSizeUsed,maxBoardXSizeUsed,minBoardYSizeUsed,maxBoardYSizeUsed](const string* lastNetName) -> bool {
 
@@ -153,6 +155,12 @@ int MainCmds::selfplay(const vector<string>& args) {
     }
 
     logger.write("Found new neural net " + modelName);
+
+    if(stopIfNewNet && lastNetName != NULL) {
+      logger.write("Stopping because stopIfNewNet=true");
+      shouldStop.store(true);
+      return false;
+    }
 
     // * 2 + 16 just in case to have plenty of room
     const int maxConcurrentEvals = cfg.getInt("numSearchThreads") * numGameThreads * 2 + 16;
