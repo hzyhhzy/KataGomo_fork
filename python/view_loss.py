@@ -1,6 +1,6 @@
 baseDir="../data/train/"
-lossItems={"p0loss":(1.5,2.5),"vloss":(0.3,1.0),"loss":(0,0)} #name,ylim,  0 means default
-trainDirs=["b10c384n"];
+lossItems={"p0loss":(1.6,1.8),"vloss":(0.5,0.7),"loss":(0,0)} #name,ylim,  0 means default
+trainDirs=["b28c512n"];
 lossTypes=["train","val"]
 outputFile="../loss.png"
 
@@ -28,6 +28,8 @@ def readJsonFile(path,lossKeys):
         if(len(line)<5):
             continue #bad line
         j=json.loads(line)
+        if("p0loss" not in j):
+            continue #bad line
         if("nsamp_train" in j):
             nsamp=j["nsamp_train"]
         else:
@@ -43,7 +45,7 @@ def readJsonFile(path,lossKeys):
 #os.makedirs(outputDir,exist_ok=True)
 
 
-fig=plt.figure(figsize=(6,4*nKeys),dpi=400)
+fig=plt.figure(figsize=(6,4*nKeys),dpi=200)
 plt.subplots_adjust(hspace=0.5)
 for i in range(nKeys):
     key=lossKeys[i]

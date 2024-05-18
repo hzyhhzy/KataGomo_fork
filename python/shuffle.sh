@@ -39,17 +39,17 @@ echo "Beginning shuffle at" $(date "+%Y-%m-%d %H:%M:%S")
 (
     time python ./shuffle.py \
          "$BASEDIR"/selfplay/ \
-         -expand-window-per-row 0.4 \
-         -taper-window-exponent 0.65 \
+         -expand-window-per-row 0.3 \
+         -taper-window-exponent 0.8 \
          -out-dir "$BASEDIR"/shuffleddata/$OUTDIRTRAIN \
          -out-tmp-dir "$TMPDIR"/train \
-         -approx-rows-per-out-file 70000 \
+         -approx-rows-per-out-file 50000 \
          -num-processes "$NTHREADS" \
          -batch-size "$BATCHSIZE" \
-         -min-rows 200000 \
-         -keep-target-rows 1100000 \
+         -min-rows 150000 \
+         -keep-target-rows 2100000 \
          -only-include-md5-path-prop-lbound 0.00 \
-         -only-include-md5-path-prop-ubound 0.95 \
+         -only-include-md5-path-prop-ubound 0.97 \
          -output-npz \
          "$@" \
          2>&1 | tee "$BASEDIR"/shuffleddata/$OUTDIR/outtrain.txt &
@@ -59,16 +59,16 @@ echo "Beginning shuffle at" $(date "+%Y-%m-%d %H:%M:%S")
 (
     time python ./shuffle.py \
          "$BASEDIR"/selfplay/ \
-         -expand-window-per-row 0.4 \
-         -taper-window-exponent 0.65 \
+         -expand-window-per-row 0.3 \
+         -taper-window-exponent 0.8 \
          -out-dir "$BASEDIR"/shuffleddata/$OUTDIRVAL \
          -out-tmp-dir "$TMPDIR"/val \
-         -approx-rows-per-out-file 70000 \
+         -approx-rows-per-out-file 50000 \
          -num-processes "$NTHREADS" \
          -batch-size "$BATCHSIZE" \
-         -min-rows 200000 \
+         -min-rows 150000 \
          -keep-target-rows 51200 \
-         -only-include-md5-path-prop-lbound 0.95 \
+         -only-include-md5-path-prop-lbound 0.97 \
          -only-include-md5-path-prop-ubound 1.00 \
          -output-npz \
          "$@" \

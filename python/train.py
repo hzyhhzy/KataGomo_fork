@@ -573,7 +573,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         if param.requires_grad:
             total_trainable_params += product
         total_num_params += product
-        logging.info(f"{name}, {list(param.shape)}, {product} params")
+        #logging.info(f"{name}, {list(param.shape)}, {product} params")
     logging.info(f"Total num params: {total_num_params}")
     logging.info(f"Total trainable params: {total_trainable_params}")
 

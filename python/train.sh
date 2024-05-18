@@ -71,7 +71,7 @@ time python ./train.py \
      -model-kind "$MODELKIND" \
      -max-epochs-this-instance 1 \
      -lr-scale 1\
-     -samples-per-epoch 1000000 \
+     -samples-per-epoch 2000000 \
     -soft-policy-weight-scale 8.0 \
     -value-loss-scale 0.6 \
     -td-value-loss-scales 0.6,0.6,0.6 \
