@@ -16,68 +16,238 @@
 
 using namespace std;
 
-
-static int connectionLengthOneDirection(
+//https://ieeexplore.ieee.org/abstract/document/9618991
+static bool checkBlackWinAsIfPlayed(
   const Board& board,
-  const BoardHistory& hist,
-  Player pla,
-  Loc loc,
-  short adj,
-  bool& isLife) {
-  (void)hist;
-  Loc tmploc = loc;
-  int conNum = 0;
-  isLife = false;
-  while(1) {
-    tmploc += adj;
-    if(!board.isOnBoard(tmploc))
-      break;
-    if(board.colors[tmploc] == pla)
-      conNum++;
-    else if(board.colors[tmploc] == C_EMPTY) {
-      isLife = true;
-      break;
-    } else
-      break;
+  Loc loc0) {
+  if(board.y_size != FIXED_BOARD_YSIZE || board.x_size < 4)
+    throw StringError("this rule is not defined for height!=4 or width<4 boards");
+  int xs = board.x_size;
+  int x0 = Location::getX(loc0, xs);
+  int y0 = Location::getY(loc0, xs);
+  //horizontal lines
+  {
+    //left side
+    if (x0 <= 3)
+    {
+      bool allBlack = true;
+      for (int i = 0; i < 4; i++)
+      {
+        Loc loc = Location::getLoc(i, y0, xs);
+        if(!board.isOnBoard(loc))
+          throw StringError("bug in checkBlackWinAsIfPlayed");
+        bool isBlack = (loc == loc0) || board.colors[loc] == C_BLACK; //as if black has played
+        if (!isBlack)
+        {
+          allBlack = false;
+          break;
+        }
+      }
+      if(allBlack)
+        return true;
+    }
+    // right side
+    if(x0 >= xs - 4) {
+      bool allBlack = true;
+      for(int i = 0; i < 4; i++) {
+        Loc loc = Location::getLoc(xs - 1 - i, y0, xs);
+        if(!board.isOnBoard(loc))
+          throw StringError("bug in checkBlackWinAsIfPlayed");
+        bool isBlack = (loc == loc0) || board.colors[loc] == C_BLACK;  // as if black has played
+        if(!isBlack) {
+          allBlack = false;
+          break;
+        }
+      }
+      if(allBlack)
+        return true;
+    }
+    // middle length 7
+    for (int i = 0; i < 7; i++)
+    {
+      int xa = x0 - i, xb = x0 - i + 6;
+      if(xa < 1)
+        continue;
+      if(xb >= xs - 1)
+        continue;
+
+      bool allBlack = true;
+      for (int x = xa; x <= xb; x++) {
+        Loc loc = Location::getLoc(x, y0, xs);
+        if(!board.isOnBoard(loc))
+          throw StringError("bug in checkBlackWinAsIfPlayed");
+        bool isBlack = (loc == loc0) || board.colors[loc] == C_BLACK;  // as if black has played
+        if(!isBlack) {
+          allBlack = false;
+          break;
+        }
+      }
+      if(allBlack)
+        return true;
+    }
   }
-  return conNum;
+   //vertical lines
+  {
+    bool allBlack = true;
+    for(int y = 0; y < 4; y++) {
+      Loc loc = Location::getLoc(x0, y, xs);
+      if(!board.isOnBoard(loc))
+        throw StringError("bug in checkBlackWinAsIfPlayed");
+      bool isBlack = (loc == loc0) || board.colors[loc] == C_BLACK;  // as if black has played
+      if(!isBlack) {
+        allBlack = false;
+        break;
+      }
+    }
+    if(allBlack)
+      return true;
+  }
+  // diagonal lines +x+y
+  {
+    if(x0 >= y0 && xs - x0 >= 4 - y0) {  // normal length-4 lines
+      bool allBlack = true;
+      for(int y = 0; y < 4; y++) {
+        Loc loc = Location::getLoc(x0 - y0 + y, y, xs);
+        if(!board.isOnBoard(loc))
+          throw StringError("bug in checkBlackWinAsIfPlayed");
+        bool isBlack = (loc == loc0) || board.colors[loc] == C_BLACK;  // as if black has played
+        if(!isBlack) {
+          allBlack = false;
+          break;
+        }
+      }
+      if(allBlack)
+        return true;
+    } 
+    else if(y0 - x0 == 1)  // extra
+    {
+      bool allBlack = true;
+      for(int y = 1; y < 4; y++) {
+        Loc loc = Location::getLoc(x0 - y0 + y, y, xs);
+        if(!board.isOnBoard(loc))
+          throw StringError("bug in checkBlackWinAsIfPlayed");
+        bool isBlack = (loc == loc0) || board.colors[loc] == C_BLACK;  // as if black has played
+        if(!isBlack) {
+          allBlack = false;
+          break;
+        }
+      }
+      if(allBlack)
+        return true;
+    } 
+    else if(xs - x0 == 4 - y0 - 1)  // extra
+    {
+      bool allBlack = true;
+      for(int y = 0; y < 3; y++) {
+        Loc loc = Location::getLoc(x0 - y0 + y, y, xs);
+        if(!board.isOnBoard(loc))
+          throw StringError("bug in checkBlackWinAsIfPlayed");
+        bool isBlack = (loc == loc0) || board.colors[loc] == C_BLACK;  // as if black has played
+        if(!isBlack) {
+          allBlack = false;
+          break;
+        }
+      }
+      if(allBlack)
+        return true;
+    } 
+    else if(xs - x0 == 4 - y0 - 2)  // extra
+    {
+      bool allBlack = true;
+      for(int y = 0; y < 2; y++) {
+        Loc loc = Location::getLoc(x0 - y0 + y, y, xs);
+        if(!board.isOnBoard(loc))
+          throw StringError("bug in checkBlackWinAsIfPlayed");
+        bool isBlack = (loc == loc0) || board.colors[loc] == C_BLACK;  // as if black has played
+        if(!isBlack) {
+          allBlack = false;
+          break;
+        }
+      }
+      if(allBlack)
+        return true;
+    }
+  }
+  // diagonal lines -x+y
+  {
+    if(xs - 1 - x0 >= y0 && 1 + x0 >= 4 - y0) {  // normal length-4 lines
+      bool allBlack = true;
+      for(int y = 0; y < 4; y++) {
+        Loc loc = Location::getLoc(x0 + y0 - y, y, xs);
+        if(!board.isOnBoard(loc))
+          throw StringError("bug in checkBlackWinAsIfPlayed");
+        bool isBlack = (loc == loc0) || board.colors[loc] == C_BLACK;  // as if black has played
+        if(!isBlack) {
+          allBlack = false;
+          break;
+        }
+      }
+      if(allBlack)
+        return true;
+    } 
+    else if(y0 - xs + 1 + x0 == 1)  // extra
+    {
+      bool allBlack = true;
+      for(int y = 1; y < 4; y++) {
+        Loc loc = Location::getLoc(x0 + y0 - y, y, xs);
+        if(!board.isOnBoard(loc))
+          throw StringError("bug in checkBlackWinAsIfPlayed");
+        bool isBlack = (loc == loc0) || board.colors[loc] == C_BLACK;  // as if black has played
+        if(!isBlack) {
+          allBlack = false;
+          break;
+        }
+      }
+      if(allBlack)
+        return true;
+    } 
+    else if(1 + x0 == 4 - y0 - 1)  // extra
+    {
+      bool allBlack = true;
+      for(int y = 0; y < 3; y++) {
+        Loc loc = Location::getLoc(x0 + y0 - y, y, xs);
+        if(!board.isOnBoard(loc))
+          throw StringError("bug in checkBlackWinAsIfPlayed");
+        bool isBlack = (loc == loc0) || board.colors[loc] == C_BLACK;  // as if black has played
+        if(!isBlack) {
+          allBlack = false;
+          break;
+        }
+      }
+      if(allBlack)
+        return true;
+    } 
+    else if(1 + x0 == 4 - y0 - 2)  // extra
+    {
+      bool allBlack = true;
+      for(int y = 0; y < 2; y++) {
+        Loc loc = Location::getLoc(x0 + y0 - y, y, xs);
+        if(!board.isOnBoard(loc))
+          throw StringError("bug in checkBlackWinAsIfPlayed");
+        bool isBlack = (loc == loc0) || board.colors[loc] == C_BLACK;  // as if black has played
+        if(!isBlack) {
+          allBlack = false;
+          break;
+        }
+      }
+      if(allBlack)
+        return true;
+    }
+  }
+  return false;
 }
 
-static GameLogic::MovePriority getMovePriorityOneDirectionAssumeLegal(
-  const Board& board,
-  const BoardHistory& hist,
-  Player pla,
-  Loc loc,
-  int adj)  {
-  Player opp = getOpp(pla);
-  bool isMyLife1, isMyLife2, isOppLife1, isOppLife2;
-  int myConNum = connectionLengthOneDirection(board, hist, pla, loc, adj, isMyLife1) +
-                 connectionLengthOneDirection(board, hist, pla, loc, -adj, isMyLife2) + 1;
-  int oppConNum = connectionLengthOneDirection(board, hist, opp, loc, adj, isOppLife1) +
-                  connectionLengthOneDirection(board, hist, opp, loc, -adj, isOppLife2) + 1;
-  if(myConNum >= 5)
-    return GameLogic::MP_SUDDEN_WIN;
-
-  if(oppConNum >= 5)
-    return GameLogic::MP_ONLY_NONLOSE_MOVES;
-
-  if(myConNum == 4 && isMyLife1 && isMyLife2)
-    return GameLogic::MP_WINNING;
-
-  return GameLogic::MP_NORMAL;
-}
 
 GameLogic::MovePriority GameLogic::getMovePriorityAssumeLegal(const Board& board, const BoardHistory& hist, Player pla, Loc loc) {
   if(loc == Board::PASS_LOC)
     return MP_NORMAL;
   MovePriority MP = MP_NORMAL;
 
-  int adjs[4] = {1, (board.x_size + 1), (board.x_size + 1) + 1, (board.x_size + 1) - 1};// +x +y +x+y -x+y
-  for(int i = 0; i < 4; i++) {
-    MovePriority tmpMP = getMovePriorityOneDirectionAssumeLegal(board, hist, pla, loc, adjs[i]);
-    if(tmpMP < MP)
-      MP = tmpMP;
-  }
+  if(checkBlackWinAsIfPlayed(board, loc))
+    if(pla == C_BLACK)
+      return GameLogic::MP_SUDDEN_WIN;
+    else
+      return GameLogic::MP_ONLY_NONLOSE_MOVES;
 
   return MP;
 }
@@ -106,8 +276,10 @@ Color GameLogic::checkWinnerAfterPlayed(
   if(getMovePriorityAssumeLegal(board, hist, pla, loc) == MP_SUDDEN_WIN)
     return pla;
 
-  if(board.movenum >= board.x_size * board.y_size)
-    return C_EMPTY;
+  if (board.movenum >= board.x_size * board.y_size)
+  {
+    return C_WHITE;
+  }
 
   return C_WALL;
 }
@@ -126,7 +298,6 @@ void GameLogic::ResultsBeforeNN::init(const Board& board, const BoardHistory& hi
 
   // check five and four
   bool oppHasFour = false;
-  bool IHaveLifeFour = false;
   Loc myLifeFourLoc = Board::NULL_LOC;
   for(int x = 0; x < board.x_size; x++)
     for(int y = 0; y < board.y_size; y++) {
@@ -139,22 +310,10 @@ void GameLogic::ResultsBeforeNN::init(const Board& board, const BoardHistory& hi
       } else if(mp == MP_ONLY_NONLOSE_MOVES) {
         oppHasFour = true;
         myOnlyLoc = loc;
-      } else if(mp == MP_WINNING) {
-        IHaveLifeFour = true;
-        myLifeFourLoc = loc;
       }
     }
 
-  // opp has four
-  if(oppHasFour)
-    return;
 
-  // I have life four, opp has no four
-  if(IHaveLifeFour) {
-    winner = nextPlayer;
-    myOnlyLoc = myLifeFourLoc;
-    return;
-  }
 
 
   return;

@@ -202,8 +202,8 @@ void NNOutput::debugPrint(ostream& out, const Board& board) {
 
 static void copyWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int cSize, bool useNHWC, int symmetry, bool reverse) {
   bool transpose = (symmetry & 0x4) != 0 && hSize == wSize;
-  bool flipX = (symmetry & 0x2) != 0;
-  bool flipY = (symmetry & 0x1) != 0;
+  bool flipX = (symmetry & 0x1) != 0;
+  bool flipY = (symmetry & 0x2) != 0;
   if(transpose && !reverse)
     std::swap(flipX,flipY);
   if(useNHWC) {
@@ -290,8 +290,8 @@ int SymmetryHelpers::compose(int firstSymmetry, int nextSymmetry, int nextNextSy
 
 Loc SymmetryHelpers::getSymLoc(int x, int y, int xSize, int ySize, int symmetry) {
   bool transpose = (symmetry & 0x4) != 0;
-  bool flipX = (symmetry & 0x2) != 0;
-  bool flipY = (symmetry & 0x1) != 0;
+  bool flipX = (symmetry & 0x1) != 0;
+  bool flipY = (symmetry & 0x2) != 0;
   if(flipX) { x = xSize - x - 1; }
   if(flipY) { y = ySize - y - 1; }
 
@@ -319,8 +319,8 @@ Loc SymmetryHelpers::getSymLoc(Loc loc, int xSize, int ySize, int symmetry) {
 
 Board SymmetryHelpers::getSymBoard(const Board& board, int symmetry) {
   bool transpose = (symmetry & 0x4) != 0;
-  bool flipX = (symmetry & 0x2) != 0;
-  bool flipY = (symmetry & 0x1) != 0;
+  bool flipX = (symmetry & 0x1) != 0;
+  bool flipY = (symmetry & 0x2) != 0;
   Board symBoard(
     transpose ? board.y_size : board.x_size,
     transpose ? board.x_size : board.y_size
@@ -548,8 +548,9 @@ void NNInputs::fillRowV7(
     ASSERT_UNREACHABLE;
 
   
-  // Parameter 0 noResultUtilityForWhite
-  rowGlobal[0] = pla == C_WHITE ? nnInputParams.noResultUtilityForWhite : -nnInputParams.noResultUtilityForWhite;
+  rowGlobal[0] = pla == C_WHITE ? -1.0 : 1.0;
+  // Parameter 6 noResultUtilityForWhite
+  rowGlobal[6] = pla == C_WHITE ? nnInputParams.noResultUtilityForWhite : -nnInputParams.noResultUtilityForWhite;
 
   // Parameter 15 is used because there's actually a discontinuity in how training behavior works when this is
   // nonzero, no matter how slightly.

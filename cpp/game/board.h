@@ -12,9 +12,10 @@
 #include "../external/nlohmann_json/json.hpp"
 
 #ifndef COMPILE_MAX_BOARD_LEN
-#define COMPILE_MAX_BOARD_LEN 19
+#define COMPILE_MAX_BOARD_LEN 31
 #endif
 
+static const int FIXED_BOARD_YSIZE = 4;
 //TYPES AND CONSTANTS-----------------------------------------------------------------
 
 struct Board;

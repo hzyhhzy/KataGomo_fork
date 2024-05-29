@@ -105,7 +105,6 @@ class GameInitializer {
   std::vector<int> allowedBSizes;
   std::vector<double> allowedBSizeRelProbs;
 
-  double allowRectangleProb;
 
 
   double noResultRandRadius;

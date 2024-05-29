@@ -54,7 +54,6 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
   allowedBSizes = cfg.getInts("bSizes", 2, Board::MAX_LEN);
   allowedBSizeRelProbs = cfg.getDoubles("bSizeRelProbs",0.0,1e100);
 
-  allowRectangleProb = cfg.contains("allowRectangleProb") ? cfg.getDouble("allowRectangleProb",0.0,1.0) : 0.0;
 
   auto generateCumProbs = [](const vector<Sgf::PositionSample> poses, double lambda, double& effectiveSampleSize) {
     int minInitialTurnNumber = 0;
@@ -205,20 +204,16 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     throw IOError("bSizes and bSizeRelProbs must have same number of values in " + cfg.getFileName());
 
   minBoardXSize = allowedBSizes[0];
-  minBoardYSize = allowedBSizes[0];
+  minBoardYSize = FIXED_BOARD_YSIZE;
   maxBoardXSize = allowedBSizes[0];
-  maxBoardYSize = allowedBSizes[0];
+  maxBoardYSize = FIXED_BOARD_YSIZE;
   for(int bSize: allowedBSizes) {
     minBoardXSize = std::min(minBoardXSize, bSize);
-    minBoardYSize = std::min(minBoardYSize, bSize);
     maxBoardXSize = std::max(maxBoardXSize, bSize);
-    maxBoardYSize = std::max(maxBoardYSize, bSize);
   }
   for(const Sgf::PositionSample& pos : hintPoses) {
     minBoardXSize = std::min(minBoardXSize, pos.board.x_size);
-    minBoardYSize = std::min(minBoardYSize, pos.board.y_size);
     maxBoardXSize = std::max(maxBoardXSize, pos.board.x_size);
-    maxBoardYSize = std::max(maxBoardYSize, pos.board.y_size);
   }
 
   noResultRandRadius = cfg.contains("noResultRandRadius") ? cfg.getDouble("noResultRandRadius",0.0,1.0) : 0.0;
@@ -273,9 +268,7 @@ Rules GameInitializer::randomizeScoringAndTaxRules(Rules rules, Rand& randToUse)
 bool GameInitializer::isAllowedBSize(int xSize, int ySize) {
   if(!contains(allowedBSizes,xSize))
     return false;
-  if(!contains(allowedBSizes,ySize))
-    return false;
-  if(allowRectangleProb <= 0.0 && xSize != ySize)
+  if(ySize!=FIXED_BOARD_YSIZE)
     return false;
   return true;
 }
@@ -330,9 +323,6 @@ void GameInitializer::createGameSharedUnsynchronized(
 
 
   int xSizeIdx = rand.nextUInt(allowedBSizeRelProbs.data(),allowedBSizeRelProbs.size());
-  int ySizeIdx = xSizeIdx;
-  if(allowRectangleProb > 0 && rand.nextBool(allowRectangleProb))
-    ySizeIdx = rand.nextUInt(allowedBSizeRelProbs.data(),allowedBSizeRelProbs.size());
 
   Rules rules = createRulesUnsynchronized();
 
@@ -383,7 +373,7 @@ void GameInitializer::createGameSharedUnsynchronized(
   }
   else {
     int xSize = allowedBSizes[xSizeIdx];
-    int ySize = allowedBSizes[ySizeIdx];
+    int ySize = FIXED_BOARD_YSIZE;
     board = Board(xSize,ySize);
     pla = P_BLACK;
     hist.clear(board,pla,rules);
@@ -1226,16 +1216,6 @@ FinishedGameData* Play::runGame(
   };
 
 
-  double balanceOpeningProb = playSettings.forSelfPlay ? 0.99 : 1.0;
-
-  if(gameRand.nextBool(balanceOpeningProb)) {
-    if(board.numStonesOnBoard() != 0)
-      cout << "board not empty when initialize opening" << endl;
-    else {
-      if(board.numStonesOnBoard() == 0)  // no lib opening
-        RandomOpening::initializeBalancedRandomOpening(botB, botW, board, hist, pla, gameRand, playSettings.forSelfPlay);
-    }
-  }
 
   if(playSettings.initGamesWithPolicy && otherGameProps.allowPolicyInit) {
     double avgPolicyInitMoveNum =
