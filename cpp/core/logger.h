@@ -22,7 +22,8 @@ class Logger {
     bool logConfigContents = true
   );
   ~Logger();
-
+  void setLogToStderr(bool b);
+  void setLogTime(bool b);
   Logger(const Logger& other) = delete;
   Logger& operator=(const Logger& other) = delete;
 

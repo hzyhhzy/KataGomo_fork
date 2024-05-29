@@ -2379,7 +2379,7 @@ int MainCmds::gtp(const vector<string>& args) {
           }
           logger.write("Changed rules to " + newRules.toString());
           if(!logger.isLoggingToStderr())
-            cerr << "Changed rules to " + newRules.toString() << endl;
+            cout << "Changed rules to " + newRules.toString() << endl;
         }
       }
     } 

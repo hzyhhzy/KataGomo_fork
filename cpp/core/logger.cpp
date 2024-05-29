@@ -76,6 +76,13 @@ bool Logger::isLoggingToStdout() const {
   return logToStdout;
 }
 
+void Logger::setLogToStderr(bool b) {
+  logToStderr = b;
+}
+void Logger::setLogTime(bool b) {
+  logTime = b;
+}
+
 bool Logger::isLoggingToStderr() const {
   return logToStderr;
 }

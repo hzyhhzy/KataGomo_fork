@@ -238,6 +238,7 @@ add_executable(katago
   command/genbook.cpp
   command/gputest.cpp
   command/gtp.cpp
+  command/gomprotocol.cpp
   command/match.cpp
   command/matchauto.cpp
   command/misc.cpp

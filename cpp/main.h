@@ -8,6 +8,7 @@ namespace MainCmds {
   int gatekeeper(const std::vector<std::string>& args);
   int genconfig(const std::vector<std::string>& args, const std::string& firstCommand);
   int gtp(const std::vector<std::string>& args);
+  int gomprotocol(const std::vector<std::string>& args);
   int tuner(const std::vector<std::string>& args);
   int match(const std::vector<std::string>& args);
   int matchauto(const std::vector<std::string>& args);
