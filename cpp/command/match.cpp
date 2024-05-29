@@ -11,10 +11,56 @@
 #include "../command/commandline.h"
 #include "../main.h"
 
+#include "../external/nlohmann_json/json.hpp"
+
 #include <csignal>
 
 using namespace std;
+using nlohmann::json;
 
+struct MatchResultOneBot {
+  int win;
+  int lose;
+  int draw;
+  int win_b;
+  int lose_b;
+  int draw_b;
+  MatchResultOneBot() {
+    win = 0;
+    lose = 0;
+    draw = 0;
+    win_b = 0;
+    lose_b = 0;
+    draw_b = 0;
+  }
+};
+
+
+std::string getCurrentTimeString() {
+  // 获取当前时间点
+  auto now = std::chrono::system_clock::now();
+
+  // 转换为 time_t 类型
+  std::time_t now_time_t = std::chrono::system_clock::to_time_t(now);
+
+  // 转换为 tm 结构
+  std::tm now_tm;
+#if defined(_MSC_VER)  // MSVC (Visual Studio)
+  localtime_s(&now_tm, &now_time_t);
+#else  // GCC/Clang
+  localtime_r(&now_time_t, &now_tm);
+#endif
+
+  // 获取毫秒部分
+  auto duration = now.time_since_epoch();
+  auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(duration) % 1000;
+
+  // 格式化时间字符串
+  std::ostringstream oss;
+  oss << std::put_time(&now_tm, "%Y-%m-%d-%H-%M-%S");
+  oss << '-' << std::setfill('0') << std::setw(3) << millis.count();
+  return oss.str();
+}
 
 static std::atomic<bool> sigReceived(false);
 static std::atomic<bool> shouldStop(false);
@@ -68,6 +114,8 @@ int MainCmds::match(const vector<string>& args) {
   vector<SearchParams> paramss = Setup::loadParams(cfg,Setup::SETUP_FOR_MATCH);
   assert(paramss.size() > 0);
   int numBots = (int)paramss.size();
+  if(numBots!=2)
+    throw StringError("numBots should = 2");
 
   //Load a filter on what bots we actually want to run
   vector<bool> excludeBot(numBots);
@@ -186,8 +234,11 @@ int MainCmds::match(const vector<string>& args) {
   if(!logger.isLoggingToStdout())
     cout << "Loaded all config stuff, starting matches" << endl;
 
-  if(sgfOutputDir != string())
+  string resultOutputDir = "./matchresult";
+  if(sgfOutputDir != string()) {
     MakeDir::make(sgfOutputDir);
+    MakeDir::make(resultOutputDir);
+  }
 
   if(!std::atomic_is_lock_free(&shouldStop))
     throw StringError("shouldStop is not lock free, signal-quitting mechanism for terminating matches will NOT work!");
@@ -197,12 +248,12 @@ int MainCmds::match(const vector<string>& args) {
 
   std::mutex statsMutex;
   int64_t gameCount = 0;
-  std::map<string,double> timeUsedByBotMap;
-  std::map<string,double> movesByBotMap;
-
+  std::map<string, double> timeUsedByBotMap;
+  std::map<string, double> movesByBotMap;
+  std::map<string, MatchResultOneBot> resultsByBotMap;
   auto runMatchLoop = [
     &gameRunner,&matchPairer,&sgfOutputDir,&logger,&gameSeedBase,&patternBonusTables,
-    &statsMutex, &gameCount, &timeUsedByBotMap, &movesByBotMap
+    &statsMutex, &gameCount, &timeUsedByBotMap, &movesByBotMap,&resultsByBotMap
   ](
     uint64_t threadHash
   ) {
@@ -252,6 +303,33 @@ int MainCmds::match(const vector<string>& args) {
           movesByBotMap[gameData->bName] += (double)gameData->bMoveCount;
           movesByBotMap[gameData->wName] += (double)gameData->wMoveCount;
 
+          if(!resultsByBotMap.count(gameData->bName))
+            resultsByBotMap[gameData->bName] = MatchResultOneBot();
+          if(!resultsByBotMap.count(gameData->wName))
+            resultsByBotMap[gameData->wName] = MatchResultOneBot();
+
+          Color winner = gameData->endHist.winner;
+          auto& br = resultsByBotMap[gameData->bName];
+          auto& wr = resultsByBotMap[gameData->wName];
+
+          if(winner == C_EMPTY) {
+            br.draw += 1;
+            br.draw_b += 1;
+            wr.draw += 1;
+          }
+          else if(winner == C_BLACK) {
+            br.win += 1;
+            br.win_b += 1;
+            wr.lose += 1;
+          }
+          else if(winner == C_WHITE) {
+            br.lose += 1;
+            br.lose_b += 1;
+            wr.win += 1;
+          } 
+          else
+            throw StringError("Unknown match game result");
+
           int64_t x = gameCount;
           while(x % 2 == 0 && x > 1) x /= 2;
           if(x == 1 || x == 3 || x == 5) {
@@ -294,6 +372,42 @@ int MainCmds::match(const vector<string>& args) {
 
   delete matchPairer;
   delete gameRunner;
+
+  if(numBots==2) {
+    json j;
+    j["bot0name"] = botNames[0];
+    j["bot1name"] = botNames[1];
+    j["bot0model"] = nnModelFiles[0];
+    j["bot1model"] = nnModelFiles[1];
+    auto& r0 = resultsByBotMap[botNames[0]];
+    auto& r1 = resultsByBotMap[botNames[1]];
+    if(r0.win != r1.lose || r0.draw != r1.draw || r0.lose != r1.win)
+      throw StringError("result of two bots not match");
+    j["total"] = r0.win + r0.draw + r0.lose;
+    j["win0"] = r0.win;
+    j["lose0"] = r0.lose;
+    j["draw"] = r0.draw;
+    j["win0_b"] = r0.win_b;
+    j["draw0_b"] = r0.draw_b;
+    j["lose0_b"] = r0.lose_b;
+    //bot 1 can be calculated by this, so no need to store
+
+
+
+    string jsonOutPath = resultOutputDir + "/" + getCurrentTimeString() + ".json";
+
+    std::ofstream file(jsonOutPath);
+    if(file.is_open()) {
+      file << j.dump(4);  
+      file.close();
+    } else {
+      std::cerr << "failed to write json file:" << jsonOutPath << std::endl;
+    }
+  } 
+  else {
+    logger.write("Warning: not 2 bots, so skipping json writing");
+  }
+
 
   nnEvalsByBot.clear();
   for(int i = 0; i<nnEvals.size(); i++) {
