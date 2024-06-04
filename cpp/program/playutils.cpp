@@ -131,7 +131,7 @@ void PlayUtils::initializeGameUsingPolicy(
 
   const double randomInitMovenumEquToPolicyInit = 2.0;
   int numInitialMovesToPlay =
-    (int)floor(gameRand.nextExponential() * (avgPolicyInitMoveNum - randomInitMovenumEquToPolicyInit * board.movenum));
+    (int)floor(gameRand.nextExponential() * avgPolicyInitMoveNum - randomInitMovenumEquToPolicyInit * board.movenum);
   if(numInitialMovesToPlay < 0)
     numInitialMovesToPlay = 0;
 

@@ -5,7 +5,7 @@
 using namespace RandomOpening;
 using namespace std;
 
-static Loc getRandomNearbyMove(Board& board, Rand& gameRand, double avgDist) {
+static Loc getRandomNearbyMove(Board& board, Rand& gameRand, double avgDist) { 
   int xsize = board.x_size, ysize = board.y_size;
   if(board.isEmpty()) {
     int x = gameRand.nextUInt(xsize - 2) + 1, y = gameRand.nextUInt(ysize - 2) + 1;
@@ -23,7 +23,12 @@ static Loc getRandomNearbyMove(Board& board, Rand& gameRand, double avgDist) {
           Loc loc2 = Location::getLoc(x2, y2, xsize);
           if(board.colors[loc2] != C_EMPTY)
             continue;
-          double prob_increase = pow((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1) + avgDist * avgDist, -1.5);
+          double middleBonusFactor = 1.0;
+          double halfBoardLen = std::max(0.5 * (xsize - 1), 0.5 * (ysize - 1));
+          double distFromCenter = std::max(std::abs(x2 - 0.5 * (xsize - 1)), std::abs(y2 - 0.5 * (ysize - 1)));
+          double middleBonus = middleBonusFactor * (halfBoardLen - distFromCenter) / halfBoardLen;
+          double prob_increase =
+            (1 + middleBonus) * pow((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1) + avgDist * avgDist, -1.5);
           prob[y2 * xsize + x2] += prob_increase;
         }
     }
@@ -152,15 +157,15 @@ static bool tryInitializeBalancedRandomOpening(
   std::vector<float> randomMoveNumProb;
 
   if(hist.rules.VCNRule == Rules::VCNRULE_NOVC)
-    randomMoveNumProb = vector<float>{35, 30, 25, 20, 15, 10, 5, 1, 0, 0, 0, 0};
+    randomMoveNumProb = vector<float>{10, 20, 30, 40, 30, 20, 10, 5, 1, 0, 0, 0};
   else if(hist.rules.VCNRule == Rules::VCNRULE_VC1_B)
-    randomMoveNumProb = vector<float>{0.1, 0.1, 25, 20, 15, 10, 5, 1, 0, 0, 0, 0};
+    randomMoveNumProb = vector<float>{0.03, 0.03, 25, 20, 15, 10, 5, 1, 0, 0, 0, 0};
   else if(hist.rules.VCNRule == Rules::VCNRULE_VC1_W)
-    randomMoveNumProb = vector<float>{0.1, 0.1, 0.1, 20, 15, 10, 5, 1, 0, 0, 0, 0};
+    randomMoveNumProb = vector<float>{0.03, 0.03, 0.03, 20, 15, 10, 5, 1, 0, 0, 0, 0};
   else if(hist.rules.VCNRule == Rules::VCNRULE_VC2_B)
-    randomMoveNumProb = vector<float>{0.1, 0.1, 0.1, 0.1, 35, 30, 25, 20, 15, 10, 5, 1};
+    randomMoveNumProb = vector<float>{0.01, 0.01, 0.03, 0.03, 35, 30, 25, 20, 15, 10, 5, 1};
   else if(hist.rules.VCNRule == Rules::VCNRULE_VC2_W)
-    randomMoveNumProb = vector<float>{0.1, 0.1, 0.1, 0.1, 0.1, 30, 25, 20, 15, 10, 5, 1};
+    randomMoveNumProb = vector<float>{0.01, 0.01, 0.03, 0.03, 0.03, 30, 25, 20, 15, 10, 5, 1};
   else
     cout << Rules::writeVCNRule(hist.rules.VCNRule) << " does not support balanced openings init" << endl;
   int maxRandomMoveNum = randomMoveNumProb.size();
