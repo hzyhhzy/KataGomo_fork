@@ -23,12 +23,12 @@ static Loc getRandomNearbyMove(Board& board, Rand& gameRand, double avgDist) {
           Loc loc2 = Location::getLoc(x2, y2, xsize);
           if(board.colors[loc2] != C_EMPTY)
             continue;
-          double middleBonusFactor = 1.0;
+          double middleBonusFactor = 2.0;
           double halfBoardLen = std::max(0.5 * (xsize - 1), 0.5 * (ysize - 1));
           double distFromCenter = std::max(std::abs(x2 - 0.5 * (xsize - 1)), std::abs(y2 - 0.5 * (ysize - 1)));
           double middleBonus = middleBonusFactor * (halfBoardLen - distFromCenter) / halfBoardLen;
           double prob_increase =
-            (1 + middleBonus) * pow((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1) + avgDist * avgDist, -1.5);
+            (1 + middleBonus) * pow((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1) + avgDist * avgDist, -2);
           prob[y2 * xsize + x2] += prob_increase;
         }
     }
@@ -157,7 +157,7 @@ static bool tryInitializeBalancedRandomOpening(
   std::vector<float> randomMoveNumProb;
 
   if(hist.rules.VCNRule == Rules::VCNRULE_NOVC)
-    randomMoveNumProb = vector<float>{10, 20, 30, 40, 30, 20, 10, 5, 1, 0, 0, 0};
+    randomMoveNumProb = vector<float>{10, 30, 50, 80, 60, 40, 20, 10, 5, 1, 0, 0};
   else if(hist.rules.VCNRule == Rules::VCNRULE_VC1_B)
     randomMoveNumProb = vector<float>{0.03, 0.03, 25, 20, 15, 10, 5, 1, 0, 0, 0, 0};
   else if(hist.rules.VCNRule == Rules::VCNRULE_VC1_W)
@@ -170,7 +170,7 @@ static bool tryInitializeBalancedRandomOpening(
     cout << Rules::writeVCNRule(hist.rules.VCNRule) << " does not support balanced openings init" << endl;
   int maxRandomMoveNum = randomMoveNumProb.size();
 
-  static const double avgRandomDistFactor = 1.0;
+  static const double avgRandomDistFactor = 0.8;
 
   double randomMoveNumProbTotal = 0;
   for(int i = 0; i < maxRandomMoveNum; i++)
