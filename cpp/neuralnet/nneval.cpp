@@ -715,7 +715,11 @@ void NNEvaluator::evaluate(
         isLegal[i] = false;
       }
       isLegal[NNPos::locToPos(resultsBeforeNN.myOnlyLoc, xSize, nnXLen, nnYLen)] = true;
-      if(resultsBeforeNN.winner != nextPlayer)
+      if(
+        resultsBeforeNN.winner != nextPlayer &&
+        (resultsBeforeNN.myOnlyLoc == Board::PASS_LOC || 
+         history.rules.firstPassWin ||
+         history.rules.VCNRule != Rules::VCNRULE_NOVC))
         isLegal[NNPos::locToPos(Board::PASS_LOC, xSize, nnXLen, nnYLen)] = true;
     }
 
