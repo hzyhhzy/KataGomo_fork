@@ -33,6 +33,7 @@ namespace NNInputs {
 
 struct MiscNNInputParams {
   double noResultUtilityForWhite = 0.0;
+  //todo£ºnoResultUtilityReduce
   double playoutDoublingAdvantage = 0.0;
   float nnPolicyTemperature = 1.0f;
 

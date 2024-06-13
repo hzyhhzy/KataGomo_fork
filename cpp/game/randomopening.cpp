@@ -4,11 +4,19 @@
 #include "../search/asyncbot.h"
 using namespace RandomOpening;
 using namespace std;
+std::atomic<int64_t> triedCount(0);
+std::atomic<int64_t> succeedCount(0);
+std::atomic<int64_t> evalCount(0);
 
 static Loc getRandomNearbyMove(Board& board, Rand& gameRand, double avgDist) { 
   int xsize = board.x_size, ysize = board.y_size;
   if(board.isEmpty()) {
-    int x = gameRand.nextUInt(xsize - 2) + 1, y = gameRand.nextUInt(ysize - 2) + 1;
+    double middleBonusFactor = 1.5;
+    double xd = gameRand.nextGaussianTruncated(middleBonusFactor * 0.999) / (2*middleBonusFactor);
+    double yd = gameRand.nextGaussianTruncated(middleBonusFactor * 0.999) / (2*middleBonusFactor);
+    int x = round(xd * xsize + 0.5 * (xsize - 1)), y = round(xd * xsize + 0.5 * (xsize - 1));
+    if(x < 0 || x >= xsize || y < 0 || y >= ysize)
+      ASSERT_UNREACHABLE;
     Loc loc = Location::getLoc(x, y, xsize);
     return loc;
   }
@@ -23,7 +31,7 @@ static Loc getRandomNearbyMove(Board& board, Rand& gameRand, double avgDist) {
           Loc loc2 = Location::getLoc(x2, y2, xsize);
           if(board.colors[loc2] != C_EMPTY)
             continue;
-          double middleBonusFactor = 2.0;
+          double middleBonusFactor = 1.5;
           double halfBoardLen = std::max(0.5 * (xsize - 1), 0.5 * (ysize - 1));
           double distFromCenter = std::max(std::abs(x2 - 0.5 * (xsize - 1)), std::abs(y2 - 0.5 * (ysize - 1)));
           double middleBonus = middleBonusFactor * (halfBoardLen - distFromCenter) / halfBoardLen;
@@ -57,7 +65,8 @@ static Loc getRandomNearbyMove(Board& board, Rand& gameRand, double avgDist) {
 
   ASSERT_UNREACHABLE;
 }
-static double getBoardValue(Search* bot, Board& board, const BoardHistory& hist, Player nextPlayer) {
+static double getBoardValue(Search* bot, const Board& board, const BoardHistory& hist, Player nextPlayer) {
+  evalCount++;
   NNEvaluator* nnEval = bot->nnEvaluator;
   MiscNNInputParams nnInputParams;
   NNResultBuf buf;
@@ -79,14 +88,57 @@ static Loc getBalanceMove(
   bool forSelfplay,
   double rejectProb) {
   int xsize = board.x_size, ysize = board.y_size;
-  std::vector<double> prob(xsize * ysize, 0);
+
+  
+  Search* bot = gameRand.nextBool(0.5) ? botB : botW;
   double maxProb = 0;
+  
+  double rootValuePla = getBoardValue(bot, board, hist, nextPlayer);
+  if(rootValuePla<0) { //probably all moves are losing
+    double rejectFactor = 1 - exp(-3 * rootValuePla * rootValuePla);
+    if(gameRand.nextBool(rejectFactor) && gameRand.nextBool(rejectProb)) {
+      return Board::NULL_LOC;
+    }
+  }
+
+  double rootValueOpp = getBoardValue(bot, board, hist, getOpp(nextPlayer));
+  if(rootValueOpp < 0) {  // probably all moves are winning, even pass
+    double rejectFactor = 1 - exp(-3 * rootValueOpp * rootValueOpp);
+    if(gameRand.nextBool(rejectFactor) && gameRand.nextBool(rejectProb)) {
+      return Board::NULL_LOC;
+    }
+  }
+  
+  bool shouldCheckNearbyStones = rootValueOpp > 0 && board.stonenum > 0;
+    
+  std::vector<double> prob(xsize * ysize, 0);
   for(int x = 0; x < xsize; x++)
     for(int y = 0; y < ysize; y++) {
       Loc loc = Location::getLoc(x, y, xsize);
 
       if(!board.isLegal(loc, nextPlayer))
         continue;
+      
+      //check whether it nears some stones
+      if(shouldCheckNearbyStones) {
+        bool nearExistingStone = false;
+        for(int x1 = x - 3; x1 <= x + 3; x1++) {
+          for(int y1 = y - 3; y1 <= y + 3; y1++) {
+            if(x1 < 0 || x1 >= xsize || y1 < 0 || y1 >= ysize)
+              continue;
+            Loc loc1 = Location::getLoc(x1, y1, xsize);
+            assert(board.isOnBoard(loc1));
+            if(board.colors[loc1] != C_EMPTY)
+              nearExistingStone = true;
+            if(nearExistingStone)
+              break;
+          }
+          if(nearExistingStone)
+            break;
+        }
+        if(!nearExistingStone)
+          continue;
+      }
 
       Board boardCopy(board);
       BoardHistory histCopy(hist);
@@ -95,7 +147,6 @@ static Loc getBalanceMove(
       if(histCopy.isGameFinished)
         continue;
 
-      Search* bot = gameRand.nextBool(0.5) ? botB : botW;
       double value = getBoardValue(bot, boardCopy, histCopy, getOpp(nextPlayer));
 
       double p = forSelfplay ? pow(1 - value * value, 4) : pow(1 - value * value, 10);
@@ -153,6 +204,8 @@ static bool tryInitializeBalancedRandomOpening(
   Board boardCopy(board);
   BoardHistory histCopy(hist);
   Player nextPlayerCopy = nextPlayer;
+
+  triedCount++;
 
   std::vector<float> randomMoveNumProb;
 
@@ -227,5 +280,10 @@ void RandomOpening::initializeBalancedRandomOpening(
       std::cout << "Reached max trying times for finding balanced openings, Rule=" << hist.rules.toString() << std::endl;
       rejectProb = 0.8;
     }
+  }
+  succeedCount++;
+  //if(succeedCount%500==0) {
+  //  cout << "Generated " << succeedCount << " openings,"
+  //       << " tried " << triedCount << ", nneval " << evalCount << endl;
   }
 }

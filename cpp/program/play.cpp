@@ -1291,6 +1291,10 @@ FinishedGameData* Play::runGame(
 
   ClockTimer timer;
 
+  bool drawEarlyEndGame =
+    playSettings.allowEarlyDraw && (!playSettings.forSelfPlay || gameRand.nextBool(playSettings.earlyDrawProbSelfplay));
+
+
   //Main play loop
   for(int i = 0; i<maxMovesPerGame; i++) {
     if(hist.isGameFinished)
@@ -1400,7 +1404,7 @@ FinishedGameData* Play::runGame(
       }
     }
 
-    if(playSettings.allowResignation || playSettings.reduceVisits) {
+    if(playSettings.allowResignation || playSettings.reduceVisits || playSettings.allowEarlyDraw) {
       ReportedSearchValues values = toMoveBot->getRootValuesRequireSuccess();
       historicalMctsWinLossValues.push_back(values.winLossValue);
       historicalMctsDrawValues.push_back(values.noResultValue);
@@ -1449,6 +1453,16 @@ FinishedGameData* Play::runGame(
         if(shouldResign)
           hist.setWinnerByResignation(getOpp(pla));
       }
+    }
+    //Check for drawEarlyEndGame
+    if(drawEarlyEndGame && historicalMctsDrawValues.size() >= playSettings.earlyDrawConsecTurns) {
+      bool shouldEndGameDraw = true;
+      for(int i = 0; i < playSettings.earlyDrawConsecTurns; i++) {
+        if(historicalMctsDrawValues[historicalMctsDrawValues.size() - i - 1] < playSettings.earlyDrawThreshold)
+          shouldEndGameDraw = false;
+      }
+      if(shouldEndGameDraw)
+        hist.setWinner(C_EMPTY);
     }
 
     testAssert(hist.moveHistory.size() < 0x1FFFffff);
