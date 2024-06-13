@@ -285,5 +285,5 @@ void RandomOpening::initializeBalancedRandomOpening(
   //if(succeedCount%500==0) {
   //  cout << "Generated " << succeedCount << " openings,"
   //       << " tried " << triedCount << ", nneval " << evalCount << endl;
-  }
+  // }
 }
