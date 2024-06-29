@@ -1485,37 +1485,6 @@ int MainCmds::gtp(const vector<string>& args) {
       }
     }
 
-    else if(command == "kgs-rules") {
-      bool parseSuccess = false;
-      Rules newRules;
-      if(pieces.size() <= 0) {
-        responseIsError = true;
-        response = "Expected one argument kgs-rules";
-      }
-      else {
-        string s = Global::toLower(Global::trim(pieces[0]));
-        if(s == "chinese") {
-          newRules = Rules::parseRules("chinese-kgs");
-          parseSuccess = true;
-        }
-        else {
-          responseIsError = true;
-          response = "Unknown rules '" + s + "'";
-        }
-      }
-      if(parseSuccess) {
-        string error;
-        bool suc = engine->setRules(newRules,error);
-        if(!suc) {
-          responseIsError = true;
-          response = error;
-        }
-        logger.write("Changed rules to " + newRules.toStringMaybeNice());
-        if(!logger.isLoggingToStderr())
-          cerr << "Changed rules to " + newRules.toStringMaybeNice() << endl;
-      }
-    }
-
     else if(command == "kata-list-params") {
       //For now, rootPolicyTemperature is hidden since it's not clear we want to support it
       response = "playoutDoublingAdvantage analysisWideRootNoise maxVisits maxPlayouts maxTime";
@@ -2383,7 +2352,7 @@ int MainCmds::gtp(const vector<string>& args) {
         }
       }
     } 
-    else if(command == "firstpasswin" || command == "fpw")  // Maxmoves settings
+    else if(command == "firstpasswin" || command == "fpw")  // "First pass win" settings
     {
       int tmp;
       if(
@@ -2420,17 +2389,54 @@ int MainCmds::gtp(const vector<string>& args) {
         }
       }
     } 
-    else if(Rules::basicRuleStrings().count(Global::toUpper(command)))  // Is Command a basic rule?
+    else if(command == "wallblock" || command == "wb")  // whether regarding wall as opponent stone
+    {
+      int tmp;
+      if(
+        pieces.size() != 1 || (pieces[0] != "on" && pieces[0] != "off" && pieces[0] != "true" && pieces[0] != "false" &&
+                               pieces[0] != "open" && pieces[0] != "close")) {
+        responseIsError = true;
+        response = "Expected one arguments for firstpasswin but got '" + Global::concat(pieces, " ") + "'";
+      } else {
+        Rules currentRules = engine->getCurrentRules();
+        Rules newRules;
+
+        string wb = "false";
+        if(pieces[0] == "on" || pieces[0] == "open" || pieces[0] == "true")
+          wb = "true";
+
+        bool parseSuccess = false;
+        try {
+          newRules = Rules::updateRules("wallblock", wb, currentRules);
+          parseSuccess = true;
+        } catch(const StringError& err) {
+          responseIsError = true;
+          response = err.what();
+        }
+        if(parseSuccess) {
+          string error;
+          bool suc = engine->setRules(newRules, error);
+          if(!suc) {
+            responseIsError = true;
+            response = error;
+          }
+          logger.write("Changed rules to " + newRules.toString());
+          if(!logger.isLoggingToStderr())
+            cerr << "Changed rules to " + newRules.toString() << endl;
+        }
+      }
+    } 
+    else if(Rules::SixWinRuleStrings().count(Global::toUpper(command)))  // Is Command a sixWin rule?
     {
       if(pieces.size() != 0) {
         responseIsError = true;
-        response = "Expected zero arguments for BasicRule but got '" + Global::concat(pieces, " ") + "'";
+        response = "Expected zero arguments for SixWinRule but got '" + Global::concat(pieces, " ") + "'";
       } else {
         Rules currentRules = engine->getCurrentRules();
         Rules newRules;
         bool parseSuccess = false;
         try {
-          newRules = Rules::updateRules("basicrule", command, currentRules);
+          newRules = Rules::updateRules("sixwinrule", command, currentRules);
           parseSuccess = true;
         } catch(const StringError& err) {
           responseIsError = true;

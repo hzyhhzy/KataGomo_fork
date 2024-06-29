@@ -446,8 +446,8 @@ string GTPConfig::makeConfig(
   std::vector<int> deviceIdxs,
   int nnCacheSizePowerOfTwo,
   int nnMutexPoolSizePowerOfTwo,
-  int numSearchThreads
-) {
+  int numSearchThreads) {
+  ASSERT_UNREACHABLE;  // this function is not implemented
   string config = gtpBasePart1 + gtpBasePart2;
   auto replace = [&](const string& key, const string& replacement) {
     size_t pos = config.find(key);
@@ -455,15 +455,15 @@ string GTPConfig::makeConfig(
     config.replace(pos, key.size(), replacement);
   };
 
-  if(rules.basicRule == Rules::BASICRULE_FREESTYLE)
-    replace("$$BASIC_RULE", "basicRule = FREESTYLE  # options: FREESTYLE, STANDARD, RENJU");
-  else if(rules.basicRule == Rules::BASICRULE_STANDARD)
-    replace("$$BASIC_RULE", "basicRule = STANDARD  # options: FREESTYLE, STANDARD, RENJU");
-  else if(rules.basicRule == Rules::BASICRULE_RENJU)
-    replace("$$BASIC_RULE", "basicRule = RENJU  # options: FREESTYLE, STANDARD, RENJU");
-  else {
-    ASSERT_UNREACHABLE;
-  }
+  //if(rules.basicRule == Rules::BASICRULE_FREESTYLE)
+  //  replace("$$BASIC_RULE", "basicRule = FREESTYLE  # options: FREESTYLE, STANDARD, RENJU");
+  //else if(rules.basicRule == Rules::BASICRULE_STANDARD)
+  //  replace("$$BASIC_RULE", "basicRule = STANDARD  # options: FREESTYLE, STANDARD, RENJU");
+  //else if(rules.basicRule == Rules::BASICRULE_RENJU)
+  //  replace("$$BASIC_RULE", "basicRule = RENJU  # options: FREESTYLE, STANDARD, RENJU");
+  //else {
+  //  ASSERT_UNREACHABLE;
+  //}
 
 
   if(maxVisits < ((int64_t)1 << 50)) replace("$$MAX_VISITS", "maxVisits = " + Global::int64ToString(maxVisits));

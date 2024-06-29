@@ -37,9 +37,6 @@ struct MiscNNInputParams {
   double playoutDoublingAdvantage = 0.0;
   float nnPolicyTemperature = 1.0f;
 
-  bool useVCFInput = true;
-  bool useForbiddenInput = true;
-
   GameLogic::ResultsBeforeNN resultsBeforeNN = GameLogic::ResultsBeforeNN();
 
   // If no symmetry is specified, it will use default or random based on config, unless node is already cached.

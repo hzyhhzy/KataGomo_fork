@@ -245,9 +245,6 @@ add_executable(katago
   command/sandbox.cpp
   command/selfplay.cpp
   command/tune.cpp
-  forbiddenPoint/ForbiddenPointFinder.cpp
-  vcfsolver/VCFsolver.cpp
-  vcfsolver/VCFHashTable.cpp
   main.cpp
   )
 

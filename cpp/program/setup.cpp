@@ -600,20 +600,6 @@ vector<SearchParams> Setup::loadParams(
     else
       params.nnPolicyTemperature = 1.0f;
 
-    if(cfg.contains("useVCFInput" + idxStr))
-      params.useVCFInput = cfg.getBool("useVCFInput" + idxStr);
-    else if(cfg.contains("useVCFInput"))
-      params.useVCFInput = cfg.getBool("useVCFInput");
-    else
-      params.useVCFInput = true;
-
-    if(cfg.contains("useForbiddenInput" + idxStr))
-      params.useForbiddenInput = cfg.getBool("useForbiddenInput" + idxStr);
-    else if(cfg.contains("useForbiddenInput"))
-      params.useForbiddenInput = cfg.getBool("useForbiddenInput");
-    else
-      params.useForbiddenInput = true;
-
 
     if(cfg.contains("subtreeValueBiasFactor"+idxStr)) params.subtreeValueBiasFactor = cfg.getDouble("subtreeValueBiasFactor"+idxStr, 0.0, 1.0);
     else if(cfg.contains("subtreeValueBiasFactor")) params.subtreeValueBiasFactor = cfg.getDouble("subtreeValueBiasFactor", 0.0, 1.0);
@@ -703,17 +689,17 @@ Rules Setup::loadSingleRules(
   Rules rules;
 
   if(cfg.contains("rules")) {
-    if(cfg.contains("basicRule"))
+    if(cfg.contains("sixWinRule"))
       throw StringError("Cannot both specify 'rules' and individual rules like basicRule");
 
     rules = Rules::parseRules(cfg.getString("rules"));
   } 
   else {
-    if(cfg.contains("basicRule")) {
-      string basicRule = cfg.getString("basicRule", Rules::basicRuleStrings());
-      rules.basicRule = Rules::parseBasicRule(basicRule);
+    if(cfg.contains("sixWinRule")) {
+      string sixWinRule = cfg.getString("sixWinRule", Rules::SixWinRuleStrings());
+      rules.sixWinRule = Rules::parseSixWinRule(sixWinRule);
     } else {
-      rules.basicRule = Rules::BASICRULE_FREESTYLE;
+      rules.sixWinRule = Rules::SIXWINRULE_ALWAYS;
     }
   }
 

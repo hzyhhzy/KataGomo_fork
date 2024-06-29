@@ -8,20 +8,21 @@ using namespace std;
 using json = nlohmann::json;
 
 Rules::Rules() {
-  basicRule = BASICRULE_FREESTYLE;
+  sixWinRule = SIXWINRULE_ALWAYS;
+  wallBlock = false;
   VCNRule = VCNRULE_NOVC;
   firstPassWin = false;
   maxMoves = 0;
 }
 
-Rules::Rules(int basicRule, int VCNRule, bool firstPassWin, int maxMoves)
-  : basicRule(basicRule), VCNRule(VCNRule), firstPassWin(firstPassWin), maxMoves(maxMoves) {}
+Rules::Rules(int sixWinRule, bool wallBlock, int VCNRule, bool firstPassWin, int maxMoves)
+  : sixWinRule(sixWinRule), wallBlock(wallBlock), VCNRule(VCNRule), firstPassWin(firstPassWin), maxMoves(maxMoves) {}
 
 Rules::~Rules() {}
 
 bool Rules::operator==(const Rules& other) const {
-  return basicRule == other.basicRule && VCNRule == other.VCNRule && firstPassWin == other.firstPassWin &&
-         maxMoves == other.maxMoves;
+  return sixWinRule == other.sixWinRule && wallBlock == other.wallBlock && VCNRule == other.VCNRule &&
+         firstPassWin == other.firstPassWin && maxMoves == other.maxMoves;
 }
 
 bool Rules::operator!=(const Rules& other) const {
@@ -33,32 +34,32 @@ Rules Rules::getTrompTaylorish() {
   return rules;
 }
 
-set<string> Rules::basicRuleStrings() {
-  return {"FREESTYLE", "STANDARD", "RENJU"};
+set<string> Rules::SixWinRuleStrings() {
+  return {"SIXWINRULE_ALWAYS", "SIXWINRULE_NEVER", "SIXWINRULE_CARO"};
 }
 set<string> Rules::VCNRuleStrings() {
   return {"NOVC", "VC1B", "VC2B", "VC3B", "VC4B", "VCTB", "VCFB", "VC1W", "VC2W", "VC3W", "VC4W", "VCTW", "VCFW"};
 }
 
-int Rules::parseBasicRule(string s) {
+int Rules::parseSixWinRule(string s) {
   s = Global::toUpper(s);
-  if(s == "FREESTYLE")
-    return Rules::BASICRULE_FREESTYLE;
-  else if(s == "STANDARD")
-    return Rules::BASICRULE_STANDARD;
-  else if(s == "RENJU")
-    return Rules::BASICRULE_RENJU;
+  if(s == "SIXWINRULE_ALWAYS")
+    return Rules::SIXWINRULE_ALWAYS;
+  else if(s == "SIXWINRULE_NEVER")
+    return Rules::SIXWINRULE_NEVER;
+  else if(s == "SIXWINRULE_CARO")
+    return Rules::SIXWINRULE_CARO;
   else
-    throw IOError("Rules::parseBasicRule: Invalid basic rule: " + s);
+    throw IOError("Rules::parseSixWinRule: Invalid six win rule: " + s);
 }
 
-string Rules::writeBasicRule(int basicRule) {
-  if(basicRule == Rules::BASICRULE_FREESTYLE)
-    return string("FREESTYLE");
-  if(basicRule == Rules::BASICRULE_STANDARD)
-    return string("STANDARD");
-  if(basicRule == Rules::BASICRULE_RENJU)
-    return string("RENJU");
+string Rules::writeSixWinRule(int sixWinRule) {
+  if(sixWinRule == Rules::SIXWINRULE_ALWAYS)
+    return string("SIXWINRULE_ALWAYS");
+  if(sixWinRule == Rules::SIXWINRULE_NEVER)
+    return string("SIXWINRULE_NEVER");
+  if(sixWinRule == Rules::SIXWINRULE_CARO)
+    return string("SIXWINRULE_CARO");
   return string("UNKNOWN");
 }
 
@@ -131,7 +132,8 @@ int Rules::vcLevel() const {
 }
 
 ostream& operator<<(ostream& out, const Rules& rules) {
-  out << "basicrule" << Rules::writeBasicRule(rules.basicRule);
+  out << "sixwinrule" << Rules::writeSixWinRule(rules.sixWinRule);
+  out << "wallblock" << rules.wallBlock;
   out << "vcnrule" << Rules::writeVCNRule(rules.VCNRule);
   out << "firstpasswin" << rules.firstPassWin;
   out << "maxmoves" << rules.maxMoves;
@@ -147,7 +149,7 @@ string Rules::toString() const {
 
 json Rules::toJson() const {
   json ret;
-  ret["basicrule"] = writeBasicRule(basicRule);
+  ret["sixwinrule"] = writeSixWinRule(sixWinRule);
   ret["vcnrule"] = writeVCNRule(VCNRule);
   ret["firstpasswin"] = firstPassWin;
   ret["maxmoves"] = maxMoves;
@@ -165,8 +167,11 @@ Rules Rules::updateRules(const string& k, const string& v, Rules oldRules) {
   Rules rules = oldRules;
   string key = Global::toLower(Global::trim(k));
   string value = Global::trim(Global::toUpper(v));
-  if(key == "basicrule")
-    rules.basicRule = Rules::parseBasicRule(value);
+  if(key == "sixwinrule")
+    rules.sixWinRule = Rules::parseSixWinRule(value);
+  else if(key == "wallblock") {
+    rules.wallBlock = Global::stringToBool(value);
+  }
   else if(key == "vcnrule") {
     rules.firstPassWin = false;
     rules.maxMoves = 0;
@@ -187,8 +192,7 @@ Rules Rules::updateRules(const string& k, const string& v, Rules oldRules) {
 static Rules parseRulesHelper(const string& sOrig) {
   Rules rules;
   string lowercased = Global::trim(Global::toLower(sOrig));
-  if(lowercased == "chinese") {
-  } else if(sOrig.length() > 0 && sOrig[0] == '{') {
+  if(sOrig.length() > 0 && sOrig[0] == '{') {
     // Default if not specified
     rules = Rules::getTrompTaylorish();
     try {
@@ -229,16 +233,16 @@ bool Rules::tryParseRules(const string& sOrig, Rules& buf) {
 }
 
 string Rules::toStringMaybeNice() const {
-  if(*this == parseRulesHelper("chinese"))
-    return "chinese";
   return toString();
 }
 
-const Hash128 Rules::ZOBRIST_BASIC_RULE_HASH[3] = {
+const Hash128 Rules::ZOBRIST_SIXWIN_RULE_HASH[3] = {
   Hash128(0x72eeccc72c82a5e7ULL, 0x0d1265e413623e2bULL),  // Based on sha256 hash of Rules::TAX_NONE
   Hash128(0x125bfe48a41042d5ULL, 0x061866b5f2b98a79ULL),  // Based on sha256 hash of Rules::TAX_SEKI
   Hash128(0xa384ece9d8ee713cULL, 0xfdc9f3b5d1f3732bULL),  // Based on sha256 hash of Rules::TAX_ALL
 };
+const Hash128 Rules::ZOBRIST_WALLBLOCK_HASH = Hash128(0x37b8f9b3011b420bULL, 0x706d097a80e19a64ULL);
+
 const Hash128 Rules::ZOBRIST_FIRSTPASSWIN_HASH = Hash128(0x082b14fef06c9716ULL, 0x98f5e636a9351303ULL);
 
 const Hash128 Rules::ZOBRIST_VCNRULE_HASH_BASE = Hash128(0x0dbdfa4e0ec7459cULL, 0xcc360848cf5d7c49ULL);

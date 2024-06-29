@@ -81,8 +81,6 @@ struct SearchParams {
 
   float nnPolicyTemperature; //Scale neural net policy probabilities by this temperature, applies everywhere in the tree
 
-  bool useVCFInput;        // whether calculate VCF
-  bool useForbiddenInput;  // whether use forbiddenPoints feature
 
 
   double subtreeValueBiasFactor; //Dynamically adjust neural net utilties based on empirical stats about their errors in search

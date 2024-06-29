@@ -42,13 +42,14 @@ GameInitializer::GameInitializer(ConfigParser& cfg, Logger& logger, const string
 }
 
 void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
-  allowedBasicRuleStrs = cfg.getStrings("basicRules", Rules::basicRuleStrings());
+  allowedSixWinRuleStrs = cfg.getStrings("sixWinRules", Rules::SixWinRuleStrings());
+  wallBlockRuleProb = cfg.getDouble("wallBlockRuleProb", 0.0, 1.0);
 
-  for(size_t i = 0; i < allowedBasicRuleStrs.size(); i++)
-    allowedBasicRules.push_back(Rules::parseBasicRule(allowedBasicRuleStrs[i]));
+  for(size_t i = 0; i < allowedSixWinRuleStrs.size(); i++)
+    allowedSixWinRules.push_back(Rules::parseSixWinRule(allowedSixWinRuleStrs[i]));
 
-  if(allowedBasicRules.size() <= 0)
-    throw IOError("basicRules must have at least one value in " + cfg.getFileName());
+  if(allowedSixWinRules.size() <= 0)
+    throw IOError("SixWinRules must have at least one value in " + cfg.getFileName());
 
   allowedVCNRuleStrs = cfg.getStrings("VCNRules", Rules::VCNRuleStrings());
 
@@ -310,7 +311,8 @@ Rules GameInitializer::createRules() {
 
 Rules GameInitializer::createRulesUnsynchronized() {
   Rules rules;
-  rules.basicRule = allowedBasicRules[rand.nextUInt(allowedBasicRules.size())];
+  rules.sixWinRule = allowedSixWinRules[rand.nextUInt(allowedSixWinRules.size())];
+  rules.wallBlock = rand.nextBool(wallBlockRuleProb);
   rules.VCNRule = allowedVCNRules[rand.nextUInt(allowedVCNRules.size())];
   if(rules.VCNRule == Rules::VCNRULE_NOVC)
     rules.firstPassWin = allowedFirstPassWinRules[rand.nextUInt(allowedFirstPassWinRules.size())];

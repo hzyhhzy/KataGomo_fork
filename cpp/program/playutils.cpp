@@ -399,10 +399,10 @@ void PlayUtils::printGenmoveLog(ostream& out, const AsyncBot* bot, const NNEvalu
 }
 
 Rules PlayUtils::genRandomRules(Rand& rand) {
-  vector<int> allowedBasicRules = {Rules::BASICRULE_FREESTYLE, Rules::BASICRULE_STANDARD, Rules::BASICRULE_RENJU};
+  vector<int> allowedSixWinRules = {Rules::SIXWINRULE_ALWAYS, Rules::SIXWINRULE_NEVER, Rules::SIXWINRULE_CARO};
 
   Rules rules;
-  rules.basicRule = allowedBasicRules[rand.nextUInt(allowedBasicRules.size())];
+  rules.sixWinRule = allowedSixWinRules[rand.nextUInt(allowedSixWinRules.size())];
   return rules;
 }
 

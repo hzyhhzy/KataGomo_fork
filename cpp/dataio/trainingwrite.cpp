@@ -302,9 +302,7 @@ void TrainingWriteBuffers::addRow(
     if(!isSidePosition)
       nnInputParams.playoutDoublingAdvantage = getOpp(nextPlayer) == data.playoutDoublingAdvantagePla ? -data.playoutDoublingAdvantage : data.playoutDoublingAdvantage;
 
-    nnInputParams.useForbiddenInput = rand.nextBool(TRAINING_DATA_FORBIDDEN_FEATURE_PROB);
-    nnInputParams.useVCFInput = rand.nextBool(TRAINING_DATA_VCF_PROB) && hist.rules.maxMoves == 0;
-    nnInputParams.resultsBeforeNN.init(board, hist, nextPlayer, nnInputParams.useVCFInput);
+    nnInputParams.resultsBeforeNN.init(board, hist, nextPlayer);
 
     bool inputsUseNHWC = false;
     float* rowBin = binaryInputNCHWUnpacked;

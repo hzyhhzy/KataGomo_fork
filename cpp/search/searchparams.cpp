@@ -56,8 +56,6 @@ SearchParams::SearchParams()
    playoutDoublingAdvantagePla(C_EMPTY),
    avoidRepeatedPatternUtility(0.0),
    nnPolicyTemperature(1.0f),
-   useVCFInput(true),
-   useForbiddenInput(true),
    subtreeValueBiasFactor(0.0),
    subtreeValueBiasTableNumShards(65536),
    subtreeValueBiasFreeProp(0.8),
