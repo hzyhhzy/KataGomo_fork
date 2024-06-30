@@ -614,6 +614,12 @@ vector<SearchParams> Setup::loadParams(
     else
       params.useForbiddenInput = true;
 
+    if(cfg.contains("fourAttackPolicyReduce" + idxStr))
+      params.fourAttackPolicyReduce = cfg.getFloat("fourAttackPolicyReduce" + idxStr, 0.0f, 5.0f);
+    else if(cfg.contains("fourAttackPolicyReduce"))
+      params.fourAttackPolicyReduce = cfg.getFloat("fourAttackPolicyReduce", 0.0f, 5.0f);
+    else
+      params.fourAttackPolicyReduce = 0.0f;
 
     if(cfg.contains("subtreeValueBiasFactor"+idxStr)) params.subtreeValueBiasFactor = cfg.getDouble("subtreeValueBiasFactor"+idxStr, 0.0, 1.0);
     else if(cfg.contains("subtreeValueBiasFactor")) params.subtreeValueBiasFactor = cfg.getDouble("subtreeValueBiasFactor", 0.0, 1.0);

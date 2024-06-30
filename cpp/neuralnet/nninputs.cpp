@@ -42,6 +42,7 @@ const Hash128 MiscNNInputParams::ZOBRIST_NN_POLICY_TEMP =
 const Hash128 MiscNNInputParams::ZOBRIST_NO_RESULT_UTILITY = Hash128(0x391d245011c6cbf9ULL, 0xf39b923e18c67a82ULL);
 const Hash128 MiscNNInputParams::ZOBRIST_USE_VCF = Hash128(0xd8b858bf3159e999ULL, 0x2eeaaa4d750b89e0ULL);
 const Hash128 MiscNNInputParams::ZOBRIST_USE_FORBIDDEN_FEATURE = Hash128(0xc07f051dcf020534ULL, 0xf24d6bb55323e505ULL);
+const Hash128 MiscNNInputParams::ZOBRIST_FOUR_POLICY_REDUCE_BASE = Hash128(0x80FF1EFC3F63C521ULL, 0xC5725C983B4B7D74ULL);
 //-----------------------------------------------------------------------------------------------------------
 //-----------------------------------------------------------------------------------------------------------
 
@@ -466,6 +467,15 @@ Hash128 NNInputs::getHash(
     hash ^= MiscNNInputParams::ZOBRIST_NN_POLICY_TEMP;
   }
 
+  if (nnInputParams.fourAttackPolicyReduce != 1.0f) {
+    int64_t fourAttackPolicyReduceDiscretized = (int64_t)(nnInputParams.fourAttackPolicyReduce * 2048.0f);
+
+    Hash128 h = MiscNNInputParams::ZOBRIST_FOUR_POLICY_REDUCE_BASE;
+    h.hash0 = Hash::rrmxmx(h.hash0 + fourAttackPolicyReduceDiscretized);
+    h.hash1 = h.hash0 * Hash::rrmxmx(h.hash1 + fourAttackPolicyReduceDiscretized);
+    hash ^= h;
+  }
+
   // Fold in noResultUtilityForWhite
   int64_t noResultUtilityForWhiteDiscretized = (int64_t)(nnInputParams.noResultUtilityForWhite * 2048.0f);
   hash.hash0 ^= Hash::murmurMix((uint64_t)noResultUtilityForWhiteDiscretized);
@@ -706,6 +716,7 @@ void NNInputs::fillRowV101(
   //  36  exp(-(maxmoves-moves)/1.5)
   //  37 2*((maxmoves-moves)%2)-1
 
+
   bool hasForbiddenFeature = nnInputParams.useForbiddenInput && hist.rules.basicRule == Rules::BASICRULE_RENJU;
 
   CForbiddenPointFinder fpf(board.x_size);
@@ -744,6 +755,7 @@ void NNInputs::fillRowV101(
     }
   }
 
+  rowGlobal[2] = nnInputParams.fourAttackPolicyReduce;
   rowGlobal[3] = hist.rules.basicRule == Rules::BASICRULE_STANDARD;
   rowGlobal[4] = hist.rules.basicRule == Rules::BASICRULE_RENJU;
   rowGlobal[5] = hist.rules.basicRule == Rules::BASICRULE_RENJU ? (nextPlayer == P_BLACK ? -1 : 1) : 0.0;
@@ -871,215 +883,4 @@ void NNInputs::fillRowV102(
   std::fill(rowBin, rowBin + NUM_FEATURES_SPATIAL_V102 * nnXLen * nnYLen, false);
   std::fill(rowGlobal, rowGlobal + NUM_FEATURES_GLOBAL_V102, 0.0f);
   throw StringError("V102 input is not implemented until now");
-  Player pla = nextPlayer;
-  Player opp = getOpp(pla);
-  int xSize = board.x_size;
-  int ySize = board.y_size;
-
-  int featureStride;
-  int posStride;
-  if(useNHWC) {
-    featureStride = 1;
-    posStride = NNInputs::NUM_FEATURES_SPATIAL_V102;
-  } else {
-    featureStride = nnXLen * nnYLen;
-    posStride = 1;
-  }
-
-  GameLogic::ResultsBeforeNN resultsBeforeNN = nnInputParams.resultsBeforeNN;
-  if(!resultsBeforeNN.inited) {
-    resultsBeforeNN.init(board, hist, nextPlayer, nnInputParams.useVCFInput);
-  }
-
-  // 为了兼容旧版本，输入层的顺序很乱
-
-  // bf
-  // 0       onBoard
-  // 1       己方棋子
-  // 2       对方棋子
-  // 3       己方黑棋禁手
-  // 4       对方黑棋禁手
-  // 5       胜点（如果有）
-
-  // gf
-  // 3       无禁/有禁0，无禁六不胜1
-  // 4       无禁/无禁六不胜0，有禁1
-  // 5       无禁/无禁六不胜0，有禁黑-1，有禁白1
-  // 6       是否使用禁手特征（两种无禁恒为0）
-  // 7~12    自己和对手的VCF（是否使用vcf，vcf的结果是什么）
-  // 38      胜点是否是pass（仅可能用于vcn防守方）
-
-  // 13  非VCN模式：和棋胜率，1.0是和棋己方胜，-1.0是和棋对方胜
-  //     VCN模式：0
-  // 14  非VCN模式：=对手是否已经pass过
-  //     VCN模式：0
-  //
-  // 15,16   PDA
-  //
-  // 17  firstPassWin
-  // 18  firstPassWin且己方先pass
-  // 19  firstPassWin且对方先pass
-  //
-  // 20  己方vc1
-  // 21  己方vc2
-  // 22  己方vc3
-  // 23  己方vc4
-  // 24  己方vc5
-  // 25  对方vc1
-  // 26  对方vc2
-  // 27  对方vc3
-  // 28  对方vc4
-  // 29  对方vc5
-  //
-  // 30  maxmoves!=0
-  // if(maxmoves!=0)
-  //  31  maxmoves/boardarea
-  //  32  moves/boardarea
-  //  33  exp(-(maxmoves-moves)/50.0)
-  //  34  exp(-(maxmoves-moves)/15.0)
-  //  35  exp(-(maxmoves-moves)/5.0)
-  //  36  exp(-(maxmoves-moves)/1.5)
-  //  37 2*((maxmoves-moves)%2)-1
-
-  bool hasForbiddenFeature = nnInputParams.useForbiddenInput && hist.rules.basicRule == Rules::BASICRULE_RENJU;
-
-  CForbiddenPointFinder fpf(board.x_size);
-  if(hasForbiddenFeature) {
-    for(int x = 0; x < board.x_size; x++)
-      for(int y = 0; y < board.y_size; y++) {
-        fpf.SetStone(x, y, board.colors[Location::getLoc(x, y, board.x_size)]);
-      }
-  }
-
-  for(int y = 0; y < ySize; y++) {
-    for(int x = 0; x < xSize; x++) {
-      int pos = NNPos::xyToPos(x, y, nnXLen);
-      Loc loc = Location::getLoc(x, y, xSize);
-
-      // Feature 0 - on board
-      setRowBin(rowBin, pos, 0, 1.0f, posStride, featureStride);
-
-      Color stone = board.colors[loc];
-
-      // Features 1,2 - pla,opp stone
-      if(stone == pla)
-        setRowBin(rowBin, pos, 1, 1.0f, posStride, featureStride);
-      else if(stone == opp)
-        setRowBin(rowBin, pos, 2, 1.0f, posStride, featureStride);
-
-      if(hasForbiddenFeature) {
-        if(pla == C_BLACK) {
-          if(fpf.isForbidden(x, y))
-            setRowBin(rowBin, pos, 3, 1.0f, posStride, featureStride);
-        } else if(pla == C_WHITE) {
-          if(fpf.isForbidden(x, y))
-            setRowBin(rowBin, pos, 4, 1.0f, posStride, featureStride);
-        }
-      }
-    }
-  }
-
-  rowGlobal[3] = hist.rules.basicRule == Rules::BASICRULE_STANDARD;
-  rowGlobal[4] = hist.rules.basicRule == Rules::BASICRULE_RENJU;
-  rowGlobal[5] = hist.rules.basicRule == Rules::BASICRULE_RENJU ? (nextPlayer == P_BLACK ? -1 : 1) : 0.0;
-
-  rowGlobal[6] = hasForbiddenFeature;
-
-  if(board.isOnBoard(resultsBeforeNN.myOnlyLoc))
-    setRowBin(
-      rowBin,
-      NNPos::locToPos(resultsBeforeNN.myOnlyLoc, board.x_size, nnXLen, nnYLen),
-      5,
-      1.0f,
-      posStride,
-      featureStride);
-  else if(resultsBeforeNN.myOnlyLoc == Board::PASS_LOC)
-    rowGlobal[38] = 1.0;
-
-  if(resultsBeforeNN.winner == nextPlayer)
-    rowGlobal[7] = 1.0;  // can win by five/lifeFour/vcf
-
-  if(resultsBeforeNN.calculatedVCF) {
-    if(resultsBeforeNN.winner == nextPlayer)
-      ;  // can win by five/lifeFour/vcf
-    else if(resultsBeforeNN.myVCFresult == 2)
-      rowGlobal[8] = 1.0;  // cannot vcf
-    else if(resultsBeforeNN.myVCFresult == 3)
-      rowGlobal[9] = 1.0;  // at least no short vcf
-    else
-      ASSERT_UNREACHABLE;
-    if(resultsBeforeNN.oppVCFresult == 1)
-      rowGlobal[10] = 1.0;  // opp can vcf
-    else if(resultsBeforeNN.oppVCFresult == 2)
-      rowGlobal[11] = 1.0;  // opp cannot vcf
-    else if(resultsBeforeNN.oppVCFresult == 3)
-      rowGlobal[12] = 1.0;  // at least no short vcf
-    else
-      ASSERT_UNREACHABLE;
-  }
-  
-
-  int myPassNum = nextPlayer == C_BLACK ? board.blackPassNum : board.whitePassNum;
-  int oppPassNum = nextPlayer == C_WHITE ? board.blackPassNum : board.whitePassNum;
-  if(myPassNum > 0 && oppPassNum > 0)
-    cout << "myPassNum>0 && oppPassNum>0 in nninput";
-
-  if(!hist.rules.firstPassWin && hist.rules.VCNRule == Rules::VCNRULE_NOVC) {
-    rowGlobal[13] =
-      nextPlayer == P_BLACK ? -nnInputParams.noResultUtilityForWhite : nnInputParams.noResultUtilityForWhite;
-    rowGlobal[14] = oppPassNum > 0;
-  } else {
-    rowGlobal[13] = 0;
-    rowGlobal[14] = 0;
-  }
-
-  // Used for handicap play
-  // Parameter 15 is used because there's actually a discontinuity in how training behavior works when this is
-  // nonzero, no matter how slightly.
-  if(nnInputParams.playoutDoublingAdvantage != 0) {
-    rowGlobal[15] = 1.0;
-    rowGlobal[16] = (float)(0.5 * nnInputParams.playoutDoublingAdvantage);
-  }
-
-  if(hist.rules.firstPassWin) {
-    rowGlobal[17] = 1.0;
-    rowGlobal[18] = myPassNum > 0;
-    rowGlobal[19] = oppPassNum > 0;
-  }
-
-  if(hist.rules.VCNRule != Rules::VCNRULE_NOVC) {
-    Color VCside = hist.rules.vcSide();
-    int VClevel = hist.rules.vcLevel();
-    int realVClevel = VClevel + myPassNum + oppPassNum;
-    if(realVClevel >= 1 && realVClevel <= 5) {
-      if(VCside == nextPlayer)
-        rowGlobal[19 + realVClevel] = 1.0;
-      else if(VCside == opp)
-        rowGlobal[24 + realVClevel] = 1.0;
-    } else {
-      cout << "illegal VCN rule in nninput:" << realVClevel << " " << VClevel << endl;
-    }
-  }
-
-  // if(maxmoves!=0)
-  //  31  maxmoves/boardarea
-  //  32  moves/boardarea
-  //  33  exp(-(maxmoves-moves)/50.0)
-  //  34  exp(-(maxmoves-moves)/15.0)
-  //  35  exp(-(maxmoves-moves)/5.0)
-  //  36  exp(-(maxmoves-moves)/1.5)
-
-  if(hist.rules.maxMoves != 0) {
-    rowGlobal[30] = 1.0;
-    double boardArea = board.x_size * board.y_size;
-    double movenum = board.movenum;
-    double maxmoves = hist.rules.maxMoves;
-    rowGlobal[31] = maxmoves / boardArea;
-    rowGlobal[32] = movenum / boardArea;
-    rowGlobal[33] = exp(-(maxmoves - movenum) / 50.0);
-    rowGlobal[34] = exp(-(maxmoves - movenum) / 15.0);
-    rowGlobal[35] = exp(-(maxmoves - movenum) / 5.0);
-    rowGlobal[36] = exp(-(maxmoves - movenum) / 1.5);
-    rowGlobal[37] = 2 * ((int(maxmoves - movenum)) % 2) - 1;
-  }
 }

@@ -58,6 +58,7 @@ SearchParams::SearchParams()
    nnPolicyTemperature(1.0f),
    useVCFInput(true),
    useForbiddenInput(true),
+   fourAttackPolicyReduce(0.0),
    subtreeValueBiasFactor(0.0),
    subtreeValueBiasTableNumShards(65536),
    subtreeValueBiasFreeProp(0.8),

@@ -737,6 +737,14 @@ void NNEvaluator::evaluate(
         maxPolicy = policyValue;
     }
 
+    //four attack policy reduce
+    if(nnInputParams.fourAttackPolicyReduce != 0) {
+      vector<Loc> fourLocs = GameLogic::getFourAttackLocs(board, history.rules, nextPlayer);
+      for(int i = 0; i < fourLocs.size(); i++) {
+        policy[NNPos::locToPos(fourLocs[i], xSize, nnXLen, nnYLen)] -= nnInputParams.fourAttackPolicyReduce;
+      }
+    }
+
     assert(legalCount > 0);
 
     float policySum = 0.0f;

@@ -83,6 +83,7 @@ struct SearchParams {
 
   bool useVCFInput;        // whether calculate VCF
   bool useForbiddenInput;  // whether use forbiddenPoints feature
+  double fourAttackPolicyReduce; //reduce policy of four attack, *exp(-x)
 
 
   double subtreeValueBiasFactor; //Dynamically adjust neural net utilties based on empirical stats about their errors in search

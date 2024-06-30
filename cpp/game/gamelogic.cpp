@@ -114,6 +114,66 @@ GameLogic::MovePriority GameLogic::getMovePriority(const Board& board, const Boa
   return MP;
 }
 
+std::vector<Loc> GameLogic::getFourAttackLocs(const Board& board, const Rules& rules, Player pla) {
+  vector<Loc> fourLocs;
+  Board boardcopy = board;
+  bool isSixWinMe = rules.basicRule == Rules::BASICRULE_FREESTYLE  ? true
+                    : rules.basicRule == Rules::BASICRULE_STANDARD ? false
+                    : rules.basicRule == Rules::BASICRULE_RENJU    ? (pla == C_WHITE)
+                                                                        : true;
+  bool isSixWinOpp = rules.basicRule == Rules::BASICRULE_FREESTYLE  ? true
+                     : rules.basicRule == Rules::BASICRULE_STANDARD ? false
+                     : rules.basicRule == Rules::BASICRULE_RENJU    ? (pla == C_BLACK)
+                                                                         : true;  // not used
+  for(int x0 = 0; x0 < board.x_size; x0++)
+    for(int y0 = 0; y0 < board.y_size; y0++)
+    {
+      Loc loc0 = Location::getLoc(x0, y0, board.x_size);
+      if(board.colors[loc0] != C_EMPTY)
+        continue;
+      bool isFour = false;
+
+      boardcopy.colors[loc0] = pla;
+
+      bool isLife;//not used
+      int adjs[4] = {1, (board.x_size + 1), (board.x_size + 1) + 1, (board.x_size + 1) - 1};  // +x +y +x+y -x+y
+      for(int i = 0; i < 4; i++) {
+        Loc loc1 = loc0;
+        for (int j = 0; j < 4; j++)
+        {
+          loc1 += adjs[i];
+          if(!boardcopy.isOnBoard(loc1))
+            break;
+          if(boardcopy.colors[loc1] != C_EMPTY)
+            continue;
+          int length = connectionLengthOneDirection(boardcopy, pla, isSixWinMe, loc1, adjs[i], isLife) +
+                       connectionLengthOneDirection(boardcopy, pla, isSixWinMe, loc1, -adjs[i], isLife) +
+                       1;
+          if(length == 5 || (length > 5 && isSixWinMe))
+            isFour = true;
+        }
+        loc1 = loc0;
+        for(int j = 0; j < 4; j++) {
+          loc1 -= adjs[i];
+          if(!boardcopy.isOnBoard(loc1))
+            break;
+          if(boardcopy.colors[loc1] != C_EMPTY)
+            continue;
+          int length = connectionLengthOneDirection(boardcopy, pla, isSixWinMe, loc1, adjs[i], isLife) +
+                       connectionLengthOneDirection(boardcopy, pla, isSixWinMe, loc1, -adjs[i], isLife) + 1;
+          if(length == 5 || (length > 5 && isSixWinMe))
+            isFour = true;
+        }
+      }
+      if(isFour)
+        fourLocs.push_back(loc0);
+      boardcopy.colors[loc0] = C_EMPTY;
+    }
+
+
+  return fourLocs;
+}
+
 bool Board::isForbidden(Loc loc) const {
   if(loc == PASS_LOC) {
     return false;
