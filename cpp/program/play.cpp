@@ -43,7 +43,9 @@ GameInitializer::GameInitializer(ConfigParser& cfg, Logger& logger, const string
 
 void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
   allowedSixWinRuleStrs = cfg.getStrings("sixWinRules", Rules::SixWinRuleStrings());
-  wallBlockRuleProb = cfg.getDouble("wallBlockRuleProb", 0.0, 1.0);
+  wallBlockRuleProb = cfg.contains("wallBlockRuleProb") ? cfg.getDouble("wallBlockRuleProb", 0.0, 1.0)
+                      : cfg.contains("wallBlockRule")   ? (cfg.getBool("wallBlockRule") ? 1.0 : 0.0)
+                                                        : 0.0;
 
   for(size_t i = 0; i < allowedSixWinRuleStrs.size(); i++)
     allowedSixWinRules.push_back(Rules::parseSixWinRule(allowedSixWinRuleStrs[i]));

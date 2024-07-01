@@ -688,20 +688,19 @@ Rules Setup::loadSingleRules(
 ) {
   Rules rules;
 
-  if(cfg.contains("rules")) {
-    if(cfg.contains("sixWinRule"))
-      throw StringError("Cannot both specify 'rules' and individual rules like basicRule");
-
-    rules = Rules::parseRules(cfg.getString("rules"));
-  } 
-  else {
-    if(cfg.contains("sixWinRule")) {
-      string sixWinRule = cfg.getString("sixWinRule", Rules::SixWinRuleStrings());
-      rules.sixWinRule = Rules::parseSixWinRule(sixWinRule);
-    } else {
-      rules.sixWinRule = Rules::SIXWINRULE_ALWAYS;
-    }
+  
+  if(cfg.contains("sixWinRule")) {
+    string sixWinRule = cfg.getString("sixWinRule", Rules::SixWinRuleStrings());
+    rules.sixWinRule = Rules::parseSixWinRule(sixWinRule);
+  } else {
+    rules.sixWinRule = Rules::SIXWINRULE_ALWAYS;
   }
+  if(cfg.contains("wallBlockRule")) {
+    rules.wallBlock = cfg.getBool("wallBlockRule");
+  } else {
+    rules.wallBlock = false;
+  }
+  
 
 
   return rules;

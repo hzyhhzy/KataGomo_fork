@@ -14,7 +14,7 @@ static Loc getRandomNearbyMove(Board& board, Rand& gameRand, double avgDist) {
     double middleBonusFactor = 1.5;
     double xd = gameRand.nextGaussianTruncated(middleBonusFactor * 0.999) / (2*middleBonusFactor);
     double yd = gameRand.nextGaussianTruncated(middleBonusFactor * 0.999) / (2*middleBonusFactor);
-    int x = round(xd * xsize + 0.5 * (xsize - 1)), y = round(xd * xsize + 0.5 * (xsize - 1));
+    int x = round(xd * xsize + 0.5 * (xsize - 1)), y = round(yd * ysize + 0.5 * (ysize - 1));
     if(x < 0 || x >= xsize || y < 0 || y >= ysize)
       ASSERT_UNREACHABLE;
     Loc loc = Location::getLoc(x, y, xsize);
