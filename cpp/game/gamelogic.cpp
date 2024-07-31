@@ -29,6 +29,7 @@ static int connectionLengthOneDirection(
   // 1:wall xxxx# 
   // 2:gap+dead xxxx.o 
   // 3:life xxxx.. or xxxx.#
+  // 4:long connection for sixwinrule_never xxxx.x
 {
   Loc tmploc = loc;
   int conNum = 0;
@@ -58,7 +59,7 @@ static int connectionLengthOneDirection(
       if(rules.sixWinRule == Rules::SIXWINRULE_ALWAYS)
         terminalType = 3;
       else if(rules.sixWinRule == Rules::SIXWINRULE_NEVER)
-        terminalType = 0;
+        terminalType = 4;
       else if (rules.sixWinRule == Rules::SIXWINRULE_CARO) {
         // check the next terminal
         // xxxx.xxo is 2
