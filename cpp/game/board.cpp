@@ -276,6 +276,14 @@ int Board::numPlaStonesOnBoard(Player pla) const {
   return num;
 }
 
+double Board::getLocationPriority(int x, int y) const {
+  if(numStones == 0)
+    return 0.0;
+  double dx = x - meanStoneX;
+  double dy = y - meanStoneY;
+  return dx * dx + dy * dy;
+}
+
 double Board::getLocationPriority(Loc loc) const {
   if(loc == NULL_LOC || loc == PASS_LOC || numStones == 0)
     return 0.0;

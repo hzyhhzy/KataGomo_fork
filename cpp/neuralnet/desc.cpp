@@ -240,7 +240,7 @@ ActivationLayerDesc::ActivationLayerDesc() : activation(ACTIVATION_RELU) {}
 
 ActivationLayerDesc::ActivationLayerDesc(istream& in, int version) {
   in >> name;
-  if(version >= 11) {
+  if(version >= 11 && version != 101) {
     string kind;
     in >> kind;
     if(kind == "ACTIVATION_IDENTITY")
@@ -1156,10 +1156,10 @@ void ModelDesc::loadFromFileMaybeGZipped(const string& fileName, ModelDesc& desc
 
 
 Rules ModelDesc::getSupportedRules(const Rules& desiredRules, bool& supported) const {
-  static_assert(NNModelVersion::latestModelVersionImplemented == 11, "");
+  static_assert(NNModelVersion::latestModelVersionImplemented == 102, "");
   Rules rules = desiredRules;
   supported = true;
-  if(version <= 11) {
+  if(version <= 102) {
   }
   else {
     ASSERT_UNREACHABLE;

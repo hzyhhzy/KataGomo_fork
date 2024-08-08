@@ -365,8 +365,8 @@ void SymmetryHelpers::markDuplicateMoveLocs(
     bool isBoardSym = true;
 
     //check chosen pieces first
-    for(int i = 0; i < board.stage; i++) {
-      Loc loc = board.midLocs[i];
+    for(int i = 0; i < 1; i++) {
+      Loc loc = board.firstLoc;
       if(board.isOnBoard(loc)) {
         Loc symLoc = getSymLoc(loc, board, symmetry);
         if(symLoc != loc)
@@ -484,6 +484,7 @@ void NNInputs::fillRowV7(
   const MiscNNInputParams& nnInputParams,
   int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
 ) {
+  throw StringError("V7 input is not supported");
   assert(nnXLen <= NNPos::MAX_BOARD_LEN);
   assert(nnYLen <= NNPos::MAX_BOARD_LEN);
   assert(board.x_size <= nnXLen);
@@ -539,7 +540,7 @@ void NNInputs::fillRowV7(
   } else if(board.stage == 1)  // place
   {
     rowGlobal[0] = 1.0f;
-    Loc chosenMove = board.midLocs[0];
+    Loc chosenMove = board.firstLoc;
     if(!board.isOnBoard(chosenMove)) {
       std::cout << "nninput: chosen move not on board ";
     } else {
@@ -568,7 +569,7 @@ void NNInputs::fillRowV7(
 
 
   //Scoring
-  if(hist.rules.scoringRule == Rules::SCORING_AREA) {}
+  if(hist.rules.basicRule==Rules::BASICRULE_FREESTYLE) {}
   else
     ASSERT_UNREACHABLE;
 
@@ -582,4 +583,261 @@ void NNInputs::fillRowV7(
 
   // noResultUtilityForWhite
   rowGlobal[17] = pla == C_WHITE ? nnInputParams.noResultUtilityForWhite : -nnInputParams.noResultUtilityForWhite;
+}
+
+//===========================================================================================
+// INPUTSVERSION 101
+//===========================================================================================
+
+void NNInputs::fillRowV101(
+  const Board& board,
+  const BoardHistory& hist,
+  Player nextPlayer,
+  const MiscNNInputParams& nnInputParams,
+  int nnXLen,
+  int nnYLen,
+  bool useNHWC,
+  float* rowBin,
+  float* rowGlobal) {
+  assert(nnXLen <= NNPos::MAX_BOARD_LEN);
+  assert(nnYLen <= NNPos::MAX_BOARD_LEN);
+  assert(board.x_size <= nnXLen);
+  assert(board.y_size <= nnYLen);
+  std::fill(rowBin, rowBin + NUM_FEATURES_SPATIAL_V101 * nnXLen * nnYLen, false);
+  std::fill(rowGlobal, rowGlobal + NUM_FEATURES_GLOBAL_V101, 0.0f);
+
+  Player pla = nextPlayer;
+  Player opp = getOpp(pla);
+  int xSize = board.x_size;
+  int ySize = board.y_size;
+
+  int featureStride;
+  int posStride;
+  if(useNHWC) {
+    featureStride = 1;
+    posStride = NNInputs::NUM_FEATURES_SPATIAL_V101;
+  } else {
+    featureStride = nnXLen * nnYLen;
+    posStride = 1;
+  }
+
+  GameLogic::ResultsBeforeNN resultsBeforeNN = nnInputParams.resultsBeforeNN;
+  if(!resultsBeforeNN.inited) {
+    resultsBeforeNN.init(board, hist, nextPlayer);
+  }
+
+  // 为了兼容旧版本，输入层的顺序很乱
+
+  // bf
+  // 0       onBoard
+  // 1       己方棋子
+  // 2       对方棋子
+  // 3       己方黑棋禁手
+  // 4       对方黑棋禁手
+  // 5       胜点（如果有）
+
+  // gf
+  // 3       无禁/有禁0，无禁六不胜1
+  // 4       无禁/无禁六不胜0，有禁1
+  // 5       无禁/无禁六不胜0，有禁黑-1，有禁白1
+  // 6       是否使用禁手特征（两种无禁恒为0）
+  // 7~12    自己和对手的VCF（是否使用vcf，vcf的结果是什么）
+  // 38      胜点是否是pass（仅可能用于vcn防守方）
+
+  // 13  非VCN模式：和棋胜率，1.0是和棋己方胜，-1.0是和棋对方胜
+  //     VCN模式：0
+  // 14  非VCN模式：=对手是否已经pass过
+  //     VCN模式：0
+  //
+  // 15,16   PDA
+  //
+  // 17  firstPassWin
+  // 18  firstPassWin且己方先pass
+  // 19  firstPassWin且对方先pass
+  //
+  // 20  己方vc1
+  // 21  己方vc2
+  // 22  己方vc3
+  // 23  己方vc4
+  // 24  己方vc5
+  // 25  对方vc1
+  // 26  对方vc2
+  // 27  对方vc3
+  // 28  对方vc4
+  // 29  对方vc5
+  //
+  // 30  maxmoves!=0
+  // if(maxmoves!=0)
+  //  31  maxmoves/boardarea
+  //  32  moves/boardarea
+  //  33  exp(-(maxmoves-moves)/50.0)
+  //  34  exp(-(maxmoves-moves)/15.0)
+  //  35  exp(-(maxmoves-moves)/5.0)
+  //  36  exp(-(maxmoves-moves)/1.5)
+  //  37 2*((maxmoves-moves)%2)-1
+
+
+  for(int y = 0; y < ySize; y++) {
+    for(int x = 0; x < xSize; x++) {
+      int pos = NNPos::xyToPos(x, y, nnXLen);
+      Loc loc = Location::getLoc(x, y, xSize);
+
+      // Feature 0 - on board
+      setRowBin(rowBin, pos, 0, 1.0f, posStride, featureStride);
+
+      Color stone = board.colors[loc];
+
+      // Features 1,2 - pla,opp stone
+      if(stone == pla)
+        setRowBin(rowBin, pos, 1, 1.0f, posStride, featureStride);
+      else if(stone == opp)
+        setRowBin(rowBin, pos, 2, 1.0f, posStride, featureStride);
+
+    }
+  }
+
+  if(board.stage == 0) {
+    //priority value input
+    if(board.numStones == 0) {  // priority value is always 0
+      rowGlobal[1] = 1.0f;
+    }
+    //how many places are available surrounding this location
+
+    for(int y = 0; y < ySize; y++) {
+      for(int x = 0; x < xSize; x++) {
+        Loc loc = Location::getLoc(x, y, xSize);
+        int pos = NNPos::xyToPos(x, y, nnXLen);
+        double priority = board.getLocationPriority(x, y);
+        int count = 0;
+        for(int x1 = max(x - 1, 0); x1 <= min(x + 1, board.x_size - 1); x1++) {
+          for(int y1 = max(y - 1, 0); y1 <= min(y + 1, board.y_size - 1); y1++) {
+            double priority2 = board.getLocationPriority(x1, y1);
+            if(priority2 - priority >= -Board::PRIOR_EPS)
+              count++;
+          }
+        }
+        count -= 1;
+        assert(count >= 0 && count <= 8);
+        //channel 6~13: how many locations surrounding this loc has equal or larger priority
+        for(int i = 0; i < count; i++) {
+          setRowBin(rowBin, pos, 6 + i, 1.0f, posStride, featureStride);
+        }
+      }
+    }
+  } 
+  else {
+    rowGlobal[0] = 1.0f;
+    if(board.numStones == 0 || board.firstLoc == Board::NULL_LOC || board.firstLoc == Board::PASS_LOC) { //everywhere is ok
+      rowGlobal[2] = 1.0f;
+    }
+    if(board.firstLoc == Board::PASS_LOC) {
+      rowGlobal[3] = 1.0f;
+    }
+    if(board.isOnBoard(board.firstLoc)) {
+      int pos = NNPos::locToPos(board.firstLoc, board.x_size, nnXLen, nnYLen);
+      setRowBin(rowBin, pos, 3, 1.0f, posStride, featureStride);
+      setRowBin(rowBin, pos, 1, 1.0f, posStride, featureStride);
+    }
+    //all legal second moves
+
+    for(int y = 0; y < ySize; y++) {
+      for(int x = 0; x < xSize; x++) {
+        Loc loc = Location::getLoc(x, y, xSize);
+        double priority = board.getLocationPriority(x, y);
+        if(
+          board.isLegal(loc, nextPlayer) &&
+          board.getLocationPriority(x, y) + Board::PRIOR_EPS >= board.firstLocPriority)  // legal
+        {
+          int pos = NNPos::xyToPos(x, y, nnXLen);
+          setRowBin(rowBin, pos, 4, 1.0f, posStride, featureStride);
+        }
+      }
+    }
+  }
+
+  // Basic rule
+  if(hist.rules.basicRule == Rules::BASICRULE_FREESTYLE) {
+  } else
+    ASSERT_UNREACHABLE;
+
+  if(true) {
+    if(board.isOnBoard(resultsBeforeNN.myOnlyLoc))
+      setRowBin(
+        rowBin,
+        NNPos::locToPos(resultsBeforeNN.myOnlyLoc, board.x_size, nnXLen, nnYLen),
+        5,
+        1.0f,
+        posStride,
+        featureStride);
+    else if(resultsBeforeNN.myOnlyLoc == Board::PASS_LOC)
+      rowGlobal[38] = 1.0;
+
+    if(resultsBeforeNN.winner == nextPlayer)
+      rowGlobal[12] = 1.0;  // can win by five/lifeFour/vcf
+
+  }
+
+  int myPassNum = nextPlayer == C_BLACK ? board.blackPassNum : board.whitePassNum;
+  int oppPassNum = nextPlayer == C_WHITE ? board.blackPassNum : board.whitePassNum;
+  if(myPassNum > 0 && oppPassNum > 0)
+    cout << "myPassNum>0 && oppPassNum>0 in nninput";
+
+  if(!hist.rules.firstPassWin && hist.rules.VCNRule == Rules::VCNRULE_NOVC) {
+    rowGlobal[13] =
+      nextPlayer == P_BLACK ? -nnInputParams.noResultUtilityForWhite : nnInputParams.noResultUtilityForWhite;
+    rowGlobal[14] = oppPassNum > 0;
+  } else {
+    rowGlobal[13] = 0;
+    rowGlobal[14] = 0;
+  }
+
+  // Used for handicap play
+  // Parameter 15 is used because there's actually a discontinuity in how training behavior works when this is
+  // nonzero, no matter how slightly.
+  if(nnInputParams.playoutDoublingAdvantage != 0) {
+    rowGlobal[15] = 1.0;
+    rowGlobal[16] = (float)(0.5 * nnInputParams.playoutDoublingAdvantage);
+  }
+
+  if(hist.rules.firstPassWin) {
+    rowGlobal[17] = 1.0;
+    rowGlobal[18] = myPassNum > 0;
+    rowGlobal[19] = oppPassNum > 0;
+  }
+
+  if(hist.rules.VCNRule != Rules::VCNRULE_NOVC) {
+    Color VCside = hist.rules.vcSide();
+    int VClevel = hist.rules.vcLevel();
+    int realVClevel = VClevel + myPassNum + oppPassNum;
+    if(realVClevel >= 1 && realVClevel <= 5) {
+      if(VCside == nextPlayer)
+        rowGlobal[19 + realVClevel] = 1.0;
+      else if(VCside == opp)
+        rowGlobal[24 + realVClevel] = 1.0;
+    } else {
+      cout << "illegal VCN rule in nninput:" << realVClevel << " " << VClevel << endl;
+    }
+  }
+
+  // if(maxmoves!=0)
+  //  31  maxmoves/boardarea
+  //  32  moves/boardarea
+  //  33  exp(-(maxmoves-moves)/50.0)
+  //  34  exp(-(maxmoves-moves)/15.0)
+  //  35  exp(-(maxmoves-moves)/5.0)
+  //  36  exp(-(maxmoves-moves)/1.5)
+
+  if(hist.rules.maxMoves != 0) {
+    rowGlobal[30] = 1.0;
+    double boardArea = board.x_size * board.y_size;
+    double movenum = board.movenum;
+    double maxmoves = hist.rules.maxMoves;
+    rowGlobal[31] = maxmoves / boardArea;
+    rowGlobal[32] = movenum / boardArea;
+    rowGlobal[33] = exp(-(maxmoves - movenum) / 50.0);
+    rowGlobal[34] = exp(-(maxmoves - movenum) / 15.0);
+    rowGlobal[35] = exp(-(maxmoves - movenum) / 5.0);
+    rowGlobal[36] = exp(-(maxmoves - movenum) / 1.5);
+    rowGlobal[37] = 2 * ((int(maxmoves - movenum)) % 2) - 1;
+  }
 }

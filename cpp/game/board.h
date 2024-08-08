@@ -98,6 +98,9 @@ struct Board
   static constexpr int MAX_PLAY_SIZE = MAX_LEN * MAX_LEN;  //Maximum number of playable spaces
   static constexpr int MAX_ARR_SIZE = (MAX_LEN+1)*(MAX_LEN+2)+1; //Maximum size of arrays needed
 
+  //the priority of the second move should be larger than first_move - PRIOR_EPS
+  static constexpr double PRIOR_EPS = 1e-10;
+
   //Location used to indicate an invalid spot on the board.
   static constexpr Loc NULL_LOC = 0;
   //Location used to indicate a pass move is desired.
@@ -138,6 +141,7 @@ struct Board
   int numPlaStonesOnBoard(Player pla) const;
   
   //square of the distance of loc and gravity center. 0 if null_loc or pass_loc (means all next moves are legal)
+  double getLocationPriority(int x, int y) const;
   double getLocationPriority(Loc loc) const;
 
 

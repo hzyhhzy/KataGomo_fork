@@ -4,9 +4,9 @@
 // Model versions
 namespace NNModelVersion {
 
-  constexpr int latestModelVersionImplemented = 11;
-  constexpr int latestInputsVersionImplemented = 7;
-  constexpr int defaultModelVersion = 11;
+  constexpr int latestModelVersionImplemented = 102;
+  constexpr int latestInputsVersionImplemented = 101;
+  constexpr int defaultModelVersion = 102;
 
   constexpr int oldestModelVersionImplemented = 8;
   constexpr int oldestInputsVersionImplemented = 7;
