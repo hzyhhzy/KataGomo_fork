@@ -78,19 +78,7 @@ logToStderr = false
 # See https://github.com/lightvector/KataGo/blob/master/docs/GTP_Extensions.md
 # for GTP commands.
 
-$$KO_RULE
-
-$$SCORING_RULE
-
-$$TAX_RULE
-
-$$MULTI_STONE_SUICIDE
-
-$$BUTTON
-
-$$WHITE_HANDICAP_BONUS
-
-$$FRIENDLY_PASS_OK
+$$BASIC_RULE
 
 # ===========================================================================
 # Bot behavior
@@ -465,9 +453,11 @@ string GTPConfig::makeConfig(
     assert(pos != string::npos);
     config.replace(pos, key.size(), replacement);
   };
-  if(rules.scoringRule == Rules::SCORING_AREA)            replace("$$SCORING_RULE", "scoringRule = AREA  # options: AREA, TERRITORY");
-  else { ASSERT_UNREACHABLE; }
-
+  if(rules.basicRule == Rules::BASICRULE_FREESTYLE)
+    replace("$$BASIC_RULE", "basicRule = FREESTYLE  # options: FREESTYLE, STANDARD, RENJU");
+  else {
+    ASSERT_UNREACHABLE;
+  }
 
 
   if(maxVisits < ((int64_t)1 << 50)) replace("$$MAX_VISITS", "maxVisits = " + Global::int64ToString(maxVisits));

@@ -91,7 +91,9 @@ struct BoardHistory {
     const BoardHistory& hist,
     Player nextPlayer);
 
-private:
+  Hash128 getRulesHash() const;
+
+ private:
 };
 
 

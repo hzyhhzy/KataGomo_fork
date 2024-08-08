@@ -132,7 +132,7 @@ void PlayUtils::initializeGameUsingPolicy(
 
   const double randomInitMovenumEquToPolicyInit = 2.0;
   int numInitialMovesToPlay =
-    (int)floor(gameRand.nextExponential() * (avgPolicyInitMoveNum - randomInitMovenumEquToPolicyInit * board.movenum));
+    (int)floor(gameRand.nextExponential() * avgPolicyInitMoveNum - randomInitMovenumEquToPolicyInit * board.movenum);
   if(numInitialMovesToPlay < 0)
     numInitialMovesToPlay = 0;
 
@@ -400,10 +400,10 @@ void PlayUtils::printGenmoveLog(ostream& out, const AsyncBot* bot, const NNEvalu
 }
 
 Rules PlayUtils::genRandomRules(Rand& rand) {
-  vector<int> allowedScoringRules = { Rules::SCORING_AREA};
+  vector<int> allowedBasicRules = {Rules::BASICRULE_FREESTYLE};
 
   Rules rules;
-  rules.scoringRule = allowedScoringRules[rand.nextUInt((uint32_t)allowedScoringRules.size())];
+  rules.basicRule = allowedBasicRules[rand.nextUInt(allowedBasicRules.size())];
 
   return rules;
 }

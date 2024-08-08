@@ -673,14 +673,18 @@ Rules Setup::loadSingleRules(
   Rules rules;
 
   if(cfg.contains("rules")) {
-    if(cfg.contains("scoringRule")) throw StringError("Cannot both specify 'rules' and individual rules like scoringRule");
+    if(cfg.contains("basicRule"))
+      throw StringError("Cannot both specify 'rules' and individual rules like basicRule");
+
     rules = Rules::parseRules(cfg.getString("rules"));
   }
   else {
-    string scoringRule = cfg.getString("scoringRule", Rules::scoringRuleStrings());
-    rules.scoringRule = Rules::parseScoringRule(scoringRule);
-
-
+    if(cfg.contains("basicRule")) {
+      string basicRule = cfg.getString("basicRule", Rules::basicRuleStrings());
+      rules.basicRule = Rules::parseBasicRule(basicRule);
+    } else {
+      rules.basicRule = Rules::BASICRULE_FREESTYLE;
+    }
   }
 
   return rules;

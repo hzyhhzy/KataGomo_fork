@@ -107,6 +107,10 @@ void Hash::jenkinsMix(uint32_t& a, uint32_t& b, uint32_t& c)
   c=c-a;  c=c-b;  c=c^(b >> 15);
 }
 
+Hash128 Hash128::mixInt(Hash128 h, int64_t t) {
+  return Hash128(Hash::murmurMix(h.hash0 ^ t), Hash::splitMix64(h.hash1 ^ t));
+}
+
 uint64_t Hash::simpleHash(const char* str)
 {
   uint64_t m1 = 123456789;

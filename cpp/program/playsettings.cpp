@@ -11,7 +11,11 @@ PlaySettings::PlaySettings()
    policySurpriseDataWeight(0.0),valueSurpriseDataWeight(0.0),scaleDataWeight(1.0),
    recordTreePositions(false),recordTreeThreshold(0),recordTreeTargetWeight(0.0f),
    noResolveTargetWeights(false),
-   allowResignation(false),resignThreshold(0.0),resignConsecTurns(1),
+   allowResignation(false),resignThreshold(0.0),resignConsecTurns(1), 
+  allowEarlyDraw(false),
+    earlyDrawThreshold(0.99),
+    earlyDrawConsecTurns(4),
+    earlyDrawProbSelfplay(0.9),
    forSelfPlay(false),
     normalAsymmetricPlayoutProb(0.0),
     maxAsymmetricRatio(2.0),
@@ -33,6 +37,10 @@ PlaySettings PlaySettings::loadForMatch(ConfigParser& cfg) {
     playSettings.policyInitAreaTemperature = cfg.contains("policyInitAreaTemperature") ? cfg.getDouble("policyInitAreaTemperature",0.1,5.0) : 1.0;
   }
   playSettings.recordTimePerMove = true;
+  playSettings.allowEarlyDraw = cfg.getBool("allowEarlyDraw");
+  playSettings.earlyDrawThreshold = cfg.getDouble("earlyDrawThreshold", 0.8, 1.0);
+  playSettings.earlyDrawConsecTurns = cfg.getInt("earlyDrawConsecTurns", 1, 100);
+  playSettings.earlyDrawProbSelfplay = cfg.getDouble("earlyDrawProbSelfplay", 0.0, 1.0);
   return playSettings;
 }
 
@@ -41,6 +49,10 @@ PlaySettings PlaySettings::loadForGatekeeper(ConfigParser& cfg) {
   playSettings.allowResignation = cfg.getBool("allowResignation");
   playSettings.resignThreshold = cfg.getDouble("resignThreshold",-1.0,0.0); //Threshold on [-1,1], regardless of winLossUtilityFactor
   playSettings.resignConsecTurns = cfg.getInt("resignConsecTurns",1,100);
+  playSettings.allowEarlyDraw = cfg.getBool("allowEarlyDraw");
+  playSettings.earlyDrawThreshold = cfg.getDouble("earlyDrawThreshold", 0.8, 1.0);
+  playSettings.earlyDrawConsecTurns = cfg.getInt("earlyDrawConsecTurns", 1, 100);
+  playSettings.earlyDrawProbSelfplay = cfg.getDouble("earlyDrawProbSelfplay", 0.0, 1.0);
   return playSettings;
 }
 
@@ -76,6 +88,16 @@ PlaySettings PlaySettings::loadForSelfplay(ConfigParser& cfg) {
 
   if(playSettings.policySurpriseDataWeight + playSettings.valueSurpriseDataWeight > 1.0)
     throw StringError("policySurpriseDataWeight + valueSurpriseDataWeight > 1.0");
+
+  playSettings.allowResignation = cfg.getBool("allowResignation");
+  playSettings.resignThreshold =
+    cfg.getDouble("resignThreshold", -1.0, 0.0);  // Threshold on [-1,1], regardless of winLossUtilityFactor
+  playSettings.resignConsecTurns = cfg.getInt("resignConsecTurns", 1, 100);
+
+  playSettings.allowEarlyDraw = cfg.getBool("allowEarlyDraw");
+  playSettings.earlyDrawThreshold = cfg.getDouble("earlyDrawThreshold", 0.8, 1.0);
+  playSettings.earlyDrawConsecTurns = cfg.getInt("earlyDrawConsecTurns", 1, 100);
+  playSettings.earlyDrawProbSelfplay = cfg.getDouble("earlyDrawProbSelfplay", 0.0, 1.0);
 
   return playSettings;
 }

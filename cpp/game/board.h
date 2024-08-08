@@ -12,7 +12,7 @@
 #include "../external/nlohmann_json/json.hpp"
 
 #ifndef COMPILE_MAX_BOARD_LEN 
-#define COMPILE_MAX_BOARD_LEN 8
+#define COMPILE_MAX_BOARD_LEN 19
 #endif
 
 //how many stages in each move
@@ -20,25 +20,13 @@
 static const int STAGE_NUM_EACH_PLA = 2;
 
 //max moves num of a game
-static const int MAX_MOVE_NUM = 100 * COMPILE_MAX_BOARD_LEN * COMPILE_MAX_BOARD_LEN;
+static const int MAX_MOVE_NUM = 2 * COMPILE_MAX_BOARD_LEN * COMPILE_MAX_BOARD_LEN;
 
 
 //TYPES AND CONSTANTS-----------------------------------------------------------------
 
 struct Board;
 
-//Player
-typedef int8_t Player;
-static constexpr Player P_BLACK = 1;
-static constexpr Player P_WHITE = 2;
-
-//Color of a point on the board
-typedef int8_t Color;
-static constexpr Color C_EMPTY = 0;
-static constexpr Color C_BLACK = 1;
-static constexpr Color C_WHITE = 2;
-static constexpr Color C_WALL = 3;
-static constexpr int NUM_BOARD_COLORS = 4;
 
 static inline Color getOpp(Color c)
 {return c ^ 3;}
@@ -120,10 +108,12 @@ struct Board
   static Hash128 ZOBRIST_SIZE_X_HASH[MAX_LEN+1];
   static Hash128 ZOBRIST_SIZE_Y_HASH[MAX_LEN+1];
   static Hash128 ZOBRIST_BOARD_HASH[MAX_ARR_SIZE][NUM_BOARD_COLORS];
-  static Hash128 ZOBRIST_STAGENUM_HASH[STAGE_NUM_EACH_PLA];
-  static Hash128 ZOBRIST_STAGELOC_HASH[MAX_ARR_SIZE][STAGE_NUM_EACH_PLA];
+  static Hash128 ZOBRIST_SECONDMOVE_HASH;
+  static Hash128 ZOBRIST_FIRSTMOVE_LOC_HASH[MAX_ARR_SIZE];
   static Hash128 ZOBRIST_NEXTPLA_HASH[4];
   static Hash128 ZOBRIST_MOVENUM_HASH[MAX_MOVE_NUM];
+  static Hash128 ZOBRIST_BPASSNUM_HASH[MAX_ARR_SIZE];
+  static Hash128 ZOBRIST_WPASSNUM_HASH[MAX_ARR_SIZE];
   static Hash128 ZOBRIST_PLAYER_HASH[4];
   static const Hash128 ZOBRIST_GAME_IS_OVER;
 
@@ -146,6 +136,9 @@ struct Board
   //Count the number of stones on the board
   int numStonesOnBoard() const;
   int numPlaStonesOnBoard(Player pla) const;
+  
+  //square of the distance of loc and gravity center. 0 if null_loc or pass_loc (means all next moves are legal)
+  double getLocationPriority(Loc loc) const;
 
 
   //Sets the specified stone if possible, including overwriting existing stones.
@@ -189,7 +182,7 @@ struct Board
 
   int x_size;                  //Horizontal size of board
   int y_size;                  //Vertical size of board
-  Color colors[MAX_ARR_SIZE];  //Color of each location on the board.
+  Color colors[MAX_ARR_SIZE];  //Color of each location on the board. Does not include the first stone of every move
   int movenum; //how many moves
 
   /* PointList empty_list; //List of all empty locations on board */
@@ -201,13 +194,26 @@ struct Board
   
   //which stage. Normally 0 = choosing piece. 1 = where to place
   int stage;
+  //sum of x and y coordinates of all stones
+  //to calculate the mean coordinates (the gravity center of all stones)
+  //the second location should be further to the gravity center than the first location
+  uint32_t sumStoneX;//use int, avoid float accuracy loss
+  uint32_t sumStoneY;
+  uint32_t numStones;
+  double meanStoneX;//pre-calculate, avoid high frequency division calculation
+  double meanStoneY;
 
   //who plays the next move
   Color nextPla;
 
-  //一步内每一阶段的选点
-  //例如：象棋类midLoc[0]是选择的棋子，midLoc[1]是落点
-  Loc midLocs[STAGE_NUM_EACH_PLA];
+  //location of the first stones of the two stones in one move
+  Loc firstLoc;
+  //square of the distance of firstLoc and gravity center. 0 if numStones==0 or the last move is null or pass (means all next moves are legal)
+  //the second loc should be further
+  double firstLocPriority;
+
+  int blackPassNum;  // pass count of black/white, used for VCT/VC2
+  int whitePassNum;
 
 
   private:

@@ -1,3 +1,4 @@
+#include "board.h"
 #include "../game/board.h"
 #include "../game/gamelogic.h"
 /*
@@ -21,8 +22,10 @@ bool Board::IS_ZOBRIST_INITALIZED = false;
 Hash128 Board::ZOBRIST_SIZE_X_HASH[MAX_LEN+1];
 Hash128 Board::ZOBRIST_SIZE_Y_HASH[MAX_LEN+1];
 Hash128 Board::ZOBRIST_BOARD_HASH[MAX_ARR_SIZE][NUM_BOARD_COLORS];
-Hash128 Board::ZOBRIST_STAGENUM_HASH[STAGE_NUM_EACH_PLA];
-Hash128 Board::ZOBRIST_STAGELOC_HASH[MAX_ARR_SIZE][STAGE_NUM_EACH_PLA];
+Hash128 Board::ZOBRIST_BPASSNUM_HASH[MAX_ARR_SIZE];
+Hash128 Board::ZOBRIST_WPASSNUM_HASH[MAX_ARR_SIZE];
+Hash128 Board::ZOBRIST_SECONDMOVE_HASH;
+Hash128 Board::ZOBRIST_FIRSTMOVE_LOC_HASH[MAX_ARR_SIZE];
 Hash128 Board::ZOBRIST_NEXTPLA_HASH[4];
 Hash128 Board::ZOBRIST_MOVENUM_HASH[MAX_MOVE_NUM];
 Hash128 Board::ZOBRIST_PLAYER_HASH[4];
@@ -116,7 +119,16 @@ Board::Board(const Board& other)
 
   nextPla = other.nextPla;
   stage = other.stage;
-  memcpy(midLocs, other.midLocs, sizeof(Loc) * STAGE_NUM_EACH_PLA);
+
+  sumStoneX = other.sumStoneX;
+  sumStoneY = other.sumStoneY;
+  numStones = other.numStones;
+  meanStoneX = other.meanStoneX;
+  meanStoneY = other.meanStoneY;
+  firstLoc = other.firstLoc;
+  firstLocPriority = other.firstLocPriority;
+  blackPassNum = other.blackPassNum;
+  whitePassNum = other.whitePassNum;
 }
 
 void Board::init(int xS, int yS)
@@ -142,29 +154,24 @@ void Board::init(int xS, int yS)
       // empty_list.add(loc);
     }
   }
-  for(int i = 0; i < STAGE_NUM_EACH_PLA; i++) {
-    midLocs[i] = Board::NULL_LOC;
-  }
   nextPla = C_BLACK;
-  stage = 0;
+  stage = 1; //black only play one stone
 
   pos_hash = ZOBRIST_SIZE_X_HASH[x_size] ^ ZOBRIST_SIZE_Y_HASH[y_size] ^ ZOBRIST_NEXTPLA_HASH[nextPla] ^
-             ZOBRIST_STAGENUM_HASH[stage];
+             ZOBRIST_SECONDMOVE_HASH; 
+  
+  sumStoneX = 0;
+  sumStoneY = 0;
+  numStones = 0;
+  meanStoneX = 0;
+  meanStoneY = 0;
+  firstLoc = NULL_LOC;
+  firstLocPriority = 0.0;
+  blackPassNum = 0;
+  whitePassNum = 0;
 
   Location::getAdjacentOffsets(adj_offsets, x_size);
 
-  if(y_size < 4) {
-    cout << "y_size < 4 is not supported for Breakthrough";
-    return;
-  }
-
-  //initial stones of breakthrough
-  for(int x = 0; x < x_size; x++) {
-    setStone(Location::getLoc(x, 0, x_size), C_WHITE);
-    setStone(Location::getLoc(x, 1, x_size), C_WHITE);
-    setStone(Location::getLoc(x, y_size - 1, x_size), C_BLACK);
-    setStone(Location::getLoc(x, y_size - 2, x_size), C_BLACK);
-  }
 }
 
 void Board::initHash()
@@ -191,15 +198,15 @@ void Board::initHash()
       else
         ZOBRIST_BOARD_HASH[i][j] = nextHash();
     }
+    ZOBRIST_BPASSNUM_HASH[i] = nextHash();
+    ZOBRIST_WPASSNUM_HASH[i] = nextHash();
+    ZOBRIST_FIRSTMOVE_LOC_HASH[i] = nextHash();
   }
+  ZOBRIST_SECONDMOVE_HASH = nextHash();
 
-  for(int i = 0; i < STAGE_NUM_EACH_PLA; i++) {
-    ZOBRIST_STAGENUM_HASH[i] = nextHash();
-    for(int j = 0; j < MAX_ARR_SIZE; j++)
-      ZOBRIST_STAGELOC_HASH[j][i] = nextHash();
-    ZOBRIST_STAGELOC_HASH[Board::NULL_LOC][i] = Hash128();
-  }
-  ZOBRIST_STAGENUM_HASH[0] = Hash128();
+  ZOBRIST_BPASSNUM_HASH[0] = Hash128();
+  ZOBRIST_WPASSNUM_HASH[0] = Hash128();
+  ZOBRIST_FIRSTMOVE_LOC_HASH[NULL_LOC] = Hash128();
 
   for(Color j = 0; j < 4; j++) {
     ZOBRIST_NEXTPLA_HASH[j] = nextHash();
@@ -267,6 +274,14 @@ int Board::numPlaStonesOnBoard(Player pla) const {
     }
   }
   return num;
+}
+
+double Board::getLocationPriority(Loc loc) const {
+  if(loc == NULL_LOC || loc == PASS_LOC || numStones == 0)
+    return 0.0;
+  double dx = Location::getX(loc, x_size) - meanStoneX;
+  double dy = Location::getY(loc, x_size) - meanStoneY;
+  return dx * dx + dy * dy;
 }
 
 bool Board::setStone(Loc loc, Color color)
@@ -395,6 +410,9 @@ void Board::checkConsistency() const {
   vector<Loc> buf;
   Hash128 tmp_pos_hash = ZOBRIST_SIZE_X_HASH[x_size] ^ ZOBRIST_SIZE_Y_HASH[y_size];
   int emptyCount = 0;
+  uint32_t sumStoneXnew = 0; 
+  uint32_t sumStoneYnew = 0;
+  uint32_t numStonesnew = 0;
   for(Loc loc = 0; loc < MAX_ARR_SIZE; loc++) {
     int x = Location::getX(loc,x_size);
     int y = Location::getY(loc,x_size);
@@ -409,20 +427,38 @@ void Board::checkConsistency() const {
       else if(colors[loc] != C_WALL) {
         tmp_pos_hash ^= ZOBRIST_BOARD_HASH[loc][colors[loc]];
         tmp_pos_hash ^= ZOBRIST_BOARD_HASH[loc][C_EMPTY];
+        numStonesnew++;
+
+        int x = Location::getX(loc, x_size);
+        int y = Location::getY(loc, x_size);
+        sumStoneXnew += x;
+        sumStoneYnew += y;
       }
       else
         throw StringError(errLabel + "Non-(black,white,empty) value within board legal area");
     }
   }
+  if(numStonesnew != numStones || sumStoneXnew != sumStoneX || sumStoneYnew != sumStoneY) {
+    throw StringError(errLabel + "Stone sum does not match expected");
+  }
+  if(double(sumStoneX) / double(numStones) != meanStoneX || double(sumStoneY) / double(numStones) != meanStoneY) {
+    throw StringError(errLabel + "Stone mean does not match expected");
+  }
+  if(stage == 1) {
+    if(getLocationPriority(firstLoc) != firstLocPriority) {
+      throw StringError(errLabel + "firstLocPriority does not match expected");
+    }
+    tmp_pos_hash ^= ZOBRIST_SECONDMOVE_HASH;
+    tmp_pos_hash ^= ZOBRIST_FIRSTMOVE_LOC_HASH[firstLoc];
+  }
+
 
   tmp_pos_hash ^= ZOBRIST_MOVENUM_HASH[movenum];
+  tmp_pos_hash ^= ZOBRIST_BPASSNUM_HASH[blackPassNum];
+  tmp_pos_hash ^= ZOBRIST_WPASSNUM_HASH[whitePassNum];
 
   tmp_pos_hash ^= ZOBRIST_NEXTPLA_HASH[nextPla];
-  tmp_pos_hash ^= ZOBRIST_STAGENUM_HASH[stage];
-  for(int i = 0; i < STAGE_NUM_EACH_PLA; i++) {
-    // std::cout << ZOBRIST_STAGELOC_HASH[midLocs[i]][i]<<" ";
-    tmp_pos_hash ^= ZOBRIST_STAGELOC_HASH[midLocs[i]][i];
-  }
+
 
   if(pos_hash != tmp_pos_hash) {
     std::cout << "Stage=" << stage << ",NextPla=" << int(nextPla) << std::endl;
