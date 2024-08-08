@@ -708,6 +708,7 @@ void NNInputs::fillRowV101(
         Loc loc = Location::getLoc(x, y, xSize);
         int pos = NNPos::xyToPos(x, y, nnXLen);
         double priority = board.getLocationPriority(x, y);
+        assert(priority < board.x_size * board.x_size + board.y_size * board.y_size);
         int count = 0;
         for(int x1 = max(x - 1, 0); x1 <= min(x + 1, board.x_size - 1); x1++) {
           for(int y1 = max(y - 1, 0); y1 <= min(y + 1, board.y_size - 1); y1++) {

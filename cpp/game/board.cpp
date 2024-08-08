@@ -236,9 +236,28 @@ bool Board::isOnBoard(Loc loc) const {
 }
 
 //Check if moving here is illegal.
-bool Board::isLegal(Loc loc, Player pla) const
-{
-  return GameLogic::isLegal(*this, pla, loc);
+bool Board::isLegal(Loc loc, Player pla) const {
+  if(pla != nextPla) {
+    std::cout << "Error next player ";
+    return false;
+  }
+
+  if(loc == Board::PASS_LOC)  // pass is lose, but not illegal
+    return true;
+
+  if(!isOnBoard(loc))
+    return false;
+
+  if(stage == 0) {
+    return colors[loc] == C_EMPTY;
+  } 
+  else if(stage == 1)  // place the piece
+  {
+    //moves with lower priority are banned in nneval.cpp. Here just regard it as legal
+    return colors[loc] == C_EMPTY && loc != firstLoc;
+  }
+  ASSERT_UNREACHABLE;
+  return false;
 }
 
 bool Board::isEmpty() const {
@@ -297,12 +316,28 @@ bool Board::setStone(Loc loc, Color color)
   if(loc < 0 || loc >= MAX_ARR_SIZE || colors[loc] == C_WALL)
     return false;
 
+  
+  int x = Location::getX(loc, x_size);
+  int y = Location::getY(loc, x_size);
   Color colorOld = colors[loc];
   colors[loc] = color;
   pos_hash ^= ZOBRIST_BOARD_HASH[loc][colorOld];
   pos_hash ^= ZOBRIST_BOARD_HASH[loc][color];
 
-
+  if(colorOld==C_EMPTY && color!=C_EMPTY)//add a stone
+  {
+    numStones += 1;
+    sumStoneX += x;
+    sumStoneY += y;
+  }
+  else if(colorOld != C_EMPTY && color == C_EMPTY)  // remove a stone
+  {
+    numStones -= 1;
+    sumStoneX -= x;
+    sumStoneY -= y;
+  }
+  meanStoneX = numStones == 0 ? 0.0 : double(sumStoneX) / double(numStones);
+  meanStoneY = numStones == 0 ? 0.0 : double(sumStoneY) / double(numStones);
   return true;
 }
 bool Board::setStones(std::vector<Move> placements) {
@@ -342,32 +377,47 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
   if(stage == 0)  //choose
   {
     stage = 1;
-    pos_hash ^= ZOBRIST_STAGENUM_HASH[0];
-    pos_hash ^= ZOBRIST_STAGENUM_HASH[1];
-
-    midLocs[0] = loc;
-    pos_hash ^= ZOBRIST_STAGELOC_HASH[loc][0];
+    pos_hash ^= ZOBRIST_SECONDMOVE_HASH;
+    firstLoc = loc;
+    firstLocPriority = getLocationPriority(loc);
+    pos_hash ^= ZOBRIST_FIRSTMOVE_LOC_HASH[loc];
   } 
   else if(stage == 1)  //place
   {
     stage = 0;
-    pos_hash ^= ZOBRIST_STAGENUM_HASH[1];
-    pos_hash ^= ZOBRIST_STAGENUM_HASH[0];
+    pos_hash ^= ZOBRIST_SECONDMOVE_HASH;
 
     if(isOnBoard(loc)) {
-      Loc chosenLoc = midLocs[0];
-      if(isOnBoard(chosenLoc))
-        setStone(chosenLoc, C_EMPTY);
-      setStone(loc, nextPla);
+      setStone(loc, pla);
+    }
+    if(isOnBoard(firstLoc)) {
+      setStone(firstLoc, pla);
     }
 
-    for(int i = 0; i < STAGE_NUM_EACH_PLA - 1; i++) {
-      pos_hash ^= ZOBRIST_STAGELOC_HASH[midLocs[i]][i];
-      midLocs[i] = Board::NULL_LOC;
+    int newPassCount = 0;
+    if(loc == PASS_LOC)
+      newPassCount++;
+    if(firstLoc == PASS_LOC)
+      newPassCount++;
+    if(newPassCount > 0) {
+      if(pla == P_BLACK) {
+        pos_hash ^= ZOBRIST_BPASSNUM_HASH[blackPassNum];
+        blackPassNum += newPassCount;
+        pos_hash ^= ZOBRIST_BPASSNUM_HASH[blackPassNum];
+      }
+      else if(pla == P_WHITE) {
+        pos_hash ^= ZOBRIST_WPASSNUM_HASH[whitePassNum];
+        whitePassNum += newPassCount;
+        pos_hash ^= ZOBRIST_WPASSNUM_HASH[whitePassNum];
+      }
     }
 
+    pos_hash ^= ZOBRIST_FIRSTMOVE_LOC_HASH[firstLoc];
+    firstLoc = NULL_LOC;
+    firstLocPriority = 0.0;
+
+    pos_hash ^= ZOBRIST_NEXTPLA_HASH[nextPla];
     nextPla = getOpp(nextPla);
-    pos_hash ^= ZOBRIST_NEXTPLA_HASH[getOpp(nextPla)];
     pos_hash ^= ZOBRIST_NEXTPLA_HASH[nextPla];
 
   } 
