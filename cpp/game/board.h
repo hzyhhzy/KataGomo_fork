@@ -164,6 +164,11 @@ struct Board
   // who plays the last move
   Player prevPla() const;
 
+  //calculate the real maxmove considering odd-even
+  int calculateRealMaxmove(int mm) const;
+  int findFour(Color color, Loc& loc1, Loc& loc2) const;//is there any four which can win in two moves. If find a six, then loc1=loc2=NULL_LOC; If find a five, then loc2=NULL_LOC;
+  int findFiveConsideringFirstLoc(Color color, Loc& loc1) const;//considering firstLoc, is there any way to win in one move. If find a six, then loc1=NULL_LOC;
+  bool isSix(Color color, Loc loc) const; //Is there any six include loc? This should be called after the move played on the board
 
   
   Hash128 getSitHash(Player pla) const;

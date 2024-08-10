@@ -699,6 +699,10 @@ void NNEvaluator::evaluate(
       for(int i = 0; i < policySize; i++) {
         Loc loc = NNPos::posToLoc(i, xSize, ySize, nnXLen, nnYLen);
         isLegal[i] = history.isLegal(board, loc, nextPlayer);
+        if(board.stage == 1 && isLegal[i] && loc != Board::PASS_LOC) { // check move priority
+          if(board.getLocationPriority(loc) + Board::PRIOR_EPS < board.firstLocPriority)
+            isLegal[i] = false;
+        }
       }
     } 
     else  // assume all other moves are illegal

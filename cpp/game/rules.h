@@ -21,6 +21,7 @@ struct Rules {
   static const int VCNRULE_VC2_W = 12;
   static const int VCNRULE_VC3_W = 13;
   static const int VCNRULE_VC4_W = 14;
+  //notice: VC5 is also used, but only inside the judgement and nninput
   int VCNRule;
 
   bool firstPassWin;  // 和棋的时候，先pass的获胜

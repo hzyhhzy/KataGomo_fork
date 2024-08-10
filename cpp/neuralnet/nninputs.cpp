@@ -733,24 +733,26 @@ void NNInputs::fillRowV101(
     }
     if(board.firstLoc == Board::PASS_LOC) {
       rowGlobal[3] = 1.0f;
-    }
-    if(board.isOnBoard(board.firstLoc)) {
-      int pos = NNPos::locToPos(board.firstLoc, board.x_size, nnXLen, nnYLen);
-      setRowBin(rowBin, pos, 3, 1.0f, posStride, featureStride);
-      setRowBin(rowBin, pos, 1, 1.0f, posStride, featureStride);
-    }
-    //all legal second moves
+    } 
+    else {
+      if(board.isOnBoard(board.firstLoc)) {
+        int pos = NNPos::locToPos(board.firstLoc, board.x_size, nnXLen, nnYLen);
+        setRowBin(rowBin, pos, 3, 1.0f, posStride, featureStride);
+        setRowBin(rowBin, pos, 1, 1.0f, posStride, featureStride);
+      }
+      //all legal second moves
 
-    for(int y = 0; y < ySize; y++) {
-      for(int x = 0; x < xSize; x++) {
-        Loc loc = Location::getLoc(x, y, xSize);
-        double priority = board.getLocationPriority(x, y);
-        if(
-          board.isLegal(loc, nextPlayer) &&
-          board.getLocationPriority(x, y) + Board::PRIOR_EPS >= board.firstLocPriority)  // legal
-        {
-          int pos = NNPos::xyToPos(x, y, nnXLen);
-          setRowBin(rowBin, pos, 4, 1.0f, posStride, featureStride);
+      for(int y = 0; y < ySize; y++) {
+        for(int x = 0; x < xSize; x++) {
+          Loc loc = Location::getLoc(x, y, xSize);
+          double priority = board.getLocationPriority(x, y);
+          if(
+            board.isLegal(loc, nextPlayer) &&
+            board.getLocationPriority(x, y) + Board::PRIOR_EPS >= board.firstLocPriority)  // legal
+          {
+            int pos = NNPos::xyToPos(x, y, nnXLen);
+            setRowBin(rowBin, pos, 4, 1.0f, posStride, featureStride);
+          }
         }
       }
     }
@@ -774,7 +776,7 @@ void NNInputs::fillRowV101(
       rowGlobal[38] = 1.0;
 
     if(resultsBeforeNN.winner == nextPlayer)
-      rowGlobal[12] = 1.0;  // can win by five/lifeFour/vcf
+      rowGlobal[11] = 1.0;  // can win by five/lifeFour/vcf
 
   }
 
@@ -784,10 +786,12 @@ void NNInputs::fillRowV101(
     cout << "myPassNum>0 && oppPassNum>0 in nninput";
 
   if(!hist.rules.firstPassWin && hist.rules.VCNRule == Rules::VCNRULE_NOVC) {
-    rowGlobal[13] =
+    rowGlobal[12] =
       nextPlayer == P_BLACK ? -nnInputParams.noResultUtilityForWhite : nnInputParams.noResultUtilityForWhite;
+    rowGlobal[13] = myPassNum > 0;
     rowGlobal[14] = oppPassNum > 0;
   } else {
+    rowGlobal[12] = 0;
     rowGlobal[13] = 0;
     rowGlobal[14] = 0;
   }
@@ -810,6 +814,8 @@ void NNInputs::fillRowV101(
     Color VCside = hist.rules.vcSide();
     int VClevel = hist.rules.vcLevel();
     int realVClevel = VClevel + myPassNum + oppPassNum;
+    if(realVClevel == 6)
+      realVClevel = 5;//vc6 is the same as vc5
     if(realVClevel >= 1 && realVClevel <= 5) {
       if(VCside == nextPlayer)
         rowGlobal[19 + realVClevel] = 1.0;
@@ -832,13 +838,17 @@ void NNInputs::fillRowV101(
     rowGlobal[30] = 1.0;
     double boardArea = board.x_size * board.y_size;
     double movenum = board.movenum;
-    double maxmoves = hist.rules.maxMoves;
+    int maxmovesInt = board.calculateRealMaxmove(hist.rules.maxMoves);
+    double maxmoves = maxmovesInt;
     rowGlobal[31] = maxmoves / boardArea;
     rowGlobal[32] = movenum / boardArea;
-    rowGlobal[33] = exp(-(maxmoves - movenum) / 50.0);
-    rowGlobal[34] = exp(-(maxmoves - movenum) / 15.0);
-    rowGlobal[35] = exp(-(maxmoves - movenum) / 5.0);
-    rowGlobal[36] = exp(-(maxmoves - movenum) / 1.5);
-    rowGlobal[37] = 2 * ((int(maxmoves - movenum)) % 2) - 1;
+    rowGlobal[33] = exp(-(maxmoves - movenum) / 70.0);
+    rowGlobal[34] = exp(-(maxmoves - movenum) / 20.0);
+    rowGlobal[35] = exp(-(maxmoves - movenum) / 7.0);
+    rowGlobal[36] = exp(-(maxmoves - movenum) / 2.0);
+    int remainFullMoves = maxmoves - movenum + board.stage;
+    assert(remainFullMoves % 2 == 0);
+    remainFullMoves /= 2;
+    rowGlobal[37] = 2 * (remainFullMoves % 2) - 1; //final move is pla or opp
   }
 }

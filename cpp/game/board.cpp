@@ -253,6 +253,8 @@ bool Board::isLegal(Loc loc, Player pla) const {
   } 
   else if(stage == 1)  // place the piece
   {
+    if(firstLoc == Board::PASS_LOC) // if the first move is pass, the second should be also pass. or you should play pass on the second move
+      return false;
     //moves with lower priority are banned in nneval.cpp. Here just regard it as legal
     return colors[loc] == C_EMPTY && loc != firstLoc;
   }
@@ -499,9 +501,10 @@ void Board::checkConsistency() const {
   if(numStonesnew != numStones || sumStoneXnew != sumStoneX || sumStoneYnew != sumStoneY) {
     throw StringError(errLabel + "Stone sum does not match expected");
   }
-  if(double(sumStoneX) / double(numStones) != meanStoneX || double(sumStoneY) / double(numStones) != meanStoneY) {
-    throw StringError(errLabel + "Stone mean does not match expected");
-  }
+  if(numStones!=0)
+    if(double(sumStoneX) / double(numStones) != meanStoneX || double(sumStoneY) / double(numStones) != meanStoneY) {
+      throw StringError(errLabel + "Stone mean does not match expected");
+    }
   if(stage == 1) {
     if(getLocationPriority(firstLoc) != firstLocPriority) {
       throw StringError(errLabel + "firstLocPriority does not match expected");
@@ -836,6 +839,11 @@ string Board::toStringSimple(const Board& board, char lineDelimiter) {
     s += lineDelimiter;
   }
   return s;
+}
+
+int Board::calculateRealMaxmove(int mm) const {
+  int odd = (stage + movenum + mm) % 2; //the real mm should make this variable zero
+  return mm + odd;
 }
 
 Board Board::parseBoard(int xSize, int ySize, const string& s) {

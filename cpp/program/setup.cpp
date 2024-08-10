@@ -587,9 +587,9 @@ vector<SearchParams> Setup::loadParams(
     else                                                   params.playoutDoublingAdvantagePla = C_EMPTY;
 
     if(cfg.contains("nnPolicyTemperature"+idxStr))
-      params.nnPolicyTemperature = cfg.getFloat("nnPolicyTemperature"+idxStr,0.01f,5.0f);
+      params.nnPolicyTemperature = cfg.getFloat("nnPolicyTemperature"+idxStr,0.01f,20.0f);
     else if(cfg.contains("nnPolicyTemperature"))
-      params.nnPolicyTemperature = cfg.getFloat("nnPolicyTemperature",0.01f,5.0f);
+      params.nnPolicyTemperature = cfg.getFloat("nnPolicyTemperature",0.01f,20.0f);
     else
       params.nnPolicyTemperature = 1.0f;
 
