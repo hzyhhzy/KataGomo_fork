@@ -401,6 +401,8 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
       newPassCount++;
     if(firstLoc == PASS_LOC)
       newPassCount++;
+    if(firstLoc == NULL_LOC)
+      newPassCount = 0; //if black passes at the first move, maybe the user needs some special openings rather than blackPassNum+1
     if(newPassCount > 0) {
       if(pla == P_BLACK) {
         pos_hash ^= ZOBRIST_BPASSNUM_HASH[blackPassNum];
@@ -489,8 +491,6 @@ void Board::checkConsistency() const {
         tmp_pos_hash ^= ZOBRIST_BOARD_HASH[loc][C_EMPTY];
         numStonesnew++;
 
-        int x = Location::getX(loc, x_size);
-        int y = Location::getY(loc, x_size);
         sumStoneXnew += x;
         sumStoneYnew += y;
       }

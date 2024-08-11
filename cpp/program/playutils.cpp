@@ -136,8 +136,13 @@ void PlayUtils::initializeGameUsingPolicy(
   if(numInitialMovesToPlay < 0)
     numInitialMovesToPlay = 0;
 
-  for(int i = 0; i<numInitialMovesToPlay; i++) {
+  int oldVCNRule = hist.rules.VCNRule;
+
+  for(int i = 0; i < numInitialMovesToPlay; i++) {
+    hist.rules.VCNRule = Rules::VCNRULE_NOVC;
+    // ignore VCN rule when get init moves
     Loc loc = getGameInitializationMove(botB, botW, board, hist, pla, buf, gameRand, temperature);
+    hist.rules.VCNRule = oldVCNRule;
 
     //Make the move!
     assert(hist.isLegal(board,loc,pla));

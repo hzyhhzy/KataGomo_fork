@@ -702,8 +702,9 @@ void NNInputs::fillRowV101(
       rowGlobal[1] = 1.0f;
     }
     //how many places are available surrounding this location
-
+    //cout << board;
     for(int y = 0; y < ySize; y++) {
+      //cout << endl;
       for(int x = 0; x < xSize; x++) {
         Loc loc = Location::getLoc(x, y, xSize);
         int pos = NNPos::xyToPos(x, y, nnXLen);
@@ -723,6 +724,7 @@ void NNInputs::fillRowV101(
         for(int i = 0; i < count; i++) {
           setRowBin(rowBin, pos, 6 + i, 1.0f, posStride, featureStride);
         }
+        //cout << count << " ";
       }
     }
   } 
@@ -782,8 +784,10 @@ void NNInputs::fillRowV101(
 
   int myPassNum = nextPlayer == C_BLACK ? board.blackPassNum : board.whitePassNum;
   int oppPassNum = nextPlayer == C_WHITE ? board.blackPassNum : board.whitePassNum;
-  if(myPassNum > 0 && oppPassNum > 0)
-    cout << "myPassNum>0 && oppPassNum>0 in nninput";
+  if(myPassNum > 0 && oppPassNum > 0) {
+    cout << board;
+    cout << "myPassNum>0 && oppPassNum>0 in nninput, " << myPassNum << " " << oppPassNum << endl;
+  }
 
   if(!hist.rules.firstPassWin && hist.rules.VCNRule == Rules::VCNRULE_NOVC) {
     rowGlobal[12] =
@@ -821,7 +825,8 @@ void NNInputs::fillRowV101(
         rowGlobal[19 + realVClevel] = 1.0;
       else if(VCside == opp)
         rowGlobal[24 + realVClevel] = 1.0;
-    } else {
+    } 
+    else {
       cout << "illegal VCN rule in nninput:" << realVClevel << " " << VClevel << endl;
     }
   }

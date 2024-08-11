@@ -17,12 +17,11 @@
 using namespace std;
 
 int Board::findFour(Color color, Loc& loc1, Loc& loc2) const {
-
   int bestConnection = 0;
   loc1 = NULL_LOC;
   loc2 = NULL_LOC;
 
-  auto checkOne = [&](Loc loc0, int16_t adj) -> int {
+  auto checkOne = [&](Loc loc0, int16_t adj) -> void {
     Loc emptyloc1 = Board::NULL_LOC, emptyloc2 = Board::NULL_LOC;
     int emptyCount = 0;
     for (int i = 0; i < 6; i++)
@@ -31,7 +30,7 @@ int Board::findFour(Color color, Loc& loc1, Loc& loc2) const {
       assert(isOnBoard(loc));
       Color c = loc == firstLoc ? nextPla : colors[loc];
       if(c == getOpp(color))
-        return 0;
+        return;
       else if (c == C_EMPTY)
       {
         emptyCount += 1;
@@ -40,7 +39,7 @@ int Board::findFour(Color color, Loc& loc1, Loc& loc2) const {
         } else if(emptyCount == 2) {
           emptyloc2 = loc;
         } else
-          return 0;
+          return;
       }
       else if (c == color)
       {
@@ -66,7 +65,7 @@ int Board::findFour(Color color, Loc& loc1, Loc& loc2) const {
       for (int x = 0; x < x_size - 5; x++)
       {
         Loc loc0 = Location::getLoc(x, y, x_size);
-        int conNum = checkOne(loc0, adj);
+        checkOne(loc0, adj);
       }
   }
   //+y direction
@@ -75,7 +74,7 @@ int Board::findFour(Color color, Loc& loc1, Loc& loc2) const {
     for(int y = 0; y < y_size - 5; y++)
       for(int x = 0; x < x_size; x++) {
         Loc loc0 = Location::getLoc(x, y, x_size);
-        int conNum = checkOne(loc0, adj);
+        checkOne(loc0, adj);
       }
   }
 
@@ -85,7 +84,7 @@ int Board::findFour(Color color, Loc& loc1, Loc& loc2) const {
     for(int y = 0; y < y_size - 5; y++)
       for(int x = 0; x < x_size - 5; x++) {
         Loc loc0 = Location::getLoc(x, y, x_size);
-        int conNum = checkOne(loc0, adj);
+        checkOne(loc0, adj);
       }
   }
 
@@ -95,7 +94,7 @@ int Board::findFour(Color color, Loc& loc1, Loc& loc2) const {
     for(int y = 0; y < y_size - 5; y++)
       for(int x = 5; x < x_size; x++) {
         Loc loc0 = Location::getLoc(x, y, x_size);
-        int conNum = checkOne(loc0, adj);
+        checkOne(loc0, adj);
       }
   }
 
@@ -106,7 +105,7 @@ int Board::findFiveConsideringFirstLoc(Color color, Loc& loc1) const {
   int bestConnection = 0;
   loc1 = NULL_LOC;
 
-  auto checkOne = [&](Loc loc0, int16_t adj) -> int {
+  auto checkOne = [&](Loc loc0, int16_t adj) -> void {
     Loc emptyloc1 = Board::NULL_LOC;
     int emptyCount = 0;
     for(int i = 0; i < 6; i++) {
@@ -114,13 +113,13 @@ int Board::findFiveConsideringFirstLoc(Color color, Loc& loc1) const {
       assert(isOnBoard(loc));
       Color c = loc == firstLoc ? nextPla : colors[loc];
       if(c == getOpp(color))
-        return 0;
+        return;
       else if(c == C_EMPTY) {
         emptyCount += 1;
         if(emptyCount == 1) 
           emptyloc1 = loc;
         else
-          return 0;
+          return;
       } else if(c == color) {
       } else
         ASSERT_UNREACHABLE;
@@ -139,7 +138,7 @@ int Board::findFiveConsideringFirstLoc(Color color, Loc& loc1) const {
     for(int y = 0; y < y_size; y++)
       for(int x = 0; x < x_size - 5; x++) {
         Loc loc0 = Location::getLoc(x, y, x_size);
-        int conNum = checkOne(loc0, adj);
+        checkOne(loc0, adj);
       }
   }
   //+y direction
@@ -148,7 +147,7 @@ int Board::findFiveConsideringFirstLoc(Color color, Loc& loc1) const {
     for(int y = 0; y < y_size - 5; y++)
       for(int x = 0; x < x_size; x++) {
         Loc loc0 = Location::getLoc(x, y, x_size);
-        int conNum = checkOne(loc0, adj);
+        checkOne(loc0, adj);
       }
   }
 
@@ -158,7 +157,7 @@ int Board::findFiveConsideringFirstLoc(Color color, Loc& loc1) const {
     for(int y = 0; y < y_size - 5; y++)
       for(int x = 0; x < x_size - 5; x++) {
         Loc loc0 = Location::getLoc(x, y, x_size);
-        int conNum = checkOne(loc0, adj);
+        checkOne(loc0, adj);
       }
   }
 
@@ -168,7 +167,7 @@ int Board::findFiveConsideringFirstLoc(Color color, Loc& loc1) const {
     for(int y = 0; y < y_size - 5; y++)
       for(int x = 5; x < x_size; x++) {
         Loc loc0 = Location::getLoc(x, y, x_size);
-        int conNum = checkOne(loc0, adj);
+        checkOne(loc0, adj);
       }
   }
 
@@ -281,19 +280,22 @@ Color GameLogic::checkWinnerAfterPlayed(
         if(!hist.rules.firstPassWin)  //normal draw
         {
           return C_EMPTY;
-        } else  // 对方先pass
+        } 
+        else  // 对方先pass
         {
           return opp;
         }
       }
-    } else {
+    } 
+    else {
       Color VCside = hist.rules.vcSide();
       int VClevel = hist.rules.vcLevel();
 
       if(VCside == pla)  // VCN不允许己方pass
       {
         return opp;
-      } else  // pass次数足够则判胜
+      } 
+      else  // pass次数足够则判胜
       {
         if(myPassNum >= 7 - VClevel) {
           return pla;
