@@ -222,6 +222,8 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
   }
 
   noResultRandRadius = cfg.contains("noResultRandRadius") ? cfg.getDouble("noResultRandRadius", 0.0, 1.0) : 0.0;
+  moveLimitProb = cfg.contains("moveLimitProb") ? cfg.getDouble("moveLimitProb", 0.0, 1.0) : 0.0;
+  moveLimitAreaPow = cfg.contains("moveLimitAreaPow") ? cfg.getDouble("moveLimitAreaPow", 0.01, 10.0) : 1.0;
   policyLocalFocusProb = cfg.contains("policyLocalFocusProb") ? cfg.getDouble("policyLocalFocusProb", 0.0, 1.0) : 0.0;
   policyLocalFocusPowAvg = cfg.contains("policyLocalFocusPowAvg") ? cfg.getDouble("policyLocalFocusPowAvg", 0.01, 3.0) : 0.2;
   policyLocalFocusDistAvg = cfg.contains("policyLocalFocusDistAvg") ? cfg.getDouble("policyLocalFocusDistAvg", 1.0, 50.0) : 5.0;
@@ -397,6 +399,17 @@ void GameInitializer::createGameSharedUnsynchronized(
   else {
     int xSize = allowedBSizes[xSizeIdx];
     int ySize = allowedBSizes[ySizeIdx];
+
+    if(rand.nextBool(moveLimitProb)) {
+      int maxMoves = int(pow(rand.nextDouble(), moveLimitAreaPow) * xSize * ySize);
+      if(maxMoves >= xSize * ySize)
+        maxMoves = 0;
+      if(maxMoves < xSize)
+        maxMoves = 0;
+      rules.maxMoves = maxMoves;
+    }
+
+
     board = Board(xSize,ySize);
     pla = P_BLACK;
     hist.clear(board,pla,rules);
@@ -1282,6 +1295,9 @@ FinishedGameData* Play::runGame(
       }
     }
   }
+
+  if(board.numStonesOnBoard() >= hist.rules.maxMoves)
+    hist.rules.maxMoves = 0;
 
   if(playSettings.initGamesWithPolicy && otherGameProps.allowPolicyInit) {
     double avgPolicyInitMoveNum =

@@ -553,6 +553,32 @@ void NNInputs::fillRowV7(
   else
     ASSERT_UNREACHABLE;
 
+  if(hist.rules.maxMoves > 0 && hist.rules.maxMoves < board.x_size * board.y_size) {
+    rowGlobal[4] = 1.0;
+    rowGlobal[14] =
+      nextPlayer == P_BLACK ? -nnInputParams.noResultUtilityForWhite : nnInputParams.noResultUtilityForWhite;
+    int mm = hist.rules.maxMoves;
+    int movecount = board.numStonesOnBoard();
+    int area = board.x_size * board.y_size;
+    int remain = mm - movecount;
+    if (remain <= 0)
+    {
+      cout << board;
+      cout << hist.rules;
+      cout << "remain move count <= 0 in nninput\n";
+      remain = 0;
+    }
+    rowGlobal[5] = double(mm) / double(area);
+    rowGlobal[6] = exp(-double(remain) / 1.5);
+    rowGlobal[7] = exp(-double(remain) / 5.0);
+    rowGlobal[8] = exp(-double(remain) / 15.0);
+    rowGlobal[9] = exp(-double(remain) / 50.0);
+    rowGlobal[10] = exp(-double(remain) / 150.0);
+    rowGlobal[11] = remain % 2;
+    rowGlobal[12] = 2.0 * sqrt(double(area - mm) / double(area));
+
+  }
+
   // Parameter 15 is used because there's actually a discontinuity in how training behavior works when this is
   // nonzero, no matter how slightly.
   if(nnInputParams.playoutDoublingAdvantage != 0) {

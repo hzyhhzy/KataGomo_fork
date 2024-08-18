@@ -109,6 +109,10 @@ class GameInitializer {
 
   
   double noResultRandRadius;
+
+  double moveLimitProb;
+  double moveLimitAreaPow;
+
   double policyLocalFocusProb;
   double policyLocalFocusPowAvg;
   double policyLocalFocusDistAvg;
