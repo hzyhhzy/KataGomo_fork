@@ -140,7 +140,7 @@ struct Board
   int numStonesOnBoard() const;
   int numPlaStonesOnBoard(Player pla) const;
   bool isDeadOrCaptured(Loc loc) const;
-  bool checkConnection(int8_t* buf, Player pla) const;
+  bool checkConnection(int8_t* buf, Player pla, bool includeJumpConnection) const;
 
   //Sets the specified stone if possible, including overwriting existing stones.
   //Resolves any captures and/or suicides that result from setting that stone, including deletions of the stone itself.

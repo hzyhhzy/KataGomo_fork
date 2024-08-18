@@ -22,7 +22,7 @@ static int8_t getColor(const int8_t* buf, int xs, int ys, int x, int y) {
   return buf[x + y * xs];
 }
 
-static bool checkConnectionHelper(int8_t* buf, int xs, int ys, int x0, int y0) {
+static bool checkConnectionHelper(int8_t* buf, int xs, int ys, int x0, int y0, bool includeJumpConnection) {
   // 0 empty, 1 pla, 2 opp or marked as jump gap or outside board, 3 top connection, 4 bottom connection
   buf[x0 + y0 * xs] = 3;
   //connect locations
@@ -36,44 +36,41 @@ static bool checkConnectionHelper(int8_t* buf, int xs, int ys, int x0, int y0) {
     if(c == 4)
       return true;
     else if(c == 1) {
-      bool res = checkConnectionHelper(buf, xs, ys, x, y);
+      bool res = checkConnectionHelper(buf, xs, ys, x, y, includeJumpConnection);
       if(res)
         return true;
     }
   }
-
-  //jump locations
-  const int dxs2[6] = {1, 2, 1, -1, -2, -1};
-  const int dys2[6] = {-2, -1, 1, 2, 1, -1};
-  for(int d = 0; d < 6; d++) {
-    int x = x0 + dxs2[d];
-    int y = y0 + dys2[d];
-    int c = getColor(buf, xs, ys, x, y);
-    if (c == 4)
-    {
-      if(
-        getColor(buf, xs, ys, x0 + dxs[d], y0 + dys[d]) == 0 &&
-        getColor(buf, xs, ys, x0 + dxs[d + 1], y0 + dys[d + 1]) == 0)
-        return true;
-    }
-    else if(c == 1) {
-      if (
-        getColor(buf, xs, ys, x0 + dxs[d], y0 + dys[d]) == 0 &&
-        getColor(buf, xs, ys, x0 + dxs[d + 1], y0 + dys[d + 1]) == 0)
-      {
-        buf[x0 + dxs[d] + xs * (y0 + dys[d])] = 2;
-        buf[x0 + dxs[d + 1] + xs * (y0 + dys[d + 1])] = 2;
-        bool res = checkConnectionHelper(buf, xs, ys, x, y);
-        if(res)
+  if(includeJumpConnection) {
+    // jump locations
+    const int dxs2[6] = {1, 2, 1, -1, -2, -1};
+    const int dys2[6] = {-2, -1, 1, 2, 1, -1};
+    for(int d = 0; d < 6; d++) {
+      int x = x0 + dxs2[d];
+      int y = y0 + dys2[d];
+      int c = getColor(buf, xs, ys, x, y);
+      if(c == 4) {
+        if(
+          getColor(buf, xs, ys, x0 + dxs[d], y0 + dys[d]) == 0 &&
+          getColor(buf, xs, ys, x0 + dxs[d + 1], y0 + dys[d + 1]) == 0)
           return true;
+      } else if(c == 1) {
+        if(
+          getColor(buf, xs, ys, x0 + dxs[d], y0 + dys[d]) == 0 &&
+          getColor(buf, xs, ys, x0 + dxs[d + 1], y0 + dys[d + 1]) == 0) {
+          buf[x0 + dxs[d] + xs * (y0 + dys[d])] = 2;
+          buf[x0 + dxs[d + 1] + xs * (y0 + dys[d + 1])] = 2;
+          bool res = checkConnectionHelper(buf, xs, ys, x, y, includeJumpConnection);
+          if(res)
+            return true;
+        }
       }
-
     }
   }
   return false;
 
 }
-bool Board::checkConnection(int8_t* buf, Player pla) const {
+bool Board::checkConnection(int8_t* buf, Player pla, bool includeJumpConnection) const {
   int xs = x_size, ys = y_size;
   Player opp = getOpp(pla);
   // firstly, copy the board
@@ -104,10 +101,12 @@ bool Board::checkConnection(int8_t* buf, Player pla) const {
     if(buf[(ys - 1) * xs + x] == 1)
       buf[(ys - 1) * xs + x] = 4;
   }
-  // bottom 2nd row, considering jump connection
-  for(int x = 1; x < xs; x++) {
-    if(buf[(ys - 2) * xs + x] == 1 && buf[(ys - 1) * xs + x] == 0 && buf[(ys - 1) * xs + x - 1] == 0)
-      buf[(ys - 2) * xs + x] = 4;
+  if(includeJumpConnection) {
+    // bottom 2nd row, considering jump connection
+    for(int x = 1; x < xs; x++) {
+      if(buf[(ys - 2) * xs + x] == 1 && buf[(ys - 1) * xs + x] == 0 && buf[(ys - 1) * xs + x - 1] == 0)
+        buf[(ys - 2) * xs + x] = 4;
+    }
   }
 
   //search from top
@@ -117,14 +116,16 @@ bool Board::checkConnection(int8_t* buf, Player pla) const {
     if(connected)
       break;
     if(buf[0 * xs + x] == 1)
-      connected |= checkConnectionHelper(buf, xs, ys, x, 0);
+      connected |= checkConnectionHelper(buf, xs, ys, x, 0, includeJumpConnection);
   }
-  // top 2nd row, considering jump connection
-  for(int x = 0; x < xs - 1; x++) {
-    if(connected)
-      break;
-    if(buf[1 * xs + x] == 1 && buf[0 * xs + x] == 0 && buf[0 * xs + x + 1] == 0)
-      connected |= checkConnectionHelper(buf, xs, ys, x, 1);
+  if(includeJumpConnection) {
+    // top 2nd row, considering jump connection
+    for(int x = 0; x < xs - 1; x++) {
+      if(connected)
+        break;
+      if(buf[1 * xs + x] == 1 && buf[0 * xs + x] == 0 && buf[0 * xs + x + 1] == 0)
+        connected |= checkConnectionHelper(buf, xs, ys, x, 1, includeJumpConnection);
+    }
   }
 
 
@@ -310,8 +311,8 @@ Color GameLogic::checkWinnerAfterPlayed(
   Player pla,
   Loc loc,
   int8_t* bufferForCheckingWinner) {
-
-  if(board.checkConnection(bufferForCheckingWinner,pla))
+  bool includeJumpConnection = hist.rules.maxMoves == 0;
+  if(board.checkConnection(bufferForCheckingWinner, pla, includeJumpConnection))
     return pla;
 
   if(loc == Board::PASS_LOC)
