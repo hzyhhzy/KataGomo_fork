@@ -316,6 +316,14 @@ Color GameLogic::checkWinnerAfterPlayed(
 
   if(loc == Board::PASS_LOC)
     return getOpp(pla);  //pass is not allowed
+
+  //check maxmoves
+  if (hist.rules.maxMoves > 0)
+  {
+    int currentMovenum = board.numStonesOnBoard();
+    if(currentMovenum >= hist.rules.maxMoves)
+      return C_EMPTY;
+  }
   
 
   return C_WALL;

@@ -705,7 +705,7 @@ void NNEvaluator::evaluate(
       for(int i = 0; i < policySize; i++) {
         Loc loc = NNPos::posToLoc(i, xSize, ySize, nnXLen, nnYLen);
         isLegal[i] = history.isLegal(board, loc, nextPlayer);
-        isDeadOrCaptured[i] = board.isDeadOrCaptured(loc);
+        isDeadOrCaptured[i] = history.rules.maxMoves == 0 && board.isDeadOrCaptured(loc);
         if(!isDeadOrCaptured[i])
           hasNonDeadMoves=true;
       }

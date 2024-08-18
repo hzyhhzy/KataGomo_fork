@@ -10,31 +10,36 @@ using json = nlohmann::json;
 Rules::Rules() {
   //Defaults if not set - closest match to TT rules
   scoringRule = SCORING_AREA;
+  maxMoves = 0;
 }
 
 Rules::Rules(
-  int sRule
-)
-  :scoringRule(sRule)
-{}
+  int sRule,
+  int mm
+) : scoringRule(sRule), maxMoves(mm) 
+{
+}
 
 Rules::~Rules() {
 }
 
 bool Rules::operator==(const Rules& other) const {
   return
-    scoringRule == other.scoringRule;
+    scoringRule == other.scoringRule 
+    && maxMoves == other.maxMoves;
 }
 
 bool Rules::operator!=(const Rules& other) const {
   return
-    scoringRule != other.scoringRule ;
+    scoringRule != other.scoringRule 
+    || maxMoves != other.maxMoves;
 }
 
 
 Rules Rules::getTrompTaylorish() {
   Rules rules;
   rules.scoringRule = SCORING_AREA;
+  rules.maxMoves = 0;
   return rules;
 }
 
@@ -56,6 +61,7 @@ string Rules::writeScoringRule(int scoringRule) {
 
 ostream& operator<<(ostream& out, const Rules& rules) {
   out << "score" << Rules::writeScoringRule(rules.scoringRule);
+  out << "maxmoves" << rules.maxMoves;
   return out;
 }
 
@@ -75,6 +81,7 @@ string Rules::toJsonString() const {
 json Rules::toJson() const {
   json ret;
   ret["scoring"] = writeScoringRule(scoringRule);
+  ret["maxmoves"] = maxMoves;
   return ret;
 }
 
@@ -84,7 +91,11 @@ Rules Rules::updateRules(const string& k, const string& v, Rules oldRules) {
   string key = Global::trim(k);
   string value = Global::trim(Global::toUpper(v));
   if(key == "score") rules.scoringRule = Rules::parseScoringRule(value);
-  else if(key == "scoring") rules.scoringRule = Rules::parseScoringRule(value);
+  else if(key == "scoring")
+    rules.scoringRule = Rules::parseScoringRule(value);
+  else if(key == "maxmoves") {
+    rules.maxMoves = Global::stringToInt(value);
+  } 
   else throw IOError("Unknown rules option: " + key);
   return rules;
 }
@@ -188,3 +199,4 @@ const Hash128 Rules::ZOBRIST_SCORING_RULE_HASH[2] = {
   //Based on sha256 hash of Rules::SCORING_TERRITORY, but also mixing seki tax rule hash, to preserve legacy hashes
   Hash128(0x381345dc357ec982ULL ^ 0x125bfe48a41042d5ULL, 0x03ba55c026026b56ULL ^ 0x061866b5f2b98a79ULL),
 };
+const Hash128 Rules::ZOBRIST_MAXMOVES_HASH_BASE = Hash128(0x8aba00580c378fe8ULL, 0x7f6c1210e74fb440ULL);
