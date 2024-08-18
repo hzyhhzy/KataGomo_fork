@@ -49,6 +49,12 @@ struct PlaySettings {
   double resignThreshold; //Require that mcts win value is less than this
   double resignConsecTurns; //Require that both players have agreed on it continuously for this many turns
 
+  // Early end game if draw rate very high
+  bool allowEarlyDraw;
+  double earlyDrawThreshold;    // Require that mcts draw value is more than this
+  double earlyDrawConsecTurns;  // Require that both players have agreed on it continuously for this many turns
+  double earlyDrawProbSelfplay; 
+
   //special openings
   double completelyRandomOpeningProb;//randomly put some stones on the board
   double completelyRandomOpeningFillRateAvg;  // avg fill rate of random stones (15x15 board, ~225*p black stones and
