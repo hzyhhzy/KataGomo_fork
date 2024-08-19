@@ -403,8 +403,10 @@ void GameInitializer::createGameSharedUnsynchronized(
     if(rand.nextBool(moveLimitProb)) {
       //int maxMoves = int(pow(rand.nextDouble(), moveLimitAreaPow) * xSize * ySize);
 
+      //shortest win ~ 0.60*x^1.9
+      //low draw rate ~ 0.70*x^1.9
       double maxMovesD = 0.65 * pow(xSize * ySize, 0.95);
-      double mmStdev = rand.nextBool(0.2) ? 3.0 * xSize : 1.0 * xSize;
+      double mmStdev = rand.nextBool(0.2) ? 2.0 * xSize : 0.7 * xSize;
       int maxMoves = int(maxMovesD + mmStdev * rand.nextGaussian());
       if(maxMoves >= xSize * ySize)
         maxMoves = 0;
