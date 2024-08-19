@@ -401,7 +401,11 @@ void GameInitializer::createGameSharedUnsynchronized(
     int ySize = allowedBSizes[ySizeIdx];
 
     if(rand.nextBool(moveLimitProb)) {
-      int maxMoves = int(pow(rand.nextDouble(), moveLimitAreaPow) * xSize * ySize);
+      //int maxMoves = int(pow(rand.nextDouble(), moveLimitAreaPow) * xSize * ySize);
+
+      double maxMovesD = 0.65 * pow(xSize * ySize, 0.95);
+      double mmStdev = rand.nextBool(0.2) ? 3.0 * xSize : 1.0 * xSize;
+      int maxMoves = int(maxMovesD + mmStdev * rand.nextGaussian());
       if(maxMoves >= xSize * ySize)
         maxMoves = 0;
       if(maxMoves < xSize)
