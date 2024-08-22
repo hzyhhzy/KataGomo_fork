@@ -11,9 +11,10 @@
 #include "../core/hash.h"
 #include "../external/nlohmann_json/json.hpp"
 
-#ifndef COMPILE_MAX_BOARD_LEN
-#define COMPILE_MAX_BOARD_LEN 19
+#ifdef COMPILE_MAX_BOARD_LEN
+static_assert(COMPILE_MAX_BOARD_LEN should not be defined);
 #endif
+#define COMPILE_MAX_BOARD_LEN 19
 
 //TYPES AND CONSTANTS-----------------------------------------------------------------
 

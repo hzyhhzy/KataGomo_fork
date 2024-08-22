@@ -4,7 +4,9 @@
 class Search;
 
 namespace RandomOpening {
-  void initializeBalancedRandomOpening(
+  //write your own logic
+
+  /* void initializeBalancedRandomOpening(
     Search* botB,
     Search* botW,
     Board& board,
@@ -12,5 +14,6 @@ namespace RandomOpening {
     Player& nextPlayer,
     Rand& gameRand,
     bool forSelfplay);
+    */
 
 }

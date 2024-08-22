@@ -511,8 +511,7 @@ void NNInputs::fillRowV7(
 
       Color stone = board.colors[loc];
 
-      //Features 1,2 - pla,opp stone
-      //Features 3,4,5 - 1,2,3 libs
+      //Spatial Features 1,2 - pla,opp stone
       if(stone == pla)
         setRowBin(rowBin,pos,1, 1.0f, posStride, featureStride);
       else if(stone == opp)
@@ -521,6 +520,11 @@ void NNInputs::fillRowV7(
     }
   }
 
+  // Precalculated results as nn input
+  // Spatial Features 3 - the only location to play
+  // Global features 1 - whether use precalculated results
+  // Global features 2,3,4 - precalculated winner
+  // Global features 5 - the only location is Pass
   if(resultsBeforeNN.inited) {
     rowGlobal[1] = 1.0;
     rowGlobal[2] = resultsBeforeNN.winner == C_EMPTY;
@@ -548,7 +552,7 @@ void NNInputs::fillRowV7(
     ASSERT_UNREACHABLE;
 
   
-  // Parameter 0 noResultUtilityForWhite
+  // Parameter 0 noResultUtilityForWhite, when draw, white's win rate = 0.5*(noResultUtilityForWhite+1)
   rowGlobal[0] = pla == C_WHITE ? nnInputParams.noResultUtilityForWhite : -nnInputParams.noResultUtilityForWhite;
 
   // Parameter 15 is used because there's actually a discontinuity in how training behavior works when this is

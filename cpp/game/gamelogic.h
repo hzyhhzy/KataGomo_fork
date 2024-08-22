@@ -25,9 +25,6 @@ namespace GameLogic {
   static const MovePriority MP_WINNING = 3;//sure win, but not this move
   static const MovePriority MP_ILLEGAL = -1;//illegal moves
 
-  MovePriority getMovePriorityAssumeLegal(const Board& board, const BoardHistory& hist, Player pla, Loc loc);
-  MovePriority getMovePriority(const Board& board, const BoardHistory& hist, Player pla, Loc loc);
-
   //C_EMPTY = draw, C_WALL = not finished 
   Color checkWinnerAfterPlayed(const Board& board, const BoardHistory& hist, Player pla, Loc loc);
 
