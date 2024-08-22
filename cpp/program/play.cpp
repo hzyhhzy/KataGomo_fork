@@ -18,8 +18,8 @@ using namespace std;
 InitialPosition::InitialPosition()
   :board(),hist(),pla(C_EMPTY)
 {}
-InitialPosition::InitialPosition(const Board& b, const BoardHistory& h, Player p, bool plainFork, bool sekiFork, bool hintFork, double tw)
-  :board(b),hist(h),pla(p),isPlainFork(plainFork),isSekiFork(sekiFork),isHintFork(hintFork),trainingWeight(tw)
+InitialPosition::InitialPosition(const Board& b, const BoardHistory& h, Player p, bool plainFork, bool hintFork, double tw)
+  :board(b),hist(h),pla(p),isPlainFork(plainFork),isHintFork(hintFork),trainingWeight(tw)
 {}
 InitialPosition::~InitialPosition()
 {}
@@ -29,9 +29,6 @@ ForkData::~ForkData() {
   for(int i = 0; i<forks.size(); i++)
     delete forks[i];
   forks.clear();
-  for(int i = 0; i<sekiForks.size(); i++)
-    delete sekiForks[i];
-  sekiForks.clear();
 }
 
 void ForkData::add(const InitialPosition* pos) {
@@ -51,32 +48,6 @@ const InitialPosition* ForkData::get(Rand& rand) {
   return pos;
 }
 
-void ForkData::addSeki(const InitialPosition* pos, Rand& rand) {
-  std::unique_lock<std::mutex> lock(mutex);
-  if(sekiForks.size() >= 1000) {
-    testAssert(sekiForks.size() < 0x1FFFffff);
-    uint32_t r = rand.nextUInt((uint32_t)sekiForks.size());
-    const InitialPosition* oldPos = sekiForks[r];
-    sekiForks[r] = pos;
-    lock.unlock();
-    delete oldPos;
-  }
-  else {
-    sekiForks.push_back(pos);
-  }
-}
-const InitialPosition* ForkData::getSeki(Rand& rand) {
-  std::lock_guard<std::mutex> lock(mutex);
-  if(sekiForks.size() <= 0)
-    return NULL;
-  testAssert(sekiForks.size() < 0x1FFFffff);
-  uint32_t r = rand.nextUInt((uint32_t)sekiForks.size());
-  size_t last = sekiForks.size()-1;
-  const InitialPosition* pos = sekiForks[r];
-  sekiForks[r] = sekiForks[last];
-  sekiForks.resize(sekiForks.size()-1);
-  return pos;
-}
 
 //------------------------------------------------------------------------------------------------
 
@@ -96,7 +67,6 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
 
   allowedKoRuleStrs = cfg.getStrings("koRules", Rules::koRuleStrings());
   allowedScoringRuleStrs = cfg.getStrings("scoringRules", Rules::scoringRuleStrings());
-  allowedTaxRuleStrs = cfg.getStrings("taxRules", Rules::taxRuleStrings());
   allowedMultiStoneSuicideLegals = cfg.getBools("multiStoneSuicideLegals");
   allowedButtons = cfg.getBools("hasButtons");
 
@@ -104,15 +74,11 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     allowedKoRules.push_back(Rules::parseKoRule(allowedKoRuleStrs[i]));
   for(size_t i = 0; i < allowedScoringRuleStrs.size(); i++)
     allowedScoringRules.push_back(Rules::parseScoringRule(allowedScoringRuleStrs[i]));
-  for(size_t i = 0; i < allowedTaxRuleStrs.size(); i++)
-    allowedTaxRules.push_back(Rules::parseTaxRule(allowedTaxRuleStrs[i]));
 
   if(allowedKoRules.size() <= 0)
     throw IOError("koRules must have at least one value in " + cfg.getFileName());
   if(allowedScoringRules.size() <= 0)
     throw IOError("scoringRules must have at least one value in " + cfg.getFileName());
-  if(allowedTaxRules.size() <= 0)
-    throw IOError("taxRules must have at least one value in " + cfg.getFileName());
   if(allowedMultiStoneSuicideLegals.size() <= 0)
     throw IOError("multiStoneSuicideLegals must have at least one value in " + cfg.getFileName());
   if(allowedButtons.size() <= 0)
@@ -430,7 +396,6 @@ void GameInitializer::createGame(
 
 Rules GameInitializer::randomizeScoringAndTaxRules(Rules rules, Rand& randToUse) const {
   rules.scoringRule = allowedScoringRules[randToUse.nextUInt((uint32_t)allowedScoringRules.size())];
-  rules.taxRule = allowedTaxRules[randToUse.nextUInt((uint32_t)allowedTaxRules.size())];
 
   if(rules.scoringRule == Rules::SCORING_AREA)
     rules.hasButton = allowedButtons[randToUse.nextUInt((uint32_t)allowedButtons.size())];
@@ -471,7 +436,6 @@ Rules GameInitializer::createRulesUnsynchronized() {
   Rules rules;
   rules.koRule = allowedKoRules[rand.nextUInt((uint32_t)allowedKoRules.size())];
   rules.scoringRule = allowedScoringRules[rand.nextUInt((uint32_t)allowedScoringRules.size())];
-  rules.taxRule = allowedTaxRules[rand.nextUInt((uint32_t)allowedTaxRules.size())];
   rules.multiStoneSuicideLegal = allowedMultiStoneSuicideLegals[rand.nextUInt((uint32_t)allowedMultiStoneSuicideLegals.size())];
 
   if(rules.scoringRule == Rules::SCORING_AREA)
@@ -547,7 +511,7 @@ void GameInitializer::createGameSharedUnsynchronized(
     const Sgf::PositionSample& startPos = *posSample;
     board = startPos.board;
     pla = startPos.nextPla;
-    hist.clear(board,pla,rules,0);
+    hist.clear(board,pla,rules);
     hist.setInitialTurnNumber(startPos.initialTurnNumber);
     Loc hintLoc = startPos.hintLoc;
     testAssert(startPos.moves.size() < 0xFFFFFF);
@@ -590,7 +554,7 @@ void GameInitializer::createGameSharedUnsynchronized(
     int ySize = allowedBSizes[bSizeIdx].second;
     board = Board(xSize,ySize);
     pla = P_BLACK;
-    hist.clear(board,pla,rules,0);
+    hist.clear(board,pla,rules);
 
     extraBlackAndKomi = PlayUtils::chooseExtraBlackAndKomi(
       komiMean, komiStdev, komiAllowIntegerProb,
@@ -1286,7 +1250,7 @@ FinishedGameData* Play::runGame(
     Player makeFairPla = P_BLACK;
     if(playSettings.flipKomiProbWhenNoCompensate != 0.0 && gameRand.nextBool(playSettings.flipKomiProbWhenNoCompensate))
       makeFairPla = P_WHITE;
-    BoardHistory h(b,makeFairPla,startHist.rules,startHist.encorePhase);
+    BoardHistory h(b,makeFairPla,startHist.rules);
     //Restore baseline on empty hist, adjust empty hist to fair, then apply to real history.
     PlayUtils::setKomiWithoutNoise(extraBlackAndKomi,h);
     PlayUtils::adjustKomiToEven(botB,botW,b,h,makeFairPla,playSettings.compensateKomiVisits,otherGameProps,gameRand);
@@ -1409,32 +1373,6 @@ FinishedGameData* Play::runGame(
         extraBlackAndKomi.komiMean = hist.rules.komi;
         PlayUtils::setKomiWithNoise(extraBlackAndKomi,hist,gameRand);
       }
-    }
-  }
-
-  //Make sure there's some minimum tiny amount of data about how the encore phases work
-  if(playSettings.forSelfPlay && !otherGameProps.isHintPos && hist.rules.scoringRule == Rules::SCORING_TERRITORY && hist.encorePhase == 0 && gameRand.nextBool(0.04)) {
-    //Play out to go a quite a bit later in the game.
-    double proportionOfBoardArea = 0.25;
-    double temperature = 2.0/3.0;
-    PlayUtils::initializeGameUsingPolicy(botB, botW, board, hist, pla, gameRand, doEndGameIfAllPassAlive, proportionOfBoardArea, temperature);
-
-    if(!hist.isGameFinished) {
-      //Even out the game
-      PlayUtils::adjustKomiToEven(botB, botW, board, hist, pla, playSettings.compensateKomiVisits, otherGameProps, gameRand);
-      extraBlackAndKomi.komiMean = hist.rules.komi;
-      PlayUtils::setKomiWithNoise(extraBlackAndKomi,hist,gameRand);
-
-      //Randomly set to one of the encore phases
-      //Since we played out the game a bunch we should get a good mix of stones that were present or not present at the start
-      //of the second encore phase if we're going into the second.
-      int encorePhase = gameRand.nextInt(1,2);
-      board.clearSimpleKoLoc();
-      hist.clear(board,pla,hist.rules,encorePhase);
-
-      gameData->mode = FinishedGameData::MODE_CLEANUP_TRAINING;
-      gameData->beganInEncorePhase = encorePhase;
-      gameData->usedInitialPosition = 0;
     }
   }
 
@@ -1718,7 +1656,7 @@ FinishedGameData* Play::runGame(
 
     assert(gameData->finalWhiteScoring == NULL);
     gameData->finalWhiteScoring = new float[Board::MAX_ARR_SIZE];
-    NNInputs::fillScoring(board,gameData->finalOwnership,hist.rules.taxRule == Rules::TAX_ALL,gameData->finalWhiteScoring);
+    NNInputs::fillScoring(board,gameData->finalOwnership,gameData->finalWhiteScoring);
 
     gameData->hasFullData = true;
 
@@ -2018,11 +1956,7 @@ static void replayGameUpToMove(const FinishedGameData* finishedGameData, int mov
   board = finishedGameData->startHist.initialBoard;
   pla = finishedGameData->startHist.initialPla;
 
-  if(rules.scoringRule == Rules::SCORING_AREA)
-    hist.clear(board,pla,rules,0);
-  else
-    hist.clear(board,pla,rules,finishedGameData->startHist.initialEncorePhase);
-
+  hist.clear(board, pla, rules);
   //Make sure it's prior to the last move
   if(finishedGameData->endHist.moveHistory.size() <= 0)
     return;
@@ -2034,7 +1968,7 @@ static void replayGameUpToMove(const FinishedGameData* finishedGameData, int mov
     if(!hist.isLegal(board,loc,pla)) {
       //We have a bug of some sort if we got an illegal move on replay, unless
       //we are in encore phase (pass for ko may change) or the rules are different
-      if(rules == finishedGameData->startHist.rules && hist.encorePhase == 0) {
+      if(rules == finishedGameData->startHist.rules) {
         cout << board << endl;
         cout << PlayerIO::colorToChar(pla) << endl;
         cout << Location::toString(loc,board) << endl;
@@ -2079,9 +2013,6 @@ void Play::maybeForkGame(
   assert(finishedGameData->startHist.initialBoard.pos_hash == finishedGameData->endHist.initialBoard.pos_hash);
   assert(finishedGameData->startHist.initialPla == finishedGameData->endHist.initialPla);
 
-  //Just for conceptual simplicity, don't early fork games that started in the encore
-  if(finishedGameData->startHist.encorePhase != 0)
-    return;
   bool earlyFork = gameRand.nextBool(playSettings.earlyForkGameProb);
   bool lateFork = !earlyFork && playSettings.forkGameProb > 0 ? gameRand.nextBool(playSettings.forkGameProb) : false;
   if(!earlyFork && !lateFork)
@@ -2158,50 +2089,10 @@ void Play::maybeForkGame(
   //If the game is over now, don't actually do anything
   if(hist.isGameFinished)
     return;
-  forkData->add(new InitialPosition(board,hist,pla,true,false,false,finishedGameData->trainingWeight));
+  forkData->add(new InitialPosition(board,hist,pla,true,false,finishedGameData->trainingWeight));
 }
 
 
-void Play::maybeSekiForkGame(
-  const FinishedGameData* finishedGameData,
-  ForkData* forkData,
-  const PlaySettings& playSettings,
-  const GameInitializer* gameInit,
-  Rand& gameRand
-) {
-  if(forkData == NULL)
-    return;
-  if(playSettings.sekiForkHackProb <= 0)
-    return;
-
-  //If there are any unowned spots, consider forking the last bit of the game, with random rules and even score
-  //Don't fork games starting in second encore though
-  const BoardHistory& endHist = finishedGameData->endHist;
-  if(endHist.isGameFinished && endHist.isScored && finishedGameData->startHist.encorePhase < 2 && hasUnownedSpot(finishedGameData)) {
-
-    for(int i = 0; i<2; i++) {
-      //Pick a random move to fork from near the end of the game
-      int moveIdx = (int)floor(endHist.moveHistory.size() * (1.0 - 0.10 * gameRand.nextExponential()) - 1.0);
-      if(moveIdx < 0)
-        moveIdx = 0;
-      if(moveIdx > endHist.moveHistory.size())
-        moveIdx = (int)endHist.moveHistory.size();
-
-      //Randomly permute the rules
-      Rules rules = finishedGameData->startHist.rules;
-      rules = gameInit->randomizeScoringAndTaxRules(rules,gameRand);
-
-      Board board;
-      Player pla;
-      BoardHistory hist;
-      replayGameUpToMove(finishedGameData, moveIdx, rules, board, hist, pla);
-      //Just in case if somehow the game is over now, don't actually do anything
-      if(hist.isGameFinished)
-        continue;
-      forkData->addSeki(new InitialPosition(board,hist,pla,false,true,false,finishedGameData->trainingWeight),gameRand);
-    }
-  }
-}
 
 void Play::maybeHintForkGame(
   const FinishedGameData* finishedGameData,
@@ -2210,9 +2101,7 @@ void Play::maybeHintForkGame(
 ) {
   if(forkData == NULL)
     return;
-  //Just for conceptual simplicity, don't early fork games that started in the encore
-  if(finishedGameData->startHist.encorePhase != 0)
-    return;
+
   bool hintFork =
     otherGameProps.hintLoc != Board::NULL_LOC &&
     finishedGameData->startBoard.pos_hash == otherGameProps.hintPosHash &&
@@ -2242,7 +2131,7 @@ void Play::maybeHintForkGame(
   //If the game is over now, don't actually do anything
   if(hist.isGameFinished)
     return;
-  forkData->add(new InitialPosition(board,hist,pla,false,false,true,finishedGameData->trainingWeight));
+  forkData->add(new InitialPosition(board,hist,pla,false,true,finishedGameData->trainingWeight));
 }
 
 
@@ -2300,15 +2189,9 @@ FinishedGameData* GameRunner::runGame(
   Rand gameRand(seed + ":" + "forGameRand");
 
   const InitialPosition* initialPosition = NULL;
-  bool usedSekiForkHackPosition = false;
   if(forkData != NULL) {
     initialPosition = forkData->get(gameRand);
 
-    if(initialPosition == NULL && playSettings.sekiForkHackProb > 0 && gameRand.nextBool(playSettings.sekiForkHackProb)) {
-      initialPosition = forkData->getSeki(gameRand);
-      if(initialPosition != NULL)
-        usedSekiForkHackPosition = true;
-    }
   }
 
   Board board;
@@ -2408,9 +2291,6 @@ FinishedGameData* GameRunner::runGame(
   assert(finishedGameData != NULL);
 
   Play::maybeForkGame(finishedGameData, forkData, playSettings, gameRand, botB);
-  if(!usedSekiForkHackPosition) {
-    Play::maybeSekiForkGame(finishedGameData, forkData, playSettings, gameInit, gameRand);
-  }
   Play::maybeHintForkGame(finishedGameData, forkData, otherGameProps);
 
   if(botW != botB)

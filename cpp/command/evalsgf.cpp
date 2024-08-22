@@ -623,7 +623,6 @@ int MainCmds::evalsgf(const vector<string>& args) {
 
   if(printJson) {
     int analysisPVLen = 7;
-    bool preventEncore = false;
     bool includePolicy = printPolicy;
     bool includeOwnership = printOwnership;
     bool includeOwnershipStdev = false;
@@ -634,7 +633,6 @@ int MainCmds::evalsgf(const vector<string>& args) {
     bool suc = search->getAnalysisJson(
       perspective,
       analysisPVLen,
-      preventEncore,
       includePolicy,
       includeOwnership,
       includeOwnershipStdev,

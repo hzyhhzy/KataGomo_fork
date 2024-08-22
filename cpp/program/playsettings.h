@@ -34,8 +34,6 @@ struct PlaySettings {
   int earlyForkGameMaxChoices; //Fork between the favorite of this many random legal moves, at maximum
   int forkGameMaxChoices; //Fork between the favorite of this many random legal moves, at maximum
 
-  //Hack to make learning of seki easier - fork positions with different rules when we have sekis
-  double sekiForkHackProb;
   //Hack to improve learning of very weird komi and very lopsided positions
   bool fancyKomiVarying;
 

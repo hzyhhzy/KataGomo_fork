@@ -102,7 +102,6 @@ namespace NNInputs {
   void fillScoring(
     const Board& board,
     const Color* area,
-    bool groupTax,
     float* scoring
   );
 }

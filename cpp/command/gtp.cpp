@@ -178,13 +178,8 @@ static double initialBlackAdvantage(const BoardHistory& hist) {
   //Subtract one since white gets the first move afterward
   int extraBlackStones = handicapStones - 1;
   double stoneValue = hist.rules.scoringRule == Rules::SCORING_AREA ? 15.0 : 14.0;
-  double whiteHandicapBonus = 0.0;
-  if(hist.rules.whiteHandicapBonusRule == Rules::WHB_N)
-    whiteHandicapBonus += handicapStones;
-  else if(hist.rules.whiteHandicapBonusRule == Rules::WHB_N_MINUS_ONE)
-    whiteHandicapBonus += handicapStones-1;
 
-  return stoneValue * extraBlackStones + (7.0 - hist.rules.komi - whiteHandicapBonus);
+  return stoneValue * extraBlackStones + (7.0 - hist.rules.komi);
 }
 
 static double getBoardSizeScaling(const Board& board) {
@@ -1431,8 +1426,7 @@ struct GTPEngine {
 
     //Tromp-taylorish scoring, or finished territory game scoring (including noresult)
     if(hist.isGameFinished && (
-         (hist.rules.scoringRule == Rules::SCORING_AREA && !hist.rules.friendlyPassOk) ||
-         (hist.rules.scoringRule == Rules::SCORING_TERRITORY)
+         (hist.rules.scoringRule == Rules::SCORING_AREA && !hist.rules.friendlyPassOk) 
        )
     ) {
       //For GTP purposes, we treat noResult as a draw since there is no provision for anything else.
@@ -1495,8 +1489,7 @@ struct GTPEngine {
     vector<bool> isAlive;
     //Tromp-taylorish statuses, or finished territory game statuses (including noresult)
     if(hist.isGameFinished && (
-         (hist.rules.scoringRule == Rules::SCORING_AREA && !hist.rules.friendlyPassOk) ||
-         (hist.rules.scoringRule == Rules::SCORING_TERRITORY)
+         (hist.rules.scoringRule == Rules::SCORING_AREA && !hist.rules.friendlyPassOk) 
        )
     )
       isAlive = PlayUtils::computeAnticipatedStatusesSimple(board,hist);

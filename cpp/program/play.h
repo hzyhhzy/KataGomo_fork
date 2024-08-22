@@ -20,12 +20,11 @@ struct InitialPosition {
   BoardHistory hist;
   Player pla;
   bool isPlainFork;
-  bool isSekiFork;
   bool isHintFork;
   double trainingWeight;
 
   InitialPosition();
-  InitialPosition(const Board& board, const BoardHistory& hist, Player pla, bool isPlainFork, bool isSekiFork, bool isHintFork, double trainingWeight);
+  InitialPosition(const Board& board, const BoardHistory& hist, Player pla, bool isPlainFork, bool isHintFork, double trainingWeight);
   ~InitialPosition();
 };
 
@@ -33,14 +32,11 @@ struct InitialPosition {
 struct ForkData {
   std::mutex mutex;
   std::vector<const InitialPosition*> forks;
-  std::vector<const InitialPosition*> sekiForks;
   ~ForkData();
 
   void add(const InitialPosition* pos);
   const InitialPosition* get(Rand& rand);
 
-  void addSeki(const InitialPosition* pos, Rand& rand);
-  const InitialPosition* getSeki(Rand& rand);
 };
 
 struct ExtraBlackAndKomi {
@@ -136,13 +132,11 @@ class GameInitializer {
 
   std::vector<std::string> allowedKoRuleStrs;
   std::vector<std::string> allowedScoringRuleStrs;
-  std::vector<std::string> allowedTaxRuleStrs;
   std::vector<bool> allowedMultiStoneSuicideLegals;
   std::vector<bool> allowedButtons;
 
   std::vector<int> allowedKoRules;
   std::vector<int> allowedScoringRules;
-  std::vector<int> allowedTaxRules;
 
   std::vector<std::pair<int,int>> allowedBSizes;
   std::vector<double> allowedBSizeRelProbs;
@@ -274,14 +268,6 @@ namespace Play {
     const PlaySettings& playSettings,
     Rand& gameRand,
     Search* bot
-  );
-
-  void maybeSekiForkGame(
-    const FinishedGameData* finishedGameData,
-    ForkData* forkData,
-    const PlaySettings& playSettings,
-    const GameInitializer* gameInit,
-    Rand& gameRand
   );
 
   void maybeHintForkGame(
