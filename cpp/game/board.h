@@ -11,9 +11,10 @@
 #include "../core/hash.h"
 #include "../external/nlohmann_json/json.hpp"
 
-#ifndef COMPILE_MAX_BOARD_LEN 
-#define COMPILE_MAX_BOARD_LEN 8
+#ifdef COMPILE_MAX_BOARD_LEN
+static_assert(COMPILE_MAX_BOARD_LEN should not be defined);
 #endif
+#define COMPILE_MAX_BOARD_LEN 8
 
 //how many stages in each move
 //eg: Chess has 2 stages: moving which piece, and where to place.

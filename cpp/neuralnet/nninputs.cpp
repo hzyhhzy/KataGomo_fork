@@ -512,26 +512,25 @@ void NNInputs::fillRowV7(
     resultsBeforeNN.init(board, hist, nextPlayer);
   }
 
-  for(int y = 0; y<ySize; y++) {
-    for(int x = 0; x<xSize; x++) {
-      int pos = NNPos::xyToPos(x,y,nnXLen);
-      Loc loc = Location::getLoc(x,y,xSize);
+  for (int y = 0; y < ySize; y++) {
+    for (int x = 0; x < xSize; x++) {
+      int pos = NNPos::xyToPos(x, y, nnXLen);
+      Loc loc = Location::getLoc(x, y, xSize);
 
       //Feature 0 - on board
-      setRowBin(rowBin,pos,0, 1.0f, posStride, featureStride);
+      setRowBin(rowBin, pos, 0, 1.0f, posStride, featureStride);
 
       Color stone = board.colors[loc];
 
-      //Features 1,2 - pla,opp stone
-      //Features 3,4,5 - 1,2,3 libs
-      if(stone == pla)
-        setRowBin(rowBin,pos,1, 1.0f, posStride, featureStride);
-      else if(stone == opp)
-        setRowBin(rowBin,pos,2, 1.0f, posStride, featureStride);
+      //Spatial Features 1,2 - pla,opp stone
+      if (stone == pla)
+        setRowBin(rowBin, pos, 1, 1.0f, posStride, featureStride);
+      else if (stone == opp)
+        setRowBin(rowBin, pos, 2, 1.0f, posStride, featureStride);
 
     }
   }
-
+  
   // mid state
   if(board.stage == 0)  // choose
   {
@@ -549,6 +548,11 @@ void NNInputs::fillRowV7(
   } else
     ASSERT_UNREACHABLE;
 
+  // Precalculated results as nn input
+  // Spatial Features 4 - the only location to play
+  // Global features 1 - whether use precalculated results
+  // Global features 2,3,4 - precalculated winner
+  // Global features 5 - the only location is Pass
   if(resultsBeforeNN.inited) {
     rowGlobal[1] = 1.0;
     rowGlobal[2] = resultsBeforeNN.winner == C_EMPTY;
@@ -573,6 +577,9 @@ void NNInputs::fillRowV7(
     ASSERT_UNREACHABLE;
 
   
+  // Parameter 14 noResultUtilityForWhite
+  rowGlobal[14] = pla == C_WHITE ? nnInputParams.noResultUtilityForWhite : -nnInputParams.noResultUtilityForWhite;
+
   // Parameter 15 is used because there's actually a discontinuity in how training behavior works when this is
   // nonzero, no matter how slightly.
   if(nnInputParams.playoutDoublingAdvantage != 0) {
