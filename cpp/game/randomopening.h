@@ -4,6 +4,9 @@
 class Search;
 
 namespace RandomOpening {
-  //disabled
-
+  void initializeSpecialOpening(
+    Board& board,
+    BoardHistory& hist,
+    Player& nextPlayer,
+    Rand& gameRand);
 }

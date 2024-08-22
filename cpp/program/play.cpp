@@ -268,12 +268,20 @@ void GameInitializer::createGame(
   createGameSharedUnsynchronized(board,pla,hist,initialPosition,playSettings,otherGameProps,startPosSample);
 
   if(noResultRandRadius > 1e-30) {
+    if(playSettings.initGamesWithOpeningLib) {  // tend to use positive noResultUtilityForWhite
+      double factor = pow(rand.nextDouble(), 3);
+      params.noResultUtilityForWhite = 1.0 - 2.0 * factor;
+    } 
+    else {
+    
     double mean = params.noResultUtilityForWhite;
     if(mean < -1.0 || mean > 1.0)
-      throw StringError("GameInitializer: params.noResultUtilityForWhite not within [-1,1]: " + Global::doubleToString(mean));
+      throw StringError(
+        "GameInitializer: params.noResultUtilityForWhite not within [-1,1]: " + Global::doubleToString(mean));
     params.noResultUtilityForWhite = mean + noResultRandRadius * (rand.nextDouble() * 2 - 1);
     while(params.noResultUtilityForWhite < -1.0 || params.noResultUtilityForWhite > 1.0)
       params.noResultUtilityForWhite = mean + noResultRandRadius * (rand.nextDouble() * 2 - 1);
+  }
   }
 }
 
@@ -1245,7 +1253,11 @@ FinishedGameData* Play::runGame(
     }
   };
 
-
+  //some fixed openings
+  if (playSettings.initGamesWithOpeningLib)
+  {
+    RandomOpening::initializeSpecialOpening(board, hist, pla, gameRand);
+  }
 
 
   if(playSettings.initGamesWithPolicy && otherGameProps.allowPolicyInit) {
