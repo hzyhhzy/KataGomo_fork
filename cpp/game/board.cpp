@@ -214,6 +214,29 @@ bool Board::isLegal(Loc loc, Player pla) const
   );
 }
 
+bool Board::isPruned(Loc loc, Player pla) const {
+  if(!isLegal(loc, pla))
+    return true;
+  if(loc == PASS_LOC)
+    return false;
+
+  
+  for(int i = 0; i < 8; i++) {
+#if DAWSONCHESS_RULE == 1
+    if(colors[loc + adj_offsets[i]] == C_BLACK)
+      return getOpp(pla);
+#elif DAWSONCHESS_RULE == 2
+    if(colors[loc + adj_offsets[i]] == pla)
+      return getOpp(pla);
+#elif DAWSONCHESS_RULE == 3
+    if(colors[loc + adj_offsets[i]] == opp)
+      return getOpp(pla);
+#else
+    static_assert(false, "unknown rule");
+#endif
+  }
+}
+
 bool Board::isEmpty() const {
   for(int y = 0; y < y_size; y++) {
     for(int x = 0; x < x_size; x++) {
@@ -303,8 +326,11 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
   {
     return;
   }
+#if DAWSONCHESS_RULE == 1
+  setStone(loc, C_BLACK);
+#else
   setStone(loc, pla);
-
+#endif
 }
 
 Hash128 Board::getSitHash(Player pla) const {

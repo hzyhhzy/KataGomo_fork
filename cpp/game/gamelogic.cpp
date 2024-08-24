@@ -30,8 +30,18 @@ Color GameLogic::checkWinnerAfterPlayed(
   //write your own logic here
   for (int i = 0; i < 8; i++)
   {
+#if DAWSONCHESS_RULE == 1
+    if(board.colors[loc + board.adj_offsets[i]] == C_BLACK)
+      return getOpp(pla);
+#elif DAWSONCHESS_RULE == 2
     if(board.colors[loc + board.adj_offsets[i]] == pla)
       return getOpp(pla);
+#elif DAWSONCHESS_RULE == 3
+    if(board.colors[loc + board.adj_offsets[i]] == opp)
+      return getOpp(pla);
+#else
+    static_assert(false,"unknown rule");
+#endif
   }
 
 

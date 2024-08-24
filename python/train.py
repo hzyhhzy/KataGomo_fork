@@ -573,7 +573,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         if param.requires_grad:
             total_trainable_params += product
         total_num_params += product
-        logging.info(f"{name}, {list(param.shape)}, {product} params")
+        #logging.info(f"{name}, {list(param.shape)}, {product} params")
     logging.info(f"Total num params: {total_num_params}")
     logging.info(f"Total trainable params: {total_trainable_params}")
 
@@ -919,7 +919,13 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     last_longterm_checkpoint_save_time = datetime.datetime.now()
     num_epochs_this_instance = 0
     print_train_loss_every_batches = 100 if not gnorm_stats_debug else 1000
-
+    
+    def has_nan_value(d):
+        for value in d.values():
+            if isinstance(value, float) and math.isnan(value):
+                return True
+        return False
+        
     if "sums" not in running_metrics:
         running_metrics["sums"] = defaultdict(float)
     else:
@@ -928,6 +934,11 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         running_metrics["weights"] = defaultdict(float)
     else:
         running_metrics["weights"] = defaultdict(float,running_metrics["weights"])
+        
+    if(has_nan_value(running_metrics["sums"]) or has_nan_value(running_metrics["weights"])):
+        print("running_metrics[\"sums\"] has nan. Set to zero")
+        running_metrics["sums"] = defaultdict(float)
+        running_metrics["weights"] = defaultdict(float)
 
     torch.backends.cudnn.benchmark = True
 

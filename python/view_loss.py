@@ -1,6 +1,9 @@
 baseDir="../data/train/"
-lossItems={"p0loss":(1.5,2.0),"vloss":(0.4,0.9),"loss":(0,0)} #name,ylim,  0 means default
-trainDirs=["b18c384n","b10c384n","b10c384nr"];
+lossItems={"p0loss":(1.6,1.9),"vloss":(0.5,0.7),"loss":(0,0)} #name,ylim,  0 means default
+trainDirs=["b18c384n","b18renju"];
+autoBias=True
+biases=[0,]
+scales=[1,]
 lossTypes=["train","val"]
 outputFile="../loss.png"
 
@@ -43,7 +46,7 @@ def readJsonFile(path,lossKeys):
 #os.makedirs(outputDir,exist_ok=True)
 
 
-fig=plt.figure(figsize=(6,4*nKeys),dpi=400)
+fig=plt.figure(figsize=(6,4*nKeys),dpi=200)
 plt.subplots_adjust(hspace=0.5)
 for i in range(nKeys):
     key=lossKeys[i]
@@ -76,11 +79,19 @@ for i in range(nKeys):
             y_minor_locator=MultipleLocator(0.001)
         ax.yaxis.set_major_locator(y_major_locator)
         ax.yaxis.set_minor_locator(y_minor_locator)
-
+        
+maxX=0
 isSingleDir = len(trainDirs)==1
 if(isSingleDir):
     fig.suptitle(trainDirs[0])
-for trainDir in trainDirs:
+for trainDirId in range(len(trainDirs)):
+    trainDir=trainDirs[trainDirId]
+    b=0
+    s=1
+    if biases is not None and len(biases)>trainDirId:
+        b=biases[trainDirId]
+    if scales is not None and len(scales)>trainDirId:
+        s=scales[trainDirId]
     for lossType in lossTypes:
         jsonPath=os.path.join(baseDir,trainDir,"metrics_"+lossType+".json")
         jsonData=readJsonFile(jsonPath,lossKeys)
@@ -89,7 +100,14 @@ for trainDir in trainDirs:
             key = lossKeys[i]
             ax = plt.subplot(nKeys, 1, i + 1)
             plotLabel=lossType if isSingleDir else trainDir+"."+lossType
-            ax.plot(jsonData["nsamp"], jsonData[key], label=plotLabel)
+            xdata=jsonData["nsamp"]
+            xdata=[s*x+b for x in xdata]
+            if(trainDirId==0):
+                maxX=max(xdata)
+            if(autoBias):
+                b1=maxX-max(xdata)
+                xdata=[x+b1 for x in xdata]
+            ax.plot(xdata, jsonData[key], label=plotLabel)
             ax.legend(loc="upper right")
 
 

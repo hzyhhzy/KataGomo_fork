@@ -691,11 +691,12 @@ void NNEvaluator::evaluate(
     bool isLegal[NNPos::MAX_NN_POLICY_SIZE];
     int legalCount = 0;
 
+    //also prune useless moves
     GameLogic::ResultsBeforeNN resultsBeforeNN = nnInputParamsWithResultsBeforeNN.resultsBeforeNN;
     if(resultsBeforeNN.myOnlyLoc == Board::NULL_LOC) {
       for(int i = 0; i < policySize; i++) {
         Loc loc = NNPos::posToLoc(i, xSize, ySize, nnXLen, nnYLen);
-        isLegal[i] = history.isLegal(board, loc, nextPlayer);
+        isLegal[i] = !board.isPruned(loc, nextPlayer);
       }
     } 
     else  // assume all other moves are illegal
@@ -704,8 +705,10 @@ void NNEvaluator::evaluate(
         isLegal[i] = false;
       }
       isLegal[NNPos::locToPos(resultsBeforeNN.myOnlyLoc, xSize, nnXLen, nnYLen)] = true;
-      isLegal[NNPos::locToPos(Board::PASS_LOC, xSize, nnXLen, nnYLen)] = true;
+      //isLegal[NNPos::locToPos(Board::PASS_LOC, xSize, nnXLen, nnYLen)] = true;
     }
+
+
 
     for(int i = 0; i<policySize; i++) {
       float policyValue;

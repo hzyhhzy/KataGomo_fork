@@ -301,6 +301,9 @@ struct GTPEngine {
     bool defaultRequireExactNNLen = true;
     int nnLenX = boardXSize;
     int nnLenY = boardYSize;
+
+    if(nnLenX < 2 || nnLenY < 2)
+      defaultRequireExactNNLen = false;
     
     if(cfg.contains("gtpDebugForceMaxNNSize") && cfg.getBool("gtpDebugForceMaxNNSize")) {
       defaultRequireExactNNLen = false;
@@ -1384,7 +1387,7 @@ int MainCmds::gtp(const vector<string>& args) {
         responseIsError = true;
         response = "Expected int argument for boardsize or pair of ints but got '" + Global::concat(pieces," ") + "'";
       }
-      else if(newXSize < 2 || newYSize < 2) {
+      else if(newXSize < 1 || newYSize < 1) {
         responseIsError = true;
         response = "unacceptable size";
       }
