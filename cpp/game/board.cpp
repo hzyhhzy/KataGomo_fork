@@ -224,17 +224,18 @@ bool Board::isPruned(Loc loc, Player pla) const {
   for(int i = 0; i < 8; i++) {
 #if DAWSONCHESS_RULE == 1
     if(colors[loc + adj_offsets[i]] == C_BLACK)
-      return getOpp(pla);
+      return true;
 #elif DAWSONCHESS_RULE == 2
     if(colors[loc + adj_offsets[i]] == pla)
-      return getOpp(pla);
+      return true;
 #elif DAWSONCHESS_RULE == 3
-    if(colors[loc + adj_offsets[i]] == opp)
-      return getOpp(pla);
+    if(colors[loc + adj_offsets[i]] == getOpp(pla))
+      return true;
 #else
     static_assert(false, "unknown rule");
 #endif
   }
+  return false;
 }
 
 bool Board::isEmpty() const {

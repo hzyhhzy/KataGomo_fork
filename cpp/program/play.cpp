@@ -51,7 +51,7 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     throw IOError("scoringRules must have at least one value in " + cfg.getFileName());
 
 
-  allowedBSizes = cfg.getInts("bSizes", 2, Board::MAX_LEN);
+  allowedBSizes = cfg.getInts("bSizes", 1, Board::MAX_LEN);
   allowedBSizeRelProbs = cfg.getDoubles("bSizeRelProbs",0.0,1e100);
 
   allowRectangleProb = cfg.contains("allowRectangleProb") ? cfg.getDouble("allowRectangleProb",0.0,1.0) : 0.0;

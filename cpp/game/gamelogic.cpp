@@ -37,7 +37,7 @@ Color GameLogic::checkWinnerAfterPlayed(
     if(board.colors[loc + board.adj_offsets[i]] == pla)
       return getOpp(pla);
 #elif DAWSONCHESS_RULE == 3
-    if(board.colors[loc + board.adj_offsets[i]] == opp)
+    if(board.colors[loc + board.adj_offsets[i]] == getOpp(pla))
       return getOpp(pla);
 #else
     static_assert(false,"unknown rule");
