@@ -1258,6 +1258,10 @@ FinishedGameData* Play::runGame(
   {
     RandomOpening::initializeSpecialOpening(board, hist, pla, gameRand);
   }
+  else if (gameRand.nextBool(playSettings.initGamesWithRandomBalancedProb))
+  {
+    RandomOpening::initializeBalancedRandomOpening(botB, botW, board, hist, pla, gameRand, playSettings.forSelfPlay);
+  }
 
 
   if(playSettings.initGamesWithPolicy && otherGameProps.allowPolicyInit) {

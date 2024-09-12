@@ -7,6 +7,7 @@ struct PlaySettings {
   //Play a bunch of mostly policy-distributed moves at the start to initialize a game.
   bool initGamesWithPolicy;
   bool initGamesWithOpeningLib;
+  double initGamesWithRandomBalancedProb;
   double policyInitAvgMoveNum;           // Avg number of moves
   double startPosesPolicyInitAvgMoveNum; //Avg number of moves when using a starting position from sgf
   //Occasionally try some alternative moves and search the responses to them.

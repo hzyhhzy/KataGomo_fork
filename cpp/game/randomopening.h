@@ -9,4 +9,13 @@ namespace RandomOpening {
     BoardHistory& hist,
     Player& nextPlayer,
     Rand& gameRand);
+  void initializeBalancedRandomOpening(
+    Search* botB,
+    Search* botW,
+    Board& board,
+    BoardHistory& hist,
+    Player& nextPlayer,
+    Rand& gameRand,
+    bool forSelfplay);
+
 }
