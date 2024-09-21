@@ -19,7 +19,8 @@ static_assert(COMPILE_MAX_BOARD_LEN should not be defined);
 //1 single color
 //2 no nearby my stone
 //3 no nearby opp stone
-#define DAWSONCHESS_RULE 3
+#define DAWSONCHESS_RULE 4
+static const bool LONGWIN = true;
 
 
 
@@ -137,8 +138,7 @@ struct Board
   //Functions------------------------------------
 
   bool isLegal(Loc loc, Player pla) const;
-  //check whether this move is a inferior move or losing move, which should be pruned
-  bool isPruned(Loc loc, Player pla) const;
+  int8_t movePriority(Loc loc, Player pla) const;
   //Check if this location is on the board
   bool isOnBoard(Loc loc) const;
   //Is this board empty?

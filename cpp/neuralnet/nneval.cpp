@@ -689,23 +689,19 @@ void NNEvaluator::evaluate(
 
     float maxPolicy = -1e25f;
     bool isLegal[NNPos::MAX_NN_POLICY_SIZE];
+    int8_t movePriority[NNPos::MAX_NN_POLICY_SIZE];
     int legalCount = 0;
-
-    //also prune useless moves
+    int maxMovePriority = -1;//only the moves with largest MovePriority will be reserved
     GameLogic::ResultsBeforeNN resultsBeforeNN = nnInputParamsWithResultsBeforeNN.resultsBeforeNN;
-    if(resultsBeforeNN.myOnlyLoc == Board::NULL_LOC) {
-      for(int i = 0; i < policySize; i++) {
-        Loc loc = NNPos::posToLoc(i, xSize, ySize, nnXLen, nnYLen);
-        isLegal[i] = !board.isPruned(loc, nextPlayer);
-      }
-    } 
-    else  // assume all other moves are illegal
-    {
-      for(int i = 0; i < policySize; i++) {
-        isLegal[i] = false;
-      }
-      isLegal[NNPos::locToPos(resultsBeforeNN.myOnlyLoc, xSize, nnXLen, nnYLen)] = true;
-      //isLegal[NNPos::locToPos(Board::PASS_LOC, xSize, nnXLen, nnYLen)] = true;
+    for(int i = 0; i < policySize; i++) {
+      Loc loc = NNPos::posToLoc(i, xSize, ySize, nnXLen, nnYLen);
+      int8_t pr = board.movePriority(loc, nextPlayer);
+      movePriority[i] = pr;
+      if(pr > maxMovePriority)
+        maxMovePriority = pr;
+    }
+    for(int i = 0; i < policySize; i++) {
+      isLegal[i] = movePriority[i] >= maxMovePriority;
     }
 
 
