@@ -7,8 +7,20 @@
 //------------------------
 
 static double cpuctExploration(double totalChildWeight, const SearchParams& searchParams) {
-  return searchParams.cpuctExploration +
-    searchParams.cpuctExplorationLog * log((totalChildWeight + searchParams.cpuctExplorationBase) / searchParams.cpuctExplorationBase);
+  if(searchParams.cpuctExplorationLog >= 0)
+    return searchParams.cpuctExploration +
+           searchParams.cpuctExplorationLog *
+             log((totalChildWeight + searchParams.cpuctExplorationBase) / searchParams.cpuctExplorationBase);
+  else
+    return searchParams.cpuctExploration *
+           pow(
+             (totalChildWeight + searchParams.cpuctExplorationBase) / searchParams.cpuctExplorationBase,
+             -searchParams.cpuctExplorationLog);
+}
+inline double noResultUtilityDecrease(double x, double d, Color color) {
+  if(color == C_BLACK)
+    d = -d;
+  return x - tanh(atanh(x * 0.999999) - d);
 }
 
 //Tiny constant to add to numerator of puct formula to make it positive
@@ -102,6 +114,7 @@ double Search::getExploreSelectionValueOfChild(
   int32_t childVirtualLosses = child->virtualLosses.load(std::memory_order_acquire);
   int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
   double utilityAvg = child->stats.utilityAvg.load(std::memory_order_acquire);
+  double noResultValueAvg = child->stats.noResultValueAvg.load(std::memory_order_acquire);
   double childWeight = child->stats.getChildWeight(childEdgeVisits,childVisits);
 
   //It's possible that childVisits is actually 0 here with multithreading because we're visiting this node while a child has
@@ -112,8 +125,10 @@ double Search::getExploreSelectionValueOfChild(
   if(childVisits <= 0 || childWeight <= 0.0)
     childUtility = fpuValue;
   else {
-    childUtility = utilityAvg;
-
+    double parentNoResultValueAvg = parent.stats.noResultValueAvg.load(std::memory_order_acquire);
+    double d = searchParams.noResultUtilityReduce * (1 - parentNoResultValueAvg);
+    childUtility =
+      utilityAvg - noResultValueAvg * noResultUtilityDecrease(searchParams.noResultUtilityForWhite, d, parent.nextPla);
   }
 
   //Virtual losses to direct threads down different paths
