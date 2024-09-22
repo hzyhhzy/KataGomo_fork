@@ -14,12 +14,8 @@
 #ifdef COMPILE_MAX_BOARD_LEN
 static_assert(COMPILE_MAX_BOARD_LEN should not be defined);
 #endif
-#define COMPILE_MAX_BOARD_LEN 15
+#define COMPILE_MAX_BOARD_LEN 9
 
-//1 single color
-//2 no nearby my stone
-//3 no nearby opp stone
-#define DAWSONCHESS_RULE 4
 static const bool LONGWIN = true;
 
 

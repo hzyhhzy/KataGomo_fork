@@ -312,11 +312,7 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
   {
     return;
   }
-#if DAWSONCHESS_RULE == 1
-  setStone(loc, C_BLACK);
-#else
   setStone(loc, pla);
-#endif
 }
 
 Hash128 Board::getSitHash(Player pla) const {

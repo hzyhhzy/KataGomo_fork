@@ -517,19 +517,14 @@ void NNInputs::fillRowV7(
 
       Color stone = board.colors[loc];
 
-#if DAWSONCHESS_RULE == 1
-      // Spatial Features 1,2 - pla,opp stone
-      if(stone == C_BLACK)
-        setRowBin(rowBin, pos, 1, 1.0f, posStride, featureStride);
-      else if(stone == C_WHITE)
-        throw StringError("Found white color in nninput, but this is a single color game");
-#else
       // Spatial Features 1,2 - pla,opp stone
       if(stone == pla)
         setRowBin(rowBin, pos, 1, 1.0f, posStride, featureStride);
       else if(stone == opp)
         setRowBin(rowBin, pos, 2, 1.0f, posStride, featureStride);
-#endif
+      
+      if(y % 2 == 1)
+        setRowBin(rowBin, pos, 3, 1.0f, posStride, featureStride);
 
     }
   }
@@ -548,7 +543,7 @@ void NNInputs::fillRowV7(
       setRowBin(
         rowBin,
         NNPos::locToPos(resultsBeforeNN.myOnlyLoc, board.x_size, nnXLen, nnYLen),
-        3,
+        21,
         1.0f,
         posStride,
         featureStride);
@@ -565,6 +560,8 @@ void NNInputs::fillRowV7(
   else
     ASSERT_UNREACHABLE;
 
+  rowGlobal[6] = board.x_size % 2 == 1;
+  rowGlobal[7] = board.y_size % 2 == 1;
   
   // Parameter 0 noResultUtilityForWhite, when draw, white's win rate = 0.5*(noResultUtilityForWhite+1)
   rowGlobal[14] = pla == C_WHITE ? nnInputParams.noResultUtilityForWhite : -nnInputParams.noResultUtilityForWhite;
