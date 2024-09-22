@@ -202,8 +202,10 @@ void NNOutput::debugPrint(ostream& out, const Board& board) {
 
 static void copyWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int cSize, bool useNHWC, int symmetry, bool reverse) {
   bool transpose = (symmetry & 0x4) != 0 && hSize == wSize;
-  bool flipX = (symmetry & 0x2) != 0;
-  bool flipY = (symmetry & 0x1) != 0;
+  bool flipX = (symmetry & 0x1) != 0;
+  bool flipY = (symmetry & 0x2) != 0;
+  if(symmetry >= 2)
+    ASSERT_UNREACHABLE;
   if(transpose && !reverse)
     std::swap(flipX,flipY);
   if(useNHWC) {
@@ -290,8 +292,10 @@ int SymmetryHelpers::compose(int firstSymmetry, int nextSymmetry, int nextNextSy
 
 Loc SymmetryHelpers::getSymLoc(int x, int y, int xSize, int ySize, int symmetry) {
   bool transpose = (symmetry & 0x4) != 0;
-  bool flipX = (symmetry & 0x2) != 0;
-  bool flipY = (symmetry & 0x1) != 0;
+  bool flipX = (symmetry & 0x1) != 0;
+  bool flipY = (symmetry & 0x2) != 0;
+  if(symmetry >= 2)
+    ASSERT_UNREACHABLE;
   if(flipX) { x = xSize - x - 1; }
   if(flipY) { y = ySize - y - 1; }
 
@@ -319,8 +323,10 @@ Loc SymmetryHelpers::getSymLoc(Loc loc, int xSize, int ySize, int symmetry) {
 
 Board SymmetryHelpers::getSymBoard(const Board& board, int symmetry) {
   bool transpose = (symmetry & 0x4) != 0;
-  bool flipX = (symmetry & 0x2) != 0;
-  bool flipY = (symmetry & 0x1) != 0;
+  bool flipX = (symmetry & 0x1) != 0;
+  bool flipY = (symmetry & 0x2) != 0;
+  if(symmetry >= 2)
+    ASSERT_UNREACHABLE;
   Board symBoard(
     transpose ? board.y_size : board.x_size,
     transpose ? board.x_size : board.y_size

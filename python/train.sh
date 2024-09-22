@@ -70,14 +70,14 @@ time python ./train.py \
      -batch-size "$BATCHSIZE" \
      -model-kind "$MODELKIND" \
      -max-epochs-this-instance 1 \
-     -lr-scale 1\
-     -samples-per-epoch 2000000 \
+     -samples-per-epoch 1000000 \
     -soft-policy-weight-scale 8.0 \
     -value-loss-scale 0.6 \
     -td-value-loss-scales 0.6,0.6,0.6 \
     -lookahead-alpha 0.5 \
     -lookahead-k 6 \
     -swa-scale 1.0 \
+    -lr-scale 2.0 \
     -use-fp16 \
      $EXTRAFLAG \
      "$@" \

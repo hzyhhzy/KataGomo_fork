@@ -1,6 +1,6 @@
 baseDir="../data/train/"
-lossItems={"p0loss":(1.6,1.9),"vloss":(0.5,0.7),"loss":(0,0)} #name,ylim,  0 means default
-trainDirs=["b18c384n","b18renju"];
+lossItems={"p0loss":(0,0),"vloss":(0,0),"loss":(0,0)} #name,ylim,  0 means default
+trainDirs=["b10c256n"];
 autoBias=True
 biases=[0,]
 scales=[1,]
@@ -31,6 +31,8 @@ def readJsonFile(path,lossKeys):
         if(len(line)<5):
             continue #bad line
         j=json.loads(line)
+        if("p0loss" not in j):
+            continue
         if("nsamp_train" in j):
             nsamp=j["nsamp_train"]
         else:
