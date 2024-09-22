@@ -14,7 +14,7 @@
 #ifdef COMPILE_MAX_BOARD_LEN
 static_assert(COMPILE_MAX_BOARD_LEN should not be defined);
 #endif
-#define COMPILE_MAX_BOARD_LEN 9
+#define COMPILE_MAX_BOARD_LEN 15
 
 static const bool LONGWIN = true;
 

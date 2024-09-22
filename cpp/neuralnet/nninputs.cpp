@@ -556,7 +556,9 @@ void NNInputs::fillRowV7(
   //The first 5 of them were set already above to flag which of the past 5 moves were passes.
 
   //Scoring
-  if(hist.rules.scoringRule == Rules::SCORING_AREA) {}
+  if(hist.rules.basicRule == Rules::RULE_ALLOWPASS) {
+
+  }
   else
     ASSERT_UNREACHABLE;
 

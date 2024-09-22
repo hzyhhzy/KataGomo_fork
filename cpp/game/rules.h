@@ -8,15 +8,15 @@
 
 struct Rules {
 
-
-  static const int SCORING_AREA = 0;
-  int scoringRule;
+  
+  static const int RULE_NOPASS = 0;
+  static const int RULE_ALLOWPASS = 1;
+  int basicRule;
 
 
 
   Rules();
-  Rules(
-    int scoringRule
+  Rules(int basicRule
   );
   ~Rules();
 
@@ -27,11 +27,10 @@ struct Rules {
   bool gameResultWillBeInteger() const;
 
   static Rules getTrompTaylorish();
-  static Rules getSimpleTerritory();
 
-  static std::set<std::string> scoringRuleStrings();
-  static int parseScoringRule(const std::string& s);
-  static std::string writeScoringRule(int scoringRule);
+  static std::set<std::string> basicRuleStrings();
+  static int parseBasicRule(const std::string& s);
+  static std::string writeBasicRule(int basicRule);
 
 
   static Rules parseRules(const std::string& str);
@@ -45,7 +44,7 @@ struct Rules {
   std::string toJsonString() const;
   nlohmann::json toJson() const;
 
-  static const Hash128 ZOBRIST_SCORING_RULE_HASH[2];
+  static const Hash128 ZOBRIST_BASIC_RULE_HASH[2];
 
 };
 

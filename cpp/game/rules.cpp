@@ -9,53 +9,55 @@ using json = nlohmann::json;
 
 Rules::Rules() {
   //Defaults if not set - closest match to TT rules
-  scoringRule = SCORING_AREA;
+  basicRule = RULE_NOPASS;
 }
 
 Rules::Rules(
-  int sRule
+  int bRule
 )
-  :scoringRule(sRule)
+  :basicRule(bRule)
 {}
 
 Rules::~Rules() {
 }
 
 bool Rules::operator==(const Rules& other) const {
-  return
-    scoringRule == other.scoringRule;
+  return basicRule == other.basicRule;
 }
 
 bool Rules::operator!=(const Rules& other) const {
-  return
-    scoringRule != other.scoringRule ;
+  return basicRule != other.basicRule;
 }
 
 
 Rules Rules::getTrompTaylorish() {
   Rules rules;
-  rules.scoringRule = SCORING_AREA;
+  rules.basicRule = RULE_NOPASS;
   return rules;
 }
 
 
 
-set<string> Rules::scoringRuleStrings() {
-  return {"AREA"};
+set<string> Rules::basicRuleStrings() {
+  return {"NOPASS", "ALLOWPASS"};
 }
 
-int Rules::parseScoringRule(const string& s) {
-  if(s == "AREA") return Rules::SCORING_AREA;
+int Rules::parseBasicRule(const string& s) {
+  if(s == "NOPASS") return Rules::RULE_NOPASS;
+  else if(s == "ALLOWPASS") return Rules::RULE_ALLOWPASS;
   else throw IOError("Rules::parseScoringRule: Invalid scoring rule: " + s);
 }
 
-string Rules::writeScoringRule(int scoringRule) {
-  if(scoringRule == Rules::SCORING_AREA) return string("AREA");
+string Rules::writeBasicRule(int basicRule) {
+  if(basicRule == Rules::RULE_NOPASS)
+    return string("NOPASS");
+  else if(basicRule == Rules::RULE_ALLOWPASS)
+    return string("ALLOWPASS");
   return string("UNKNOWN");
 }
 
 ostream& operator<<(ostream& out, const Rules& rules) {
-  out << "score" << Rules::writeScoringRule(rules.scoringRule);
+  out << "basicrule" << Rules::writeBasicRule(rules.basicRule);
   return out;
 }
 
@@ -74,7 +76,7 @@ string Rules::toJsonString() const {
 //which is the default for parsing and if not otherwise specified
 json Rules::toJson() const {
   json ret;
-  ret["scoring"] = writeScoringRule(scoringRule);
+  ret["basicrule"] = writeBasicRule(basicRule);
   return ret;
 }
 
@@ -83,8 +85,7 @@ Rules Rules::updateRules(const string& k, const string& v, Rules oldRules) {
   Rules rules = oldRules;
   string key = Global::trim(k);
   string value = Global::trim(Global::toUpper(v));
-  if(key == "score") rules.scoringRule = Rules::parseScoringRule(value);
-  else if(key == "scoring") rules.scoringRule = Rules::parseScoringRule(value);
+  if(key == "basicrule") rules.basicRule = Rules::parseBasicRule(value);
   else throw IOError("Unknown rules option: " + key);
   return rules;
 }
@@ -94,7 +95,7 @@ static Rules parseRulesHelper(const string& sOrig) {
   string lowercased = Global::trim(Global::toLower(sOrig));
   
   if(lowercased == "tromp-taylor" || lowercased == "tromp_taylor" || lowercased == "tromp taylor" || lowercased == "tromptaylor") {
-    rules.scoringRule = Rules::SCORING_AREA;
+    rules.basicRule = Rules::RULE_NOPASS;
   }
   else if(sOrig.length() > 0 && sOrig[0] == '{') {
     //Default if not specified
@@ -104,10 +105,8 @@ static Rules parseRulesHelper(const string& sOrig) {
       string s;
       for(json::iterator iter = input.begin(); iter != input.end(); ++iter) {
         string key = iter.key();
-        if(key == "score")
-          rules.scoringRule = Rules::parseScoringRule(iter.value().get<string>());
-        else if(key == "scoring")
-          rules.scoringRule = Rules::parseScoringRule(iter.value().get<string>());
+        if(key == "basicrule")
+          rules.basicRule = Rules::parseBasicRule(iter.value().get<string>());
         else
           throw IOError("Unknown rules option: " + key);
       }
@@ -141,13 +140,11 @@ static Rules parseRulesHelper(const string& sOrig) {
       if(s.length() <= 0)
         break;
 
-      if(startsWithAndStrip(s,"scoring")) {
-        if(startsWithAndStrip(s,"AREA")) rules.scoringRule = Rules::SCORING_AREA;
-        else throw IOError("Could not parse rules: " + sOrig);
-        continue;
-      }
-      if(startsWithAndStrip(s,"score")) {
-        if(startsWithAndStrip(s,"AREA")) rules.scoringRule = Rules::SCORING_AREA;
+      if(startsWithAndStrip(s, "basicrule")) {
+        if(startsWithAndStrip(s, "NOPASS"))
+          rules.basicRule = Rules::Rules::RULE_NOPASS;
+        else if(startsWithAndStrip(s, "ALLOWPASS"))
+          rules.basicRule = Rules::Rules::RULE_ALLOWPASS;
         else throw IOError("Could not parse rules: " + sOrig);
         continue;
       }
@@ -182,7 +179,7 @@ bool Rules::tryParseRules(const string& sOrig, Rules& buf) {
 
 
 
-const Hash128 Rules::ZOBRIST_SCORING_RULE_HASH[2] = {
+const Hash128 Rules::ZOBRIST_BASIC_RULE_HASH[2] = {
   //Based on sha256 hash of Rules::SCORING_AREA, but also mixing none tax rule hash, to preserve legacy hashes
   Hash128(0x8b3ed7598f901494ULL ^ 0x72eeccc72c82a5e7ULL, 0x1dfd47ac77bce5f8ULL ^ 0x0d1265e413623e2bULL),
   //Based on sha256 hash of Rules::SCORING_TERRITORY, but also mixing seki tax rule hash, to preserve legacy hashes
