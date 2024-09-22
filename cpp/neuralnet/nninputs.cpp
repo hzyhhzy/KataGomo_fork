@@ -562,6 +562,8 @@ void NNInputs::fillRowV7(
 
   rowGlobal[6] = board.x_size % 2 == 1;
   rowGlobal[7] = board.y_size % 2 == 1;
+  rowGlobal[8] = board.isLastMovePass;
+
   
   // Parameter 0 noResultUtilityForWhite, when draw, white's win rate = 0.5*(noResultUtilityForWhite+1)
   rowGlobal[14] = pla == C_WHITE ? nnInputParams.noResultUtilityForWhite : -nnInputParams.noResultUtilityForWhite;

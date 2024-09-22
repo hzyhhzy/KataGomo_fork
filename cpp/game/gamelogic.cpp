@@ -59,15 +59,23 @@ Color GameLogic::checkWinnerAfterPlayed(
   const Board& board,
   const BoardHistory& hist,
   Player pla,
-  Loc loc) {
+  Loc loc,
+  bool isLastMovePass) {
 
-  if(loc == Board::PASS_LOC)
-    return getOpp(pla);  //pass is not allowed
+  if(loc == Board::PASS_LOC) {
+    if (ALLOW_PASS)
+    {
+      if(isLastMovePass)
+        return C_EMPTY;
+    } 
+    else
+      return getOpp(pla);  // pass is not allowed
+  }
   if(isFour(board, pla, LONGWIN, loc))
     return pla;
 
 
-  if(board.movenum >= board.x_size * board.y_size)
+  if(board.stonenum >= board.x_size * board.y_size)
     return C_EMPTY;
 
   return C_WALL;
@@ -91,7 +99,7 @@ void GameLogic::ResultsBeforeNN::init(const Board& board, const BoardHistory& hi
 int8_t Board::movePriority(Loc loc, Player pla) const {
   if(!isLegal(loc, pla))
     return -2;
-  if(loc == PASS_LOC)
+  if(!ALLOW_PASS && loc == PASS_LOC)
     return -1;
   if(isFour(*this, pla, LONGWIN, loc))
     return 2;

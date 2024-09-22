@@ -24,8 +24,10 @@ Hash128 Board::ZOBRIST_BOARD_HASH[MAX_ARR_SIZE][4];
 Hash128 Board::ZOBRIST_PLAYER_HASH[4];
 Hash128 Board::ZOBRIST_MOVENUM_HASH[MAX_ARR_SIZE];
 Hash128 Board::ZOBRIST_BOARD_HASH2[MAX_ARR_SIZE][4];
-const Hash128 Board::ZOBRIST_GAME_IS_OVER = //Based on sha256 hash of Board::ZOBRIST_GAME_IS_OVER
+const Hash128 Board::ZOBRIST_GAME_IS_OVER =  // Based on sha256 hash of Board::ZOBRIST_GAME_IS_OVER
   Hash128(0xb6f9e465597a77eeULL, 0xf1d583d960a4ce7fULL);
+const Hash128 Board::ZOBRIST_LAST_MOVE_PASS = 
+  Hash128(0x890d44c415a4224cULL, 0xdea1afbf9c07a697ULL);
 
 //LOCATION--------------------------------------------------------------------------------
 Loc Location::getLoc(int x, int y, int x_size)
@@ -109,6 +111,7 @@ Board::Board(const Board& other)
 
   movenum = other.movenum;
   stonenum = other.stonenum;
+  isLastMovePass = other.isLastMovePass;
   pos_hash = other.pos_hash;
 
   memcpy(adj_offsets, other.adj_offsets, sizeof(short)*8);
@@ -128,6 +131,7 @@ void Board::init(int xS, int yS)
 
   movenum = 0;
   stonenum = 0;
+  isLastMovePass = false;
 
   for(int y = 0; y < y_size; y++)
   {
@@ -310,8 +314,14 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
   //Pass?
   if(loc == PASS_LOC)
   {
+    if(!isLastMovePass)
+      pos_hash ^= ZOBRIST_LAST_MOVE_PASS;
+    isLastMovePass = true;
     return;
   }
+  if(isLastMovePass)
+    pos_hash ^= ZOBRIST_LAST_MOVE_PASS;
+  isLastMovePass = false;
   setStone(loc, pla);
 }
 
@@ -364,6 +374,8 @@ void Board::checkConsistency() const {
   }
 
   tmp_pos_hash ^= ZOBRIST_MOVENUM_HASH[movenum];
+  if(isLastMovePass)
+    tmp_pos_hash ^= ZOBRIST_LAST_MOVE_PASS;
 
   if(pos_hash != tmp_pos_hash)
     throw StringError(errLabel + "Pos hash does not match expected");

@@ -14,9 +14,10 @@
 #ifdef COMPILE_MAX_BOARD_LEN
 static_assert(COMPILE_MAX_BOARD_LEN should not be defined);
 #endif
-#define COMPILE_MAX_BOARD_LEN 9
+#define COMPILE_MAX_BOARD_LEN 15
 
 static const bool LONGWIN = true;
+static const bool ALLOW_PASS = false;
 
 
 
@@ -121,6 +122,7 @@ struct Board
   static Hash128 ZOBRIST_BOARD_HASH2[MAX_ARR_SIZE][4];
   static Hash128 ZOBRIST_PLAYER_HASH[4];
   static const Hash128 ZOBRIST_GAME_IS_OVER;
+  static const Hash128 ZOBRIST_LAST_MOVE_PASS;
 
   //Structs---------------------------------------
 
@@ -182,6 +184,7 @@ struct Board
   int movenum; //how many moves
   int stonenum; //how many stones on board
 
+  bool isLastMovePass;
   /* PointList empty_list; //List of all empty locations on board */
 
   Hash128 pos_hash; //A zobrist hash of the current board position (does not include ko point or player to move)
