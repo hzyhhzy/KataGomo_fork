@@ -3,6 +3,7 @@ message: "If you use this software, please cite it as below."
 authors:
 - family-names: "Hang"
   given-names: "Zhiyang"
+  orcid: "https://orcid.org/0009-0006-6123-913X"
 title: "KataGo modifications for various games"
 version: 1.0
 date-released: 2024-09-27
