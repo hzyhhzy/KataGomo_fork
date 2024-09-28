@@ -39,16 +39,12 @@ int NNPos::getPolicySize(int nnXLen, int nnYLen) {
 
 const Hash128 MiscNNInputParams::ZOBRIST_CONSERVATIVE_PASS =
   Hash128(0x0c2b96f4b8ae2da9ULL, 0x5a14dee208fec0edULL);
-const Hash128 MiscNNInputParams::ZOBRIST_FRIENDLY_PASS =
-  Hash128(0xe750505a66f7c5c2ULL, 0x7a83139bf632d6c4ULL);
 const Hash128 MiscNNInputParams::ZOBRIST_PASSING_HACKS =
   Hash128(0x9c89f4fd3ce5a92cULL, 0x268c9aff79c64d00ULL);
 const Hash128 MiscNNInputParams::ZOBRIST_PLAYOUT_DOUBLINGS =
   Hash128(0xa5e6114d380bfc1dULL, 0x4160557f1222f4adULL);
 const Hash128 MiscNNInputParams::ZOBRIST_NN_POLICY_TEMP =
   Hash128(0xebcbdfeec6f4334bULL, 0xb85e43ee243b5ad2ULL);
-const Hash128 MiscNNInputParams::ZOBRIST_AVOID_MYTDAGGER_HACK =
-  Hash128(0x612d22ec402ce054ULL, 0x0db915c49de527aeULL);
 const Hash128 MiscNNInputParams::ZOBRIST_POLICY_OPTIMISM =
   Hash128(0x88415c85c2801955ULL, 0x39bdf76b2aaa5eb1ULL);
 const Hash128 MiscNNInputParams::ZOBRIST_ZERO_HISTORY =
@@ -663,12 +659,7 @@ void SymmetryHelpers::markDuplicateMoveLocs(
   //The board should never be considered symmetric if any moves are banned by ko or superko
   if(board.ko_loc != Board::NULL_LOC)
     return;
-  for(int y = 0; y < board.y_size; y++) {
-    for(int x = 0; x < board.x_size; x++) {
-      if(hist.superKoBanned[Location::getLoc(x, y, board.x_size)])
-        return;
-    }
-  }
+  
 
   //If board has different sizes of x and y, we will not search symmetries involved with transpose.
   int symmetrySearchUpperBound = board.x_size == board.y_size ? SymmetryHelpers::NUM_SYMMETRIES : SymmetryHelpers::NUM_SYMMETRIES_WITHOUT_TRANSPOSE;
@@ -847,7 +838,7 @@ Hash128 NNInputs::getHash(
   Hash128 hash = BoardHistory::getSituationRulesAndKoHash(board, hist, nextPlayer, nnInputParams.drawEquivalentWinsForWhite);
 
   //Fold in whether a pass ends this phase.
-  if(hist.passWouldEndPhase(board,nextPlayer)) {
+  if(true) {
     hash ^= Board::ZOBRIST_PASS_ENDS_PHASE;
     //Technically some of the below only apply when passing ends the game, but it's pretty harmless to use the more
     //conservative hashing including them when the phase would end too.
@@ -855,11 +846,6 @@ Hash128 NNInputs::getHash(
     //And in the case that a pass ends the phase, conservativePass also affects the result for the root node
     if(nnInputParams.conservativePassAndIsRoot)
       hash ^= MiscNNInputParams::ZOBRIST_CONSERVATIVE_PASS;
-
-    //If we're in a ruleset where passing without capturing all the stones is okay, and as a result are suppressing
-    //the game end effect of a pass during search, hash this in.
-    if(hist.shouldSuppressEndGameFromFriendlyPass(board,nextPlayer))
-      hash ^= MiscNNInputParams::ZOBRIST_FRIENDLY_PASS;
 
     //Passing hacks can also affect things at game or phase end.
     if(nnInputParams.enablePassingHacks)
@@ -896,9 +882,6 @@ Hash128 NNInputs::getHash(
     hash.hash0 += hash.hash1;
     hash ^= MiscNNInputParams::ZOBRIST_NN_POLICY_TEMP;
   }
-
-  if(nnInputParams.avoidMYTDaggerHack)
-    hash ^= MiscNNInputParams::ZOBRIST_AVOID_MYTDAGGER_HACK;
 
   //Fold in policy optimism
   if(nnInputParams.policyOptimism > 0) {
@@ -976,15 +959,6 @@ void NNInputs::fillRowV7(
     int pos = NNPos::locToPos(board.ko_loc,xSize,nnXLen,nnYLen);
     setRowBin(rowBin,pos,6, 1.0f, posStride, featureStride);
   }
-  for(int y = 0; y<ySize; y++) {
-    for(int x = 0; x<xSize; x++) {
-      Loc loc = Location::getLoc(x,y,xSize);
-      if(hist.superKoBanned[loc] && loc != board.ko_loc) {
-        int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
-        setRowBin(rowBin,pos,6, 1.0f, posStride, featureStride);
-      }
-    }
-  }
   
 
 
@@ -992,35 +966,12 @@ void NNInputs::fillRowV7(
   Color area[Board::MAX_ARR_SIZE];
   bool hasAreaFeature = false;
   int groupTaxAdjustmentForPla = 0;
-  if(hist.rules.scoringRule == Rules::SCORING_AREA) {
+  if(true) {
     hasAreaFeature = true;
     bool nonPassAliveStones = true;
     bool safeBigTerritories = true;
     bool unsafeBigTerritories = true;
     board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,hist.rules.multiStoneSuicideLegal);
-  }
-  else {
-    bool keepTerritories = false;
-    bool keepStones = false;
-    int whiteMinusBlackIndependentLifeRegionCount = 0;
-    if(hist.rules.scoringRule == Rules::SCORING_AREA) {
-      hasAreaFeature = true;
-      keepTerritories = false;
-      keepStones = true;
-    }
-    else {
-      ASSERT_UNREACHABLE;
-    }
-
-    if(hasAreaFeature) {
-      board.calculateIndependentLifeArea(
-        area,
-        whiteMinusBlackIndependentLifeRegionCount,
-        keepTerritories,
-        keepStones,
-        hist.rules.multiStoneSuicideLegal
-      );
-    }
   }
 
   bool finalPhaseAndGameEndWouldNotBeWin = false;
@@ -1056,8 +1007,6 @@ void NNInputs::fillRowV7(
   if(hist.passWouldEndGame(board,nextPlayer) && (
        //At the root, if assuming passing doesn't end the game, and it would, then need to mask that out.
        nnInputParams.conservativePassAndIsRoot ||
-       //Deeper in the tree, we might not assume passes end the game in a friendly pass setting.
-       hist.shouldSuppressEndGameFromFriendlyPass(board,nextPlayer) ||
        //Passing hacks suppress the net to end the game when losing if it thinks a premature pass will lose by less.
        (nnInputParams.enablePassingHacks && finalPhaseAndGameEndWouldNotBeWin)
      )
@@ -1192,14 +1141,10 @@ void NNInputs::fillRowV7(
   if(hist.rules.multiStoneSuicideLegal)
     rowGlobal[8] = 1.0f;
 
-  //Scoring
-  if(hist.rules.scoringRule == Rules::SCORING_AREA) {}
-    ASSERT_UNREACHABLE;
 
 
   //Does a pass end the current phase given the ruleset and history?
-  bool passWouldEndPhase = suppressPassWouldEndPhase ? false : hist.passWouldEndPhase(board,nextPlayer);
-  rowGlobal[14] = passWouldEndPhase ? 1.0f : 0.0f;
+  rowGlobal[14] = hist.passWouldEndGame(board,nextPlayer) ? 1.0f : 0.0f;
 
   //Used for handicap play
   //Parameter 15 is used because there's actually a discontinuity in how training behavior works when this is
@@ -1209,9 +1154,6 @@ void NNInputs::fillRowV7(
     rowGlobal[16] = (float)(0.5 * nnInputParams.playoutDoublingAdvantage);
   }
 
-  //Button
-  if(hist.hasButton)
-    rowGlobal[17] = 1.0;
 
   //Provide parity information about the board size and komi
   //This comes from the following observation:
@@ -1242,7 +1184,7 @@ void NNInputs::fillRowV7(
   //It's downsloping around the komi value where you can't draw, since the marginal komi there is nearly useless, not causing you to win
   //more games except in case of odd-dame seki.
 
-  if(hist.rules.scoringRule == Rules::SCORING_AREA) {
+  if(true) {
     bool boardAreaIsEven = (xSize*ySize) % 2 == 0;
 
     //What is the parity of the komi values that can produce jigos?

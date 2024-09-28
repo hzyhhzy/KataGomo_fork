@@ -66,7 +66,6 @@ SearchParams::SearchParams()
    rootPruneUselessMoves(false),
    conservativePass(false),
    fillDameBeforePass(false),
-   avoidMYTDaggerHackPla(C_EMPTY),
    wideRootNoise(0.0),
    enablePassingHacks(false),
    playoutDoublingAdvantage(0.0),
@@ -179,7 +178,6 @@ bool SearchParams::operator==(const SearchParams& other) const {
     rootPruneUselessMoves == other.rootPruneUselessMoves &&
     conservativePass == other.conservativePass &&
     fillDameBeforePass == other.fillDameBeforePass &&
-    avoidMYTDaggerHackPla == other.avoidMYTDaggerHackPla &&
     wideRootNoise == other.wideRootNoise &&
     enablePassingHacks == other.enablePassingHacks &&
 
@@ -543,7 +541,6 @@ void SearchParams::printParams(std::ostream& out) const {
   PRINTPARAM(rootPruneUselessMoves);
   PRINTPARAM(conservativePass);
   PRINTPARAM(fillDameBeforePass);
-  std::cout << "avoidMYTDaggerHackPla" << ": " << (int)avoidMYTDaggerHackPla << std::endl;
   PRINTPARAM(wideRootNoise);
   PRINTPARAM(enablePassingHacks);
 

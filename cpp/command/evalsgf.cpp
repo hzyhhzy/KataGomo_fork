@@ -192,7 +192,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
     if(moveNum > moves.size())
       throw StringError("Move num " + Global::intToString(moveNum) + " requested but sgf has only " + Global::int64ToString(moves.size()));
 
-    sgf->playMovesTolerant(board,nextPla,hist,moveNum,false);
+    sgf->playMovesTolerant(board,nextPla,hist,moveNum);
 
     vector<Loc> extraMoveLocs = Location::parseSequence(extraMoves,board);
     for(size_t i = 0; i<extraMoveLocs.size(); i++) {
@@ -202,7 +202,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
         cerr << "Extra illegal move for " << PlayerIO::colorToChar(nextPla) << ": " << Location::toString(loc,board) << endl;
         throw StringError("Illegal extra move");
       }
-      hist.makeBoardMoveAssumeLegal(board,loc,nextPla,NULL);
+      hist.makeBoardMoveAssumeLegal(board,loc,nextPla);
       nextPla = getOpp(nextPla);
     }
   };
@@ -346,7 +346,6 @@ int MainCmds::evalsgf(const vector<string>& args) {
 
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
-  Setup::maybeWarnHumanSLParams(params,nnEval,NULL,cerr,&logger);
 
   if(rawNN) {
     NNResultBuf buf;
@@ -357,7 +356,6 @@ int MainCmds::evalsgf(const vector<string>& args) {
     nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
 
     cout << "Rules: " << hist.rules << endl;
-    cout << "Encore phase " << hist.encorePhase << endl;
     Board::printBoard(cout, board, Board::NULL_LOC, &(hist.moveHistory));
     buf.result->debugPrint(cout,board);
 
@@ -368,7 +366,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
     return 0;
   }
 
-  AsyncBot* bot = new AsyncBot(params, nnEval, humanEval, &logger, searchRandSeed);
+  AsyncBot* bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
 
   bot->setPosition(nextPla,board,hist);
   if(hintLoc != "") {
@@ -387,7 +385,6 @@ int MainCmds::evalsgf(const vector<string>& args) {
   const Search* search = bot->getSearchStopAndWait();
   ostringstream sout;
   sout << "Rules: " << hist.rules << endl;
-  sout << "Encore phase " << hist.encorePhase << endl;
   Board::printBoard(sout, board, Board::NULL_LOC, &(hist.moveHistory));
 
   if(options.branch_.size() > 0) {
@@ -401,7 +398,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
         cerr << "Branch Illegal move for " << PlayerIO::colorToChar(pla) << ": " << Location::toString(loc,board) << endl;
         return 1;
       }
-      copyHist.makeBoardMoveAssumeLegal(copy,loc,pla,NULL);
+      copyHist.makeBoardMoveAssumeLegal(copy,loc,pla);
       pla = getOpp(pla);
     }
     Board::printBoard(sout, copy, Board::NULL_LOC, &(copyHist.moveHistory));
@@ -569,7 +566,6 @@ int MainCmds::evalsgf(const vector<string>& args) {
     sout << endl;
 
     sout << "Komi: " << copyHist.rules.komi << endl;
-    sout << "WBonus: " << copyHist.whiteBonusScore << endl;
     sout << "Final: "; WriteSgf::printGameResult(sout, copyHist); sout << endl;
   }
 

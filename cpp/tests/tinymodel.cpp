@@ -117,7 +117,7 @@ NNEvaluator* TinyModelTest::runTinyModelTest(const string& baseDir, Logger& logg
 
     const Player nextPla = P_BLACK;
     const Rules rules = Rules::getTrompTaylorish();
-    const BoardHistory hist(board,nextPla,rules,0);
+    const BoardHistory hist(board,nextPla,rules);
 
     auto runOneTest = [&]() {
       MiscNNInputParams nnInputParams;
@@ -277,7 +277,7 @@ NNEvaluator* TinyModelTest::runTinyModelTest(const string& baseDir, Logger& logg
 
     const Player nextPla = P_BLACK;
     const Rules rules = Rules::getTrompTaylorish();
-    const BoardHistory hist(board,nextPla,rules,0);
+    const BoardHistory hist(board,nextPla,rules);
 
     auto runOneTest = [&]() {
       MiscNNInputParams nnInputParams;
@@ -424,7 +424,7 @@ NNEvaluator* TinyModelTest::runTinyModelTest(const string& baseDir, Logger& logg
 
     const Player nextPla = P_BLACK;
     const Rules rules = Rules::getTrompTaylorish();
-    const BoardHistory hist(board,nextPla,rules,0);
+    const BoardHistory hist(board,nextPla,rules);
 
     auto runOneTest = [&]() {
       MiscNNInputParams nnInputParams;

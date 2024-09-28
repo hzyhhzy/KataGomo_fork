@@ -626,43 +626,6 @@ static double softPlus(double x) {
     return log(1.0 + exp(x));
 }
 
-static const int daggerPattern[9][8] = {
-  {0,0,0,0,0,0,0,0},
-  {0,0,0,0,0,0,0,0},
-  {0,0,2,1,0,0,0,0},
-  {0,0,2,1,0,0,0,0},
-  {0,0,0,0,0,0,0,0},
-  {0,2,1,0,0,0,0,0},
-  {0,3,0,0,0,0,0,0},
-  {0,0,0,0,0,0,0,0},
-  {0,0,0,0,0,0,0,0},
-};
-static bool daggerMatch(const Board& board, Player nextPla, Loc& banned, int symmetry) {
-  for(int yi = 0; yi < 9; yi++) {
-    for(int xi = 0; xi < 8; xi++) {
-      int y = yi;
-      int x = xi;
-      if((symmetry & 0x1) != 0)
-        std::swap(x,y);
-      if((symmetry & 0x2) != 0)
-        x = board.x_size-1-x;
-      if((symmetry & 0x4) != 0)
-        y = board.y_size-1-y;
-      Loc loc = Location::getLoc(x,y,board.x_size);
-      int m = daggerPattern[yi][xi];
-      if(m == 0 && board.colors[loc] != C_EMPTY)
-        return false;
-      if(m == 1 && board.colors[loc] != nextPla)
-        return false;
-      if(m == 2 && board.colors[loc] != getOpp(nextPla))
-        return false;
-      if(m == 3)
-        banned = loc;
-    }
-  }
-  return true;
-}
-
 std::shared_ptr<NNOutput>* NNEvaluator::averageMultipleSymmetries(
   Board& board,
   const BoardHistory& history,
@@ -782,15 +745,7 @@ void NNEvaluator::evaluate(
       buf.rowMetaBuf.resize(rowMetaLen);
 
     static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
-    if(inputsVersion == 3)
-      NNInputs::fillRowV3(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatialBuf.data(), buf.rowGlobalBuf.data());
-    else if(inputsVersion == 4)
-      NNInputs::fillRowV4(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatialBuf.data(), buf.rowGlobalBuf.data());
-    else if(inputsVersion == 5)
-      NNInputs::fillRowV5(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatialBuf.data(), buf.rowGlobalBuf.data());
-    else if(inputsVersion == 6)
-      NNInputs::fillRowV6(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatialBuf.data(), buf.rowGlobalBuf.data());
-    else if(inputsVersion == 7)
+    if(inputsVersion == 7)
       NNInputs::fillRowV7(board, history, nextPlayer, nnInputParams, nnXLen, nnYLen, inputsUseNHWC, buf.rowSpatialBuf.data(), buf.rowGlobalBuf.data());
     else
       ASSERT_UNREACHABLE;
@@ -865,16 +820,6 @@ void NNEvaluator::evaluate(
       isLegal[i] = history.isLegal(board,loc,nextPlayer);
     }
 
-    if(nnInputParams.avoidMYTDaggerHack && xSize >= 13 && ySize >= 13) {
-      for(int symmetry = 0; symmetry < 8; symmetry++) {
-        Loc banned = Board::NULL_LOC;
-        if(daggerMatch(board, nextPlayer, banned, symmetry)) {
-          if(banned != Board::NULL_LOC) {
-            isLegal[NNPos::locToPos(banned,xSize,nnXLen,nnYLen)] = false;
-          }
-        }
-      }
-    }
 
     for(int i = 0; i<policySize; i++) {
       float policyValue;
@@ -1022,8 +967,6 @@ void NNEvaluator::evaluate(
         double shorttermWinlossErrorPreSoftplus = buf.result->shorttermWinlossError;
         double shorttermScoreErrorPreSoftplus = buf.result->shorttermScoreError;
 
-        if(history.rules.koRule != Rules::KO_SIMPLE && history.rules.scoringRule != Rules::SCORING_TERRITORY)
-          noResultLogits -= 100000.0;
 
         //Softmax
         double maxLogits = std::max(std::max(winLogits,lossLogits),noResultLogits);
@@ -1031,8 +974,6 @@ void NNEvaluator::evaluate(
         lossProb = exp(lossLogits - maxLogits);
         noResultProb = exp(noResultLogits - maxLogits);
 
-        if(history.rules.koRule != Rules::KO_SIMPLE && history.rules.scoringRule != Rules::SCORING_TERRITORY)
-          noResultProb = 0.0;
 
         double probSum = winProb + lossProb + noResultProb;
         winProb /= probSum;

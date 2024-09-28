@@ -653,8 +653,7 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("fillDameBeforePass"+idxStr)) params.fillDameBeforePass = cfg.getBool("fillDameBeforePass"+idxStr);
     else if(cfg.contains("fillDameBeforePass"))   params.fillDameBeforePass = cfg.getBool("fillDameBeforePass");
     else                                          params.fillDameBeforePass = false;
-    //Controlled by GTP directly, not used in any other mode
-    params.avoidMYTDaggerHackPla = C_EMPTY;
+    
     if(cfg.contains("wideRootNoise"+idxStr)) params.wideRootNoise = cfg.getDouble("wideRootNoise"+idxStr, 0.0, 5.0);
     else if(cfg.contains("wideRootNoise"))   params.wideRootNoise = cfg.getDouble("wideRootNoise", 0.0, 5.0);
     else                                     params.wideRootNoise = (setupFor == SETUP_FOR_ANALYSIS ? Setup::DEFAULT_ANALYSIS_WIDE_ROOT_NOISE : 0.00);
@@ -747,37 +746,6 @@ vector<SearchParams> Setup::loadParams(
   return paramss;
 }
 
-
-bool Setup::maybeWarnHumanSLParams(
-  const SearchParams& params,
-  const NNEvaluator* nnEval,
-  const NNEvaluator* humanEval,
-  std::ostream& out,
-  Logger* logger
-) {
-  if(params.humanSLProfile.initialized) {
-    bool hasAnySGFMetaUse =
-      (nnEval != NULL && nnEval->requiresSGFMetadata()) ||
-      (humanEval != NULL && humanEval->requiresSGFMetadata());
-    if(!hasAnySGFMetaUse) {
-      string modelNames;
-      if(nnEval != NULL)
-        modelNames += nnEval->getModelName();
-      if(humanEval != NULL) {
-        if(modelNames.size() > 0)
-          modelNames += " and ";
-        modelNames += humanEval->getModelName();
-      }
-      if(logger != NULL)
-        logger->write("WARNING: humanSLProfile is specified as config param but model(s) don't use it: " + modelNames);
-      out << "WARNING: humanSLProfile is specified as config param but model(s) don't use it: " << modelNames << endl;
-      return true;
-    }
-  }
-  return false;
-}
-
-
 Player Setup::parseReportAnalysisWinrates(
   ConfigParser& cfg, Player defaultPerspective
 ) {
@@ -822,46 +790,9 @@ Rules Setup::loadSingleRules(
     float komi = 7.5f;
 
     rules.koRule = Rules::parseKoRule(koRule);
-    rules.scoringRule = Rules::parseScoringRule(scoringRule);
     rules.multiStoneSuicideLegal = multiStoneSuicideLegal;
-    rules.hasButton = hasButton;
     rules.komi = komi;
 
-    if(cfg.contains("taxRule")) {
-      string taxRule = cfg.getString("taxRule", Rules::taxRuleStrings());
-      rules.taxRule = Rules::parseTaxRule(taxRule);
-    }
-    else {
-      rules.taxRule = (rules.scoringRule == Rules::SCORING_TERRITORY ? Rules::TAX_SEKI : Rules::TAX_NONE);
-    }
-
-    if(rules.hasButton && rules.scoringRule != Rules::SCORING_AREA)
-      throw StringError("Config specifies hasButton=true on a scoring system other than AREA");
-
-    //Also handles parsing of legacy option whiteBonusPerHandicapStone
-    if(cfg.contains("whiteBonusPerHandicapStone") && cfg.contains("whiteHandicapBonus"))
-      throw StringError("May specify only one of whiteBonusPerHandicapStone and whiteHandicapBonus in config");
-    else if(cfg.contains("whiteHandicapBonus"))
-      rules.whiteHandicapBonusRule = Rules::parseWhiteHandicapBonusRule(cfg.getString("whiteHandicapBonus", Rules::whiteHandicapBonusRuleStrings()));
-    else if(cfg.contains("whiteBonusPerHandicapStone")) {
-      int whiteBonusPerHandicapStone = cfg.getInt("whiteBonusPerHandicapStone",0,1);
-      if(whiteBonusPerHandicapStone == 0)
-        rules.whiteHandicapBonusRule = Rules::WHB_ZERO;
-      else
-        rules.whiteHandicapBonusRule = Rules::WHB_N;
-    }
-    else
-      rules.whiteHandicapBonusRule = Rules::WHB_ZERO;
-
-    if(cfg.contains("friendlyPassOk")) {
-      rules.friendlyPassOk = cfg.getBool("friendlyPassOk");
-    }
-
-    //Drop default komi to 6.5 for territory rules, and to 7.0 for button
-    if(rules.scoringRule == Rules::SCORING_TERRITORY)
-      rules.komi = 6.5f;
-    else if(rules.hasButton)
-      rules.komi = 7.0f;
   }
 
   if(loadKomi) {

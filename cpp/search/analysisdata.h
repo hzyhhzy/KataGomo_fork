@@ -50,10 +50,6 @@ struct AnalysisData {
   void writePV(std::ostream& out, const Board& board) const;
   void writePVVisits(std::ostream& out) const;
   void writePVEdgeVisits(std::ostream& out) const;
-  void writePVUpToPhaseEnd(std::ostream& out, const Board& initialBoard, const BoardHistory& initialHist, Player initialPla) const;
-  void writePVVisitsUpToPhaseEnd(std::ostream& out, const Board& initialBoard, const BoardHistory& initialHist, Player initialPla) const;
-  void writePVEdgeVisitsUpToPhaseEnd(std::ostream& out, const Board& initialBoard, const BoardHistory& initialHist, Player initialPla) const;
-  int getPVLenUpToPhaseEnd(const Board& initialBoard, const BoardHistory& initialHist, Player initialPla) const;
 };
 
 bool operator<(const AnalysisData& a0, const AnalysisData& a1);

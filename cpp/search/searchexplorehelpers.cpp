@@ -11,9 +11,6 @@ static double cpuctExploration(double totalChildWeight, const SearchParams& sear
     searchParams.cpuctExplorationLog * log((totalChildWeight + searchParams.cpuctExplorationBase) / searchParams.cpuctExplorationBase);
 }
 
-static double cpuctExplorationHuman(double totalChildWeight, const SearchParams& searchParams) {
-  return searchParams.humanSLCpuctExploration + searchParams.humanSLCpuctPermanent * sqrt(totalChildWeight);
-}
 
 //Tiny constant to add to numerator of puct formula to make it positive
 //even when visits = 0.
@@ -26,13 +23,6 @@ double Search::getExploreScaling(
     cpuctExploration(totalChildWeight, searchParams)
     * sqrt(totalChildWeight + TOTALCHILDWEIGHT_PUCT_OFFSET)
     * parentUtilityStdevFactor;
-}
-double Search::getExploreScalingHuman(
-  double totalChildWeight
-) const {
-  return
-    cpuctExplorationHuman(totalChildWeight, searchParams)
-    * sqrt(totalChildWeight + TOTALCHILDWEIGHT_PUCT_OFFSET);
 }
 
 double Search::getExploreSelectionValue(
@@ -362,60 +352,6 @@ void Search::selectBestChildToDescend(
       maxChildWeight = childWeight;
   }
 
-  bool useHumanSL = false;
-  if(humanEvaluator != NULL &&
-     (searchParams.humanSLProfile.initialized || !humanEvaluator->requiresSGFMetadata())
-  ) {
-    const NNOutput* humanOutput = node.getHumanOutput();
-    if(humanOutput != NULL) {
-      double weightlessProb;
-      double weightfulProb;
-      if(isRoot) {
-        weightlessProb = searchParams.humanSLRootExploreProbWeightless;
-        weightfulProb = searchParams.humanSLRootExploreProbWeightful;
-      }
-      else if(thread.pla == rootPla) {
-        weightlessProb = searchParams.humanSLPlaExploreProbWeightless;
-        weightfulProb = searchParams.humanSLPlaExploreProbWeightful;
-      }
-      else {
-        weightlessProb = searchParams.humanSLOppExploreProbWeightless;
-        weightfulProb = searchParams.humanSLOppExploreProbWeightful;
-      }
-
-      double totalHumanProb = weightlessProb + weightfulProb;
-      if(totalHumanProb > 0.0) {
-        double r = thread.rand.nextDouble();
-        if(r < weightlessProb) {
-          useHumanSL = true;
-          countEdgeVisit = false;
-        }
-        else if(r < totalHumanProb) {
-          useHumanSL = true;
-        }
-      }
-    }
-
-    // Swap out policy and also recompute policy prob mass visited
-    if(useHumanSL) {
-      nnOutput = humanOutput;
-      policyProbMassVisited = 0.0;
-      assert(nnOutput != NULL);
-      policyProbs = nnOutput->getPolicyProbsMaybeNoised();
-      for(int i = 0; i<childrenCapacity; i++) {
-        const SearchChildPointer& childPointer = children[i];
-        const SearchNode* child = childPointer.getIfAllocated();
-        if(child == NULL)
-          break;
-        Loc moveLoc = childPointer.getMoveLocRelaxed();
-        int movePos = getPos(moveLoc);
-        float nnPolicyProb = policyProbs[movePos];
-        if(nnPolicyProb < 0)
-          continue;
-        policyProbMassVisited += nnPolicyProb;
-      }
-    }
-  }
 
   //Probability mass should not sum to more than 1, giving a generous allowance
   //for floating point error.
@@ -450,10 +386,7 @@ void Search::selectBestChildToDescend(
   bool antiMirror = searchParams.antiMirror && mirroringPla != C_EMPTY && isMirroringSinceSearchStart(thread.history,0);
 
   double exploreScaling;
-  if(useHumanSL)
-    exploreScaling = getExploreScalingHuman(totalChildWeight);
-  else
-    exploreScaling = getExploreScaling(totalChildWeight, parentUtilityStdevFactor);
+  exploreScaling = getExploreScaling(totalChildWeight, parentUtilityStdevFactor);
 
   //Try all existing children
   //Also count how many children we actually find

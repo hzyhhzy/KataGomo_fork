@@ -3,7 +3,6 @@
 
 #include "../core/global.h"
 #include "../game/board.h"
-#include "../neuralnet/sgfmetadata.h"
 
 #include "../external/nlohmann_json/json.hpp"
 
@@ -87,7 +86,6 @@ struct SearchParams {
   bool rootPruneUselessMoves; //Prune moves that are entirely useless moves that prolong the game.
   bool conservativePass; //Never assume one's own pass will end the game.
   bool fillDameBeforePass; //When territory scoring, heuristically discourage passing before filling the dame.
-  Player avoidMYTDaggerHackPla; //Hacky hack to avoid a particular pattern that gives some KG nets some trouble. Should become unnecessary in the future.
   double wideRootNoise; //Explore at the root more widely
   bool enablePassingHacks; //Enable some hacks that mitigate rare instances when passing messes up deeper searches.
 

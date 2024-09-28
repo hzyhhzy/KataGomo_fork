@@ -253,10 +253,8 @@ struct SearchNode {
   //Always replaces the current nnoutput, and stores the existing one in the thread for later deletion.
   //Returns true if there was NOT already an nnOutput
   bool storeNNOutput(std::shared_ptr<NNOutput>* newNNOutput, SearchThread& thread);
-  bool storeHumanOutput(std::shared_ptr<NNOutput>* newHumanOutput, SearchThread& thread);
   //Only stores if there isn't an nnOutput already. Returns true if it was stored.
   bool storeNNOutputIfNull(std::shared_ptr<NNOutput>* newNNOutput);
-  bool storeHumanOutputIfNull(std::shared_ptr<NNOutput>* newHumanOutput);
 
   //Used within search to update state and allocate children arrays
   void initializeChildren();

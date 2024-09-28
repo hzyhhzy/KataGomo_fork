@@ -329,9 +329,7 @@ struct GTPEngine {
   GTPEngine& operator=(const GTPEngine&) = delete;
 
   const string nnModelFile;
-  const bool assumeMultipleStartingBlackMovesAreHandicap;
   const int analysisPVLen;
-  const bool preventEncore;
   const bool autoAvoidPatterns;
 
   const double dynamicPlayoutDoublingAdvantageCapPerOppLead;
@@ -748,23 +746,14 @@ struct GTPEngine {
           cout << " lcb " << round(lcb * 10000.0);
           cout << " order " << data.order;
           cout << " pv ";
-          if(preventEncore && data.pvContainsPass())
-            data.writePVUpToPhaseEnd(cout,board,search->getRootHist(),search->getRootPla());
-          else
-            data.writePV(cout,board);
+          data.writePV(cout,board);
           if(args.showPVVisits) {
             cout << " pvVisits ";
-            if(preventEncore && data.pvContainsPass())
-              data.writePVVisitsUpToPhaseEnd(cout,board,search->getRootHist(),search->getRootPla());
-            else
-              data.writePVVisits(cout);
+            data.writePVVisits(cout);
           }
           if(args.showPVEdgeVisits) {
             cout << " pvEdgeVisits ";
-            if(preventEncore && data.pvContainsPass())
-              data.writePVEdgeVisitsUpToPhaseEnd(cout,board,search->getRootHist(),search->getRootPla());
-            else
-              data.writePVEdgeVisits(cout);
+            data.writePVEdgeVisits(cout);
           }
         }
         cout << endl;
@@ -846,23 +835,14 @@ struct GTPEngine {
             out << " isSymmetryOf " << Location::toString(data.isSymmetryOf,board);
           out << " order " << data.order;
           out << " pv ";
-          if(preventEncore && data.pvContainsPass())
-            data.writePVUpToPhaseEnd(out,board,search->getRootHist(),search->getRootPla());
-          else
-            data.writePV(out,board);
+          data.writePV(out,board);
           if(args.showPVVisits) {
             out << " pvVisits ";
-            if(preventEncore && data.pvContainsPass())
-              data.writePVVisitsUpToPhaseEnd(out,board,search->getRootHist(),search->getRootPla());
-            else
-              data.writePVVisits(out);
+            data.writePVVisits(out);
           }
           if(args.showPVEdgeVisits) {
             out << " pvEdgeVisits ";
-            if(preventEncore && data.pvContainsPass())
-              data.writePVEdgeVisitsUpToPhaseEnd(out,board,search->getRootHist(),search->getRootPla());
-            else
-              data.writePVEdgeVisits(out);
+            data.writePVEdgeVisits(out);
           }
           vector<double> movesOwnership, movesOwnershipStdev;
           if(args.showMovesOwnershipStdev) {
@@ -1207,18 +1187,6 @@ struct GTPEngine {
       PlayUtils::printGenmoveLog(cerr,search,nnEval,moveLoc,timeTaken,perspective,gargs.logSearchInfoForChosenMove);
     }
 
-    //Hacks--------------------------------------------------
-    //At least one of these hacks will use the bot to search stuff and clears its tree, so we apply them AFTER
-    //all relevant logging and stuff.
-
-    //Implement friendly pass - in area scoring rules other than tromp-taylor, maybe pass once there are no points
-    //left to gain.
-    int64_t numVisitsForFriendlyPass = 8 + std::min((int64_t)1000, std::min(params.maxVisits, params.maxPlayouts) / 10);
-    moveLoc = PlayUtils::maybeFriendlyPass(gargs.cleanupBeforePass, gargs.friendlyPass, pla, moveLoc, searchBot, numVisitsForFriendlyPass);
-
-    //Implement cleanupBeforePass hack - if the bot wants to pass, instead cleanup if there is something to clean
-    //and we are in a ruleset where this is necessary or the user has configured it.
-    moveLoc = PlayUtils::maybeCleanupBeforePass(gargs.cleanupBeforePass, gargs.friendlyPass, pla, moveLoc, bot);
 
     //Actual reporting of chosen move---------------------
     if(resigned)
@@ -1361,13 +1329,6 @@ struct GTPEngine {
       SearchParams tmpParams = genmoveParams;
       tmpParams.playoutDoublingAdvantage = 0.0;
       tmpParams.conservativePass = true;
-      tmpParams.humanSLChosenMoveProp = 0.0;
-      tmpParams.humanSLRootExploreProbWeightful = 0.0;
-      tmpParams.humanSLRootExploreProbWeightless = 0.0;
-      tmpParams.humanSLPlaExploreProbWeightful = 0.0;
-      tmpParams.humanSLPlaExploreProbWeightless = 0.0;
-      tmpParams.humanSLOppExploreProbWeightful = 0.0;
-      tmpParams.humanSLOppExploreProbWeightless = 0.0;
       tmpParams.antiMirror = false;
       tmpParams.avoidRepeatedPatternUtility = 0;
       bot->setParams(tmpParams);
@@ -1420,13 +1381,6 @@ struct GTPEngine {
       SearchParams tmpParams = genmoveParams;
       tmpParams.playoutDoublingAdvantage = 0.0;
       tmpParams.conservativePass = true;
-      tmpParams.humanSLChosenMoveProp = 0.0;
-      tmpParams.humanSLRootExploreProbWeightful = 0.0;
-      tmpParams.humanSLRootExploreProbWeightless = 0.0;
-      tmpParams.humanSLPlaExploreProbWeightful = 0.0;
-      tmpParams.humanSLPlaExploreProbWeightless = 0.0;
-      tmpParams.humanSLOppExploreProbWeightful = 0.0;
-      tmpParams.humanSLOppExploreProbWeightless = 0.0;
       tmpParams.antiMirror = false;
       tmpParams.avoidRepeatedPatternUtility = 0;
       bot->setParams(tmpParams);
@@ -1501,7 +1455,7 @@ struct GTPEngine {
           NNResultBuf buf;
           bool skipCache = true;
           bool includeOwnerMap = false;
-          nnEval->evaluate(board,hist,pla,&analysisParams.humanSLProfile,nnInputParams,buf,skipCache,includeOwnerMap);
+          nnEval->evaluate(board,hist,pla,NULL,nnInputParams,buf,skipCache,includeOwnerMap);
 
           NNOutput* nnOutput = buf.result.get();
           wlStr += Global::strprintf("%.2fc ", 100.0 * (nnOutput->whiteWinProb - nnOutput->whiteLossProb));
@@ -1517,7 +1471,7 @@ struct GTPEngine {
           NNResultBuf buf;
           bool skipCache = true;
           bool includeOwnerMap = false;
-          nnEval->evaluate(prevBoard,prevHist,prevPla,&analysisParams.humanSLProfile,nnInputParams,buf,skipCache,includeOwnerMap);
+          nnEval->evaluate(prevBoard,prevHist,prevPla,NULL,nnInputParams,buf,skipCache,includeOwnerMap);
 
           NNOutput* nnOutput = buf.result.get();
           int pos = NNPos::locToPos(prevLoc,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen);
@@ -1549,7 +1503,7 @@ struct GTPEngine {
         NNResultBuf buf;
         bool skipCache = true;
         bool includeOwnerMap = true;
-        nnEvalToUse->evaluate(board,hist,nextPla,&analysisParams.humanSLProfile,nnInputParams,buf,skipCache,includeOwnerMap);
+        nnEvalToUse->evaluate(board,hist,nextPla,NULL,nnInputParams,buf,skipCache,includeOwnerMap);
 
         NNOutput* nnOutput = buf.result.get();
         out << "symmetry " << symmetry << endl;
@@ -2013,7 +1967,6 @@ int MainCmds::gtp(const vector<string>& args) {
 
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
-  Setup::maybeWarnHumanSLParams(initialGenmoveParams,engine->nnEval,engine->humanEval,cerr,&logger);
 
   logger.write("Loaded config " + cfg.getFileName());
   logger.write("Loaded model " + nnModelFile);
@@ -2021,8 +1974,6 @@ int MainCmds::gtp(const vector<string>& args) {
     logger.write("Loaded human SL model " + humanModelFile);
   cmd.logOverrides(logger);
   logger.write("Model name: "+ (engine->nnEval == NULL ? string() : engine->nnEval->getInternalModelName()));
-  if(engine->humanEval != NULL)
-    logger.write("Human SL model name: "+ (engine->humanEval->getInternalModelName()));
   logger.write("GTP ready, beginning main protocol loop");
   //Also check loggingToStderr so that we don't duplicate the message from the log file
   if(startupPrintMessageToStderr && !logger.isLoggingToStderr()) {
@@ -2031,16 +1982,9 @@ int MainCmds::gtp(const vector<string>& args) {
     if(humanModelFile != "")
       cerr << "Loaded human SL model " << humanModelFile << endl;
     cerr << "Model name: "+ (engine->nnEval == NULL ? string() : engine->nnEval->getInternalModelName()) << endl;
-    if(engine->humanEval != NULL)
-      cerr << "Human SL model name: "+ (engine->humanEval->getInternalModelName()) << endl;
     cerr << "GTP ready, beginning main protocol loop" << endl;
   }
 
-  if(humanModelFile != "" && !cfg.contains("humanSLProfile") && engine->humanEval->requiresSGFMetadata()) {
-    logger.write("WARNING: Provided -human-model but humanSLProfile was not set in the config or overrides. The human SL model will not be used until it is set in the config or at runtime via kata-set-param.");
-    if(!logger.isLoggingToStderr())
-      cerr << "WARNING: Provided -human-model but humanSLProfile was not set in the config or overrides. The human SL model will not be used until it is set in the config or at runtime via kata-set-param." << endl;
-  }
 
   bool currentlyGenmoving = false;
   bool currentlyAnalyzing = false;
@@ -2173,8 +2117,6 @@ int MainCmds::gtp(const vector<string>& args) {
         parts.push_back(Version::getKataGoVersion());
         if(engine->nnEval != NULL)
           parts.push_back(engine->nnEval->getAbbrevInternalModelName());
-        if(engine->humanEval != NULL)
-          parts.push_back(engine->humanEval->getAbbrevInternalModelName());
         response = Global::concat(parts,"+");
       }
     }
@@ -2290,7 +2232,7 @@ int MainCmds::gtp(const vector<string>& args) {
         response = "Expected no arguments for kata-get-rules but got '" + Global::concat(pieces," ") + "'";
       }
       else {
-        response = engine->getCurrentRules().toJsonStringNoKomi();
+        response = engine->getCurrentRules().toJsonString();
       }
     }
 
@@ -2299,7 +2241,7 @@ int MainCmds::gtp(const vector<string>& args) {
       bool parseSuccess = false;
       Rules newRules;
       try {
-        newRules = Rules::parseRulesWithoutKomi(rest,engine->getCurrentRules().komi);
+        newRules = Rules::parseRules(rest);
         parseSuccess = true;
       }
       catch(const StringError& err) {
@@ -2313,9 +2255,9 @@ int MainCmds::gtp(const vector<string>& args) {
           responseIsError = true;
           response = error;
         }
-        logger.write("Changed rules to " + newRules.toStringNoKomiMaybeNice());
+        logger.write("Changed rules to " + newRules.toString());
         if(!logger.isLoggingToStderr())
-          cerr << "Changed rules to " + newRules.toStringNoKomiMaybeNice() << endl;
+          cerr << "Changed rules to " + newRules.toString() << endl;
       }
     }
 
@@ -2343,56 +2285,12 @@ int MainCmds::gtp(const vector<string>& args) {
             responseIsError = true;
             response = error;
           }
-          logger.write("Changed rules to " + newRules.toStringNoKomiMaybeNice());
+          logger.write("Changed rules to " + newRules.toString());
           if(!logger.isLoggingToStderr())
-            cerr << "Changed rules to " + newRules.toStringNoKomiMaybeNice() << endl;
+            cerr << "Changed rules to " + newRules.toString() << endl;
         }
       }
     }
-
-    else if(command == "kgs-rules") {
-      bool parseSuccess = false;
-      Rules newRules;
-      if(pieces.size() <= 0) {
-        responseIsError = true;
-        response = "Expected one argument kgs-rules";
-      }
-      else {
-        string s = Global::toLower(Global::trim(pieces[0]));
-        if(s == "chinese") {
-          newRules = Rules::parseRulesWithoutKomi("chinese-kgs",engine->getCurrentRules().komi);
-          parseSuccess = true;
-        }
-        else if(s == "aga") {
-          newRules = Rules::parseRulesWithoutKomi("aga",engine->getCurrentRules().komi);
-          parseSuccess = true;
-        }
-        else if(s == "new_zealand") {
-          newRules = Rules::parseRulesWithoutKomi("new_zealand",engine->getCurrentRules().komi);
-          parseSuccess = true;
-        }
-        else if(s == "japanese") {
-          newRules = Rules::parseRulesWithoutKomi("japanese",engine->getCurrentRules().komi);
-          parseSuccess = true;
-        }
-        else {
-          responseIsError = true;
-          response = "Unknown rules '" + s + "'";
-        }
-      }
-      if(parseSuccess) {
-        string error;
-        bool suc = engine->setRulesNotIncludingKomi(newRules,error);
-        if(!suc) {
-          responseIsError = true;
-          response = error;
-        }
-        logger.write("Changed rules to " + newRules.toStringNoKomiMaybeNice());
-        if(!logger.isLoggingToStderr())
-          cerr << "Changed rules to " + newRules.toStringNoKomiMaybeNice() << endl;
-      }
-    }
-
     else if(command == "kata-list-params") {
       std::vector<string> paramsList;
       paramsList.push_back("analysisWideRootNoise");
@@ -2459,16 +2357,6 @@ int MainCmds::gtp(const vector<string>& args) {
         modelInfo["usesHumanSLProfile"] = engine->nnEval->requiresSGFMetadata();
         modelInfo["version"] = engine->nnEval->getModelVersion();
         modelInfo["usingFP16"] = engine->nnEval->getUsingFP16Mode().toString();
-        modelsList.push_back(modelInfo);
-      }
-      if(engine->humanEval != NULL) {
-        nlohmann::json modelInfo;
-        modelInfo["name"] = engine->humanEval->getModelName();
-        modelInfo["internalName"] = engine->humanEval->getInternalModelName();
-        modelInfo["maxBatchSize"] = engine->humanEval->getMaxBatchSize();
-        modelInfo["usesHumanSLProfile"] = engine->humanEval->requiresSGFMetadata();
-        modelInfo["version"] = engine->humanEval->getModelVersion();
-        modelInfo["usingFP16"] = engine->humanEval->getUsingFP16Mode().toString();
         modelsList.push_back(modelInfo);
       }
       response = modelsList.dump();
@@ -2550,10 +2438,6 @@ int MainCmds::gtp(const vector<string>& args) {
             vector<string> unusedKeys = cleanCfg.unusedKeys();
             for(const string& unused: unusedKeys) {
               throw StringError("Unrecognized or non-overridable parameter in kata-set-params: " + unused);
-            }
-            ostringstream out;
-            if(Setup::maybeWarnHumanSLParams(buf1,engine->nnEval,engine->humanEval,out,NULL)) {
-              throw StringError(out.str());
             }
           }
 
@@ -3127,7 +3011,7 @@ int MainCmds::gtp(const vector<string>& args) {
         else {
           maybeSaveAvoidPatterns(false);
           Player pla = P_WHITE;
-          BoardHistory hist(board,pla,engine->getCurrentRules(),0);
+          BoardHistory hist(board,pla,engine->getCurrentRules());
           hist.setInitialTurnNumber(board.numStonesOnBoard()); //Should give more accurate temperaure and time control behavior
           vector<Move> newMoveHistory;
           engine->setPositionAndRules(pla,board,hist,board,pla,newMoveHistory);
@@ -3257,8 +3141,8 @@ int MainCmds::gtp(const vector<string>& args) {
               Rules supportedRules = engine->nnEval->getSupportedRules(sgfRules,rulesWereSupported);
               if(!rulesWereSupported) {
                 ostringstream out;
-                out << "WARNING: Rules " << sgfRules.toJsonStringNoKomi()
-                    << " from sgf not supported by neural net, using " << supportedRules.toJsonStringNoKomi() << " instead";
+                out << "WARNING: Rules " << sgfRules.toJsonString()
+                    << " from sgf not supported by neural net, using " << supportedRules.toJsonString() << " instead";
                 logger.write(out.str());
                 if(!logger.isLoggingToStderr())
                   cerr << out.str() << endl;
@@ -3275,7 +3159,7 @@ int MainCmds::gtp(const vector<string>& args) {
               currentRules.komi = sgfRules.komi;
               if(sgfRules != currentRules) {
                 ostringstream out;
-                out << "Changing rules to " << sgfRules.toJsonStringNoKomi();
+                out << "Changing rules to " << sgfRules.toJsonString();
                 logger.write(out.str());
                 if(!logger.isLoggingToStderr())
                   cerr << out.str() << endl;

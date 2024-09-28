@@ -142,7 +142,6 @@ struct Search {
 
   Logger* logger;
   NNEvaluator* nnEvaluator;
-  NNEvaluator* humanEvaluator;
   int nnXLen;
   int nnYLen;
   int policySize;
@@ -178,13 +177,6 @@ struct Search {
   Search(
     SearchParams params,
     NNEvaluator* nnEval,
-    Logger* logger,
-    const std::string& randSeed
-  );
-  Search(
-    SearchParams params,
-    NNEvaluator* nnEval,
-    NNEvaluator* humanEval,
     Logger* logger,
     const std::string& randSeed
   );
@@ -443,7 +435,6 @@ private:
   bool isAllowedRootMove(Loc moveLoc) const;
   double getPatternBonus(Hash128 patternBonusHash, Player prevMovePla) const;
   double getEndingWhiteScoreBonus(const SearchNode& parent, Loc moveLoc) const;
-  bool shouldSuppressPass(const SearchNode* n) const;
 
   double interpolateEarly(double halflife, double earlyValue, double value) const;
 
@@ -523,18 +514,12 @@ private:
     SearchThread& thread, SearchNode& node, bool isRoot
   );
 
-  bool needsHumanOutputAtRoot() const;
-  bool needsHumanOutputInTree() const;
-
   //----------------------------------------------------------------------------------------
   // Move selection during search
   // searchexplorehelpers.cpp
   //----------------------------------------------------------------------------------------
   double getExploreScaling(
     double totalChildWeight, double parentUtilityStdevFactor
-  ) const;
-  double getExploreScalingHuman(
-    double totalChildWeight
   ) const;
   double getExploreSelectionValue(
     double exploreScaling,

@@ -118,7 +118,7 @@ void PatternBonusTable::addBonusForGameMoves(const BoardHistory& game, double bo
 void PatternBonusTable::addBonusForGameMoves(const BoardHistory& game, double bonus, Player onlyPla) {
   std::set<Hash128> hashesThisGame;
   Board board = game.initialBoard;
-  BoardHistory hist(board, game.initialPla, game.rules, game.initialEncorePhase);
+  BoardHistory hist(board, game.initialPla, game.rules);
   for(size_t i = 0; i<game.moveHistory.size(); i++) {
     Player pla = game.moveHistory[i].pla;
     Loc loc = game.moveHistory[i].loc;

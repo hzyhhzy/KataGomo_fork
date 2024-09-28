@@ -38,25 +38,6 @@ AsyncBot::AsyncBot(
   searchThread = std::thread(searchThreadLoop,this,l);
 }
 
-AsyncBot::AsyncBot(
-  SearchParams params,
-  NNEvaluator* nnEval,
-  Logger* l,
-  const string& randSeed
-)
-  :search(NULL),
-   controlMutex(),threadWaitingToSearch(),userWaitingForStop(),searchThread(),
-   isRunning(false),isPondering(false),isKilled(false),shouldStopNow(false),
-   queuedSearchId(0),queuedOnMove(),timeControls(),searchFactor(1.0),
-   analyzeCallbackPeriod(-1),
-   analyzeFirstCallbackAfter(-1),
-   analyzeCallback(),
-   searchBegunCallback()
-{
-  search = new Search(params,nnEval,humanEval,l,randSeed);
-  searchThread = std::thread(searchThreadLoop,this,l);
-}
-
 AsyncBot::~AsyncBot() {
   stopAndWait();
   assert(!isRunning);
@@ -150,10 +131,6 @@ void AsyncBot::clearSearch() {
 bool AsyncBot::makeMove(Loc moveLoc, Player movePla) {
   stopAndWait();
   return search->makeMove(moveLoc,movePla);
-}
-bool AsyncBot::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
-  stopAndWait();
-  return search->makeMove(moveLoc,movePla,preventEncore);
 }
 
 bool AsyncBot::isLegalTolerant(Loc moveLoc, Player movePla) const {

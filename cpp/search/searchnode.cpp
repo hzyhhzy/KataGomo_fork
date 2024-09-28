@@ -424,21 +424,6 @@ bool SearchNode::storeNNOutputIfNull(std::shared_ptr<NNOutput>* newNNOutput) {
 }
 
 
-bool SearchNode::storeHumanOutput(std::shared_ptr<NNOutput>* newHumanOutput, SearchThread& thread) {
-  std::shared_ptr<NNOutput>* toCleanUp = humanOutput.exchange(newHumanOutput, std::memory_order_acq_rel);
-  if(toCleanUp != NULL) {
-    thread.oldNNOutputsToCleanUp.push_back(toCleanUp);
-    return false;
-  }
-  return true;
-}
-
-bool SearchNode::storeHumanOutputIfNull(std::shared_ptr<NNOutput>* newHumanOutput) {
-  std::shared_ptr<NNOutput>* expected = NULL;
-  return humanOutput.compare_exchange_strong(expected, newHumanOutput, std::memory_order_acq_rel);
-}
-
-
 SearchNode::~SearchNode() {
   // Do NOT recursively delete children
   // The children may have other references (e.g. graph search).

@@ -103,8 +103,6 @@ class GameInitializer {
     const Sgf::PositionSample* startPosSample
   );
 
-  Rules randomizeScoringAndTaxRules(Rules rules, Rand& randToUse) const;
-
   //Only sample the space of possible rules
   Rules createRules();
   bool isAllowedBSize(int xSize, int ySize);
@@ -131,12 +129,9 @@ class GameInitializer {
   Rand rand;
 
   std::vector<std::string> allowedKoRuleStrs;
-  std::vector<std::string> allowedScoringRuleStrs;
   std::vector<bool> allowedMultiStoneSuicideLegals;
-  std::vector<bool> allowedButtons;
 
   std::vector<int> allowedKoRules;
-  std::vector<int> allowedScoringRules;
 
   std::vector<std::pair<int,int>> allowedBSizes;
   std::vector<double> allowedBSizeRelProbs;

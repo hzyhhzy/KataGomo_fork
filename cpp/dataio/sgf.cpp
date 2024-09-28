@@ -902,7 +902,6 @@ void Sgf::samplePositionHelper(
   //Hash based on position, player, and simple ko
   Hash128 situationHash = board.pos_hash;
   situationHash ^= Board::ZOBRIST_PLAYER_HASH[nextPla];
-  assert(hist.encorePhase == 0);
   if(board.ko_loc != Board::NULL_LOC)
     situationHash ^= Board::ZOBRIST_KO_LOC_HASH[board.ko_loc];
 
@@ -1874,8 +1873,6 @@ void WriteSgf::writeSgf(
     else
       commentOut << "," << "gtype=other";
 
-    if(gameData->beganInEncorePhase != 0)
-      commentOut << "," << "beganInEncorePhase=" << gameData->beganInEncorePhase;
     if(gameData->usedInitialPosition != 0)
       commentOut << "," << "usedInitialPosition=" << gameData->usedInitialPosition;
     if(gameData->playoutDoublingAdvantage != 0)

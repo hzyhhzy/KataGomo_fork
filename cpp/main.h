@@ -15,26 +15,6 @@ namespace MainCmds {
   int testgpuerror(const std::vector<std::string>& args);
 
   int runtests(const std::vector<std::string>& args);
-  int runnnlayertests(const std::vector<std::string>& args);
-  int runnnontinyboardtest(const std::vector<std::string>& args);
-  int runnnsymmetriestest(const std::vector<std::string>& args);
-  int runoutputtests(const std::vector<std::string>& args);
-  int runsearchtests(const std::vector<std::string>& args);
-  int runsearchtestsv3(const std::vector<std::string>& args);
-  int runsearchtestsv8(const std::vector<std::string>& args);
-  int runsearchtestsv9(const std::vector<std::string>& args);
-  int runselfplayinittests(const std::vector<std::string>& args);
-  int runselfplayinitstattests(const std::vector<std::string>& args);
-  int runsekitrainwritetests(const std::vector<std::string>& args);
-  int runnnonmanyposestest(const std::vector<std::string>& args);
-  int runnnbatchingtest(const std::vector<std::string>& args);
-  int runownershiptests(const std::vector<std::string>& args);
-  int runtinynntests(const std::vector<std::string>& args);
-  int runnnevalcanarytests(const std::vector<std::string>& args);
-  int runbeginsearchspeedtest(const std::vector<std::string>& args);
-  int runownershipspeedtest(const std::vector<std::string>& args);
-  int runsleeptest(const std::vector<std::string>& args);
-  int runconfigtests(const std::vector<std::string>& args);
 
   int samplesgfs(const std::vector<std::string>& args);
   int dataminesgfs(const std::vector<std::string>& args);

@@ -235,7 +235,7 @@ void PlayUtils::initializeGameUsingPolicy(
 
     //Make the move!
     assert(hist.isLegal(board,loc,pla));
-    hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
+    hist.makeBoardMoveAssumeLegal(board,loc,pla);
     pla = getOpp(pla);
 
     //Rarely, playing the random moves out this way will end the game
@@ -273,8 +273,8 @@ void PlayUtils::playExtraBlack(
       break;
 
     assert(hist.isLegal(board,loc,pla));
-    hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
-    hist.clear(board,pla,hist.rules,0);
+    hist.makeBoardMoveAssumeLegal(board,loc,pla);
+    hist.clear(board,pla,hist.rules);
   }
 
   bot->setPosition(pla,board,hist);
@@ -597,7 +597,7 @@ float PlayUtils::computeLead(
   float oldKomi = hist.rules.komi;
   double naiveKomi = getNaiveEvenKomiHelper(scoreWLCache,botB,botW,board,hist,pla,numVisits,otherGameProps);
 
-  bool granularityIsCoarse = hist.rules.scoringRule == Rules::SCORING_AREA && !hist.rules.hasButton;
+  bool granularityIsCoarse = true;
   if(!granularityIsCoarse) {
     assert(hist.rules.komi == oldKomi);
     return (float)(oldKomi - naiveKomi);
@@ -1021,206 +1021,14 @@ void PlayUtils::printGenmoveLog(
 }
 
 Rules PlayUtils::genRandomRules(Rand& rand) {
-  vector<int> allowedKoRules = { Rules::KO_SIMPLE, Rules::KO_POSITIONAL, Rules::KO_SITUATIONAL };
-  vector<int> allowedScoringRules = { Rules::SCORING_AREA, Rules::SCORING_TERRITORY };
-  vector<int> allowedTaxRules = { Rules::TAX_NONE, Rules::TAX_SEKI, Rules::TAX_ALL };
+  vector<int> allowedKoRules = { Rules::KO_SIMPLE };
 
   Rules rules;
   rules.koRule = allowedKoRules[rand.nextUInt((uint32_t)allowedKoRules.size())];
-  rules.scoringRule = allowedScoringRules[rand.nextUInt((uint32_t)allowedScoringRules.size())];
-  rules.taxRule = allowedTaxRules[rand.nextUInt((uint32_t)allowedTaxRules.size())];
   rules.multiStoneSuicideLegal = rand.nextBool(0.5);
 
-  if(rules.scoringRule == Rules::SCORING_AREA)
-    rules.hasButton = rand.nextBool(0.5);
-  else
-    rules.hasButton = false;
   return rules;
 }
-
-Loc PlayUtils::maybeCleanupBeforePass(
-  enabled_t cleanupBeforePass,
-  enabled_t friendlyPass,
-  const Player pla,
-  Loc moveLoc,
-  const AsyncBot* bot
-) {
-  if(friendlyPass == enabled_t::True)
-    return moveLoc;
-  const BoardHistory& hist = bot->getRootHist();
-  const Rules& rules = hist.rules;
-  const bool doCleanupBeforePass =
-    cleanupBeforePass == enabled_t::True ? true :
-    cleanupBeforePass == enabled_t::False ? false :
-    (rules.friendlyPassOk == false && rules.scoringRule == Rules::SCORING_AREA);
-  if(doCleanupBeforePass && moveLoc == Board::PASS_LOC && hist.isFinalPhase() && !hist.hasButton) {
-    const Board& board = bot->getRootBoard();
-    const Color* safeArea = bot->getSearch()->rootSafeArea;
-    assert(safeArea != NULL);
-    //Scan the board for any spot that is adjacent to an opponent group that is part of our pass-alive territory.
-    for(int y = 0; y<board.y_size; y++) {
-      for(int x = 0; x<board.x_size; x++) {
-        Loc otherLoc = Location::getLoc(x,y,board.x_size);
-        if(moveLoc == Board::PASS_LOC &&
-           board.colors[otherLoc] == C_EMPTY &&
-           safeArea[otherLoc] == pla &&
-           board.isAdjacentToPla(otherLoc,getOpp(pla)) &&
-           hist.isLegal(board,otherLoc,pla)
-        ) {
-          moveLoc = otherLoc;
-        }
-      }
-    }
-  }
-  return moveLoc;
-}
-
-
-Loc PlayUtils::maybeFriendlyPass(
-  enabled_t cleanupBeforePass,
-  enabled_t friendlyPass,
-  const Player pla,
-  Loc moveLoc,
-  Search* bot,
-  int64_t numVisits
-) {
-  if(cleanupBeforePass == enabled_t::True)
-    return moveLoc;
-  bool shouldProceed;
-  {
-    const Board& board = bot->getRootBoard();
-    const BoardHistory& hist = bot->getRootHist();
-    const Rules& rules = hist.rules;
-    const bool doFriendlyPass =
-      friendlyPass == enabled_t::True ? true :
-      friendlyPass == enabled_t::False ? false :
-      (rules.friendlyPassOk == true && rules.scoringRule == Rules::SCORING_AREA);
-    shouldProceed = (
-      doFriendlyPass &&
-      moveLoc != Board::PASS_LOC &&
-      rules.scoringRule == Rules::SCORING_AREA &&
-      hist.isFinalPhase() &&
-      !hist.hasButton &&
-      hist.passWouldEndPhase(board,pla) &&
-      hist.moveHistory.size() > 0 &&
-      hist.moveHistory[hist.moveHistory.size()-1].pla == getOpp(pla) &&
-      hist.moveHistory[hist.moveHistory.size()-1].loc == Board::PASS_LOC
-    );
-  }
-  if(!shouldProceed)
-    return moveLoc;
-
-  //Make absolutely sure we can restore the bot's old state
-  const Player oldPla = bot->getRootPla();
-  const Board oldBoard = bot->getRootBoard();
-  const BoardHistory oldHist = bot->getRootHist();
-
-  const Board board = bot->getRootBoard();
-  const BoardHistory hist = bot->getRootHist();
-  assert(oldPla == pla);
-
-  if(!hist.isLegal(board,moveLoc,pla))
-    throw StringError("PlayUtils::maybeFriendlyPass called on illegal move " + Location::toString(moveLoc,board));
-
-  vector<double> ownerships;
-  vector<bool> isAlive = computeAnticipatedStatusesWithOwnership(bot, board, hist, pla, numVisits, ownerships);
-
-  //Delete all dead groups from board
-  Board cleanBoard = board;
-  for(int y = 0; y<board.y_size; y++) {
-    for(int x = 0; x<board.x_size; x++) {
-      Loc loc = Location::getLoc(x,y,board.x_size);
-      if(board.colors[loc] != C_EMPTY && !isAlive[loc])
-        cleanBoard.setStone(loc, C_EMPTY);
-    }
-  }
-
-  //Now, check if naive floodfilling agrees that all highly-owned spots are surrounded (finished borders)
-  Color area[Board::MAX_ARR_SIZE];
-  {
-    bool nonPassAliveStones = true;
-    bool safeBigTerritories = true;
-    bool unsafeBigTerritories = true;
-    bool isMultiStoneSuicideLegal = hist.rules.multiStoneSuicideLegal;
-    cleanBoard.calculateArea(area, nonPassAliveStones, safeBigTerritories, unsafeBigTerritories, isMultiStoneSuicideLegal);
-  }
-  const double highOwnershipThreshold = 0.75;
-  int nnXLen = bot->nnXLen;
-  int nnYLen = bot->nnYLen;
-  bool foundUnsurroundedSpot = false;
-  for(int y = 0; y<board.y_size && !foundUnsurroundedSpot; y++) {
-    for(int x = 0; x<board.x_size && !foundUnsurroundedSpot; x++) {
-      Loc loc = Location::getLoc(x,y,board.x_size);
-      int pos = NNPos::locToPos(loc,board.x_size,nnXLen,nnYLen);
-      if(ownerships[pos] > highOwnershipThreshold && area[loc] != C_WHITE)
-        foundUnsurroundedSpot = true;
-      if(ownerships[pos] < -highOwnershipThreshold && area[loc] != C_BLACK)
-        foundUnsurroundedSpot = true;
-    }
-  }
-
-  //Also, the location that the bot currently wants to move must not be adjacent to an opponent's living stone or a self stone in atari by living stones.
-  //This means it's a safe dame or protective fill the bot is trying. It's not a very exhaustive check (since there are also prep connect moves)
-  //and maybe has some false positives but it's a free extra check.
-  if(!foundUnsurroundedSpot && !cleanBoard.isAdjacentToPla(moveLoc,getOpp(pla)) && !cleanBoard.wouldBeCapture(moveLoc,getOpp(pla))) {
-
-    //And also, the bot must rate passing as not significantly worse than playing its move
-    SearchParams oldParams = bot->searchParams;
-    SearchParams newParams = getNoiselessParams(oldParams,numVisits);
-    newParams.playoutDoublingAdvantagePla = C_EMPTY;
-    newParams.playoutDoublingAdvantage = 0.0;
-    //Conservative pass makes sure we evaluate the opponent's turn as one in which the game is neither finished nor the opponent
-    //will be able to end the game via passing.
-    newParams.conservativePass = true;
-    bot->setParams(newParams);
-
-    ReportedSearchValues valuesAfterPass;
-    ReportedSearchValues valuesAfterMove;
-
-    {
-      Board boardAfterPass = board;
-      BoardHistory histAfterPass = hist;
-      histAfterPass.makeBoardMoveAssumeLegal(boardAfterPass,Board::PASS_LOC,pla,NULL);
-      Player plaAfterPass = getOpp(pla);
-      bot->setPosition(plaAfterPass,boardAfterPass,histAfterPass);
-      bot->runWholeSearch(plaAfterPass);
-      valuesAfterPass = bot->getRootValuesRequireSuccess();
-    }
-    {
-      Board boardAfterMove = board;
-      BoardHistory histAfterMove = hist;
-      histAfterMove.makeBoardMoveAssumeLegal(boardAfterMove,moveLoc,pla,NULL);
-      Player plaAfterMove = getOpp(pla);
-      bot->setPosition(plaAfterMove,boardAfterMove,histAfterMove);
-      bot->runWholeSearch(plaAfterMove);
-      valuesAfterMove = bot->getRootValuesRequireSuccess();
-    }
-
-    bot->setParams(oldParams);
-    bot->clearSearch();
-
-    if(
-      pla == P_WHITE
-      && valuesAfterPass.utility > valuesAfterMove.utility - 0.1
-      && valuesAfterPass.expectedScore > valuesAfterMove.expectedScore - 0.25
-      && valuesAfterPass.lead > valuesAfterMove.lead - 0.25) {
-      moveLoc = Board::PASS_LOC;
-    }
-    else if(
-      pla == P_BLACK
-      && valuesAfterPass.utility < valuesAfterMove.utility + 0.1
-      && valuesAfterPass.expectedScore < valuesAfterMove.expectedScore + 0.25
-      && valuesAfterPass.lead < valuesAfterMove.lead + 0.25) {
-      moveLoc = Board::PASS_LOC;
-    }
-
-  }
-  //Restore
-  bot->setPosition(oldPla,oldBoard,oldHist);
-
-  return moveLoc;
-}
-
 
 std::shared_ptr<NNOutput> PlayUtils::getFullSymmetryNNOutput(const Board& board, const BoardHistory& hist, Player pla, bool includeOwnerMap, NNEvaluator* nnEval) {
   vector<std::shared_ptr<NNOutput>> ptrs;

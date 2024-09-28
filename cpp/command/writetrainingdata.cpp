@@ -1210,7 +1210,6 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       }
       else if(Global::isPrefix(sgfRules,"Tang")) {
         rules = Rules::parseRules("Japanese");
-        rules.taxRule = Rules::TAX_ALL;
         rulesDisableValueTraining = true; // Since we're not entirely sure on the evaluation, also many games are incomplete
       }
       else if(sgfRules == "Old Chinese") {
@@ -1308,16 +1307,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
             return;
           }
         }
-
-        // gogod uses zi for chinese komi, we should check if there's any weirdness
-        if(rules.scoringRule == Rules::SCORING_AREA && rules.komi >= 4) {
-          logger.write("Unable to handle rules, need more cases in sgf " + fileName + ": " + sgfRules + "|" + sgfKomi + "|" + sgfPlace + "|" + sgfEvent);
-          reportSgfDone(false,"GameRulesParsing");
-          return;
-        }
-        if(rules.scoringRule == Rules::SCORING_AREA) {
-          rules.komi *= 2;
-        }
+        assert(false && "disabled features");
 
         if(whiteWinsJigo) {
           if(rules.komi != (int)rules.komi) {
@@ -1338,24 +1328,15 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     else if(whatDataSource == "go4go") {
       // Go4Go doesn't list rules, but is only modern games and with non-zi scoring, so just guess the rules based on komi.
       // And basically everything using komi 8 in go4go is "komi 8 but black wins ties
-      if(sgfKomi == "6.5")
-        rules = Rules::parseRulesWithoutKomi("japanese",6.5);
-      else if(sgfKomi == "7.5")
-        rules = Rules::parseRulesWithoutKomi("chinese",7.5);
-      else if(sgfKomi == "8")
-        rules = Rules::parseRulesWithoutKomi("ing",7.5);
-      else {
-        logger.write("Failed to get rules for sgf: " + fileName);
-        reportSgfDone(false,"GameBadRules");
-        return;
-      }
+      
+      logger.write("Failed to get rules for sgf: " + fileName);
+      reportSgfDone(false,"GameBadRules");
+      return;
     }
     else {
       throw StringError("Unknown data source: " + whatDataSource);
     }
 
-    // No friendly pass since we want to complete consistent with strict rules
-    rules.friendlyPassOk = false;
 
     Board board;
     Player nextPla;
@@ -1856,7 +1837,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       Move move = sgfMoves[m];
 
       // Quit out if according to our rules, we already finished the game, or we're somehow in a cleanup phase
-      if(hist.isGameFinished || hist.encorePhase > 0) {
+      if(hist.isGameFinished ) {
         logger.write("Game unexpectedly ended near start in " + fileName + sizeStr);
         reportSgfDone(false,"MovesUnexpectedGameEndNearStart");
         return;
@@ -1868,16 +1849,13 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
         return;
       }
       bool preventEncore = false;
-      hist.makeBoardMoveAssumeLegal(board,move.loc,move.pla,NULL,preventEncore);
+      hist.makeBoardMoveAssumeLegal(board,move.loc,move.pla);
     }
 
     // Use the actual first player of the game.
     nextPla = sgfMoves[startGameAt].pla;
 
     // Set up handicap behavior
-    hist.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
-    hist.setOverrideNumHandicapStones(overrideNumHandicapStones);
-    int numExtraBlack = hist.computeNumHandicapStones();
 
     const double drawEquivalentWinsForWhite = 0.5;
     const Player playoutDoublingAdvantagePla = C_EMPTY;
@@ -1904,7 +1882,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       if(m >= sgfMoves.size())
         break;
       // Quit out if according to our rules, we already finished the game, or we're somehow in a cleanup phase
-      if(hist.isGameFinished || hist.encorePhase > 0)
+      if(hist.isGameFinished)
         break;
 
       Move move = sgfMoves[m];
@@ -1933,7 +1911,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
         return;
       }
       bool preventEncore = false;
-      hist.makeBoardMoveAssumeLegal(board,move.loc,move.pla,NULL,preventEncore);
+      hist.makeBoardMoveAssumeLegal(board,move.loc,move.pla);
       nextPla = getOpp(move.pla);
     }
 
@@ -2061,7 +2039,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
           assert(suc);
 
           bool preventEncore = false;
-          hist.makeBoardMoveAssumeLegal(board,moveLoc,nextPla,NULL,preventEncore);
+          hist.makeBoardMoveAssumeLegal(board,moveLoc,nextPla);
           nextPla = getOpp(nextPla);
 
           boards.push_back(board);
@@ -2084,7 +2062,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
           hasOwnershipTargets = true;
           hists[hists.size()-1].endAndScoreGameNow(board,finalOwnership);
           board.calculateArea(finalFullArea, true, true, true, hist.rules.multiStoneSuicideLegal);
-          NNInputs::fillScoring(board,finalOwnership,hist.rules.taxRule == Rules::TAX_ALL,finalWhiteScoring);
+          NNInputs::fillScoring(board,finalOwnership,finalWhiteScoring);
 
           // Make sure KataGo didn't leave huge unscored regions due to passing weirdness, and make sure the scoring agrees with
           // a historyless nn eval of the position.
@@ -2179,17 +2157,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       const double whiteFinalLossProb = std::max(whiteValueTargets[whiteValueTargets.size()-1].loss, 0.0f);
       if(sgfGameWinner == P_WHITE) {
         valueTargetWeight = 2.0f * (float)std::max(0.0, whiteFinalWinProb - 0.5);
-
-        // Assume white catches up in score at the same rate from turn 0 to 200 - does that leave white ahead?
-        if(numExtraBlack > 0 && board.x_size == 19 && board.y_size == 19 && whiteValueTargets.size() < 200 && whiteValueTargets.size() > 30) {
-          double change = whiteValueTargets[whiteValueTargets.size()-1].lead - whiteValueTargets[0].lead;
-          double extrapolatedChange = change * (200.0 / whiteValueTargets.size());
-          if(whiteValueTargets[0].lead + extrapolatedChange > 0.5) {
-            // Black resigned while ahead, but white was catching up in a handicp game, so count full weight.
-            valueTargetWeight = 1.0f;
-            usageStr = "FullValueBlackHandicapResign";
-          }
-        }
+        assert(false && "disabled");
         hasOwnershipTargets = false;
         hasForcedWinner = true;
         whiteValueTargets[whiteValueTargets.size()-1] = makeForcedWinnerValueTarget(P_WHITE);
@@ -2360,7 +2328,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
           gameHash,
           changedNeuralNets,
           hitTurnLimit,
-          numExtraBlack,
+          0,
           mode,
           &sgfMeta,
           rand

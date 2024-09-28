@@ -41,7 +41,7 @@ void TestSearchCommon::printPolicyValueOwnership(const Board& board, const NNRes
 
 void TestSearchCommon::printBasicStuffAfterSearch(const Board& board, const BoardHistory& hist, const Search* search, PrintTreeOptions options) {
   Board::printBoard(cout, board, Board::NULL_LOC, &(hist.moveHistory));
-  cout << hist.rules << " " << hist.encorePhase << "\n";
+  cout << hist.rules << "\n";
   cout << "Root visits: " << search->getRootVisits() << "\n";
   cout << "New playouts: " << search->lastSearchNumPlayouts << "\n";
   cout << "NN rows: " << search->nnEvaluator->numRowsProcessed() << endl;
@@ -158,7 +158,7 @@ void TestSearchCommon::runBotOnPosition(AsyncBot* bot, Board board, Player nextP
 
     if(i < opts.numMovesInARow-1) {
       bot->makeMove(move, nextPla);
-      hist.makeBoardMoveAssumeLegal(board,move,nextPla,NULL);
+      hist.makeBoardMoveAssumeLegal(board,move,nextPla);
       cout << "Just after move" << Location::toString(move,board) << endl;
       search->printTree(cout, search->rootNode, options, P_WHITE);
       nextPla = getOpp(nextPla);

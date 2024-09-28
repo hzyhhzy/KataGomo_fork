@@ -130,6 +130,7 @@ Hash128 SGFMetadata::getHash(Player nextPlayer) const {
 
 
 void SGFMetadata::fillMetadataRow(const SGFMetadata* sgfMeta, float* rowMetadata, Player nextPlayer, int boardArea) {
+  Global::fatalError("SGFMetadata is disabled");
   assert(sgfMeta != NULL);
   if(!sgfMeta->initialized)
     Global::fatalError("Invalid or uninitialized SGFMetadata");

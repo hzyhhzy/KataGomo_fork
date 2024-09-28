@@ -40,18 +40,11 @@ void Search::updateMirroring() {
       mirroringPla = getOpp(rootPla);
 
       double blackExtraPoints = 0.0;
-      int numHandicapStones = hist.computeNumHandicapStones();
-      if(hist.rules.scoringRule == Rules::SCORING_AREA) {
-        if(numHandicapStones > 0)
-          blackExtraPoints += numHandicapStones-1;
-        bool blackGetsLastMove = (board.x_size % 2 == 1 && board.y_size % 2 == 1) == (numHandicapStones == 0 || numHandicapStones % 2 == 1);
-        if(blackGetsLastMove)
-          blackExtraPoints += 1;
-      }
-      if(numHandicapStones > 0 && hist.rules.whiteHandicapBonusRule == Rules::WHB_N)
-        blackExtraPoints -= numHandicapStones;
-      if(numHandicapStones > 0 && hist.rules.whiteHandicapBonusRule == Rules::WHB_N_MINUS_ONE)
-        blackExtraPoints -= numHandicapStones-1;
+      
+      bool blackGetsLastMove = (board.x_size % 2 == 1 && board.y_size % 2 == 1) ;
+      if(blackGetsLastMove)
+        blackExtraPoints += 1;
+      
       mirrorAdvantage = mirroringPla == P_BLACK ? blackExtraPoints - hist.rules.komi : hist.rules.komi - blackExtraPoints;
     }
 

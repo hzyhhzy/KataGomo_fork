@@ -17,7 +17,6 @@ void Search::computeRootNNEvaluation(NNResultBuf& nnResultBuf, bool includeOwner
   nnInputParams.conservativePassAndIsRoot = searchParams.conservativePass && isRoot;
   nnInputParams.enablePassingHacks = searchParams.enablePassingHacks;
   nnInputParams.nnPolicyTemperature = searchParams.nnPolicyTemperature;
-  nnInputParams.avoidMYTDaggerHack = searchParams.avoidMYTDaggerHackPla == pla;
   nnInputParams.policyOptimism = searchParams.rootPolicyOptimism;
   if(searchParams.playoutDoublingAdvantage != 0) {
     Player playoutDoublingAdvantagePla = getPlayoutDoublingAdvantagePla();
@@ -28,21 +27,9 @@ void Search::computeRootNNEvaluation(NNResultBuf& nnResultBuf, bool includeOwner
   if(searchParams.ignorePreRootHistory || searchParams.ignoreAllHistory)
     nnInputParams.maxHistory = 0;
   nnEvaluator->evaluate(
-    board, hist, pla, &searchParams.humanSLProfile,
+    board, hist, pla,
     nnInputParams,
     nnResultBuf, skipCache, includeOwnerMap
-  );
-}
-
-bool Search::needsHumanOutputAtRoot() const {
-  return humanEvaluator != NULL && (searchParams.humanSLProfile.initialized || !humanEvaluator->requiresSGFMetadata());
-}
-bool Search::needsHumanOutputInTree() const {
-  return needsHumanOutputAtRoot() && (
-    searchParams.humanSLPlaExploreProbWeightless > 0 ||
-    searchParams.humanSLPlaExploreProbWeightful > 0 ||
-    searchParams.humanSLOppExploreProbWeightless > 0 ||
-    searchParams.humanSLOppExploreProbWeightful > 0
   );
 }
 
@@ -67,7 +54,6 @@ bool Search::initNodeNNOutput(
   nnInputParams.conservativePassAndIsRoot = searchParams.conservativePass && isRoot;
   nnInputParams.enablePassingHacks = searchParams.enablePassingHacks;
   nnInputParams.nnPolicyTemperature = searchParams.nnPolicyTemperature;
-  nnInputParams.avoidMYTDaggerHack = searchParams.avoidMYTDaggerHackPla == thread.pla;
   nnInputParams.policyOptimism = isRoot ? searchParams.rootPolicyOptimism : searchParams.policyOptimism;
   if(searchParams.playoutDoublingAdvantage != 0) {
     Player playoutDoublingAdvantagePla = getPlayoutDoublingAdvantagePla();
@@ -82,38 +68,21 @@ bool Search::initNodeNNOutput(
   }
 
   std::shared_ptr<NNOutput>* result = NULL;
-  std::shared_ptr<NNOutput>* humanResult = NULL;
   if(isRoot && searchParams.rootNumSymmetriesToSample > 1) {
     result = nnEvaluator->averageMultipleSymmetries(
-      thread.board, thread.history, thread.pla, &searchParams.humanSLProfile,
+      thread.board, thread.history, thread.pla, NULL,
       nnInputParams,
       thread.nnResultBuf, includeOwnerMap,
       thread.rand, searchParams.rootNumSymmetriesToSample
     );
-    if(needsHumanOutputInTree() || (isRoot && needsHumanOutputAtRoot())) {
-      humanResult = humanEvaluator->averageMultipleSymmetries(
-        thread.board, thread.history, thread.pla, &searchParams.humanSLProfile,
-        nnInputParams,
-        thread.nnResultBuf, includeOwnerMap,
-        thread.rand, searchParams.rootNumSymmetriesToSample
-      );
-    }
   }
   else {
     nnEvaluator->evaluate(
-      thread.board, thread.history, thread.pla, &searchParams.humanSLProfile,
+      thread.board, thread.history, thread.pla, NULL,
       nnInputParams,
       thread.nnResultBuf, skipCache, includeOwnerMap
     );
     result = new std::shared_ptr<NNOutput>(std::move(thread.nnResultBuf.result));
-    if(needsHumanOutputInTree() || (isRoot && needsHumanOutputAtRoot())) {
-      humanEvaluator->evaluate(
-        thread.board, thread.history, thread.pla, &searchParams.humanSLProfile,
-        nnInputParams,
-        thread.nnResultBuf, skipCache, includeOwnerMap
-      );
-      humanResult = new std::shared_ptr<NNOutput>(std::move(thread.nnResultBuf.result));
-    }
   }
 
   if(antiMirrorDifficult) {
@@ -140,19 +109,13 @@ bool Search::initNodeNNOutput(
   //slightly affecting the evals, but this is annoying to recompute from scratch, and on the next
   //visit updateStatsAfterPlayout should fix it all up anyways.
   if(isReInit) {
-    if(humanResult != NULL)
-      node.storeHumanOutput(humanResult,thread); // ignore the wasNullBefore from this one
     bool wasNullBefore = node.storeNNOutput(result,thread);
     return wasNullBefore;
   }
   else {
     // Store human result first, so that the presence of the main result guarantees
     // that the human result exists in the case we have a human evaluator.
-    if(humanResult != NULL) {
-      bool humanSuc = node.storeHumanOutputIfNull(humanResult);
-      if(!humanSuc)
-        delete humanResult;
-    }
+    
     bool suc = node.storeNNOutputIfNull(result);
     if(!suc)
       delete result;
@@ -192,8 +155,7 @@ bool Search::maybeRecomputeExistingNNOutput(
          (searchParams.conservativePass && thread.history.passWouldEndGame(thread.board,thread.pla)) ||
          searchParams.rootNumSymmetriesToSample > 1 ||
          searchParams.rootPolicyOptimism != searchParams.policyOptimism ||
-         (searchParams.ignorePreRootHistory && !searchParams.ignoreAllHistory) ||
-         (humanOutput == NULL && needsHumanOutputAtRoot())
+         (searchParams.ignorePreRootHistory && !searchParams.ignoreAllHistory) 
       ) {
         //We *can* use cached evaluations even though parameters are changing, because:
         //conservativePass is part of the nn hash
