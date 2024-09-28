@@ -101,19 +101,7 @@ SearchParams::SearchParams()
    obviousMovesTimeFactor(1.0),
    obviousMovesPolicyEntropyTolerance(0.30),
    obviousMovesPolicySurpriseTolerance(0.15),
-   futileVisitsThreshold(0.0),
-   humanSLProfile(),
-   humanSLCpuctExploration(1.0),
-   humanSLCpuctPermanent(0.0),
-   humanSLRootExploreProbWeightless(0.0),
-   humanSLRootExploreProbWeightful(0.0),
-   humanSLPlaExploreProbWeightless(0.0),
-   humanSLPlaExploreProbWeightful(0.0),
-   humanSLOppExploreProbWeightless(0.0),
-   humanSLOppExploreProbWeightful(0.0),
-   humanSLChosenMoveProp(0.0),
-   humanSLChosenMoveIgnorePass(false),
-   humanSLChosenMovePiklLambda(1000000000.0)
+   futileVisitsThreshold(0.0)
 {}
 
 SearchParams::~SearchParams()
@@ -238,21 +226,8 @@ bool SearchParams::operator==(const SearchParams& other) const {
     obviousMovesPolicyEntropyTolerance == other.obviousMovesPolicyEntropyTolerance &&
     obviousMovesPolicySurpriseTolerance == other.obviousMovesPolicySurpriseTolerance &&
 
-    futileVisitsThreshold == other.futileVisitsThreshold &&
+    futileVisitsThreshold == other.futileVisitsThreshold 
 
-    humanSLProfile == other.humanSLProfile &&
-    humanSLCpuctExploration == other.humanSLCpuctExploration &&
-    humanSLCpuctPermanent == other.humanSLCpuctPermanent &&
-    humanSLRootExploreProbWeightless == other.humanSLRootExploreProbWeightless &&
-    humanSLRootExploreProbWeightful == other.humanSLRootExploreProbWeightful &&
-    humanSLPlaExploreProbWeightless == other.humanSLPlaExploreProbWeightless &&
-    humanSLPlaExploreProbWeightful == other.humanSLPlaExploreProbWeightful &&
-    humanSLOppExploreProbWeightless == other.humanSLOppExploreProbWeightless &&
-    humanSLOppExploreProbWeightful == other.humanSLOppExploreProbWeightful &&
-
-    humanSLChosenMoveProp == other.humanSLChosenMoveProp &&
-    humanSLChosenMoveIgnorePass == other.humanSLChosenMoveIgnorePass &&
-    humanSLChosenMovePiklLambda == other.humanSLChosenMovePiklLambda
   );
 }
 
@@ -486,20 +461,6 @@ json SearchParams::changeableParametersToJson() const {
 
   ret["futileVisitsThreshold"] = futileVisitsThreshold;
 
-  ret["humanSLCpuctExploration"] = humanSLCpuctExploration;
-  ret["humanSLCpuctPermanent"] = humanSLCpuctPermanent;
-
-  ret["humanSLRootExploreProbWeightless"] = humanSLRootExploreProbWeightless;
-  ret["humanSLRootExploreProbWeightful"] = humanSLRootExploreProbWeightful;
-  ret["humanSLPlaExploreProbWeightless"] = humanSLPlaExploreProbWeightless;
-  ret["humanSLPlaExploreProbWeightful"] = humanSLPlaExploreProbWeightful;
-  ret["humanSLOppExploreProbWeightless"] = humanSLOppExploreProbWeightless;
-  ret["humanSLOppExploreProbWeightful"] = humanSLOppExploreProbWeightful;
-
-  ret["humanSLChosenMoveProp"] = humanSLChosenMoveProp;
-  ret["humanSLChosenMoveIgnorePass"] = humanSLChosenMoveIgnorePass;
-  ret["humanSLChosenMovePiklLambda"] = humanSLChosenMovePiklLambda;
-
   return ret;
 }
 
@@ -637,17 +598,5 @@ void SearchParams::printParams(std::ostream& out) const {
 
   PRINTPARAM(futileVisitsThreshold);
 
-
-  PRINTPARAM(humanSLCpuctExploration);
-  PRINTPARAM(humanSLCpuctPermanent);
-  PRINTPARAM(humanSLRootExploreProbWeightless);
-  PRINTPARAM(humanSLRootExploreProbWeightful);
-  PRINTPARAM(humanSLPlaExploreProbWeightless);
-  PRINTPARAM(humanSLPlaExploreProbWeightful);
-  PRINTPARAM(humanSLOppExploreProbWeightless);
-  PRINTPARAM(humanSLOppExploreProbWeightful);
-  PRINTPARAM(humanSLChosenMoveProp);
-  PRINTPARAM(humanSLChosenMoveIgnorePass);
-  PRINTPARAM(humanSLChosenMovePiklLambda);
 
 }

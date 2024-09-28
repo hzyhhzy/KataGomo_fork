@@ -1407,33 +1407,9 @@ void ModelDesc::loadFromFileMaybeGZipped(const string& fileName, ModelDesc& desc
 Rules ModelDesc::getSupportedRules(const Rules& desiredRules, bool& supported) const {
   Rules rules = desiredRules;
   supported = true;
-  if(modelVersion <= 6) {
-    if(rules.koRule == Rules::KO_SIMPLE || rules.koRule == Rules::KO_SPIGHT) {
-      rules.koRule = Rules::KO_SITUATIONAL;
-      supported = false;
-    }
-    if(rules.scoringRule == Rules::SCORING_TERRITORY) {
-      rules.scoringRule = Rules::SCORING_AREA;
-      supported = false;
-    }
-    if(rules.taxRule != Rules::TAX_NONE) {
-      rules.taxRule = Rules::TAX_NONE;
-      supported = false;
-    }
-    if(rules.hasButton) {
-      rules.hasButton = false;
-      supported = false;
-    }
-  }
-  else {
-    if(rules.koRule == Rules::KO_SPIGHT) {
-      rules.koRule = Rules::KO_SITUATIONAL;
-      supported = false;
-    }
-    if(rules.hasButton && rules.scoringRule != Rules::SCORING_AREA) {
-      rules.hasButton = false;
-      supported = false;
-    }
+  if(rules.koRule != Rules::KO_SIMPLE ) {
+    rules.koRule = Rules::KO_SIMPLE;
+    supported = false;
   }
 
   return rules;

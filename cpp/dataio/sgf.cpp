@@ -713,9 +713,8 @@ void Sgf::iterAllUniquePositions(
   if(nextPla == C_EMPTY)
     nextPla = C_BLACK;
   Rules rules = Rules::getTrompTaylorish();
-  rules.koRule = Rules::KO_SITUATIONAL;
   rules.multiStoneSuicideLegal = true;
-  BoardHistory hist(board,nextPla,rules,0);
+  BoardHistory hist(board,nextPla,rules);
 
   PositionSample sampleBuf;
   std::vector<std::pair<int64_t,int64_t>> variationTraceNodesBranch;
@@ -740,9 +739,8 @@ void Sgf::iterAllPositions(
   if(nextPla == C_EMPTY)
     nextPla = C_BLACK;
   Rules rules = Rules::getTrompTaylorish();
-  rules.koRule = Rules::KO_SITUATIONAL;
   rules.multiStoneSuicideLegal = true;
-  BoardHistory hist(board,nextPla,rules,0);
+  BoardHistory hist(board,nextPla,rules);
 
   PositionSample sampleBuf;
   std::vector<std::pair<int64_t,int64_t>> variationTraceNodesBranch;
@@ -822,7 +820,7 @@ void Sgf::iterAllPositionsHelper(
         if(board.numStonesOnBoard() > initialTurnNumber)
           initialTurnNumber = board.numStonesOnBoard();
 
-        hist.clear(board,nextPla,rules,0);
+        hist.clear(board,nextPla,rules);
         hist.setInitialTurnNumber(initialTurnNumber);
       }
       samplePositionHelper(board,hist,nextPla,sampleBuf,uniqueHashes,requireUnique,hashComments,hashParent,flipIfPassOrWFirst,allowGameOver,comments,f);
@@ -1637,7 +1635,7 @@ void CompactSgf::setupInitialBoardAndHist(const Rules& initialRules, Board& boar
   bool suc = board.setStonesFailIfNoLibs(placements);
   if(!suc)
     throw StringError("setupInitialBoardAndHist: initial board position contains invalid stones or zero-liberty stones");
-  hist = BoardHistory(board,nextPla,initialRules,0);
+  hist = BoardHistory(board,nextPla,initialRules);
   if(hist.initialTurnNumber < board.numStonesOnBoard())
     hist.initialTurnNumber = board.numStonesOnBoard();
 }
@@ -1652,12 +1650,12 @@ void CompactSgf::playMovesAssumeLegal(Board& board, Player& nextPla, BoardHistor
     );
 
   for(int64_t i = 0; i<turnIdx; i++) {
-    hist.makeBoardMoveAssumeLegal(board,moves[i].loc,moves[i].pla,NULL);
+    hist.makeBoardMoveAssumeLegal(board,moves[i].loc,moves[i].pla);
     nextPla = getOpp(moves[i].pla);
   }
 }
 
-void CompactSgf::playMovesTolerant(Board& board, Player& nextPla, BoardHistory& hist, int64_t turnIdx, bool preventEncore) const {
+void CompactSgf::playMovesTolerant(Board& board, Player& nextPla, BoardHistory& hist, int64_t turnIdx) const {
   if(turnIdx < 0 || turnIdx > (int64_t)moves.size())
     throw StringError(
       Global::strprintf(
@@ -1667,7 +1665,7 @@ void CompactSgf::playMovesTolerant(Board& board, Player& nextPla, BoardHistory& 
     );
 
   for(int64_t i = 0; i<turnIdx; i++) {
-    bool suc = hist.makeBoardMoveTolerant(board,moves[i].loc,moves[i].pla,preventEncore);
+    bool suc = hist.makeBoardMoveTolerant(board,moves[i].loc,moves[i].pla);
     if(!suc)
       throw StringError("Illegal move in " + fileName + " turn " + Global::int64ToString(i) + " move " + Location::toString(moves[i].loc, board.x_size, board.y_size));
     nextPla = getOpp(moves[i].pla);
@@ -1679,9 +1677,9 @@ void CompactSgf::setupBoardAndHistAssumeLegal(const Rules& initialRules, Board& 
   playMovesAssumeLegal(board, nextPla, hist, turnIdx);
 }
 
-void CompactSgf::setupBoardAndHistTolerant(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int64_t turnIdx, bool preventEncore) const {
+void CompactSgf::setupBoardAndHistTolerant(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int64_t turnIdx) const {
   setupInitialBoardAndHist(initialRules, board, nextPla, hist);
-  playMovesTolerant(board, nextPla, hist, turnIdx, preventEncore);
+  playMovesTolerant(board, nextPla, hist, turnIdx);
 }
 
 
@@ -1811,18 +1809,9 @@ void WriteSgf::writeSgf(
   out << "PB[" << bName << "]";
   out << "PW[" << wName << "]";
 
-  if(gameData != NULL) {
-    out << "HA[" << gameData->handicapForSgf << "]";
-  }
-  else {
-    BoardHistory histCopy(endHist);
-    //Always use true for computing the handicap value that goes into an sgf
-    histCopy.setAssumeMultipleStartingBlackMovesAreHandicap(true);
-    out << "HA[" << histCopy.computeNumHandicapStones() << "]";
-  }
 
   out << "KM[" << rules.komi << "]";
-  out << "RU[" << (tryNicerRulesString ? rules.toStringNoKomiMaybeNice() : rules.toStringNoKomi()) << "]";
+  out << "RU[" << rules.toString() << "]";
   printGameResult(out,endHist,overrideFinishedWhiteScore);
 
   bool hasAB = false;
@@ -1914,7 +1903,7 @@ void WriteSgf::writeSgf(
 
   string comment;
   Board board(initialBoard);
-  BoardHistory hist(board,endHist.initialPla,endHist.rules,endHist.initialEncorePhase);
+  BoardHistory hist(board,endHist.initialPla,endHist.rules);
   for(size_t i = 0; i<endHist.moveHistory.size(); i++) {
     comment.clear();
     out << ";";
@@ -1929,19 +1918,9 @@ void WriteSgf::writeSgf(
       else
         out << "W[";
 
-      bool isPassForKo = hist.isPassForKo(board,loc,pla);
-      if(isPassForKo)
-        writeSgfLoc(out,Board::PASS_LOC,xSize,ySize);
-      else
-        writeSgfLoc(out,loc,xSize,ySize);
+      writeSgfLoc(out,loc,xSize,ySize);
       out << "]";
 
-      if(isPassForKo) {
-        out << "TR[";
-        writeSgfLoc(out,loc,xSize,ySize);
-        out << "]";
-        comment += "Pass for ko";
-      }
     }
 
     if(gameData != NULL && i >= startTurnIdx) {
@@ -1999,7 +1978,7 @@ void WriteSgf::writeSgf(
     if(comment.length() > 0)
       out << "C[" << comment << "]";
 
-    hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
+    hist.makeBoardMoveAssumeLegal(board,loc,pla);
 
   }
   out << ")";

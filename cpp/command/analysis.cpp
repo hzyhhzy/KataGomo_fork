@@ -319,7 +319,7 @@ int MainCmds::analysis(const vector<string>& args) {
 
     bool success = search->getAnalysisJson(
       request->perspective,
-      request->analysisPVLen, preventEncore, request->includePolicy,
+      request->analysisPVLen, request->includePolicy,
       request->includeOwnership,request->includeOwnershipStdev,
       request->includeMovesOwnership,request->includeMovesOwnershipStdev,
       request->includePVVisits,
@@ -424,7 +424,7 @@ int MainCmds::analysis(const vector<string>& args) {
   vector<AsyncBot*> bots;
   for(int threadIdx = 0; threadIdx<numAnalysisThreads; threadIdx++) {
     string searchRandSeed = Global::uint64ToHexString(seedRand.nextUInt64()) + Global::uint64ToHexString(seedRand.nextUInt64());
-    AsyncBot* bot = new AsyncBot(defaultParams, nnEval, humanEval, &logger, searchRandSeed);
+    AsyncBot* bot = new AsyncBot(defaultParams, nnEval, &logger, searchRandSeed);
     bot->setCopyOfExternalPatternBonusTable(patternBonusTable);
     threads.push_back(std::thread(analysisLoopProtected,bot,threadIdx));
     bots.push_back(bot);
@@ -1096,7 +1096,8 @@ int MainCmds::analysis(const vector<string>& args) {
         if(moveHistory.size() > 0)
           initialPlayer = moveHistory[0].pla;
         else
-          initialPlayer = BoardHistory::numHandicapStonesOnBoard(board) > 0 ? P_WHITE : P_BLACK;
+          initialPlayer =
+            board.numPlaStonesOnBoard(C_BLACK) - board.numPlaStonesOnBoard(C_WHITE) > 0 ? P_WHITE : P_BLACK;
       }
 
       bool rulesWereSupported;
@@ -1109,8 +1110,7 @@ int MainCmds::analysis(const vector<string>& args) {
       }
 
       Player nextPla = initialPlayer;
-      BoardHistory hist(board,nextPla,rules,0);
-      hist.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
+      BoardHistory hist(board,nextPla,rules);
 
       if(warnUnusedFields) {
         for (auto it = input.begin(); it != input.end(); ++it) {
@@ -1163,11 +1163,10 @@ int MainCmds::analysis(const vector<string>& args) {
         Loc moveLoc = moveHistory[turnNumber].loc;
         if(movePla != nextPla) {
           board.clearSimpleKoLoc();
-          hist.clear(board,movePla,rules,hist.encorePhase);
-          hist.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
+          hist.clear(board,movePla,rules);
         }
 
-        bool suc = hist.makeBoardMoveTolerant(board,moveLoc,movePla,preventEncore);
+        bool suc = hist.makeBoardMoveTolerant(board,moveLoc,movePla);
         if(!suc) {
           reportErrorForId(rbase.id, "moves", "Illegal move " + Global::intToString(turnNumber) + ": " + Location::toString(moveLoc,board));
           foundIllegalMove = true;

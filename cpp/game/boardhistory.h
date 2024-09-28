@@ -32,9 +32,6 @@ struct BoardHistory {
 
   //Number of consecutive passes made that count for ending the game or phase
   int consecutiveEndingPasses;
-  //All ko hashes from which a player passed
-  std::vector<Hash128> hashesBeforeBlackPass;
-  std::vector<Hash128> hashesBeforeWhitePass;
 
 
 

@@ -123,7 +123,7 @@ static void initializeDemoGame(Board& board, BoardHistory& hist, Player& pla, Ra
 
   board = Board(size,size);
   pla = P_BLACK;
-  hist.clear(board,pla,Rules::getTrompTaylorish(),0);
+  hist.clear(board,pla,Rules::getTrompTaylorish());
   bot->setPosition(pla,board,hist);
 
   if(size == 19) {
@@ -331,10 +331,10 @@ static void initializeDemoGame(Board& board, BoardHistory& hist, Player& pla, Ra
           break;
 
         //Make the move!
-        hist.makeBoardMoveAssumeLegal(board,nextMove.loc,nextMove.pla,NULL);
+        hist.makeBoardMoveAssumeLegal(board,nextMove.loc,nextMove.pla);
         pla = getOpp(pla);
 
-        hist.clear(board,pla,hist.rules,0);
+        hist.clear(board,pla,hist.rules);
         bot->setPosition(pla,board,hist);
 
         movesPlayed.push_back(nextMove);
@@ -442,7 +442,7 @@ int MainCmds::demoplay(const vector<string>& args) {
 
     Player pla = P_BLACK;
     Board baseBoard;
-    BoardHistory baseHist(baseBoard,pla,Rules::getTrompTaylorish(),0);
+    BoardHistory baseHist(baseBoard,pla,Rules::getTrompTaylorish());
     TimeControls tc;
 
     initializeDemoGame(baseBoard, baseHist, pla, gameRand, bot);
@@ -528,7 +528,7 @@ int MainCmds::demoplay(const vector<string>& args) {
       else {
         //And make the move on our copy of the board
         assert(baseHist.isLegal(baseBoard,moveLoc,pla));
-        baseHist.makeBoardMoveAssumeLegal(baseBoard,moveLoc,pla,NULL);
+        baseHist.makeBoardMoveAssumeLegal(baseBoard,moveLoc,pla);
 
         //If the game is over, skip making the move on the bot, to preserve
         //the last known value of the search tree for display purposes
@@ -972,7 +972,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
       Board board;
       Player nextPla;
       BoardHistory hist;
-      Rules rules = compactSgf.getRulesOrFailAllowUnspecified(Rules::getSimpleTerritory());
+      Rules rules = compactSgf.getRulesOrFailAllowUnspecified(Rules::getTrompTaylorish());
       compactSgf.setupInitialBoardAndHist(rules, board, nextPla, hist);
 
       if(valueFluctuationMakeKomiFair) {
@@ -1022,7 +1022,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
         moves.push_back(sgfMoves[m]);
 
         //Quit out if according to our rules, we already finished the game, or we're somehow in a cleanup phase
-        if(hist.isGameFinished || hist.encorePhase > 0)
+        if(hist.isGameFinished )
           break;
         //Quit out if consecutive moves by the same player, to keep the history clean and "normal"
         if(sgfMoves[m].pla != nextPla && m > 0) {
@@ -1033,12 +1033,12 @@ int MainCmds::samplesgfs(const vector<string>& args) {
         bool suc = hist.isLegal(board,sgfMoves[m].loc,sgfMoves[m].pla);
         if(!suc) {
           //Only log on errors that aren't simply due to ko rules, but quit out regardless
-          suc = hist.makeBoardMoveTolerant(board,sgfMoves[m].loc,sgfMoves[m].pla,preventEncore);
+          suc = hist.makeBoardMoveTolerant(board,sgfMoves[m].loc,sgfMoves[m].pla);
           if(!suc)
             logger.write("Illegal move in " + fileName + " turn " + Global::intToString(m) + " move " + Location::toString(sgfMoves[m].loc, board.x_size, board.y_size));
           break;
         }
-        hist.makeBoardMoveAssumeLegal(board,sgfMoves[m].loc,sgfMoves[m].pla,NULL,preventEncore);
+        hist.makeBoardMoveAssumeLegal(board,sgfMoves[m].loc,sgfMoves[m].pla);
         nextPla = getOpp(sgfMoves[m].pla);
       }
       boards.push_back(board);
@@ -1282,7 +1282,7 @@ static bool maybeGetValuesAfterMove(
   if(moveLoc != Board::NULL_LOC) {
     if(!hist.isLegal(newBoard,moveLoc,newNextPla))
       return false;
-    newHist.makeBoardMoveAssumeLegal(newBoard,moveLoc,newNextPla,NULL);
+    newHist.makeBoardMoveAssumeLegal(newBoard,moveLoc,newNextPla);
     newNextPla = getOpp(newNextPla);
   }
 
@@ -1593,10 +1593,6 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
       numFilteredIndivdualPoses.fetch_add(1);
       return;
     }
-    if(hist.computeNumHandicapStones() > maxHandicap) {
-      numFilteredIndivdualPoses.fetch_add(1);
-      return;
-    }
 
     {
       int numStonesOnBoard = 0;
@@ -1831,10 +1827,6 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
       numFilteredSgfs.fetch_add(1);
       return;
     }
-    if(hist.computeNumHandicapStones() > maxHandicap) {
-      numFilteredSgfs.fetch_add(1);
-      return;
-    }
 
     vector<Board> boards;
     vector<BoardHistory> hists;
@@ -1880,7 +1872,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         break;
 
       //Quit out if according to our rules, we already finished the game, or we're somehow in a cleanup phase
-      if(!allowGameOver && (hist.isGameFinished || hist.encorePhase > 0))
+      if(!allowGameOver && hist.isGameFinished)
         break;
 
       //Quit out if consecutive moves by the same player, to keep the history clean and "normal"
@@ -1892,12 +1884,12 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
       bool suc = hist.isLegal(board,sgfMoves[m].loc,sgfMoves[m].pla);
       if(!suc) {
         //Only log on errors that aren't simply due to ko rules, but quit out regardless
-        suc = hist.makeBoardMoveTolerant(board,sgfMoves[m].loc,sgfMoves[m].pla,preventEncore);
+        suc = hist.makeBoardMoveTolerant(board,sgfMoves[m].loc,sgfMoves[m].pla);
         if(!suc)
           logger.write("Illegal move in " + fileName + " turn " + Global::intToString(m) + " move " + Location::toString(sgfMoves[m].loc, board.x_size, board.y_size));
         break;
       }
-      hist.makeBoardMoveAssumeLegal(board,sgfMoves[m].loc,sgfMoves[m].pla,NULL,preventEncore);
+      hist.makeBoardMoveAssumeLegal(board,sgfMoves[m].loc,sgfMoves[m].pla);
       nextPla = getOpp(sgfMoves[m].pla);
     }
     boards.push_back(board);
@@ -2080,13 +2072,13 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     //Now play the rest of the moves out, except the last, which we keep as the potential hintloc
     int encorePhase = 0;
     Player pla = sample.nextPla;
-    BoardHistory hist(board,pla,rules,encorePhase);
+    BoardHistory hist(board,pla,rules);
     int numSampleMoves = (int)sample.moves.size();
     for(int i = 0; i<numSampleMoves; i++) {
       if(!hist.isLegal(board,sample.moves[i].loc,sample.moves[i].pla))
         return;
       assert(sample.moves[i].pla == pla);
-      hist.makeBoardMoveAssumeLegal(board,sample.moves[i].loc,sample.moves[i].pla,NULL);
+      hist.makeBoardMoveAssumeLegal(board,sample.moves[i].loc,sample.moves[i].pla);
       pla = getOpp(pla);
     }
 
@@ -2437,11 +2429,11 @@ int MainCmds::trystartposes(const vector<string>& args) {
     Board board = startPos.board;
     Player pla = startPos.nextPla;
     BoardHistory hist;
-    hist.clear(board,pla,rules,0);
+    hist.clear(board,pla,rules);
     hist.setInitialTurnNumber(startPos.initialTurnNumber);
     bool allLegal = true;
     for(size_t i = 0; i<startPos.moves.size(); i++) {
-      bool isLegal = hist.makeBoardMoveTolerant(board,startPos.moves[i].loc,startPos.moves[i].pla,false);
+      bool isLegal = hist.makeBoardMoveTolerant(board,startPos.moves[i].loc,startPos.moves[i].pla);
       if(!isLegal) {
         allLegal = false;
         break;
@@ -2606,12 +2598,12 @@ int MainCmds::viewstartposes(const vector<string>& args) {
     Board board = startPos.board;
     Player pla = startPos.nextPla;
     BoardHistory hist;
-    hist.clear(board,pla,rules,0);
+    hist.clear(board,pla,rules);
     hist.setInitialTurnNumber(startPos.initialTurnNumber);
 
     bool allLegal = true;
     for(size_t i = 0; i<startPos.moves.size(); i++) {
-      bool isLegal = hist.makeBoardMoveTolerant(board,startPos.moves[i].loc,startPos.moves[i].pla,false);
+      bool isLegal = hist.makeBoardMoveTolerant(board,startPos.moves[i].loc,startPos.moves[i].pla);
       if(!isLegal) {
         allLegal = false;
         break;

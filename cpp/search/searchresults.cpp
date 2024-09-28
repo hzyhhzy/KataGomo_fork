@@ -326,108 +326,6 @@ bool Search::getPlaySelectionValues(
     }
   }
 
-  // Average in human policy
-  if(humanEvaluator != NULL &&
-     (searchParams.humanSLProfile.initialized || !humanEvaluator->requiresSGFMetadata()) &&
-     searchParams.humanSLChosenMoveProp > 0.0
-  ) {
-    const NNOutput* humanOutput = node.getHumanOutput();
-    const float* humanProbs = humanOutput != NULL ? humanOutput->getPolicyProbsMaybeNoised() : NULL;
-    if(humanProbs != NULL) {
-      // First, take a pass to just fill out all the legal/allowed moves into the play selection values, if allowed, and if at root.
-      if(&node == rootNode && allowDirectPolicyMoves) {
-        std::set<Loc> locsSet(locs.begin(),locs.end());
-        for(int movePos = 0; movePos<policySize; movePos++) {
-          Loc moveLoc = NNPos::posToLoc(movePos,rootBoard.x_size,rootBoard.y_size,nnXLen,nnYLen);
-          double humanProb = humanProbs[movePos];
-          const bool obeyAllowedRootMove = true;
-          if(!isOkayRawPolicyMoveAtRoot(moveLoc,humanProb,obeyAllowedRootMove))
-            continue;
-          if(contains(locsSet,moveLoc))
-            continue;
-          locs.push_back(moveLoc);
-          locsSet.insert(moveLoc);
-          playSelectionValues.push_back(0.0); // Pushing zeros since we're just filling in
-          numChildren++;
-        }
-      }
-
-      // Grab utility on the moves we have utilities for.
-      std::map<Loc,double> shiftedPolicy;
-      std::map<Loc,double> selfUtilities;
-      double selfUtilityMax = -1e10;
-      double selfUtilitySum = 0.0;
-      for(int i = 0; i<childrenCapacity; i++) {
-        const SearchChildPointer& childPointer = children[i];
-        const SearchNode* child = childPointer.getIfAllocated();
-        if(child == NULL)
-          break;
-        Loc moveLoc = childPointer.getMoveLocRelaxed();
-        double humanProb = humanProbs[getPos(moveLoc)];
-        if((suppressPass && moveLoc == Board::PASS_LOC) || humanProb < 0)
-          humanProb = 0.0;
-
-        shiftedPolicy[moveLoc] = humanProb;
-        selfUtilities[moveLoc] = (rootPla == P_WHITE ? 1 : -1) * child->stats.utilityAvg.load(std::memory_order_acquire);
-        selfUtilityMax = std::max(selfUtilityMax, selfUtilities[moveLoc]);
-        selfUtilitySum += selfUtilities[moveLoc];
-      }
-      // Straight linear average. Use this to complete the remaining utilities, i.e. for fpu
-      double selfUtilityAvg = selfUtilitySum / std::max((size_t)1, selfUtilities.size());
-      selfUtilityMax = std::max(selfUtilityMax, selfUtilityAvg); // In case of 0 size
-      for(Loc loc: locs) {
-        if(!contains(shiftedPolicy,loc)) {
-          double humanProb = humanProbs[getPos(loc)];
-          if((suppressPass && loc == Board::PASS_LOC) || humanProb < 0)
-            humanProb = 0.0;
-          shiftedPolicy[loc] = humanProb;
-          selfUtilities[loc] = selfUtilityAvg;
-        }
-      }
-      // Perform shift
-      for(Loc loc: locs)
-        shiftedPolicy[loc] *= exp((selfUtilities[loc] - selfUtilityMax)/searchParams.humanSLChosenMovePiklLambda);
-
-      double shiftedPolicySum = 0.0;
-      for(Loc loc: locs)
-        shiftedPolicySum += shiftedPolicy[loc];
-
-      // Renormalize and average in to current play selection values, scaling up to the current sum scale of playSelectionValues.
-      if(shiftedPolicySum > 0.0) {
-        for(Loc loc: locs)
-          shiftedPolicy[loc] /= shiftedPolicySum;
-
-        double playSelectionValueSum = 0.0;
-        double playSelectionValueNonPassSum = 0.0;
-        for(int i = 0; i<numChildren; i++) {
-          playSelectionValueSum += playSelectionValues[i];
-          if(locs[i] != Board::PASS_LOC)
-            playSelectionValueNonPassSum += playSelectionValues[i];
-        }
-
-        if(searchParams.humanSLChosenMoveIgnorePass) {
-          double shiftedPolicyNonPassSum = 0.0;
-          for(Loc loc: locs) {
-            if(loc != Board::PASS_LOC)
-              shiftedPolicyNonPassSum += shiftedPolicy[loc];
-          }
-          if(shiftedPolicyNonPassSum > 0.0) {
-            for(Loc loc: locs) {
-              if(loc != Board::PASS_LOC)
-                shiftedPolicy[loc] = shiftedPolicy[loc] / shiftedPolicyNonPassSum * playSelectionValueNonPassSum / playSelectionValueSum;
-              else
-                shiftedPolicy[loc] = (playSelectionValueSum - playSelectionValueNonPassSum) / playSelectionValueSum;
-            }
-          }
-        }
-
-        for(int i = 0; i<numChildren; i++) {
-          playSelectionValues[i] += searchParams.humanSLChosenMoveProp * (playSelectionValueSum * shiftedPolicy[locs[i]] - playSelectionValues[i]);
-        }
-      }
-    }
-  }
-
   maxValue = 0.0;
   for(int i = 0; i<numChildren; i++) {
     if(playSelectionValues[i] > maxValue)
@@ -1991,7 +1889,6 @@ std::pair<std::vector<double>,std::vector<double>> Search::getAverageAndStandard
 bool Search::getAnalysisJson(
   const Player perspective,
   int analysisPVLen,
-  bool preventEncore,
   bool includePolicy,
   bool includeOwnership,
   bool includeOwnershipStdev,
@@ -2059,8 +1956,7 @@ bool Search::getAnalysisJson(
     moveInfo["edgeWeight"] = Global::roundDynamic(data.weightSum,OUTPUT_PRECISION);
 
     json pv = json::array();
-    int pvLen =
-      (preventEncore && data.pvContainsPass()) ? data.getPVLenUpToPhaseEnd(board, hist, rootPla) : (int)data.pv.size();
+    int pvLen = (int)data.pv.size();
     for(int j = 0; j < pvLen; j++)
       pv.push_back(Location::toString(data.pv[j], board));
     moveInfo["pv"] = pv;

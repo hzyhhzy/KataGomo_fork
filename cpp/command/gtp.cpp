@@ -169,15 +169,13 @@ static int parseByoYomiPeriods(const vector<string>& args, int argIdx) {
 
 //Assumes that stones are worth 15 points area and 14 points territory, and that 7 komi is fair
 static double initialBlackAdvantage(const BoardHistory& hist) {
-  BoardHistory histCopy = hist;
-  histCopy.setAssumeMultipleStartingBlackMovesAreHandicap(true);
-  int handicapStones = histCopy.computeNumHandicapStones();
-  if(handicapStones <= 1)
-    return 7.0 - hist.rules.komi;
-
+  
   //Subtract one since white gets the first move afterward
-  int extraBlackStones = handicapStones - 1;
-  double stoneValue = hist.rules.scoringRule == Rules::SCORING_AREA ? 15.0 : 14.0;
+  int extraBlackStones =
+    hist.initialBoard.numPlaStonesOnBoard(C_BLACK) - hist.initialBoard.numPlaStonesOnBoard(C_WHITE);
+  if(hist.initialPla == C_WHITE)
+    extraBlackStones -= 1;
+  double stoneValue = 14.0;
 
   return stoneValue * extraBlackStones + (7.0 - hist.rules.komi);
 }
@@ -331,7 +329,6 @@ struct GTPEngine {
   GTPEngine& operator=(const GTPEngine&) = delete;
 
   const string nnModelFile;
-  const string humanModelFile;
   const bool assumeMultipleStartingBlackMovesAreHandicap;
   const int analysisPVLen;
   const bool preventEncore;
@@ -340,10 +337,8 @@ struct GTPEngine {
   const double dynamicPlayoutDoublingAdvantageCapPerOppLead;
   bool staticPDATakesPrecedence;
   double normalAvoidRepeatedPatternUtility;
-  double handicapAvoidRepeatedPatternUtility;
 
   NNEvaluator* nnEval;
-  NNEvaluator* humanEval;
   AsyncBot* bot;
   Rules currentRules; //Should always be the same as the rules in bot, if bot is not NULL.
 
@@ -381,10 +376,10 @@ struct GTPEngine {
   std::vector<Sgf::PositionSample> genmoveSamples;
 
   GTPEngine(
-    const string& modelFile, const string& hModelFile,
+    const string& modelFile,
     SearchParams initialGenmoveParams, SearchParams initialAnalysisParams,
     Rules initialRules,
-    bool assumeMultiBlackHandicap, bool prevtEncore, bool autoPattern,
+    bool autoPattern,
     double dynamicPDACapPerOppLead, bool staticPDAPrecedence,
     double normAvoidRepeatedPatternUtility, double hcapAvoidRepeatedPatternUtility,
     double delayScale, double delayMax,
@@ -392,17 +387,12 @@ struct GTPEngine {
     std::unique_ptr<PatternBonusTable>&& pbTable
   )
     :nnModelFile(modelFile),
-     humanModelFile(hModelFile),
-     assumeMultipleStartingBlackMovesAreHandicap(assumeMultiBlackHandicap),
      analysisPVLen(pvLen),
-     preventEncore(prevtEncore),
      autoAvoidPatterns(autoPattern),
      dynamicPlayoutDoublingAdvantageCapPerOppLead(dynamicPDACapPerOppLead),
      staticPDATakesPrecedence(staticPDAPrecedence),
      normalAvoidRepeatedPatternUtility(normAvoidRepeatedPatternUtility),
-     handicapAvoidRepeatedPatternUtility(hcapAvoidRepeatedPatternUtility),
      nnEval(NULL),
-     humanEval(NULL),
      bot(NULL),
      currentRules(initialRules),
      genmoveParams(initialGenmoveParams),
@@ -432,7 +422,6 @@ struct GTPEngine {
     stopAndWait();
     delete bot;
     delete nnEval;
-    delete humanEval;
   }
 
   void stopAndWait() {
@@ -476,10 +465,8 @@ struct GTPEngine {
         bot->stopAndWait();
         delete bot;
         delete nnEval;
-        delete humanEval;
         bot = NULL;
         nnEval = NULL;
-        humanEval = NULL;
         logger.write("Cleaned up old neural net and bot");
       }
 
@@ -493,27 +480,12 @@ struct GTPEngine {
         Setup::SETUP_FOR_GTP
       );
       logger.write("Loaded neural net with nnXLen " + Global::intToString(nnEval->getNNXLen()) + " nnYLen " + Global::intToString(nnEval->getNNYLen()));
-      if(humanModelFile != "") {
-        humanEval = Setup::initializeNNEvaluator(
-          humanModelFile,humanModelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
-          nnXLen,nnYLen,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
-          Setup::SETUP_FOR_GTP
-        );
-        logger.write("Loaded human SL net with nnXLen " + Global::intToString(humanEval->getNNXLen()) + " nnYLen " + Global::intToString(humanEval->getNNYLen()));
-        if(!humanEval->requiresSGFMetadata()) {
-          string warning;
-          warning += "WARNING: Human model was not trained from SGF metadata to vary by rank! Did you pass the wrong model for -human-model?\n";
-          logger.write(warning);
-          if(!loggingToStderr)
-            cerr << warning << endl;
-        }
-      }
-
+      
       {
         bool rulesWereSupported;
         nnEval->getSupportedRules(currentRules,rulesWereSupported);
         if(!rulesWereSupported) {
-          throw StringError("Rules " + currentRules.toJsonStringNoKomi() + " from config file " + cfg.getFileName() + " are NOT supported by neural net");
+          throw StringError("Rules " + currentRules.toJsonString() + " from config file " + cfg.getFileName() + " are NOT supported by neural net");
         }
       }
     }
@@ -545,12 +517,12 @@ struct GTPEngine {
       else
         searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
 
-      bot = new AsyncBot(genmoveParams, nnEval, humanEval, &logger, searchRandSeed);
+      bot = new AsyncBot(genmoveParams, nnEval, &logger, searchRandSeed);
       bot->setCopyOfExternalPatternBonusTable(patternBonusTable);
 
       Board board(boardXSize,boardYSize);
       Player pla = P_BLACK;
-      BoardHistory hist(board,pla,currentRules,0);
+      BoardHistory hist(board,pla,currentRules);
       vector<Move> newMoveHistory;
       setPositionAndRules(pla,board,hist,board,pla,newMoveHistory);
       clearStatsForNewGame();
@@ -565,9 +537,6 @@ struct GTPEngine {
 
   void setPositionAndRules(Player pla, const Board& board, const BoardHistory& h, const Board& newInitialBoard, Player newInitialPla, const vector<Move> newMoveHistory) {
     BoardHistory hist(h);
-    //Ensure we always have this value correct
-    hist.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
-
     currentRules = hist.rules;
     bot->setPosition(pla,board,hist);
     initialBoard = newInitialBoard;
@@ -583,7 +552,7 @@ struct GTPEngine {
     int newYSize = bot->getRootBoard().y_size;
     Board board(newXSize,newYSize);
     Player pla = P_BLACK;
-    BoardHistory hist(board,pla,currentRules,0);
+    BoardHistory hist(board,pla,currentRules);
     vector<Move> newMoveHistory;
     setPositionAndRules(pla,board,hist,board,pla,newMoveHistory);
     clearStatsForNewGame();
@@ -606,7 +575,7 @@ struct GTPEngine {
       }
     }
     Player pla = P_BLACK;
-    BoardHistory hist(board,pla,currentRules,0);
+    BoardHistory hist(board,pla,currentRules);
     hist.setInitialTurnNumber(board.numStonesOnBoard()); //Heuristic to guess at what turn this is
     vector<Move> newMoveHistory;
     setPositionAndRules(pla,board,hist,board,pla,newMoveHistory);
@@ -630,7 +599,7 @@ struct GTPEngine {
 
   bool play(Loc loc, Player pla) {
     assert(bot->getRootHist().rules == currentRules);
-    bool suc = bot->makeMove(loc,pla,preventEncore);
+    bool suc = bot->makeMove(loc,pla);
     if(suc)
       moveHistory.push_back(Move(loc,pla));
     return suc;
@@ -644,7 +613,7 @@ struct GTPEngine {
     vector<Move> moveHistoryCopy = moveHistory;
 
     Board undoneBoard = initialBoard;
-    BoardHistory undoneHist(undoneBoard,initialPla,currentRules,0);
+    BoardHistory undoneHist(undoneBoard,initialPla,currentRules);
     undoneHist.setInitialTurnNumber(bot->getRootHist().initialTurnNumber);
     vector<Move> emptyMoveHistory;
     setPositionAndRules(initialPla,undoneBoard,undoneHist,initialBoard,initialPla,emptyMoveHistory);
@@ -667,14 +636,14 @@ struct GTPEngine {
     bool rulesWereSupported;
     nnEval->getSupportedRules(newRules,rulesWereSupported);
     if(!rulesWereSupported) {
-      error = "Rules " + newRules.toJsonStringNoKomi() + " are not supported by this neural net version";
+      error = "Rules " + newRules.toJsonString() + " are not supported by this neural net version";
       return false;
     }
 
     vector<Move> moveHistoryCopy = moveHistory;
 
     Board board = initialBoard;
-    BoardHistory hist(board,initialPla,newRules,0);
+    BoardHistory hist(board,initialPla,newRules);
     hist.setInitialTurnNumber(bot->getRootHist().initialTurnNumber);
     vector<Move> emptyMoveHistory;
     setPositionAndRules(initialPla,board,hist,initialBoard,initialPla,emptyMoveHistory);
@@ -1023,7 +992,7 @@ struct GTPEngine {
     handleGenMoveResult(pla,bot->getSearchStopAndWait(),logger,gargs,args,genmoveMoveLoc,response,responseIsError,moveLocToPlay);
     printGTPResponse(response,responseIsError);
     if(moveLocToPlay != Board::NULL_LOC && playChosenMove) {
-      bool suc = bot->makeMove(moveLocToPlay,pla,preventEncore);
+      bool suc = bot->makeMove(moveLocToPlay,pla);
       if(suc)
         moveHistory.push_back(Move(moveLocToPlay,pla));
       assert(suc);
@@ -1070,8 +1039,6 @@ struct GTPEngine {
     genmoveTimer.reset();
 
     nnEval->clearStats();
-    if(humanEval != NULL)
-      humanEval->clearStats();
     TimeControls tc = pla == P_BLACK ? bTimeControls : wTimeControls;
 
     if(!isGenmoveParams) {
@@ -1097,11 +1064,6 @@ struct GTPEngine {
 
     {
       double avoidRepeatedPatternUtility = normalAvoidRepeatedPatternUtility;
-      if(!args.analyzing) {
-        double initialOppAdvantage = initialBlackAdvantage(bot->getRootHist()) * (pla == P_WHITE ? 1 : -1);
-        if(initialOppAdvantage > getPointsThresholdForHandicapGame(getBoardSizeScaling(bot->getRootBoard())))
-          avoidRepeatedPatternUtility = handicapAvoidRepeatedPatternUtility;
-      }
       paramsToUse.avoidRepeatedPatternUtility = avoidRepeatedPatternUtility;
     }
 
@@ -1290,8 +1252,6 @@ struct GTPEngine {
   void clearCache() {
     bot->clearSearch();
     nnEval->clearCache();
-    if(humanEval != NULL)
-      humanEval->clearCache();
   }
 
   void placeFixedHandicap(int n, string& response, bool& responseIsError) {
@@ -1309,11 +1269,10 @@ struct GTPEngine {
     assert(bot->getRootHist().rules == currentRules);
 
     Player pla = P_BLACK;
-    BoardHistory hist(board,pla,currentRules,0);
+    BoardHistory hist(board,pla,currentRules);
 
     //Also switch the initial player, expecting white should be next.
-    hist.clear(board,P_WHITE,currentRules,0);
-    hist.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
+    hist.clear(board,P_WHITE,currentRules);
     hist.setInitialTurnNumber(board.numStonesOnBoard()); //Should give more accurate temperaure and time control behavior
     pla = P_WHITE;
 
@@ -1350,12 +1309,11 @@ struct GTPEngine {
 
     Board board(xSize,ySize);
     Player pla = P_BLACK;
-    BoardHistory hist(board,pla,currentRules,0);
+    BoardHistory hist(board,pla,currentRules);
     double extraBlackTemperature = 0.25;
     PlayUtils::playExtraBlack(bot->getSearchStopAndWait(), n, board, hist, extraBlackTemperature, rand);
     //Also switch the initial player, expecting white should be next.
-    hist.clear(board,P_WHITE,currentRules,0);
-    hist.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
+    hist.clear(board,P_WHITE,currentRules);
     hist.setInitialTurnNumber(board.numStonesOnBoard()); //Should give more accurate temperaure and time control behavior
     pla = P_WHITE;
 
@@ -1425,10 +1383,8 @@ struct GTPEngine {
     Player pla = bot->getRootPla();
 
     //Tromp-taylorish scoring, or finished territory game scoring (including noresult)
-    if(hist.isGameFinished && (
-         (hist.rules.scoringRule == Rules::SCORING_AREA && !hist.rules.friendlyPassOk) 
-       )
-    ) {
+    if(hist.isGameFinished) 
+    {
       //For GTP purposes, we treat noResult as a draw since there is no provision for anything else.
       winner = hist.winner;
       finalWhiteMinusBlackScore = hist.finalWhiteMinusBlackScore;
@@ -1488,10 +1444,7 @@ struct GTPEngine {
     int64_t numVisits = std::max(100, genmoveParams.numThreads * 20);
     vector<bool> isAlive;
     //Tromp-taylorish statuses, or finished territory game statuses (including noresult)
-    if(hist.isGameFinished && (
-         (hist.rules.scoringRule == Rules::SCORING_AREA && !hist.rules.friendlyPassOk) 
-       )
-    )
+    if(hist.isGameFinished)
       isAlive = PlayUtils::computeAnticipatedStatusesSimple(board,hist);
     //Human-friendly statuses or incomplete game status estimation
     else {
@@ -1526,7 +1479,7 @@ struct GTPEngine {
       prevBoard = board;
       prevHist = hist;
       prevLoc = loc;
-      bool suc = hist.makeBoardMoveTolerant(board, loc, pla, false);
+      bool suc = hist.makeBoardMoveTolerant(board, loc, pla);
       if(!suc)
         return "illegal move sequence";
       pla = getOpp(pla);
@@ -1575,8 +1528,8 @@ struct GTPEngine {
     return Global::trim(policyStr + "\n" + wlStr + "\n" + leadStr);
   }
 
-  string rawNN(int whichSymmetry, double policyOptimism, bool useHumanModel) {
-    NNEvaluator* nnEvalToUse = useHumanModel ? humanEval : nnEval;
+  string rawNN(int whichSymmetry, double policyOptimism) {
+    NNEvaluator* nnEvalToUse = nnEval;
     if(nnEvalToUse == NULL)
       return "";
     ostringstream out;
@@ -1603,16 +1556,12 @@ struct GTPEngine {
         out << "whiteWin " << Global::strprintf("%.6f",nnOutput->whiteWinProb) << endl;
         out << "whiteLoss " << Global::strprintf("%.6f",nnOutput->whiteLossProb) << endl;
         out << "noResult " << Global::strprintf("%.6f",nnOutput->whiteNoResultProb) << endl;
-        if(useHumanModel) {
-          out << "whiteScore " << Global::strprintf("%.3f",nnOutput->whiteScoreMean) << endl;
-          out << "whiteScoreSq " << Global::strprintf("%.3f",nnOutput->whiteScoreMeanSq) << endl;
-        }
-        else {
-          out << "whiteLead " << Global::strprintf("%.3f",nnOutput->whiteLead) << endl;
-          out << "whiteScoreSelfplay " << Global::strprintf("%.3f",nnOutput->whiteScoreMean) << endl;
-          out << "whiteScoreSelfplaySq " << Global::strprintf("%.3f",nnOutput->whiteScoreMeanSq) << endl;
-          out << "varTimeLeft " << Global::strprintf("%.3f",nnOutput->varTimeLeft) << endl;
-        }
+        
+        out << "whiteLead " << Global::strprintf("%.3f",nnOutput->whiteLead) << endl;
+        out << "whiteScoreSelfplay " << Global::strprintf("%.3f",nnOutput->whiteScoreMean) << endl;
+        out << "whiteScoreSelfplaySq " << Global::strprintf("%.3f",nnOutput->whiteScoreMeanSq) << endl;
+        out << "varTimeLeft " << Global::strprintf("%.3f",nnOutput->varTimeLeft) << endl;
+        
         out << "shorttermWinlossError " << Global::strprintf("%.3f",nnOutput->shorttermWinlossError) << endl;
         out << "shorttermScoreError " << Global::strprintf("%.3f",nnOutput->shorttermScoreError) << endl;
 
@@ -1920,9 +1869,9 @@ int MainCmds::gtp(const vector<string>& args) {
   //Defaults to 7.5 komi, gtp will generally override this
   const bool loadKomiFromCfg = false;
   Rules initialRules = Setup::loadSingleRules(cfg,loadKomiFromCfg);
-  logger.write("Using " + initialRules.toStringNoKomiMaybeNice() + " rules initially, unless GTP/GUI overrides this");
+  logger.write("Using " + initialRules.toString() + " rules initially, unless GTP/GUI overrides this");
   if(startupPrintMessageToStderr && !logger.isLoggingToStderr()) {
-    cerr << "Using " + initialRules.toStringNoKomiMaybeNice() + " rules initially, unless GTP/GUI overrides this" << endl;
+    cerr << "Using " + initialRules.toString() + " rules initially, unless GTP/GUI overrides this" << endl;
   }
   bool isForcingKomi = false;
   float forcedKomi = 0;
@@ -1981,9 +1930,6 @@ int MainCmds::gtp(const vector<string>& args) {
   const double searchFactorWhenWinningThreshold = cfg.contains("searchFactorWhenWinningThreshold") ? cfg.getDouble("searchFactorWhenWinningThreshold",0.0,1.0) : 1.0;
   const bool ogsChatToStderr = cfg.contains("ogsChatToStderr") ? cfg.getBool("ogsChatToStderr") : false;
   const int analysisPVLen = cfg.contains("analysisPVLen") ? cfg.getInt("analysisPVLen",1,1000) : 13;
-  const bool assumeMultipleStartingBlackMovesAreHandicap =
-    cfg.contains("assumeMultipleStartingBlackMovesAreHandicap") ? cfg.getBool("assumeMultipleStartingBlackMovesAreHandicap") : true;
-  const bool preventEncore = cfg.contains("preventCleanupPhase") ? cfg.getBool("preventCleanupPhase") : true;
   const double dynamicPlayoutDoublingAdvantageCapPerOppLead =
     cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead") ? cfg.getDouble("dynamicPlayoutDoublingAdvantageCapPerOppLead",0.0,0.5) : 0.045;
   bool staticPDATakesPrecedence = cfg.contains("playoutDoublingAdvantage") && !cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead");
@@ -2026,10 +1972,10 @@ int MainCmds::gtp(const vector<string>& args) {
   Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
 
   GTPEngine* engine = new GTPEngine(
-    nnModelFile,humanModelFile,
+    nnModelFile,
     initialGenmoveParams,initialAnalysisParams,
     initialRules,
-    assumeMultipleStartingBlackMovesAreHandicap,preventEncore,autoAvoidPatterns,
+    autoAvoidPatterns,
     dynamicPlayoutDoublingAdvantageCapPerOppLead,
     staticPDATakesPrecedence,
     normalAvoidRepeatedPatternUtility, handicapAvoidRepeatedPatternUtility,
@@ -3341,7 +3287,7 @@ int MainCmds::gtp(const vector<string>& args) {
             sgfBoard = sgfInitialBoard;
             sgfNextPla = sgfInitialNextPla;
             sgfHist = sgfInitialHist;
-            sgf->playMovesTolerant(sgfBoard,sgfNextPla,sgfHist,moveNumber,preventEncore);
+            sgf->playMovesTolerant(sgfBoard,sgfNextPla,sgfHist,moveNumber);
 
             delete sgf;
             sgf = NULL;
@@ -3462,38 +3408,7 @@ int MainCmds::gtp(const vector<string>& args) {
         }
         else {
           const bool useHumanModel = false;
-          response = engine->rawNN(whichSymmetry, policyOptimism, useHumanModel);
-        }
-      }
-    }
-
-    else if(command == "kata-raw-human-nn") {
-      int whichSymmetry = NNInputs::SYMMETRY_ALL;
-      bool parsed = false;
-      if(pieces.size() == 1) {
-        string s = Global::trim(Global::toLower(pieces[0]));
-        if(s == "all")
-          parsed = true;
-        else if(Global::tryStringToInt(s,whichSymmetry) && whichSymmetry >= 0 && whichSymmetry <= SymmetryHelpers::NUM_SYMMETRIES-1)
-          parsed = true;
-      }
-      if(!parsed) {
-        responseIsError = true;
-        response = "Expected one argument 'all' or symmetry index [0-7] for kata-raw-human-nn but got '" + Global::concat(pieces," ") + "'";
-      }
-      else {
-        if(engine->humanEval == NULL) {
-          responseIsError = true;
-          response = "Cannot run kata-raw-human-nn, -human-model was not provided";
-        }
-        else if(!(engine->getGenmoveParams().humanSLProfile.initialized || !engine->humanEval->requiresSGFMetadata())) {
-          responseIsError = true;
-          response = "Cannot run kata-raw-human-nn, humanSLProfile parameter was not set";
-        }
-        else {
-          double policyOptimism = engine->getGenmoveParams().rootPolicyOptimism;
-          const bool useHumanModel = true;
-          response = engine->rawNN(whichSymmetry, policyOptimism, useHumanModel);
+          response = engine->rawNN(whichSymmetry, policyOptimism);
         }
       }
     }
@@ -3530,7 +3445,7 @@ int MainCmds::gtp(const vector<string>& args) {
         BoardHistory hist = engine->bot->getRootHist();
         bool allLegal = true;
         for(Loc loc: options.branch_) {
-          bool suc = hist.makeBoardMoveTolerant(board, loc, pla, false);
+          bool suc = hist.makeBoardMoveTolerant(board, loc, pla);
           if(!suc) {
             allLegal = false;
             break;

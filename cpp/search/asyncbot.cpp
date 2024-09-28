@@ -41,7 +41,6 @@ AsyncBot::AsyncBot(
 AsyncBot::AsyncBot(
   SearchParams params,
   NNEvaluator* nnEval,
-  NNEvaluator* humanEval,
   Logger* l,
   const string& randSeed
 )

@@ -88,7 +88,6 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, NNEvaluator* humanEval,
    lastSearchNumPlayouts(0),
    effectiveSearchTimeCarriedOver(0.0),
    randSeed(rSeed),
-   rootKoHashTable(NULL),
    valueWeightDistribution(NULL),
    patternBonusTable(NULL),
    externalPatternBonusTable(nullptr),
@@ -122,8 +121,6 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, NNEvaluator* humanEval,
       throw StringError("Search::init - humanEval has different nnXLen or nnYLen");
   }
 
-  rootKoHashTable = new KoHashTable();
-
   rootSafeArea = new Color[Board::MAX_ARR_SIZE];
 
   valueWeightDistribution = new DistributionTable(
@@ -138,15 +135,13 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, NNEvaluator* humanEval,
   nodeTable = new SearchNodeTable(params.nodeTableShardsPowerOfTwo);
   mutexPool = new MutexPool(nodeTable->mutexPool->getNumMutexes());
 
-  rootHistory.clear(rootBoard,rootPla,Rules(),0);
-  rootKoHashTable->recompute(rootHistory);
+  rootHistory.clear(rootBoard,rootPla,Rules());
 }
 
 Search::~Search() {
   clearSearch();
 
   delete[] rootSafeArea;
-  delete rootKoHashTable;
   delete valueWeightDistribution;
 
   delete nodeTable;
@@ -180,7 +175,6 @@ void Search::setPosition(Player pla, const Board& board, const BoardHistory& his
   plaThatSearchIsFor = C_EMPTY;
   rootBoard = board;
   rootHistory = history;
-  rootKoHashTable->recompute(rootHistory);
   avoidMoveUntilByLocBlack.clear();
   avoidMoveUntilByLocWhite.clear();
 }
@@ -191,12 +185,8 @@ void Search::setPlayerAndClearHistory(Player pla) {
   plaThatSearchIsFor = C_EMPTY;
   rootBoard.clearSimpleKoLoc();
   Rules rules = rootHistory.rules;
-  //Preserve this value even when we get multiple moves in a row by some player
-  bool assumeMultipleStartingBlackMovesAreHandicap = rootHistory.assumeMultipleStartingBlackMovesAreHandicap;
-  rootHistory.clear(rootBoard,rootPla,rules,rootHistory.encorePhase);
-  rootHistory.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
+  rootHistory.clear(rootBoard,rootPla,rules);
 
-  rootKoHashTable->recompute(rootHistory);
 
   //If changing the player alone, don't clear these, leave the user's setting - the user may have tried
   //to adjust the player or will be calling runWholeSearchAndGetMove with a different player and will
@@ -322,11 +312,8 @@ bool Search::isLegalStrict(Loc moveLoc, Player movePla) const {
   return movePla == rootPla && rootHistory.isLegal(rootBoard,moveLoc,movePla);
 }
 
-bool Search::makeMove(Loc moveLoc, Player movePla) {
-  return makeMove(moveLoc,movePla,false);
-}
 
-bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
+bool Search::makeMove(Loc moveLoc, Player movePla) {
   if(!isLegalTolerant(moveLoc,movePla))
     return false;
 
@@ -388,21 +375,14 @@ bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
     }
   }
 
-  //If the white handicap bonus changes due to the move, we will also need to recompute everything since this is
-  //basically like a change to the komi.
-  float oldWhiteHandicapBonusScore = rootHistory.whiteHandicapBonusScore;
 
-  rootHistory.makeBoardMoveAssumeLegal(rootBoard,moveLoc,rootPla,rootKoHashTable,preventEncore);
+  rootHistory.makeBoardMoveAssumeLegal(rootBoard,moveLoc,rootPla);
   rootPla = getOpp(rootPla);
-  rootKoHashTable->recompute(rootHistory);
 
   //Explicitly clear avoid move arrays when we play a move - user needs to respecify them if they want them.
   avoidMoveUntilByLocBlack.clear();
   avoidMoveUntilByLocWhite.clear();
 
-  //If we're newly inferring some moves as handicap that we weren't before, clear since score will be wrong.
-  if(rootHistory.whiteHandicapBonusScore != oldWhiteHandicapBonusScore)
-    clearSearch();
 
   //In the case that we are conservativePass and a pass would end the game, need to clear the search.
   //This is because deeper in the tree, such a node would have been explored as ending the game, but now that
@@ -410,10 +390,7 @@ bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
   if(searchParams.conservativePass && rootHistory.passWouldEndGame(rootBoard,rootPla))
     clearSearch();
 
-  //In the case that we're preventing encore, and the phase would have ended, we also need to clear the search
-  //since the search was conducted on the assumption that we're going into encore now.
-  if(preventEncore && rootHistory.passWouldEndPhase(rootBoard,rootPla))
-    clearSearch();
+  
 
   return true;
 }
@@ -1258,12 +1235,8 @@ bool Search::playoutDescend(
       assert(childrenCapacity > bestChildIdx);
       (void)childrenCapacity;
 
-      //We can only test this before we make the move, so do it now.
-      const bool forceNonTerminalDueToFriendlyPass =
-        bestChildMoveLoc == Board::PASS_LOC && thread.history.shouldSuppressEndGameFromFriendlyPass(thread.board, thread.pla);
-
       //Make the move! We need to make the move before we create the node so we can see the new state and get the right graphHash.
-      thread.history.makeBoardMoveAssumeLegal(thread.board,bestChildMoveLoc,thread.pla,rootKoHashTable);
+      thread.history.makeBoardMoveAssumeLegal(thread.board,bestChildMoveLoc,thread.pla);
       thread.pla = getOpp(thread.pla);
       if(searchParams.useGraphSearch)
         thread.graphHash = GraphHash::getGraphHash(
@@ -1273,8 +1246,7 @@ bool Search::playoutDescend(
       //If conservative pass, passing from the root is always non-terminal
       //If friendly passing rules, we might also be non-terminal
       const bool forceNonTerminal = bestChildMoveLoc == Board::PASS_LOC && (
-        (searchParams.conservativePass && (&node == rootNode)) ||
-        forceNonTerminalDueToFriendlyPass
+        (searchParams.conservativePass && (&node == rootNode)) 
       );
       child = allocateOrFindNode(thread, thread.pla, bestChildMoveLoc, forceNonTerminal, thread.graphHash);
       child->virtualLosses.fetch_add(1,std::memory_order_release);
@@ -1328,7 +1300,7 @@ bool Search::playoutDescend(
       }
 
       //Make the move!
-      thread.history.makeBoardMoveAssumeLegal(thread.board,bestChildMoveLoc,thread.pla,rootKoHashTable);
+      thread.history.makeBoardMoveAssumeLegal(thread.board,bestChildMoveLoc,thread.pla);
       thread.pla = getOpp(thread.pla);
       if(searchParams.useGraphSearch)
         thread.graphHash = GraphHash::getGraphHash(
