@@ -74,7 +74,6 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const strin
    avoidMoveUntilByLocBlack(),avoidMoveUntilByLocWhite(),avoidMoveUntilRescaleRoot(false),
    rootSymmetries(),
    rootPruneOnlySymmetries(),
-   rootSafeArea(NULL),
    recentScoreCenter(0.0),
    mirroringPla(C_EMPTY),
    mirrorAdvantage(0.0),
@@ -112,9 +111,6 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const strin
   assert(nnYLen > 0 && nnYLen <= NNPos::MAX_BOARD_LEN);
   policySize = NNPos::getPolicySize(nnXLen,nnYLen);
 
-
-  rootSafeArea = new Color[Board::MAX_ARR_SIZE];
-
   valueWeightDistribution = new DistributionTable(
     [](double z) { return FancyMath::tdistpdf(z,VALUE_WEIGHT_DEGREES_OF_FREEDOM); },
     [](double z) { return FancyMath::tdistcdf(z,VALUE_WEIGHT_DEGREES_OF_FREEDOM); },
@@ -133,7 +129,6 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const strin
 Search::~Search() {
   clearSearch();
 
-  delete[] rootSafeArea;
   delete valueWeightDistribution;
 
   delete nodeTable;
@@ -993,18 +988,7 @@ void Search::recursivelyRecomputeStats(SearchNode& n) {
 
 
 void Search::computeRootValues() {
-  //rootSafeArea is strictly pass-alive groups and strictly safe territory.
-  bool nonPassAliveStones = false;
-  bool safeBigTerritories = false;
-  bool unsafeBigTerritories = false;
-  bool isMultiStoneSuicideLegal = rootHistory.rules.multiStoneSuicideLegal;
-  rootBoard.calculateArea(
-    rootSafeArea,
-    nonPassAliveStones,
-    safeBigTerritories,
-    unsafeBigTerritories,
-    isMultiStoneSuicideLegal
-  );
+  
 
   //Figure out how to set recentScoreCenter
   {

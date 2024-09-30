@@ -703,27 +703,13 @@ vector<bool> PlayUtils::computeAnticipatedStatusesSimple(
 ) {
   vector<bool> isAlive(Board::MAX_ARR_SIZE,false);
 
-  //Treat all stones as alive under a no result
-  if(hist.isGameFinished && hist.isNoResult) {
+  //Treat all stones as alive
+  if(true) {
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
         Loc loc = Location::getLoc(x,y,board.x_size);
         if(board.colors[loc] != C_EMPTY)
           isAlive[loc] = true;
-      }
-    }
-  }
-  //Else use Tromp-taylorlike scoring, except recognizing pass-dead stones.
-  else {
-    Color area[Board::MAX_ARR_SIZE];
-    BoardHistory histCopy = hist;
-    histCopy.endAndScoreGameNow(board,area);
-    for(int y = 0; y<board.y_size; y++) {
-      for(int x = 0; x<board.x_size; x++) {
-        Loc loc = Location::getLoc(x,y,board.x_size);
-        if(board.colors[loc] != C_EMPTY) {
-          isAlive[loc] = board.colors[loc] == area[loc];
-        }
       }
     }
   }

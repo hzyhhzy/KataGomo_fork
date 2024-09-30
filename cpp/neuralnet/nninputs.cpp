@@ -961,54 +961,13 @@ void NNInputs::fillRowV7(
   }
   
 
-
-  //Features 18,19 - current territory, not counting group tax
-  Color area[Board::MAX_ARR_SIZE];
-  bool hasAreaFeature = false;
-  int groupTaxAdjustmentForPla = 0;
-  if(true) {
-    hasAreaFeature = true;
-    bool nonPassAliveStones = true;
-    bool safeBigTerritories = true;
-    bool unsafeBigTerritories = true;
-    board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,hist.rules.multiStoneSuicideLegal);
-  }
-
-  bool finalPhaseAndGameEndWouldNotBeWin = false;
-  if(hasAreaFeature) {
-    int boardScoreForPla = groupTaxAdjustmentForPla;
-    for(int y = 0; y<ySize; y++) {
-      for(int x = 0; x<xSize; x++) {
-        Loc loc = Location::getLoc(x,y,xSize);
-        int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
-        if(area[loc] == pla) {
-          setRowBin(rowBin,pos,18, 1.0f, posStride, featureStride);
-          boardScoreForPla += 1;
-        }
-        else if(area[loc] == opp) {
-          setRowBin(rowBin,pos,19, 1.0f, posStride, featureStride);
-          boardScoreForPla -= 1;
-        }
-        else {
-        }
-      }
-    }
-    float selfKomi = hist.currentSelfKomi(pla, nnInputParams.drawEquivalentWinsForWhite);
-    float finalScorePla = (float)boardScoreForPla + selfKomi;
-    // If the game ended here, and was scored instantly, it would be a loss or a draw?
-    if(finalScorePla <= 0.0)
-      finalPhaseAndGameEndWouldNotBeWin = true;
-  }
-
   //Hide history from the net if a pass would end things and we're behaving as if a pass won't.
   //Or if the game is in fact over right now!
   int maxTurnsOfHistoryToInclude = 5;
   bool suppressPassWouldEndPhase = false;
   if(hist.passWouldEndGame(board,nextPlayer) && (
        //At the root, if assuming passing doesn't end the game, and it would, then need to mask that out.
-       nnInputParams.conservativePassAndIsRoot ||
-       //Passing hacks suppress the net to end the game when losing if it thinks a premature pass will lose by less.
-       (nnInputParams.enablePassingHacks && finalPhaseAndGameEndWouldNotBeWin)
+       nnInputParams.conservativePassAndIsRoot 
      )
   ) {
     maxTurnsOfHistoryToInclude = 0;

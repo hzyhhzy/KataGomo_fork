@@ -2060,8 +2060,9 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
         if(gameFinishedProperly) {
           // Ownership stuff!
           hasOwnershipTargets = true;
-          hists[hists.size()-1].endAndScoreGameNow(board,finalOwnership);
-          board.calculateArea(finalFullArea, true, true, true, hist.rules.multiStoneSuicideLegal);
+          ASSERT_UNREACHABLE;
+          //hists[hists.size()-1].endAndScoreGameNow(board,finalOwnership);
+          // board.calculateArea(finalFullArea, true, true, true, hist.rules.multiStoneSuicideLegal);
           NNInputs::fillScoring(board,finalOwnership,finalWhiteScoring);
 
           // Make sure KataGo didn't leave huge unscored regions due to passing weirdness, and make sure the scoring agrees with

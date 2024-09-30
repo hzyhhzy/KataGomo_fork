@@ -234,29 +234,26 @@ float BoardHistory::currentSelfKomi(Player pla, double drawEquivalentWinsForWhit
   }
 }
 
-int BoardHistory::countAreaScoreWhiteMinusBlack(const Board& board, Color area[Board::MAX_ARR_SIZE]) const {
+int BoardHistory::countAreaScoreWhiteMinusBlack(const Board& board) const {
   int score = 0;
-
-  {
-    bool nonPassAliveStones = true;
-    bool safeBigTerritories = true;
-    bool unsafeBigTerritories = true;
-    board.calculateArea(
-      area,
-      nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,rules.multiStoneSuicideLegal
-    );
-  }
-
-  for(int y = 0; y<board.y_size; y++) {
-    for(int x = 0; x<board.x_size; x++) {
-      Loc loc = Location::getLoc(x,y,board.x_size);
-      if(area[loc] == C_WHITE)
-        score += 1;
-      else if(area[loc] == C_BLACK)
-        score -= 1;
+  for(int y = 0; y < board.y_size; y++)
+    for (int x = 0; x < board.x_size; x++)
+    {
+      Loc loc = Location::getLoc(x, y, board.x_size);
+      if(board.colors[loc] != C_EMPTY)
+        continue;
+      for (int i = 0; i < 4; i++)
+      {
+        Loc loc1 = board.adj_offsets[i] + loc;
+        if(!board.isOnBoard(loc1))
+          continue;
+        Color c = board.colors[loc1];
+        if(c == C_WHITE)
+          score += 1;
+        else if(c == C_BLACK)
+          score -= 1;
+      }
     }
-  }
-
   return score;
 }
 
@@ -271,13 +268,10 @@ void BoardHistory::setFinalScoreAndWinner(float score) {
     winner = C_EMPTY;
 }
 
-void BoardHistory::getAreaNow(const Board& board, Color area[Board::MAX_ARR_SIZE]) const {
-  countAreaScoreWhiteMinusBlack(board,area);
-}
 
-void BoardHistory::endAndScoreGameNow(const Board& board, Color area[Board::MAX_ARR_SIZE]) {
+void BoardHistory::endAndScoreGameNow(const Board& board) {
   int boardScore;
-  boardScore = countAreaScoreWhiteMinusBlack(board,area);
+  boardScore = countAreaScoreWhiteMinusBlack(board);
   double whiteBonusScore = 0;
 
   setFinalScoreAndWinner(boardScore + whiteBonusScore + rules.komi);
@@ -287,21 +281,19 @@ void BoardHistory::endAndScoreGameNow(const Board& board, Color area[Board::MAX_
   isGameFinished = true;
 }
 
-void BoardHistory::endAndScoreGameNow(const Board& board) {
-  Color area[Board::MAX_ARR_SIZE];
-  endAndScoreGameNow(board,area);
-}
 
 void BoardHistory::endGameIfAllPassAlive(const Board& board) {
+  return;
   int boardScore = 0;
   bool nonPassAliveStones = false;
   bool safeBigTerritories = false;
   bool unsafeBigTerritories = false;
   Color area[Board::MAX_ARR_SIZE];
-  board.calculateArea(
-    area,
-    nonPassAliveStones, safeBigTerritories, unsafeBigTerritories, rules.multiStoneSuicideLegal
-  );
+  ASSERT_UNREACHABLE;
+  //board.calculateArea(
+  //  area,
+  //  nonPassAliveStones, safeBigTerritories, unsafeBigTerritories, rules.multiStoneSuicideLegal
+  //);
 
   for(int y = 0; y<board.y_size; y++) {
     for(int x = 0; x<board.x_size; x++) {

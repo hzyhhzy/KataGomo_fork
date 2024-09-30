@@ -1562,22 +1562,24 @@ FinishedGameData* Play::runGame(
     gameData->finalOwnership = new Color[Board::MAX_ARR_SIZE];
     gameData->finalSekiAreas = new bool[Board::MAX_ARR_SIZE];
 
+    // Fill with empty so that we use "nobody owns anything" as the training target.
+    // Although in practice actually the training normally weights by having a result or not, so it doesn't matter what
+    // we fill.
+    std::fill(gameData->finalFullArea, gameData->finalFullArea + Board::MAX_ARR_SIZE, C_EMPTY);
+    std::fill(gameData->finalOwnership, gameData->finalOwnership + Board::MAX_ARR_SIZE, C_EMPTY);
+    std::fill(gameData->finalSekiAreas, gameData->finalSekiAreas + Board::MAX_ARR_SIZE, false);
+
     if(hist.isGameFinished && hist.isNoResult) {
       finalValueTargets.win = 0.0f;
       finalValueTargets.loss = 0.0f;
       finalValueTargets.noResult = 1.0f;
       finalValueTargets.score = 0.0f;
 
-      //Fill with empty so that we use "nobody owns anything" as the training target.
-      //Although in practice actually the training normally weights by having a result or not, so it doesn't matter what we fill.
-      std::fill(gameData->finalFullArea,gameData->finalFullArea+Board::MAX_ARR_SIZE,C_EMPTY);
-      std::fill(gameData->finalOwnership,gameData->finalOwnership+Board::MAX_ARR_SIZE,C_EMPTY);
-      std::fill(gameData->finalSekiAreas,gameData->finalSekiAreas+Board::MAX_ARR_SIZE,false);
     }
     else {
       //Relying on this to be idempotent, so that we can get the final territory map
       //We also do want to call this here to force-end the game if we crossed a move limit.
-      hist.endAndScoreGameNow(board,gameData->finalOwnership);
+      hist.endAndScoreGameNow(board);
 
       finalValueTargets.win = (float)ScoreValue::whiteWinsOfWinner(hist.winner, gameData->drawEquivalentWinsForWhite);
       finalValueTargets.loss = 1.0f - finalValueTargets.win;
@@ -1586,21 +1588,6 @@ FinishedGameData* Play::runGame(
       finalValueTargets.hasLead = true;
       finalValueTargets.lead = finalValueTargets.score;
 
-      //Fill full and seki areas
-      {
-        board.calculateArea(gameData->finalFullArea, true, true, true, hist.rules.multiStoneSuicideLegal);
-
-        Color* independentLifeArea = new Color[Board::MAX_ARR_SIZE];
-        int whiteMinusBlackIndependentLifeRegionCount;
-        board.calculateIndependentLifeArea(independentLifeArea,whiteMinusBlackIndependentLifeRegionCount, false, false, hist.rules.multiStoneSuicideLegal);
-        for(int i = 0; i<Board::MAX_ARR_SIZE; i++) {
-          if(independentLifeArea[i] == C_EMPTY && (gameData->finalFullArea[i] == C_BLACK || gameData->finalFullArea[i] == C_WHITE))
-            gameData->finalSekiAreas[i] = true;
-          else
-            gameData->finalSekiAreas[i] = false;
-        }
-        delete[] independentLifeArea;
-      }
     }
     gameData->whiteValueTargetsByTurn.push_back(finalValueTargets);
 
