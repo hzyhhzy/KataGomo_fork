@@ -12,7 +12,7 @@
 #include "../external/nlohmann_json/json.hpp"
 
 #ifndef COMPILE_MAX_BOARD_LEN
-#define COMPILE_MAX_BOARD_LEN 19
+#define COMPILE_MAX_BOARD_LEN 9
 #endif
 
 //TYPES AND CONSTANTS-----------------------------------------------------------------

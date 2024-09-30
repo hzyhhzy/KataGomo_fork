@@ -595,7 +595,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         if param.requires_grad:
             total_trainable_params += product
         total_num_params += product
-        logging.info(f"{name}, {list(param.shape)}, {product} params")
+        #logging.info(f"{name}, {list(param.shape)}, {product} params")
     logging.info(f"Total num params: {total_num_params}")
     logging.info(f"Total trainable params: {total_trainable_params}")
 
@@ -1153,7 +1153,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     timediff = t1 - last_train_stats_time
                     last_train_stats_time = t1
                     metrics["time_since_last_print"] = timediff
-                    log_metrics(running_metrics["sums"], running_metrics["weights"], metrics, train_metrics_out)
+                    log_metrics(running_metrics["sums"], running_metrics["weights"], metrics, train_metrics_out, exportprefix)
 
                 # Update LR more frequently at the start for smoother warmup ramp and wd adjustment
                 if train_state["global_step_samples"] <= 50000000 and batch_count_this_epoch % 50 == 0:
@@ -1271,7 +1271,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                         val_metric_weights["wsum_train"] = running_metrics["weights"]["wsum"]
                     last_val_metrics["sums"] = val_metric_sums
                     last_val_metrics["weights"] = val_metric_weights
-                    log_metrics(val_metric_sums, val_metric_weights, metrics, val_metrics_out)
+                    log_metrics(val_metric_sums, val_metric_weights, metrics, val_metrics_out, exportprefix)
                     t1 = time.perf_counter()
                     logging.info(f"Validation took {t1-t0} seconds")
                     ddp_model.train()

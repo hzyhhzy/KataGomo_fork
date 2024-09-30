@@ -424,8 +424,9 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
 
   //Break long cycles with no-result
   if(moveLoc != Board::PASS_LOC && rules.koRule == Rules::KO_SIMPLE) {
-    static_assert(false, "TODO: find a simple method to detect long cycles");
-    if(true) {
+    //static_assert(false, "TODO: find a simple method to detect long cycles");
+
+    if(moveHistory.size() > board.x_size * board.y_size * 3) {
       isNoResult = true;
       isGameFinished = true;
     }
@@ -510,6 +511,12 @@ Hash128 BoardHistory::getSituationRulesAndKoHash(const Board& board, const Board
   if(hist.rules.multiStoneSuicideLegal)
     hash ^= Rules::ZOBRIST_MULTI_STONE_SUICIDE_HASH;
 
+  // Fold in movenum.
+  static constexpr uint64_t m0 = 7607666294965183507ULL;
+  static constexpr uint64_t m1 = 3103394289034396213ULL;
+  int movenum = hist.moveHistory.size();
+  hash.hash0 ^= Hash::nasam(movenum * m0);
+  hash.hash1 ^= Hash::murmurMix(movenum * m0);
   return hash;
 }
 
