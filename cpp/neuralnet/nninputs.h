@@ -68,13 +68,6 @@ namespace NNInputs {
     const MiscNNInputParams& nnInputParams, int nnXLen, int nnYLen, bool useNHWC, float* rowBin, float* rowGlobal
   );
 
-  //If groupTax is specified, for each color region of area, reduce weight on empty spaces equally to reduce the total sum by 2.
-  //(but should handle seki correctly)
-  void fillScoring(
-    const Board& board,
-    const Color* area,
-    float* scoring
-  );
 }
 
 struct NNOutput {

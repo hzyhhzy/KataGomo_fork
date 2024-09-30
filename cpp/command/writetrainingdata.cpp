@@ -1944,12 +1944,6 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     float valueTargetWeight = 0.0f;
     bool hasOwnershipTargets = false;
     bool hasForcedWinner = false; // Did we manually modify value targets to declare the winner?
-    Color finalOwnership[Board::MAX_ARR_SIZE];
-    Color finalFullArea[Board::MAX_ARR_SIZE];
-    float finalWhiteScoring[Board::MAX_ARR_SIZE];
-    std::fill(finalFullArea,finalFullArea+Board::MAX_ARR_SIZE,C_EMPTY);
-    std::fill(finalOwnership,finalOwnership+Board::MAX_ARR_SIZE,C_EMPTY);
-    std::fill(finalWhiteScoring,finalWhiteScoring+Board::MAX_ARR_SIZE,0.0f);
 
     // If this was a scored position, fill out the remaining turns with KataGo making moves, just to clean
     // up the position and carry out encore for JP-style rules.
@@ -2060,9 +2054,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
         if(gameFinishedProperly) {
           // Ownership stuff!
           hasOwnershipTargets = true;
-          hists[hists.size()-1].endAndScoreGameNow(board,finalOwnership);
-          board.calculateArea(finalFullArea, true, true, true, hist.rules.multiStoneSuicideLegal);
-          NNInputs::fillScoring(board,finalOwnership,finalWhiteScoring);
+          hists[hists.size()-1].endAndScoreGameNow(board);
 
           // Make sure KataGo didn't leave huge unscored regions due to passing weirdness, and make sure the scoring agrees with
           // a historyless nn eval of the position.

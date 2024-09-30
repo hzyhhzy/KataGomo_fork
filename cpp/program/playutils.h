@@ -107,26 +107,6 @@ namespace PlayUtils {
     int64_t numVisits
   );
 
-  //Determine all living and dead stones, if the game were terminated right now and
-  //the rules were interpreted naively and directly.
-  //Returns a vector indexed by board Loc (length Board::MAX_ARR_SIZE).
-  std::vector<bool> computeAnticipatedStatusesSimple(
-    const Board& board,
-    const BoardHistory& hist
-  );
-
-  //Determine all living and dead stones, trying to be clever and use the ownership prediction
-  //of the neural net.
-  //Returns a vector indexed by board Loc (length Board::MAX_ARR_SIZE).
-  std::vector<bool> computeAnticipatedStatusesWithOwnership(
-    Search* bot,
-    const Board& board,
-    const BoardHistory& hist,
-    Player pla,
-    int64_t numVisits,
-    std::vector<double>& ownershipsBuf
-  );
-
 
   struct BenchmarkResults {
     int numThreads = 0;

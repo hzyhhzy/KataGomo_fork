@@ -1372,48 +1372,6 @@ struct GTPEngine {
     isGenmoveParams = true;
   }
 
-  vector<bool> computeAnticipatedStatuses() {
-    stopAndWait();
-
-    //No playoutDoublingAdvantage to avoid bias
-    //Also never assume the game will end abruptly due to pass
-    {
-      SearchParams tmpParams = genmoveParams;
-      tmpParams.playoutDoublingAdvantage = 0.0;
-      tmpParams.conservativePass = true;
-      tmpParams.antiMirror = false;
-      tmpParams.avoidRepeatedPatternUtility = 0;
-      bot->setParams(tmpParams);
-    }
-
-    //Make absolutely sure we can restore the bot's old state
-    const Player oldPla = bot->getRootPla();
-    const Board oldBoard = bot->getRootBoard();
-    const BoardHistory oldHist = bot->getRootHist();
-
-    Board board = bot->getRootBoard();
-    BoardHistory hist = bot->getRootHist();
-    Player pla = bot->getRootPla();
-
-    int64_t numVisits = std::max(100, genmoveParams.numThreads * 20);
-    vector<bool> isAlive;
-    //Tromp-taylorish statuses, or finished territory game statuses (including noresult)
-    if(hist.isGameFinished)
-      isAlive = PlayUtils::computeAnticipatedStatusesSimple(board,hist);
-    //Human-friendly statuses or incomplete game status estimation
-    else {
-      vector<double> ownershipsBuf;
-      isAlive = PlayUtils::computeAnticipatedStatusesWithOwnership(bot->getSearchStopAndWait(),board,hist,pla,numVisits,ownershipsBuf);
-    }
-
-    //Restore
-    bot->setPosition(oldPla,oldBoard,oldHist);
-    bot->setParams(genmoveParams);
-    isGenmoveParams = true;
-
-    return isAlive;
-  }
-
   string rawNNBrief(std::vector<Loc> branch, int whichSymmetry) {
     if(nnEval == NULL)
       return "";
@@ -3034,60 +2992,6 @@ int MainCmds::gtp(const vector<string>& args) {
         response = "W+" + Global::strprintf("%.1f",finalWhiteMinusBlackScore);
       else
         ASSERT_UNREACHABLE;
-    }
-
-    else if(command == "final_status_list") {
-      int statusMode = 0;
-      if(pieces.size() != 1) {
-        responseIsError = true;
-        response = "Expected one argument for final_status_list but got '" + Global::concat(pieces," ") + "'";
-      }
-      else {
-        if(pieces[0] == "alive")
-          statusMode = 0;
-        else if(pieces[0] == "seki")
-          statusMode = 1;
-        else if(pieces[0] == "dead")
-          statusMode = 2;
-        else {
-          responseIsError = true;
-          response = "Argument to final_status_list must be 'alive' or 'seki' or 'dead'";
-          statusMode = 3;
-        }
-
-        if(statusMode < 3) {
-          vector<bool> isAlive = engine->computeAnticipatedStatuses();
-          Board board = engine->bot->getRootBoard();
-          vector<Loc> locsToReport;
-
-          if(statusMode == 0) {
-            for(int y = 0; y<board.y_size; y++) {
-              for(int x = 0; x<board.x_size; x++) {
-                Loc loc = Location::getLoc(x,y,board.x_size);
-                if(board.colors[loc] != C_EMPTY && isAlive[loc])
-                  locsToReport.push_back(loc);
-              }
-            }
-          }
-          if(statusMode == 2) {
-            for(int y = 0; y<board.y_size; y++) {
-              for(int x = 0; x<board.x_size; x++) {
-                Loc loc = Location::getLoc(x,y,board.x_size);
-                if(board.colors[loc] != C_EMPTY && !isAlive[loc])
-                  locsToReport.push_back(loc);
-              }
-            }
-          }
-
-          response = "";
-          for(int i = 0; i<locsToReport.size(); i++) {
-            Loc loc = locsToReport[i];
-            if(i > 0)
-              response += " ";
-            response += Location::toString(loc,board);
-          }
-        }
-      }
     }
 
     else if(command == "loadsgf") {

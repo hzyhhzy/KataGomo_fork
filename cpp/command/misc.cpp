@@ -461,7 +461,6 @@ int MainCmds::demoplay(const vector<string>& args) {
     //Move loop
     int maxMovesPerGame = 1600;
     for(int i = 0; i<maxMovesPerGame; i++) {
-      baseHist.endGameIfAllPassAlive(baseBoard);
       if(baseHist.isGameFinished)
         break;
 

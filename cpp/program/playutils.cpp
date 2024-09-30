@@ -238,9 +238,6 @@ void PlayUtils::initializeGameUsingPolicy(
     hist.makeBoardMoveAssumeLegal(board,loc,pla);
     pla = getOpp(pla);
 
-    //Rarely, playing the random moves out this way will end the game
-    if(doEndGameIfAllPassAlive)
-      hist.endGameIfAllPassAlive(board);
     if(hist.isGameFinished)
       break;
   }
@@ -694,112 +691,6 @@ vector<double> PlayUtils::computeOwnership(
   bot->clearSearch();
 
   return ownerships;
-}
-
-//Tromp-taylor-like scoring, except recognizes pass-dead stones.
-vector<bool> PlayUtils::computeAnticipatedStatusesSimple(
-  const Board& board,
-  const BoardHistory& hist
-) {
-  vector<bool> isAlive(Board::MAX_ARR_SIZE,false);
-
-  //Treat all stones as alive under a no result
-  if(hist.isGameFinished && hist.isNoResult) {
-    for(int y = 0; y<board.y_size; y++) {
-      for(int x = 0; x<board.x_size; x++) {
-        Loc loc = Location::getLoc(x,y,board.x_size);
-        if(board.colors[loc] != C_EMPTY)
-          isAlive[loc] = true;
-      }
-    }
-  }
-  //Else use Tromp-taylorlike scoring, except recognizing pass-dead stones.
-  else {
-    Color area[Board::MAX_ARR_SIZE];
-    BoardHistory histCopy = hist;
-    histCopy.endAndScoreGameNow(board,area);
-    for(int y = 0; y<board.y_size; y++) {
-      for(int x = 0; x<board.x_size; x++) {
-        Loc loc = Location::getLoc(x,y,board.x_size);
-        if(board.colors[loc] != C_EMPTY) {
-          isAlive[loc] = board.colors[loc] == area[loc];
-        }
-      }
-    }
-  }
-  return isAlive;
-}
-
-//Always non-tromp-taylorlike in the main phase of the game, this is the ownership that users would want.
-vector<bool> PlayUtils::computeAnticipatedStatusesWithOwnership(
-  Search* bot,
-  const Board& board,
-  const BoardHistory& hist,
-  Player pla,
-  int64_t numVisits,
-  vector<double>& ownershipsBuf
-) {
-  vector<bool> isAlive(Board::MAX_ARR_SIZE,false);
-  bool solved[Board::MAX_ARR_SIZE];
-  for(int i = 0; i<Board::MAX_ARR_SIZE; i++) {
-    isAlive[i] = false;
-    solved[i] = false;
-  }
-
-  ownershipsBuf = computeOwnership(bot,board,hist,pla,numVisits);
-  const vector<double>& ownerships = ownershipsBuf;
-  int nnXLen = bot->nnXLen;
-  int nnYLen = bot->nnYLen;
-
-  //Heuristic:
-  //Stones are considered dead if their average ownership is less than 0.2 equity in their own color,
-  //or if the worst equity in the chain is less than -0.6 equity in their color.
-  const double avgThresholdForLife = 0.2;
-  const double worstThresholdForLife = -0.6;
-
-  for(int y = 0; y<board.y_size; y++) {
-    for(int x = 0; x<board.x_size; x++) {
-      Loc loc = Location::getLoc(x,y,board.x_size);
-      if(solved[loc])
-        continue;
-
-      if(board.colors[loc] == P_WHITE || board.colors[loc] == P_BLACK) {
-        int pos = NNPos::locToPos(loc,board.x_size,nnXLen,nnYLen);
-        double minOwnership = ownerships[pos];
-        double maxOwnership = ownerships[pos];
-        double ownershipSum = 0.0;
-        double count = 0;
-
-        //Run through the whole chain
-        Loc cur = loc;
-        do {
-          pos = NNPos::locToPos(cur,board.x_size,nnXLen,nnYLen);
-          minOwnership = std::min(ownerships[pos],minOwnership);
-          maxOwnership = std::max(ownerships[pos],maxOwnership);
-          ownershipSum += ownerships[pos];
-          count += 1.0;
-          cur = board.next_in_chain[cur];
-        } while (cur != loc);
-
-        double avgOwnership = ownershipSum / count;
-        bool alive;
-        if(board.colors[loc] == P_WHITE)
-          alive = avgOwnership > avgThresholdForLife && minOwnership > worstThresholdForLife;
-        else
-          alive = avgOwnership < -avgThresholdForLife && maxOwnership < -worstThresholdForLife;
-
-        //Run through the whole chain again, recording the result
-        cur = loc;
-        do {
-          isAlive[cur] = alive;
-          solved[cur] = true;
-          cur = board.next_in_chain[cur];
-        } while (cur != loc);
-      }
-    }
-  }
-  return isAlive;
-
 }
 
 string PlayUtils::BenchmarkResults::toStringNotDone() const {

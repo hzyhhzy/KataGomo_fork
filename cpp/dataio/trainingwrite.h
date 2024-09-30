@@ -87,10 +87,6 @@ struct FinishedGameData {
   std::vector<double> searchEntropyByTurn;
   std::vector<ValueTargets> whiteValueTargetsByTurn; //Except this one, we may have some of
   std::vector<NNRawStats> nnRawStatsByTurn;
-  Color* finalFullArea;
-  Color* finalOwnership;
-  bool* finalSekiAreas;
-  float* finalWhiteScoring;
 
   double trainingWeight;
 
@@ -263,9 +259,6 @@ struct TrainingWriteBuffers {
     float leadTargetWeightFactor,
     const NNRawStats& nnRawStats,
     const Board* finalBoard,
-    Color* finalFullArea,
-    Color* finalOwnership,
-    float* finalWhiteScoring,
     const std::vector<Board>* posHistForFutureBoards, //can be null
     bool isSidePosition,
     int numNeuralNetsBehindLatest,

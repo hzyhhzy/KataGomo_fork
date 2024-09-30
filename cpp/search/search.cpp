@@ -74,7 +74,6 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const strin
    avoidMoveUntilByLocBlack(),avoidMoveUntilByLocWhite(),avoidMoveUntilRescaleRoot(false),
    rootSymmetries(),
    rootPruneOnlySymmetries(),
-   rootSafeArea(NULL),
    recentScoreCenter(0.0),
    mirroringPla(C_EMPTY),
    mirrorAdvantage(0.0),
@@ -113,7 +112,6 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const strin
   policySize = NNPos::getPolicySize(nnXLen,nnYLen);
 
 
-  rootSafeArea = new Color[Board::MAX_ARR_SIZE];
 
   valueWeightDistribution = new DistributionTable(
     [](double z) { return FancyMath::tdistpdf(z,VALUE_WEIGHT_DEGREES_OF_FREEDOM); },
@@ -133,7 +131,6 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const strin
 Search::~Search() {
   clearSearch();
 
-  delete[] rootSafeArea;
   delete valueWeightDistribution;
 
   delete nodeTable;
@@ -370,14 +367,6 @@ bool Search::makeMove(Loc moveLoc, Player movePla) {
   //Explicitly clear avoid move arrays when we play a move - user needs to respecify them if they want them.
   avoidMoveUntilByLocBlack.clear();
   avoidMoveUntilByLocWhite.clear();
-
-
-  //In the case that we are conservativePass and a pass would end the game, need to clear the search.
-  //This is because deeper in the tree, such a node would have been explored as ending the game, but now that
-  //it's a root pass, it needs to be treated as if it no longer ends the game.
-  if(searchParams.conservativePass && rootHistory.passWouldEndGame(rootBoard,rootPla))
-    clearSearch();
-
   
 
   return true;
@@ -993,19 +982,7 @@ void Search::recursivelyRecomputeStats(SearchNode& n) {
 
 
 void Search::computeRootValues() {
-  //rootSafeArea is strictly pass-alive groups and strictly safe territory.
-  bool nonPassAliveStones = false;
-  bool safeBigTerritories = false;
-  bool unsafeBigTerritories = false;
-  bool isMultiStoneSuicideLegal = rootHistory.rules.multiStoneSuicideLegal;
-  rootBoard.calculateArea(
-    rootSafeArea,
-    nonPassAliveStones,
-    safeBigTerritories,
-    unsafeBigTerritories,
-    isMultiStoneSuicideLegal
-  );
-
+  
   //Figure out how to set recentScoreCenter
   {
     bool foundExpectedScoreFromTree = false;

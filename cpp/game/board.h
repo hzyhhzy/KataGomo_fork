@@ -262,35 +262,6 @@ struct Board
   bool searchIsLadderCaptured(Loc loc, bool defenderFirst, std::vector<Loc>& buf);
   bool searchIsLadderCapturedAttackerFirst2Libs(Loc loc, std::vector<Loc>& buf, std::vector<Loc>& workingMoves);
 
-  //If a point is a pass-alive stone or pass-alive territory for a color, mark it that color.
-  //If nonPassAliveStones, also marks non-pass-alive stones that are not part of the opposing pass-alive territory.
-  //If safeBigTerritories, also marks for each pla empty regions bordered by pla stones and no opp stones, where all pla stones are pass-alive.
-  //If unsafeBigTerritories, also marks for each pla empty regions bordered by pla stones and no opp stones, regardless.
-  //All other points are marked as C_EMPTY.
-  //[result] must be a buffer of size MAX_ARR_SIZE and will get filled with the result
-  void calculateArea(
-    Color* result,
-    bool nonPassAliveStones,
-    bool safeBigTerritories,
-    bool unsafeBigTerritories,
-    bool isMultiStoneSuicideLegal
-  ) const;
-
-
-  //Calculates the area (including non pass alive stones, safe and unsafe big territories)
-  //However, strips out any "seki" regions.
-  //Seki regions are that are adjacent to any remaining empty regions.
-  //If keepTerritories, then keeps the surrounded territories in seki regions, only strips points for stones.
-  //If keepStones, then keeps the stones, only strips points for surrounded territories.
-  //whiteMinusBlackIndependentLifeRegionCount - multiply this by two for a group tax.
-  void calculateIndependentLifeArea(
-    Color* result,
-    int& whiteMinusBlackIndependentLifeRegionCount,
-    bool keepTerritories,
-    bool keepStones,
-    bool isMultiStoneSuicideLegal
-  ) const;
-
   //Run some basic sanity checks on the board state, throws an exception if not consistent, for testing/debugging
   void checkConsistency() const;
   //For the moment, only used in testing since it does extra consistency checks.
@@ -346,21 +317,7 @@ struct Board
   int findLibertyGainingCaptures(Loc loc, std::vector<Loc>& buf, int bufStart, int bufIdx) const;
   bool hasLibertyGainingCaptures(Loc loc) const;
 
-  void calculateAreaForPla(
-    Player pla,
-    bool safeBigTerritories,
-    bool unsafeBigTerritories,
-    bool isMultiStoneSuicideLegal,
-    Color* result
-  ) const;
-
   bool isAdjacentToPlaHead(Player pla, Loc loc, Loc plaHead) const;
-
-  void calculateIndependentLifeAreaHelper(
-    const Color* basicArea,
-    Color* result,
-    int& whiteMinusBlackIndependentLifeRegionCount
-  ) const;
 
   bool countEmptyHelper(bool* emptyCounted, Loc initialLoc, int& count, int bound) const;
 

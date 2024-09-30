@@ -152,7 +152,6 @@ bool Search::maybeRecomputeExistingNNOutput(
       //If humanSL is missing, but we want it, we need to recompute.
       //Also do so when ignoring history pre root
       if(nnOutput->whiteOwnerMap == NULL ||
-         (searchParams.conservativePass && thread.history.passWouldEndGame(thread.board,thread.pla)) ||
          searchParams.rootNumSymmetriesToSample > 1 ||
          searchParams.rootPolicyOptimism != searchParams.policyOptimism ||
          (searchParams.ignorePreRootHistory && !searchParams.ignoreAllHistory) 

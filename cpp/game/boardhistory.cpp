@@ -234,29 +234,9 @@ float BoardHistory::currentSelfKomi(Player pla, double drawEquivalentWinsForWhit
   }
 }
 
-int BoardHistory::countAreaScoreWhiteMinusBlack(const Board& board, Color area[Board::MAX_ARR_SIZE]) const {
+int BoardHistory::countAreaScoreWhiteMinusBlack(const Board& board) const {
   int score = 0;
-
-  {
-    bool nonPassAliveStones = true;
-    bool safeBigTerritories = true;
-    bool unsafeBigTerritories = true;
-    board.calculateArea(
-      area,
-      nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,rules.multiStoneSuicideLegal
-    );
-  }
-
-  for(int y = 0; y<board.y_size; y++) {
-    for(int x = 0; x<board.x_size; x++) {
-      Loc loc = Location::getLoc(x,y,board.x_size);
-      if(area[loc] == C_WHITE)
-        score += 1;
-      else if(area[loc] == C_BLACK)
-        score -= 1;
-    }
-  }
-
+  todo
   return score;
 }
 
@@ -271,13 +251,10 @@ void BoardHistory::setFinalScoreAndWinner(float score) {
     winner = C_EMPTY;
 }
 
-void BoardHistory::getAreaNow(const Board& board, Color area[Board::MAX_ARR_SIZE]) const {
-  countAreaScoreWhiteMinusBlack(board,area);
-}
 
-void BoardHistory::endAndScoreGameNow(const Board& board, Color area[Board::MAX_ARR_SIZE]) {
+void BoardHistory::endAndScoreGameNow(const Board& board) {
   int boardScore;
-  boardScore = countAreaScoreWhiteMinusBlack(board,area);
+  boardScore = countAreaScoreWhiteMinusBlack(board);
   double whiteBonusScore = 0;
 
   setFinalScoreAndWinner(boardScore + whiteBonusScore + rules.komi);
@@ -287,45 +264,6 @@ void BoardHistory::endAndScoreGameNow(const Board& board, Color area[Board::MAX_
   isGameFinished = true;
 }
 
-void BoardHistory::endAndScoreGameNow(const Board& board) {
-  Color area[Board::MAX_ARR_SIZE];
-  endAndScoreGameNow(board,area);
-}
-
-void BoardHistory::endGameIfAllPassAlive(const Board& board) {
-  int boardScore = 0;
-  bool nonPassAliveStones = false;
-  bool safeBigTerritories = false;
-  bool unsafeBigTerritories = false;
-  Color area[Board::MAX_ARR_SIZE];
-  board.calculateArea(
-    area,
-    nonPassAliveStones, safeBigTerritories, unsafeBigTerritories, rules.multiStoneSuicideLegal
-  );
-
-  for(int y = 0; y<board.y_size; y++) {
-    for(int x = 0; x<board.x_size; x++) {
-      Loc loc = Location::getLoc(x,y,board.x_size);
-      if(area[loc] == C_WHITE)
-        boardScore += 1;
-      else if(area[loc] == C_BLACK)
-        boardScore -= 1;
-      else
-        return;
-    }
-  }
-
-  //In the case that we have a group tax, rescore normally to actually count the group tax
-  
-  {
-    double whiteBonusScore = 0.0;
-    setFinalScoreAndWinner(boardScore + whiteBonusScore + rules.komi);
-    isScored = true;
-    isNoResult = false;
-    isResignation = false;
-    isGameFinished = true;
-  }
-}
 
 void BoardHistory::setWinnerByResignation(Player pla) {
   isGameFinished = true;

@@ -1361,8 +1361,6 @@ FinishedGameData* Play::runGame(
 
   //Main play loop
   for(int i = 0; i<maxMovesPerGame; i++) {
-    if(doEndGameIfAllPassAlive)
-      hist.endGameIfAllPassAlive(board);
     if(hist.isGameFinished)
       break;
     if(shouldPause != nullptr)
@@ -1555,12 +1553,6 @@ FinishedGameData* Play::runGame(
 
     ValueTargets finalValueTargets;
 
-    assert(gameData->finalFullArea == NULL);
-    assert(gameData->finalOwnership == NULL);
-    assert(gameData->finalSekiAreas == NULL);
-    gameData->finalFullArea = new Color[Board::MAX_ARR_SIZE];
-    gameData->finalOwnership = new Color[Board::MAX_ARR_SIZE];
-    gameData->finalSekiAreas = new bool[Board::MAX_ARR_SIZE];
 
     if(hist.isGameFinished && hist.isNoResult) {
       finalValueTargets.win = 0.0f;
@@ -1568,39 +1560,14 @@ FinishedGameData* Play::runGame(
       finalValueTargets.noResult = 1.0f;
       finalValueTargets.score = 0.0f;
 
-      //Fill with empty so that we use "nobody owns anything" as the training target.
-      //Although in practice actually the training normally weights by having a result or not, so it doesn't matter what we fill.
-      std::fill(gameData->finalFullArea,gameData->finalFullArea+Board::MAX_ARR_SIZE,C_EMPTY);
-      std::fill(gameData->finalOwnership,gameData->finalOwnership+Board::MAX_ARR_SIZE,C_EMPTY);
-      std::fill(gameData->finalSekiAreas,gameData->finalSekiAreas+Board::MAX_ARR_SIZE,false);
     }
     else {
-      //Relying on this to be idempotent, so that we can get the final territory map
-      //We also do want to call this here to force-end the game if we crossed a move limit.
-      hist.endAndScoreGameNow(board,gameData->finalOwnership);
-
       finalValueTargets.win = (float)ScoreValue::whiteWinsOfWinner(hist.winner, gameData->drawEquivalentWinsForWhite);
       finalValueTargets.loss = 1.0f - finalValueTargets.win;
       finalValueTargets.noResult = 0.0f;
       finalValueTargets.score = (float)ScoreValue::whiteScoreDrawAdjust(hist.finalWhiteMinusBlackScore,gameData->drawEquivalentWinsForWhite,hist);
       finalValueTargets.hasLead = true;
       finalValueTargets.lead = finalValueTargets.score;
-
-      //Fill full and seki areas
-      {
-        board.calculateArea(gameData->finalFullArea, true, true, true, hist.rules.multiStoneSuicideLegal);
-
-        Color* independentLifeArea = new Color[Board::MAX_ARR_SIZE];
-        int whiteMinusBlackIndependentLifeRegionCount;
-        board.calculateIndependentLifeArea(independentLifeArea,whiteMinusBlackIndependentLifeRegionCount, false, false, hist.rules.multiStoneSuicideLegal);
-        for(int i = 0; i<Board::MAX_ARR_SIZE; i++) {
-          if(independentLifeArea[i] == C_EMPTY && (gameData->finalFullArea[i] == C_BLACK || gameData->finalFullArea[i] == C_WHITE))
-            gameData->finalSekiAreas[i] = true;
-          else
-            gameData->finalSekiAreas[i] = false;
-        }
-        delete[] independentLifeArea;
-      }
     }
     gameData->whiteValueTargetsByTurn.push_back(finalValueTargets);
 
@@ -1609,10 +1576,6 @@ FinishedGameData* Play::runGame(
     if(otherGameProps.hintLoc != Board::NULL_LOC) {
       gameData->whiteValueTargetsByTurn[0] = gameData->whiteValueTargetsByTurn[std::min((size_t)1,gameData->whiteValueTargetsByTurn.size()-1)];
     }
-
-    assert(gameData->finalWhiteScoring == NULL);
-    gameData->finalWhiteScoring = new float[Board::MAX_ARR_SIZE];
-    NNInputs::fillScoring(board,gameData->finalOwnership,gameData->finalWhiteScoring);
 
     gameData->hasFullData = true;
 
@@ -1942,19 +1905,6 @@ static void replayGameUpToMove(const FinishedGameData* finishedGameData, int mov
     if(hist.isGameFinished)
       return;
   }
-}
-
-static bool hasUnownedSpot(const FinishedGameData* finishedGameData) {
-  assert(finishedGameData->finalOwnership != NULL);
-  const Board& board = finishedGameData->startBoard;
-  for(int y = 0; y<board.y_size; y++) {
-    for(int x = 0; x<board.x_size; x++) {
-      Loc loc = Location::getLoc(x,y,board.x_size);
-      if(finishedGameData->finalOwnership[loc] == C_EMPTY)
-        return true;
-    }
-  }
-  return false;
 }
 
 void Play::maybeForkGame(

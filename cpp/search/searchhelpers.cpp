@@ -310,29 +310,6 @@ double Search::getUtilityFromNN(const NNOutput& nnOutput) const {
 bool Search::isAllowedRootMove(Loc moveLoc) const {
   assert(moveLoc == Board::PASS_LOC || rootBoard.isOnBoard(moveLoc));
 
-  //A bad situation that can happen that unnecessarily prolongs training games is where one player
-  //repeatedly passes and the other side repeatedly fills the opponent's space and/or suicides over and over.
-  //To mitigate some of this and save computation, we make it so that at the root, if the last four moves by the opponent
-  //were passes, we will never play a move in either player's pass-alive area. In theory this could prune
-  //a good move in situations like https://senseis.xmp.net/?1EyeFlaw, but this should be extraordinarly rare,
-  if(searchParams.rootPruneUselessMoves &&
-     rootHistory.moveHistory.size() > 0 &&
-     moveLoc != Board::PASS_LOC
-  ) {
-    size_t lastIdx = rootHistory.moveHistory.size()-1;
-    Player opp = getOpp(rootPla);
-    if(lastIdx >= 6 &&
-       rootHistory.moveHistory[lastIdx-0].loc == Board::PASS_LOC &&
-       rootHistory.moveHistory[lastIdx-2].loc == Board::PASS_LOC &&
-       rootHistory.moveHistory[lastIdx-4].loc == Board::PASS_LOC &&
-       rootHistory.moveHistory[lastIdx-6].loc == Board::PASS_LOC &&
-       rootHistory.moveHistory[lastIdx-0].pla == opp &&
-       rootHistory.moveHistory[lastIdx-2].pla == opp &&
-       rootHistory.moveHistory[lastIdx-4].pla == opp &&
-       rootHistory.moveHistory[lastIdx-6].pla == opp &&
-       (rootSafeArea[moveLoc] == opp || rootSafeArea[moveLoc] == rootPla))
-      return false;
-  }
 
   if(searchParams.rootSymmetryPruning && moveLoc != Board::PASS_LOC && rootSymDupLoc[moveLoc]) {
     return false;
@@ -349,50 +326,7 @@ double Search::getPatternBonus(Hash128 patternBonusHash, Player prevMovePla) con
 
 
 double Search::getEndingWhiteScoreBonus(const SearchNode& parent, Loc moveLoc) const {
-  if(&parent != rootNode || moveLoc == Board::NULL_LOC)
-    return 0.0;
-
-  const NNOutput* nnOutput = parent.getNNOutput();
-  if(nnOutput == NULL || nnOutput->whiteOwnerMap == NULL)
-    return 0.0;
-
-  assert(nnOutput->nnXLen == nnXLen);
-  assert(nnOutput->nnYLen == nnYLen);
-  float* whiteOwnerMap = nnOutput->whiteOwnerMap;
-
-  const double extreme = 0.95;
-  const double tail = 0.05;
-
-  //Extra points from the perspective of the root player
-  double extraRootPoints = 0.0;
-  bool isAreaIsh = true;
-  if(isAreaIsh) {
-    //Areaish scoring - in an effort to keep the game short and slightly discourage pointless territory filling at the end
-    //discourage any move that, except in case of ko, is either:
-    // * On a spot that the opponent almost surely owns, unless it captures stones.
-    // * On a spot that the player almost surely owns and it is not adjacent to opponent stones and is not a connection of non-pass-alive groups.
-    //These conditions should still make it so that "cleanup" and dame-filling moves are not discouraged.
-    // * When playing button go, very slightly discourage passing - so that if there are an even number of dame, filling a dame is still favored over passing.
-    if(moveLoc != Board::PASS_LOC && rootBoard.ko_loc == Board::NULL_LOC) {
-      int pos = NNPos::locToPos(moveLoc,rootBoard.x_size,nnXLen,nnYLen);
-      double plaOwnership = rootPla == P_WHITE ? whiteOwnerMap[pos] : -whiteOwnerMap[pos];
-      if(plaOwnership <= -extreme) {
-        if(!rootBoard.wouldBeCapture(moveLoc,rootPla))
-          extraRootPoints -= searchParams.rootEndingBonusPoints * ((-extreme - plaOwnership) / tail);
-      }
-      else if(plaOwnership >= extreme) {
-        if(!rootBoard.isAdjacentToPla(moveLoc,getOpp(rootPla)) &&
-           !rootBoard.isNonPassAliveSelfConnection(moveLoc,rootPla,rootSafeArea)) {
-          extraRootPoints -= searchParams.rootEndingBonusPoints * ((plaOwnership - extreme) / tail);
-        }
-      }
-    }
-  }
- 
-  if(rootPla == P_WHITE)
-    return extraRootPoints;
-  else
-    return -extraRootPoints;
+  return 0.0;
 }
 
 double Search::interpolateEarly(double halflife, double earlyValue, double value) const {

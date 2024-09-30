@@ -6,8 +6,6 @@
 #include "../game/board.h"
 #include "../game/rules.h"
 
-struct KoHashTable;
-
 //A data structure enabling checking of move legality, including optionally superko,
 //and implements scoring and support for various rulesets (see rules.h)
 struct BoardHistory {
@@ -98,12 +96,8 @@ struct BoardHistory {
   bool makeBoardMoveTolerant(Board& board, Loc moveLoc, Player movePla);
   bool isLegalTolerant(const Board& board, Loc moveLoc, Player movePla) const;
 
-  //Slightly expensive, check if the entire game is all pass-alive-territory, and if so, declare the game finished
-  void endGameIfAllPassAlive(const Board& board);
   //Score the board as-is. If the game is already finished, and is NOT a no-result, then this should be idempotent.
   void endAndScoreGameNow(const Board& board);
-  void endAndScoreGameNow(const Board& board, Color area[Board::MAX_ARR_SIZE]);
-  void getAreaNow(const Board& board, Color area[Board::MAX_ARR_SIZE]) const;
 
   void setWinnerByResignation(Player pla);
 
@@ -123,7 +117,7 @@ struct BoardHistory {
   static Hash128 getSituationRulesAndKoHash(const Board& board, const BoardHistory& hist, Player nextPlayer, double drawEquivalentWinsForWhite);
 
 private:
-  int countAreaScoreWhiteMinusBlack(const Board& board, Color area[Board::MAX_ARR_SIZE]) const;
+  int countAreaScoreWhiteMinusBlack(const Board& board) const;
   void setFinalScoreAndWinner(float score);
   int newConsecutiveEndingPassesAfterPass() const;
 };
