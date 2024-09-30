@@ -90,6 +90,8 @@ function exportStuff() {
                         mkdir -p "$BASEDIR"/selfplay/"$NAME"
                         mkdir -p "$BASEDIR"/selfplay/"$NAME"/sgfs
                         mkdir -p "$BASEDIR"/selfplay/"$NAME"/tdata
+                        rm -f "$BASEDIR"/latest.bin.gz
+                        cp -f "$TMPDST"/model.bin.gz "$BASEDIR"/latest.bin.gz
                     fi
                 fi
 
