@@ -80,8 +80,6 @@ struct BoardHistory {
 
   //Check if a move on the board is legal, taking into account the full game state and superko
   bool isLegal(const Board& board, Loc moveLoc, Player movePla) const;
-  //Check if passing right now would end the current phase of play, or the entire game
-  bool passWouldEndGame(const Board& board, Player movePla) const;
 
 
   //Current turn number, based on initial turn number

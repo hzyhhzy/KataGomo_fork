@@ -339,6 +339,20 @@ bool BoardHistory::isLegal(const Board& board, Loc moveLoc, Player movePla) cons
   if(!board.isLegalIgnoringKo(moveLoc,movePla,rules.multiStoneSuicideLegal))
     return false;
 
+  //send-two-return-one Ko
+  if(
+    moveHistory.size() >= 3 && 
+    moveLoc != Board::PASS_LOC &&
+    moveHistory[moveHistory.size() - 1].loc != Board::PASS_LOC &&
+    moveHistory[moveHistory.size() - 2].loc != Board::PASS_LOC) 
+  {
+    Hash128 posHash3movesAgo = getRecentBoard(2).pos_hash;
+    if(board.getPosHashAfterMove(moveLoc, movePla) == posHash3movesAgo) {  // 3 moves loop, probably send-two-return-one
+      return false;
+    }
+  }
+
+
   return true;
 }
 
@@ -353,10 +367,6 @@ int BoardHistory::newConsecutiveEndingPassesAfterPass() const {
   return newConsecutiveEndingPasses;
 }
 
-
-bool BoardHistory::passWouldEndGame(const Board& board, Player movePla) const {
-  return newConsecutiveEndingPassesAfterPass() >= 2;
-}
 
 bool BoardHistory::isLegalTolerant(const Board& board, Loc moveLoc, Player movePla) const {
   bool multiStoneSuicideLegal = true; //Tolerate suicide regardless of rules
@@ -460,15 +470,23 @@ Hash128 BoardHistory::getSituationAndSimpleKoHash(const Board& board, Player nex
   hash ^= Board::ZOBRIST_PLAYER_HASH[nextPlayer];
   if(board.ko_loc != Board::NULL_LOC)
     hash ^= Board::ZOBRIST_KO_LOC_HASH[board.ko_loc];
+
+  // Fold in capture num.
+  static constexpr uint64_t m0 = 3214363601587962893ULL;
+  static constexpr uint64_t m1 = 6115405565735154809ULL;
+  hash.hash0 = Hash::rrmxmx(hash.hash0 + Hash::nasam(board.numBlackCaptures * m0));
+  hash.hash1 = Hash::splitMix64(hash.hash1 + Hash::murmurMix(board.numBlackCaptures * m0));
+
+  hash.hash0 = Hash::rrmxmx(hash.hash0 + Hash::nasam(board.numWhiteCaptures * m0));
+  hash.hash1 = Hash::splitMix64(hash.hash1 + Hash::murmurMix(board.numWhiteCaptures * m0));
+  
+
   return hash;
 }
 
 Hash128 BoardHistory::getSituationAndSimpleKoAndPrevPosHash(const Board& board, const BoardHistory& hist, Player nextPlayer) {
   //Note that board.pos_hash also incorporates the size of the board.
-  Hash128 hash = board.pos_hash;
-  hash ^= Board::ZOBRIST_PLAYER_HASH[nextPlayer];
-  if(board.ko_loc != Board::NULL_LOC)
-    hash ^= Board::ZOBRIST_KO_LOC_HASH[board.ko_loc];
+  Hash128 hash = getSituationAndSimpleKoHash(board,nextPlayer);
 
   Hash128 mixed;
   mixed.hash1 = Hash::rrmxmx(hash.hash0);
@@ -483,12 +501,7 @@ Hash128 BoardHistory::getSituationRulesAndKoHash(const Board& board, const Board
   int ySize = board.y_size;
 
   //Note that board.pos_hash also incorporates the size of the board.
-  Hash128 hash = board.pos_hash;
-  hash ^= Board::ZOBRIST_PLAYER_HASH[nextPlayer];
-
-  if(board.ko_loc != Board::NULL_LOC)
-    hash ^= Board::ZOBRIST_KO_LOC_HASH[board.ko_loc];
-  
+  Hash128 hash = getSituationAndSimpleKoHash(board, nextPlayer);
 
   float selfKomi = hist.currentSelfKomi(nextPlayer,drawEquivalentWinsForWhite);
 
@@ -507,8 +520,8 @@ Hash128 BoardHistory::getSituationRulesAndKoHash(const Board& board, const Board
   static constexpr uint64_t m0 = 7607666294965183507ULL;
   static constexpr uint64_t m1 = 3103394289034396213ULL;
   int movenum = hist.moveHistory.size();
-  hash.hash0 ^= Hash::nasam(movenum * m0);
-  hash.hash1 ^= Hash::murmurMix(movenum * m0);
+  hash.hash0 = Hash::rrmxmx(hash.hash0 + Hash::nasam(movenum * m0));
+  hash.hash1 = Hash::splitMix64(hash.hash1 + Hash::murmurMix(movenum * m0));
   return hash;
 }
 

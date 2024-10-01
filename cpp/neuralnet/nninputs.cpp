@@ -964,16 +964,7 @@ void NNInputs::fillRowV7(
   //Hide history from the net if a pass would end things and we're behaving as if a pass won't.
   //Or if the game is in fact over right now!
   int maxTurnsOfHistoryToInclude = 5;
-  bool suppressPassWouldEndPhase = false;
-  if(hist.passWouldEndGame(board,nextPlayer) && (
-       //At the root, if assuming passing doesn't end the game, and it would, then need to mask that out.
-       nnInputParams.conservativePassAndIsRoot 
-     )
-  ) {
-    maxTurnsOfHistoryToInclude = 0;
-    suppressPassWouldEndPhase = true;
-  }
-  else if(hist.isGameFinished) {
+  if(hist.isGameFinished) {
     // Include one of the passes, at the end of that sequence
     maxTurnsOfHistoryToInclude = 1;
   }
@@ -1102,8 +1093,7 @@ void NNInputs::fillRowV7(
 
 
 
-  //Does a pass end the current phase given the ruleset and history?
-  rowGlobal[14] = hist.passWouldEndGame(board,nextPlayer) ? 1.0f : 0.0f;
+  rowGlobal[14] = 0.0f;
 
   //Used for handicap play
   //Parameter 15 is used because there's actually a discontinuity in how training behavior works when this is
