@@ -93,7 +93,6 @@ static const vector<string> knownCommands = {
 
   //Display raw neural net evaluations
   "kata-raw-nn",
-  "kata-raw-human-nn",
 
   //Misc other stuff
   "cputime",
@@ -1112,8 +1111,7 @@ struct GTPEngine {
     SearchNode* rootNode = search->rootNode;
     if(rootNode != NULL && delayMoveScale > 0.0 && delayMoveMax > 0.0) {
       int pos = search->getPos(moveLoc);
-      const NNOutput* nnOutput = rootNode->getHumanOutput();
-      nnOutput = nnOutput != NULL ? nnOutput : rootNode->getNNOutput();
+      const NNOutput* nnOutput = rootNode->getNNOutput();
       const float* policyProbs = nnOutput != NULL ? nnOutput->getPolicyProbsMaybeNoised() : NULL;
       if(policyProbs != NULL) {
         double prob = std::max(0.0,(double)policyProbs[pos]);
@@ -1686,13 +1684,11 @@ int MainCmds::gtp(const vector<string>& args) {
 
   ConfigParser cfg;
   string nnModelFile;
-  string humanModelFile;
   string overrideVersion;
   KataGoCommandLine cmd("Run KataGo main GTP engine for playing games or casual analysis.");
   try {
     cmd.addConfigFileArg(KataGoCommandLine::defaultGtpConfigFileName(),"gtp_example.cfg");
     cmd.addModelFileArg();
-    cmd.addHumanModelFileArg();
     cmd.setShortUsageArgLimit();
     cmd.addOverrideConfigArg();
 
@@ -1700,7 +1696,6 @@ int MainCmds::gtp(const vector<string>& args) {
     cmd.add(overrideVersionArg);
     cmd.parseArgs(args);
     nnModelFile = cmd.getModelFile();
-    humanModelFile = cmd.getHumanModelFile();
     overrideVersion = overrideVersionArg.getValue();
 
     cmd.getConfig(cfg);
@@ -1742,10 +1737,9 @@ int MainCmds::gtp(const vector<string>& args) {
     initialRules.komi = forcedKomi;
   }
 
-  const bool hasHumanModel = humanModelFile != "";
 
-  auto loadParams = [&hasHumanModel](ConfigParser& config, SearchParams& genmoveOut, SearchParams& analysisOut) {
-    SearchParams params = Setup::loadSingleParams(config,Setup::SETUP_FOR_GTP,hasHumanModel);
+  auto loadParams = [](ConfigParser& config, SearchParams& genmoveOut, SearchParams& analysisOut) {
+    SearchParams params = Setup::loadSingleParams(config,Setup::SETUP_FOR_GTP);
 
     const double analysisWideRootNoise =
       config.contains("analysisWideRootNoise") ? config.getDouble("analysisWideRootNoise",0.0,5.0) : Setup::DEFAULT_ANALYSIS_WIDE_ROOT_NOISE;
@@ -1869,8 +1863,6 @@ int MainCmds::gtp(const vector<string>& args) {
 
   logger.write("Loaded config " + cfg.getFileName());
   logger.write("Loaded model " + nnModelFile);
-  if(humanModelFile != "")
-    logger.write("Loaded human SL model " + humanModelFile);
   cmd.logOverrides(logger);
   logger.write("Model name: "+ (engine->nnEval == NULL ? string() : engine->nnEval->getInternalModelName()));
   logger.write("GTP ready, beginning main protocol loop");
@@ -1878,8 +1870,6 @@ int MainCmds::gtp(const vector<string>& args) {
   if(startupPrintMessageToStderr && !logger.isLoggingToStderr()) {
     cerr << "Loaded config " << cfg.getFileName() << endl;
     cerr << "Loaded model " << nnModelFile << endl;
-    if(humanModelFile != "")
-      cerr << "Loaded human SL model " << humanModelFile << endl;
     cerr << "Model name: "+ (engine->nnEval == NULL ? string() : engine->nnEval->getInternalModelName()) << endl;
     cerr << "GTP ready, beginning main protocol loop" << endl;
   }
@@ -3106,7 +3096,6 @@ int MainCmds::gtp(const vector<string>& args) {
           response = "Expected double from 0 to 1 for optimism but got '" + Global::concat(pieces," ") + "'";
         }
         else {
-          const bool useHumanModel = false;
           response = engine->rawNN(whichSymmetry, policyOptimism);
         }
       }

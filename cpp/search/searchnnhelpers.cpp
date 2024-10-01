@@ -102,9 +102,6 @@ bool Search::initNodeNNOutput(
     return wasNullBefore;
   }
   else {
-    // Store human result first, so that the presence of the main result guarantees
-    // that the human result exists in the case we have a human evaluator.
-    
     bool suc = node.storeNNOutputIfNull(result);
     if(!suc)
       delete result;
@@ -131,7 +128,6 @@ bool Search::maybeRecomputeExistingNNOutput(
     uint32_t oldAge = node.nodeAge.exchange(searchNodeAge,std::memory_order_acq_rel);
     if(oldAge < searchNodeAge) {
       NNOutput* nnOutput = node.getNNOutput();
-      NNOutput* humanOutput = node.getHumanOutput();
       assert(nnOutput != NULL);
 
       //Recompute if we have no ownership map, since we need it for getEndingWhiteScoreBonus

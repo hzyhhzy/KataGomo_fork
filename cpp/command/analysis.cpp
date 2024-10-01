@@ -62,7 +62,6 @@ int MainCmds::analysis(const vector<string>& args) {
 
   ConfigParser cfg;
   string modelFile;
-  string humanModelFile;
   bool numAnalysisThreadsCmdlineSpecified;
   int numAnalysisThreadsCmdline;
   bool quitWithoutWaiting;
@@ -71,7 +70,6 @@ int MainCmds::analysis(const vector<string>& args) {
   try {
     cmd.addConfigFileArg("","analysis_example.cfg");
     cmd.addModelFileArg();
-    cmd.addHumanModelFileArg();
     cmd.setShortUsageArgLimit();
     cmd.addOverrideConfigArg();
 
@@ -82,7 +80,6 @@ int MainCmds::analysis(const vector<string>& args) {
     cmd.parseArgs(args);
 
     modelFile = cmd.getModelFile();
-    humanModelFile = cmd.getHumanModelFile();
     numAnalysisThreadsCmdlineSpecified = numAnalysisThreadsArg.isSet();
     numAnalysisThreadsCmdline = numAnalysisThreadsArg.getValue();
     quitWithoutWaiting = quitWithoutWaitingArg.getValue();
@@ -125,9 +122,8 @@ int MainCmds::analysis(const vector<string>& args) {
 
   const bool warnUnusedFields = cfg.contains("warnUnusedFields") ? cfg.getBool("warnUnusedFields") : true;
 
-  auto loadParams = [&humanModelFile](ConfigParser& config, SearchParams& params, Player& perspective, Player defaultPerspective) {
-    bool hasHumanModel = humanModelFile != "";
-    params = Setup::loadSingleParams(config,Setup::SETUP_FOR_ANALYSIS,hasHumanModel);
+  auto loadParams = [](ConfigParser& config, SearchParams& params, Player& perspective, Player defaultPerspective) {
+    params = Setup::loadSingleParams(config,Setup::SETUP_FOR_ANALYSIS);
     perspective = Setup::parseReportAnalysisWinrates(config,defaultPerspective);
   };
 
@@ -148,7 +144,6 @@ int MainCmds::analysis(const vector<string>& args) {
   const bool preventEncore = cfg.contains("preventCleanupPhase") ? cfg.getBool("preventCleanupPhase") : true;
 
   NNEvaluator* nnEval = NULL;
-  NNEvaluator* humanEval = NULL;
   {
     Setup::initializeSession(cfg);
     const int expectedConcurrentEvals = numAnalysisThreads * defaultParams.numThreads;
@@ -161,20 +156,6 @@ int MainCmds::analysis(const vector<string>& args) {
       NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
       Setup::SETUP_FOR_ANALYSIS
     );
-    if(humanModelFile != "") {
-      humanEval = Setup::initializeNNEvaluator(
-        humanModelFile,humanModelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
-        NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
-        Setup::SETUP_FOR_ANALYSIS
-      );
-      if(!humanEval->requiresSGFMetadata()) {
-        string warning;
-        warning += "WARNING: Human model was not trained from SGF metadata to vary by rank! Did you pass the wrong model for -human-model?\n";
-        logger.write(warning);
-        if(!logToStderr)
-          cerr << warning << endl;
-      }
-    }
   }
 
 #ifndef USE_EIGEN_BACKEND
@@ -201,11 +182,6 @@ int MainCmds::analysis(const vector<string>& args) {
   logger.write("Loaded model "+ modelFile);
   cmd.logOverrides(logger);
 
-  if(humanModelFile != "" && !cfg.contains("humanSLProfile") && humanEval->requiresSGFMetadata()) {
-    logger.write("Warning: Provided -human-model but humanSLProfile is not yet set. The human SL model will only be used on queries that provide humanSLProfile in overrideSettings.");
-    if(!logger.isLoggingToStderr())
-      cerr << "Warning: Provided -human-model but humanSLProfile is not yet set. The human SL model will only be used on queries that provide humanSLProfile in overrideSettings." << endl;
-  }
 
   //Expected possible keys for queries
   const std::set<std::string> expectedKeys = {
@@ -508,23 +484,11 @@ int MainCmds::analysis(const vector<string>& args) {
             modelInfo["usingFP16"] = nnEval->getUsingFP16Mode().toString();
             input["models"].push_back(modelInfo);
           }
-          if(humanEval != NULL) {
-            json modelInfo;
-            modelInfo["name"] = humanEval->getModelName();
-            modelInfo["internalName"] = humanEval->getInternalModelName();
-            modelInfo["maxBatchSize"] = humanEval->getMaxBatchSize();
-            modelInfo["usesHumanSLProfile"] = humanEval->requiresSGFMetadata();
-            modelInfo["version"] = humanEval->getModelVersion();
-            modelInfo["usingFP16"] = humanEval->getUsingFP16Mode().toString();
-            input["models"].push_back(modelInfo);
-          }
           pushToWrite(new string(input.dump()));
         }
         else if(action == "clear_cache") {
           //This should be thread-safe.
           nnEval->clearCache();
-          if(humanEval != NULL)
-            humanEval->clearCache();
           pushToWrite(new string(input.dump()));
         }
         else if(action == "terminate") {
@@ -1232,14 +1196,8 @@ int MainCmds::analysis(const vector<string>& args) {
   logger.write("NN rows: " + Global::int64ToString(nnEval->numRowsProcessed()));
   logger.write("NN batches: " + Global::int64ToString(nnEval->numBatchesProcessed()));
   logger.write("NN avg batch size: " + Global::doubleToString(nnEval->averageProcessedBatchSize()));
-  if(humanEval != NULL) {
-    logger.write(humanEval->getModelFileName());
-    logger.write("NN rows: " + Global::int64ToString(humanEval->numRowsProcessed()));
-    logger.write("NN batches: " + Global::int64ToString(humanEval->numBatchesProcessed()));
-    logger.write("NN avg batch size: " + Global::doubleToString(humanEval->averageProcessedBatchSize()));
-  }
+
   delete nnEval;
-  delete humanEval;
   NeuralNet::globalCleanup();
   ScoreValue::freeTables();
   logger.write("All cleaned up, quitting");

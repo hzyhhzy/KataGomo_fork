@@ -1891,10 +1891,8 @@ bool Search::getAnalysisJson(
   getAnalysisData(buf, minMoves, false, analysisPVLen, duplicateForSymmetries);
 
   const NNOutput* nnOutput = NULL;
-  const NNOutput* humanOutput = NULL;
   if(rootNode != NULL) {
     nnOutput = rootNode->getNNOutput();
-    humanOutput = rootNode->getHumanOutput();
   }
 
   // Stats for all the individual moves
@@ -1929,8 +1927,6 @@ bool Search::getAnalysisJson(
     moveInfo["scoreLead"] = Global::roundDynamic(lead,OUTPUT_PRECISION);
     moveInfo["scoreStdev"] = Global::roundDynamic(data.scoreStdev,OUTPUT_PRECISION);
     moveInfo["prior"] = Global::roundDynamic(data.policyPrior,OUTPUT_PRECISION);
-    if(humanOutput != NULL)
-      moveInfo["humanPrior"] = Global::roundDynamic(std::max(0.0,(double)humanOutput->policyProbs[getPos(data.move)]),OUTPUT_PRECISION);
     moveInfo["lcb"] = Global::roundDynamic(lcb,OUTPUT_PRECISION);
     moveInfo["utilityLcb"] = Global::roundDynamic(utilityLcb,OUTPUT_PRECISION);
     moveInfo["order"] = data.order;
@@ -2009,14 +2005,6 @@ bool Search::getAnalysisJson(
       rootInfo["rawStScoreError"] = Global::roundDynamic(nnOutput->shorttermScoreError,OUTPUT_PRECISION);
       rootInfo["rawVarTimeLeft"] = Global::roundDynamic(nnOutput->varTimeLeft,OUTPUT_PRECISION);
     }
-    if(humanOutput != NULL) {
-      rootInfo["humanWinrate"] = Global::roundDynamic(0.5 + 0.5*(humanOutput->whiteWinProb - humanOutput->whiteLossProb)*flipFactor,OUTPUT_PRECISION);
-      rootInfo["humanScoreMean"] = Global::roundDynamic(humanOutput->whiteScoreMean*flipFactor,OUTPUT_PRECISION);
-      double wsm = humanOutput->whiteScoreMean;
-      rootInfo["humanScoreStdev"] = Global::roundDynamic(sqrt(std::max(0.0, humanOutput->whiteScoreMeanSq - wsm*wsm)),OUTPUT_PRECISION);
-      rootInfo["humanStWrError"] = Global::roundDynamic(humanOutput->shorttermWinlossError * 0.5,OUTPUT_PRECISION);
-      rootInfo["humanStScoreError"] = Global::roundDynamic(humanOutput->shorttermScoreError,OUTPUT_PRECISION);
-    }
 
     Hash128 thisHash;
     Hash128 symHash;
@@ -2059,19 +2047,6 @@ bool Search::getAnalysisJson(
       ret["policy"] = policy;
     }
 
-    if(humanOutput != NULL) {
-      const float* policyProbs = humanOutput->getPolicyProbsMaybeNoised();
-      json policy = json::array();
-      for(int y = 0; y < board.y_size; y++) {
-        for(int x = 0; x < board.x_size; x++) {
-          int pos = NNPos::xyToPos(x, y, nnXLen);
-          policy.push_back(Global::roundDynamic(policyProbs[pos],OUTPUT_PRECISION));
-        }
-      }
-      int passPos = NNPos::locToPos(Board::PASS_LOC, board.x_size, nnXLen, nnYLen);
-      policy.push_back(Global::roundDynamic(policyProbs[passPos],OUTPUT_PRECISION));
-      ret["humanPolicy"] = policy;
-    }
   }
 
   // Average tree ownership

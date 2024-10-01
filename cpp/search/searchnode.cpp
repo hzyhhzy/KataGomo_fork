@@ -159,7 +159,6 @@ SearchNode::SearchNode(Player pla, bool fnt, uint32_t mIdx)
    mutexIdx(mIdx),
    state(SearchNode::STATE_UNEVALUATED),
    nnOutput(),
-   humanOutput(),
    nodeAge(0),
    children0(NULL),
    children1(NULL),
@@ -180,7 +179,6 @@ SearchNode::SearchNode(const SearchNode& other, bool fnt, bool copySubtreeValueB
    mutexIdx(other.mutexIdx),
    state(other.state.load(std::memory_order_acquire)),
    nnOutput(),
-   humanOutput(),
    nodeAge(other.nodeAge.load(std::memory_order_acquire)),
    children0(NULL),
    children1(NULL),
@@ -196,11 +194,6 @@ SearchNode::SearchNode(const SearchNode& other, bool fnt, bool copySubtreeValueB
     std::shared_ptr<NNOutput>* otherVal = other.nnOutput.load(std::memory_order_acquire);
     if(otherVal != NULL)
       nnOutput.store(new std::shared_ptr<NNOutput>(*otherVal), std::memory_order_release);
-  }
-  {
-    std::shared_ptr<NNOutput>* otherVal = other.humanOutput.load(std::memory_order_acquire);
-    if(otherVal != NULL)
-      humanOutput.store(new std::shared_ptr<NNOutput>(*otherVal), std::memory_order_release);
   }
   if(other.children0 != NULL) {
     children0 = new SearchChildPointer[SearchChildrenSizes::SIZE0OVERFLOW];
@@ -394,20 +387,6 @@ const NNOutput* SearchNode::getNNOutput() const {
   return nn->get();
 }
 
-NNOutput* SearchNode::getHumanOutput() {
-  std::shared_ptr<NNOutput>* nn = humanOutput.load(std::memory_order_acquire);
-  if(nn == NULL)
-    return NULL;
-  return nn->get();
-}
-
-const NNOutput* SearchNode::getHumanOutput() const {
-  const std::shared_ptr<NNOutput>* nn = humanOutput.load(std::memory_order_acquire);
-  if(nn == NULL)
-    return NULL;
-  return nn->get();
-}
-
 
 bool SearchNode::storeNNOutput(std::shared_ptr<NNOutput>* newNNOutput, SearchThread& thread) {
   std::shared_ptr<NNOutput>* toCleanUp = nnOutput.exchange(newNNOutput, std::memory_order_acq_rel);
@@ -435,6 +414,4 @@ SearchNode::~SearchNode() {
     delete[] children0;
   if(nnOutput != NULL)
     delete nnOutput;
-  if(humanOutput != NULL)
-    delete humanOutput;
 }

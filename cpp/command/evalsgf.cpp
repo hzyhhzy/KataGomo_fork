@@ -20,7 +20,6 @@ int MainCmds::evalsgf(const vector<string>& args) {
 
   ConfigParser cfg;
   string modelFile;
-  string humanModelFile;
   string sgfFile;
   int moveNum;
   string printBranch;
@@ -49,7 +48,6 @@ int MainCmds::evalsgf(const vector<string>& args) {
     KataGoCommandLine cmd("Run a search on a position from an sgf file, for debugging.");
     cmd.addConfigFileArg("","gtp_example.cfg");
     cmd.addModelFileArg();
-    cmd.addHumanModelFileArg();
 
     TCLAP::UnlabeledValueArg<string> sgfFileArg("","Sgf file to analyze",true,string(),"FILE");
     TCLAP::ValueArg<int> moveNumArg("m","move-num","Sgf move num to analyze, 1-indexed",true,0,"MOVENUM");
@@ -112,7 +110,6 @@ int MainCmds::evalsgf(const vector<string>& args) {
     cmd.parseArgs(args);
 
     modelFile = cmd.getModelFile();
-    humanModelFile = cmd.getHumanModelFile();
     sgfFile = sgfFileArg.getValue();
     moveNum = moveNumArg.getValue();
     printBranch = printBranchArg.getValue();
@@ -226,8 +223,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
   Logger logger(&cfg, logToStdoutDefault);
   logger.write("Engine starting...");
 
-  bool hasHumanModel = humanModelFile != "";
-  SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP,hasHumanModel);
+  SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
   if(maxVisits < -1 || maxVisits == 0)
     throw StringError("maxVisits: invalid value");
   else if(maxVisits == -1)
@@ -251,7 +247,6 @@ int MainCmds::evalsgf(const vector<string>& args) {
     searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
 
   NNEvaluator* nnEval = NULL;
-  NNEvaluator* humanEval = NULL;
   {
     Setup::initializeSession(cfg);
     int expectedConcurrentEvals = params.numThreads;
@@ -264,13 +259,6 @@ int MainCmds::evalsgf(const vector<string>& args) {
       board.x_size,board.y_size,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
       Setup::SETUP_FOR_GTP
     );
-    if(humanModelFile != "") {
-      humanEval = Setup::initializeNNEvaluator(
-        humanModelFile,humanModelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
-        board.x_size,board.y_size,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
-        Setup::SETUP_FOR_GTP
-      );
-    }
   }
   logger.write("Loaded neural net");
 
@@ -355,10 +343,6 @@ int MainCmds::evalsgf(const vector<string>& args) {
     Board::printBoard(cout, board, Board::NULL_LOC, &(hist.moveHistory));
     buf.result->debugPrint(cout,board);
 
-    if(humanEval != NULL) {
-      humanEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
-      buf.result->debugPrint(cout,board);
-    }
     return 0;
   }
 
@@ -408,8 +392,6 @@ int MainCmds::evalsgf(const vector<string>& args) {
 
   ClockTimer timer;
   nnEval->clearStats();
-  if(humanEval != NULL)
-    humanEval->clearStats();
   Loc loc = bot->genMoveSynchronous(bot->getSearch()->rootPla,TimeControls());
   (void)loc;
 
@@ -483,12 +465,6 @@ int MainCmds::evalsgf(const vector<string>& args) {
       cout << "Root policy: " << endl;
       doPrintPolicy(policyProbs, nnOutput->nnXLen, nnOutput->nnYLen);
     }
-    const NNOutput* humanOutput = search->rootNode->getHumanOutput();
-    if(humanOutput != NULL) {
-      const float* policyProbs = humanOutput->getPolicyProbsMaybeNoised();
-      cout << "Root human policy: " << endl;
-      doPrintPolicy(policyProbs, humanOutput->nnXLen, humanOutput->nnYLen);
-    }
   }
   if(printLogPolicy) {
     auto doPrintLogPolicy = [&](const float* policyProbs, int nnXLen, int nnYLen) {
@@ -512,12 +488,6 @@ int MainCmds::evalsgf(const vector<string>& args) {
       const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
       cout << "Root policy: " << endl;
       doPrintLogPolicy(policyProbs, nnOutput->nnXLen, nnOutput->nnYLen);
-    }
-    const NNOutput* humanOutput = search->rootNode->getHumanOutput();
-    if(humanOutput != NULL) {
-      const float* policyProbs = humanOutput->getPolicyProbsMaybeNoised();
-      cout << "Root human policy: " << endl;
-      doPrintLogPolicy(policyProbs, humanOutput->nnXLen, humanOutput->nnYLen);
     }
   }
 
@@ -645,8 +615,6 @@ int MainCmds::evalsgf(const vector<string>& args) {
 
   delete bot;
   delete nnEval;
-  if(humanEval != NULL)
-    delete humanEval;
   NeuralNet::globalCleanup();
   delete sgf;
   ScoreValue::freeTables();

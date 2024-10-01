@@ -357,16 +357,8 @@ SearchParams Setup::loadSingleParams(
   ConfigParser& cfg,
   setup_for_t setupFor
 ) {
-  const bool hasHumanModel = false;
-  return loadSingleParams(cfg,setupFor,hasHumanModel);
-}
-SearchParams Setup::loadSingleParams(
-  ConfigParser& cfg,
-  setup_for_t setupFor,
-  bool hasHumanModel
-) {
   const bool loadSingleConfigOnly = true;
-  vector<SearchParams> paramss = loadParams(cfg, setupFor, hasHumanModel, loadSingleConfigOnly);
+  vector<SearchParams> paramss = loadParams(cfg, setupFor, loadSingleConfigOnly);
   if(paramss.size() != 1)
     throw StringError("Config contains parameters for multiple bot configurations, but this KataGo command only supports a single configuration");
   return paramss[0];
@@ -384,24 +376,13 @@ vector<SearchParams> Setup::loadParams(
   ConfigParser& cfg,
   setup_for_t setupFor
 ) {
-  const bool hasHumanModel = false;
   const bool loadSingleConfigOnly = false;
-  return loadParams(cfg,setupFor,hasHumanModel,loadSingleConfigOnly);
+  return loadParams(cfg,setupFor,loadSingleConfigOnly);
 }
 
 vector<SearchParams> Setup::loadParams(
   ConfigParser& cfg,
   setup_for_t setupFor,
-  bool hasHumanModel
-) {
-  const bool loadSingleConfigOnly = false;
-  return loadParams(cfg,setupFor,hasHumanModel,loadSingleConfigOnly);
-}
-
-vector<SearchParams> Setup::loadParams(
-  ConfigParser& cfg,
-  setup_for_t setupFor,
-  bool hasHumanModel,
   bool loadSingleConfigOnly
 ) {
 

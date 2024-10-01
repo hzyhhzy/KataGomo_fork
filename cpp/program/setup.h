@@ -74,17 +74,6 @@ namespace Setup {
   std::vector<SearchParams> loadParams(
     ConfigParser& cfg,
     setup_for_t setupFor,
-    bool hasHumanModel
-  );
-  SearchParams loadSingleParams(
-    ConfigParser& cfg,
-    setup_for_t setupFor,
-    bool hasHumanModel
-  );
-  std::vector<SearchParams> loadParams(
-    ConfigParser& cfg,
-    setup_for_t setupFor,
-    bool hasHumanModel,
     bool loadSingleConfigOnly
   );
 
