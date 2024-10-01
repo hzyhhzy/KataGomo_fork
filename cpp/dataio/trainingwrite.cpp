@@ -75,7 +75,6 @@ FinishedGameData::FinishedGameData()
 
    hitTurnLimit(false),
 
-   numExtraBlack(0),
    mode(0),
    usedInitialPosition(0),
 
@@ -120,7 +119,6 @@ void FinishedGameData::printDebug(ostream& out) const {
   endHist.printDebugInfo(out,endHist.getRecentBoard(0));
   out << "gameHash " << gameHash << endl;
   out << "hitTurnLimit " << hitTurnLimit << endl;
-  out << "numExtraBlack " << numExtraBlack << endl;
   out << "mode " << mode << endl;
   out << "usedInitialPosition " << usedInitialPosition << endl;
   out << "hasFullData " << hasFullData << endl;
@@ -339,7 +337,6 @@ void TrainingWriteBuffers::addRow(
   Hash128 gameHash,
   const std::vector<ChangedNeuralNet*>& changedNeuralNets,
   bool hitTurnLimit,
-  int numExtraBlack,
   int mode,
   SGFMetadata* sgfMeta,
   Rand& rand
@@ -427,6 +424,8 @@ void TrainingWriteBuffers::addRow(
   const ValueTargets& thisTargets = whiteValueTargets[whiteValueTargetsIdx];
   //If the actual game ended in a no-result, we don't use lead for any position during the game
   //including side positions, just in case.
+  if(thisTargets.hasLead)
+    ASSERT_UNREACHABLE;// lead is disabled
   if(thisTargets.hasLead && !(actualGameEndHist.isGameFinished && actualGameEndHist.isNoResult)) {
     //Flip based on next player for training
     float lead = nextPlayer == P_WHITE ? thisTargets.lead : -thisTargets.lead;
@@ -497,7 +496,7 @@ void TrainingWriteBuffers::addRow(
   rowGlobal[51] = (float)turnIdx;
   rowGlobal[52] = hitTurnLimit ? 1.0f : 0.0f;
   rowGlobal[53] = (float)startHist.moveHistory.size();
-  rowGlobal[54] = (float)numExtraBlack;
+  rowGlobal[54] = 0.0f;
 
   //Metadata about how the game was initialized
   rowGlobal[55] = (float)mode;
@@ -887,12 +886,8 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
     else if(data.endHist.winner == P_WHITE)
       assert(lastTargets.win == 1.0f && lastTargets.loss == 0.0f && lastTargets.noResult == 0.0f);
     else
-      assert(lastTargets.noResult == 0.0f);
+      assert(lastTargets.noResult == 0.0f || lastTargets.noResult == 1.0f);
 
-    assert(data.finalFullArea != NULL);
-    assert(data.finalOwnership != NULL);
-    assert(data.finalSekiAreas != NULL);
-    assert(data.finalWhiteScoring != NULL);
     assert(!data.endHist.isResignation);
   }
   #endif
@@ -978,7 +973,6 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             data.gameHash,
             data.changedNeuralNets,
             data.hitTurnLimit,
-            data.numExtraBlack,
             data.mode,
             NULL,
             rand
@@ -1045,7 +1039,6 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             data.gameHash,
             data.changedNeuralNets,
             data.hitTurnLimit, // actual game hit turn limit
-            data.numExtraBlack,
             data.mode,
             NULL,
             rand

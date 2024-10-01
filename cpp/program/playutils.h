@@ -19,18 +19,6 @@ namespace PlayUtils {
     Rand& gameRand
   );
 
-  //Set board to empty and place fixed handicap stones, raising an exception if invalid
-  void placeFixedHandicap(Board& board, int n);
-
-  ExtraBlackAndKomi chooseExtraBlackAndKomi(
-    float base, float stdev, double allowIntegerProb,
-    double handicapProb, int numExtraBlackFixed,
-    double bigStdevProb, float bigStdev,
-    double biggerStdevProb, float biggerStdev,
-    double sqrtBoardArea, Rand& rand
-  );
-  void setKomiWithoutNoise(const ExtraBlackAndKomi& extraBlackAndKomi, BoardHistory& hist); //Also ignores allowInteger
-  void setKomiWithNoise(const ExtraBlackAndKomi& extraBlackAndKomi, BoardHistory& hist, Rand& rand);
 
   ReportedSearchValues getWhiteScoreValues(
     Search* bot,
@@ -65,29 +53,8 @@ namespace PlayUtils {
     double proportionOfBoardArea, double temperature
   );
 
-  float roundAndClipKomi(double unrounded, const Board& board);
+  float roundAndClipKomi(double unrounded, float boardArea);
 
-  void adjustKomiToEven(
-    Search* botB,
-    Search* botW, //can be NULL if only one bot
-    const Board& board,
-    BoardHistory& hist,
-    Player pla,
-    int64_t numVisits,
-    const OtherGameProperties& otherGameProps,
-    Rand& rand
-  );
-
-  //Lead from WHITE's perspective
-  float computeLead(
-    Search* botB,
-    Search* botW, //can be NULL if only one bot
-    const Board& board,
-    BoardHistory& hist,
-    Player pla,
-    int64_t numVisits,
-    const OtherGameProperties& otherGameProps
-  );
 
   double getSearchFactor(
     double searchFactorWhenWinningThreshold,
@@ -98,14 +65,6 @@ namespace PlayUtils {
   );
 
   double getHackedLCBForWinrate(const Search* search, const AnalysisData& data, Player pla);
-
-  std::vector<double> computeOwnership(
-    Search* bot,
-    const Board& board,
-    const BoardHistory& hist,
-    Player pla,
-    int64_t numVisits
-  );
 
 
   struct BenchmarkResults {

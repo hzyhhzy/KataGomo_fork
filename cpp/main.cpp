@@ -93,10 +93,6 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
   else if(subcommand == "runtests")
     return MainCmds::runtests(subArgs);
   
-  else if(subcommand == "samplesgfs")
-    return MainCmds::samplesgfs(subArgs);
-  else if(subcommand == "dataminesgfs")
-    return MainCmds::dataminesgfs(subArgs);
   else if(subcommand == "genbook")
     return MainCmds::genbook(subArgs);
   else if(subcommand == "writebook")

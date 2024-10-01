@@ -73,7 +73,6 @@ struct FinishedGameData {
   bool hitTurnLimit;
 
   //Metadata about how the game was initialized
-  int numExtraBlack;
   int mode;
   int usedInitialPosition;
 
@@ -268,7 +267,6 @@ struct TrainingWriteBuffers {
     Hash128 gameHash,
     const std::vector<ChangedNeuralNet*>& changedNeuralNets,
     bool hitTurnLimit,
-    int numExtraBlack,
     int mode,
     SGFMetadata* sgfMeta,
     Rand& rand

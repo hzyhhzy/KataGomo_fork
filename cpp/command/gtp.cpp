@@ -821,11 +821,10 @@ struct GTPEngine {
           out << " edgeVisits " << data.numVisits;
           out << " utility " << utility;
           out << " winrate " << winrate;
-          // We report lead for scoreMean here so that a bunch of legacy tools that use KataGo use lead instead, which
-          // is usually a better field for user applications. We report scoreMean instead as scoreSelfplay
-          out << " scoreMean " << lead;
+          // lead is disabled
+          out << " scoreMean " << scoreMean;
           out << " scoreStdev " << data.scoreStdev;
-          out << " scoreLead " << lead;
+          out << " scoreLead " << scoreMean;
           out << " scoreSelfplay " << scoreMean;
           out << " prior " << data.policyPrior;
           out << " lcb " << lcb;
@@ -1222,45 +1221,6 @@ struct GTPEngine {
     nnEval->clearCache();
   }
 
-  void placeFixedHandicap(int n, string& response, bool& responseIsError) {
-    int xSize = bot->getRootBoard().x_size;
-    int ySize = bot->getRootBoard().y_size;
-    Board board(xSize,ySize);
-    try {
-      PlayUtils::placeFixedHandicap(board,n);
-    }
-    catch(const StringError& e) {
-      responseIsError = true;
-      response = string(e.what()) + ", try place_free_handicap";
-      return;
-    }
-    assert(bot->getRootHist().rules == currentRules);
-
-    Player pla = P_BLACK;
-    BoardHistory hist(board,pla,currentRules);
-
-    //Also switch the initial player, expecting white should be next.
-    hist.clear(board,P_WHITE,currentRules);
-    hist.setInitialTurnNumber(board.numStonesOnBoard()); //Should give more accurate temperaure and time control behavior
-    pla = P_WHITE;
-
-    response = "";
-    for(int y = 0; y<board.y_size; y++) {
-      for(int x = 0; x<board.x_size; x++) {
-        Loc loc = Location::getLoc(x,y,board.x_size);
-        if(board.colors[loc] != C_EMPTY) {
-          response += " " + Location::toString(loc,board);
-        }
-      }
-    }
-    response = Global::trim(response);
-    (void)responseIsError;
-
-    vector<Move> newMoveHistory;
-    setPositionAndRules(pla,board,hist,board,pla,newMoveHistory);
-    clearStatsForNewGame();
-  }
-
   void placeFreeHandicap(int n, string& response, bool& responseIsError, Rand& rand) {
     stopAndWait();
 
@@ -1349,20 +1309,10 @@ struct GTPEngine {
       winner = hist.winner;
       finalWhiteMinusBlackScore = hist.finalWhiteMinusBlackScore;
     }
-    //Human-friendly score or incomplete game score estimation
+    //no score
     else {
-      int64_t numVisits = std::max(50, genmoveParams.numThreads * 10);
-      //Try computing the lead for white
-      double lead = PlayUtils::computeLead(bot->getSearchStopAndWait(),NULL,board,hist,pla,numVisits,OtherGameProperties());
-
-      //Round lead to nearest integer or half-integer
-      if(hist.rules.gameResultWillBeInteger())
-        lead = round(lead);
-      else
-        lead = round(lead+0.5)-0.5;
-
-      finalWhiteMinusBlackScore = lead;
-      winner = lead > 0 ? P_WHITE : lead < 0 ? P_BLACK : C_EMPTY;
+      finalWhiteMinusBlackScore = 0;
+      winner = C_EMPTY;
     }
 
     //Restore
@@ -2877,30 +2827,6 @@ int MainCmds::gtp(const vector<string>& args) {
       ostringstream sout;
       engine->bot->getRootHist().printBasicInfo(sout, engine->bot->getRootBoard());
       response = Global::trim(filterDoubleNewlines(sout.str()));
-    }
-
-    else if(command == "fixed_handicap") {
-      int n;
-      if(pieces.size() != 1) {
-        responseIsError = true;
-        response = "Expected one argument for fixed_handicap but got '" + Global::concat(pieces," ") + "'";
-      }
-      else if(!Global::tryStringToInt(pieces[0],n)) {
-        responseIsError = true;
-        response = "Could not parse number of handicap stones: '" + pieces[0] + "'";
-      }
-      else if(n < 2) {
-        responseIsError = true;
-        response = "Number of handicap stones less than 2: '" + pieces[0] + "'";
-      }
-      else if(!engine->bot->getRootBoard().isEmpty()) {
-        responseIsError = true;
-        response = "Board is not empty";
-      }
-      else {
-        maybeSaveAvoidPatterns(false);
-        engine->placeFixedHandicap(n,response,responseIsError);
-      }
     }
 
     else if(command == "place_free_handicap") {

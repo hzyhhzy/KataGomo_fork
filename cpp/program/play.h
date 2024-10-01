@@ -39,16 +39,6 @@ struct ForkData {
 
 };
 
-struct ExtraBlackAndKomi {
-  int extraBlack = 0;
-  float komiMean = 7.5f;
-  float komiStdev = 7.5f;
-  bool makeGameFair = false;
-  bool makeGameFairForEmptyBoard = false;
-  bool allowInteger = true;
-  bool interpZero = false;
-};
-
 struct OtherGameProperties {
   bool isSgfPos = false;
   bool isHintPos = false;
@@ -85,7 +75,6 @@ class GameInitializer {
   //Does NOT place handicap stones, users of this function need to place them manually
   void createGame(
     Board& board, Player& pla, BoardHistory& hist,
-    ExtraBlackAndKomi& extraBlackAndKomi,
     SearchParams& params,
     const InitialPosition* initialPosition,
     const PlaySettings& playSettings,
@@ -96,7 +85,6 @@ class GameInitializer {
   //A version that doesn't randomize params
   void createGame(
     Board& board, Player& pla, BoardHistory& hist,
-    ExtraBlackAndKomi& extraBlackAndKomi,
     const InitialPosition* initialPosition,
     const PlaySettings& playSettings,
     OtherGameProperties& otherGameProps,
@@ -117,13 +105,14 @@ class GameInitializer {
   void initShared(ConfigParser& cfg, Logger& logger);
   void createGameSharedUnsynchronized(
     Board& board, Player& pla, BoardHistory& hist,
-    ExtraBlackAndKomi& extraBlackAndKomi,
     const InitialPosition* initialPosition,
     const PlaySettings& playSettings,
     OtherGameProperties& otherGameProps,
     const Sgf::PositionSample* startPosSample
   );
   Rules createRulesUnsynchronized();
+
+  float getRandomKomi(float boardArea);
 
   std::mutex createGameMutex;
   Rand rand;
@@ -139,19 +128,11 @@ class GameInitializer {
   float komiMean;
   float komiStdev;
   double komiAllowIntegerProb;
-  double handicapProb;
-  double handicapCompensateKomiProb;
-  double forkCompensateKomiProb;
-  double sgfCompensateKomiProb;
   double komiBigStdevProb;
   float komiBigStdev;
   double komiBiggerStdevProb;
   float komiBiggerStdev;
-  double handicapKomiInterpZeroProb;
-  double sgfKomiInterpZeroProb;
-  bool komiAuto;
 
-  int numExtraBlackFixed;
   double noResultStdev;
   double drawRandRadius;
 
@@ -229,7 +210,7 @@ namespace Play {
 
   //In the case where checkForNewNNEval is provided, will MODIFY the provided botSpecs with any new nneval!
   FinishedGameData* runGame(
-    const Board& startBoard, Player pla, const BoardHistory& startHist, ExtraBlackAndKomi extraBlackAndKomi,
+    const Board& startBoard, Player pla, const BoardHistory& startHist, 
     MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW,
     const std::string& searchRandSeed,
     bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
@@ -244,7 +225,7 @@ namespace Play {
 
   //In the case where checkForNewNNEval is provided, will MODIFY the provided botSpecs with any new nneval!
   FinishedGameData* runGame(
-    const Board& startBoard, Player pla, const BoardHistory& startHist, ExtraBlackAndKomi extraBlackAndKomi,
+    const Board& startBoard, Player pla, const BoardHistory& startHist, 
     MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW,
     Search* botB, Search* botW,
     bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,

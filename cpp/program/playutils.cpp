@@ -7,64 +7,6 @@
 
 using namespace std;
 
-static int getDefaultMaxExtraBlack(double sqrtBoardArea) {
-  if(sqrtBoardArea <= 10.00001)
-    return 0;
-  if(sqrtBoardArea <= 14.00001)
-    return 1;
-  if(sqrtBoardArea <= 16.00001)
-    return 2;
-  if(sqrtBoardArea <= 17.00001)
-    return 3;
-  if(sqrtBoardArea <= 18.00001)
-    return 4;
-  return 5;
-}
-
-ExtraBlackAndKomi PlayUtils::chooseExtraBlackAndKomi(
-  float base, float stdev, double allowIntegerProb,
-  double handicapProb, int numExtraBlackFixed,
-  double bigStdevProb, float bigStdev,
-  double biggerStdevProb, float biggerStdev,
-  double sqrtBoardArea, Rand& rand
-) {
-  int extraBlack = 0;
-  float komi = base;
-
-  float stdevToUse = 0.0f;
-  if(stdev > 0.0f)
-    stdevToUse = stdev;
-  if(bigStdev > 0.0f && rand.nextBool(bigStdevProb))
-    stdevToUse = bigStdev;
-  if(biggerStdev > 0.0f && biggerStdevProb > 0 && rand.nextBool(biggerStdevProb))
-    stdevToUse = biggerStdev;
-  //Adjust for board size, so that we don't give the same massive komis on smaller boards
-  stdevToUse = stdevToUse * (float)(sqrtBoardArea / 19.0);
-
-  //Add handicap stones
-  int defaultMaxExtraBlack = getDefaultMaxExtraBlack(sqrtBoardArea);
-  if((numExtraBlackFixed > 0 || defaultMaxExtraBlack > 0) && rand.nextBool(handicapProb)) {
-    if(numExtraBlackFixed > 0)
-      extraBlack = numExtraBlackFixed;
-    else
-      extraBlack += 1+rand.nextUInt(defaultMaxExtraBlack);
-  }
-
-  bool allowInteger = rand.nextBool(allowIntegerProb);
-
-  ExtraBlackAndKomi ret;
-  ret.extraBlack = extraBlack;
-  ret.komiMean = komi;
-  ret.komiStdev = stdevToUse;
-  //These are set later
-  ret.makeGameFair = false;
-  ret.makeGameFairForEmptyBoard = false;
-  ret.interpZero = false;
-  //This is recorded for application later, since other things may adjust the komi in between.
-  ret.allowInteger = allowInteger;
-  return ret;
-}
-
 
 static float roundKomiWithLinearProb(float komi, Rand& rand) {
   //Discretize komi
@@ -81,28 +23,6 @@ static float roundKomiWithLinearProb(float komi, Rand& rand) {
       komi = lower;
   }
   return komi;
-}
-
-//Also ignores allowInteger
-void PlayUtils::setKomiWithoutNoise(const ExtraBlackAndKomi& extraBlackAndKomi, BoardHistory& hist) {
-  float komi = extraBlackAndKomi.komiMean;
-  komi = roundAndClipKomi(komi, hist.getRecentBoard(0));
-  assert(Rules::komiIsIntOrHalfInt(komi));
-  hist.setKomi(komi);
-}
-
-void PlayUtils::setKomiWithNoise(const ExtraBlackAndKomi& extraBlackAndKomi, BoardHistory& hist, Rand& rand) {
-  float komi = extraBlackAndKomi.komiMean;
-  if(extraBlackAndKomi.komiStdev > 0)
-    komi += extraBlackAndKomi.komiStdev * (float)rand.nextGaussianTruncated(3.0);
-  if(extraBlackAndKomi.interpZero)
-    komi = komi * (float)rand.nextDouble();
-  komi = roundKomiWithLinearProb(komi,rand);
-  komi = roundAndClipKomi(komi, hist.getRecentBoard(0));
-  assert(Rules::komiIsIntOrHalfInt(komi));
-  if(!extraBlackAndKomi.allowInteger && komi == (int)komi)
-    komi += rand.nextBool(0.5) ? (-0.5f) : (0.5f);
-  hist.setKomi(komi);
 }
 
 
@@ -277,43 +197,6 @@ void PlayUtils::playExtraBlack(
   bot->setPosition(pla,board,hist);
 }
 
-void PlayUtils::placeFixedHandicap(Board& board, int n) {
-  int xSize = board.x_size;
-  int ySize = board.y_size;
-  if(xSize < 7 || ySize < 7)
-    throw StringError("Board is too small for fixed handicap");
-  if((xSize % 2 == 0 || ySize % 2 == 0) && n > 4)
-    throw StringError("Fixed handicap > 4 is not allowed on boards with even dimensions");
-  if((xSize <= 7 || ySize <= 7) && n > 4)
-    throw StringError("Fixed handicap > 4 is not allowed on boards with size 7");
-  if(n < 2)
-    throw StringError("Fixed handicap < 2 is not allowed");
-  if(n > 9)
-    throw StringError("Fixed handicap > 9 is not allowed");
-
-  board = Board(xSize,ySize);
-
-  int xCoords[3]; //Corner, corner, side
-  int yCoords[3]; //Corner, corner, side
-  if(xSize <= 12) { xCoords[0] = 2; xCoords[1] = xSize-3; xCoords[2] = xSize/2; }
-  else            { xCoords[0] = 3; xCoords[1] = xSize-4; xCoords[2] = xSize/2; }
-  if(ySize <= 12) { yCoords[0] = 2; yCoords[1] = ySize-3; yCoords[2] = ySize/2; }
-  else            { yCoords[0] = 3; yCoords[1] = ySize-4; yCoords[2] = ySize/2; }
-
-  auto s = [&](int xi, int yi) {
-    board.setStone(Location::getLoc(xCoords[xi],yCoords[yi],board.x_size),P_BLACK);
-  };
-  if(n == 2) { s(0,1); s(1,0); }
-  else if(n == 3) { s(0,1); s(1,0); s(0,0); }
-  else if(n == 4) { s(0,1); s(1,0); s(0,0); s(1,1); }
-  else if(n == 5) { s(0,1); s(1,0); s(0,0); s(1,1); s(2,2); }
-  else if(n == 6) { s(0,1); s(1,0); s(0,0); s(1,1); s(0,2); s(1,2); }
-  else if(n == 7) { s(0,1); s(1,0); s(0,0); s(1,1); s(0,2); s(1,2); s(2,2); }
-  else if(n == 8) { s(0,1); s(1,0); s(0,0); s(1,1); s(0,2); s(1,2); s(2,0); s(2,1); }
-  else if(n == 9) { s(0,1); s(1,0); s(0,0); s(1,1); s(0,2); s(1,2); s(2,0); s(2,1); s(2,2); }
-  else { ASSERT_UNREACHABLE; }
-}
-
 double PlayUtils::getHackedLCBForWinrate(const Search* search, const AnalysisData& data, Player pla) {
   double winrate = 0.5 * (1.0 + data.winLossValue);
   //Super hacky - in KataGo, lcb is on utility (i.e. also weighting score), not winrate, but if you're using
@@ -332,9 +215,9 @@ double PlayUtils::getHackedLCBForWinrate(const Search* search, const AnalysisDat
   return lcb;
 }
 
-float PlayUtils::roundAndClipKomi(double unrounded, const Board& board) {
+float PlayUtils::roundAndClipKomi(double unrounded, float boardArea) {
   //Just in case, make sure komi is reasonable
-  float range = NNPos::KOMI_CLIP_RADIUS + board.x_size * board.y_size;
+  float range = NNPos::KOMI_CLIP_RADIUS + boardArea;
   if(unrounded < -range)
     unrounded = -range;
   if(unrounded > range)
@@ -386,255 +269,6 @@ ReportedSearchValues PlayUtils::getWhiteScoreValues(
   return values;
 }
 
-static std::pair<double,double> evalKomi(
-  map<float,std::pair<double,double>>& scoreWLCache,
-  Search* botB,
-  Search* botW,
-  const Board& board,
-  BoardHistory& hist,
-  Player pla,
-  int64_t numVisits,
-  const OtherGameProperties& otherGameProps,
-  float roundedClippedKomi
-) {
-  auto iter = scoreWLCache.find(roundedClippedKomi);
-  if(iter != scoreWLCache.end())
-    return iter->second;
-
-  float oldKomi = hist.rules.komi;
-  hist.setKomi(roundedClippedKomi);
-
-  ReportedSearchValues values0 = PlayUtils::getWhiteScoreValues(botB, board, hist, pla, numVisits, otherGameProps);
-  double lead = values0.lead;
-  double winLoss = values0.winLossValue;
-
-  //If we have a second bot, average the two
-  if(botW != NULL && botW != botB) {
-    ReportedSearchValues values1 = PlayUtils::getWhiteScoreValues(botW, board, hist, pla, numVisits, otherGameProps);
-    lead = 0.5 * (values0.lead + values1.lead);
-    winLoss = 0.5 * (values0.winLossValue + values1.winLossValue);
-  }
-  std::pair<double,double> result = std::make_pair(lead,winLoss);
-  scoreWLCache[roundedClippedKomi] = result;
-
-  hist.setKomi(oldKomi);
-  return result;
-}
-
-static double getNaiveEvenKomiHelper(
-  map<float,std::pair<double,double>>& scoreWLCache,
-  Search* botB,
-  Search* botW,
-  const Board& board,
-  BoardHistory& hist,
-  Player pla,
-  int64_t numVisits,
-  const OtherGameProperties& otherGameProps
-) {
-  float oldKomi = hist.rules.komi;
-
-  //A few times iterate based on expected score a few times to hopefully get a value close to fair
-  double lastShift = 0.0;
-  double lastWinLoss = 0.0;
-  double lastLead = 0.0;
-  for(int i = 0; i<3; i++) {
-    std::pair<double,double> result = evalKomi(scoreWLCache,botB,botW,board,hist,pla,numVisits,otherGameProps,hist.rules.komi);
-    double lead = result.first;
-    double winLoss = result.second;
-
-    //If the last shift made stats go the WRONG way, and by a nontrivial amount, then revert half of it and stop immediately.
-    if(i > 0) {
-      if((lastLead > 0 && lead > lastLead + 5 && winLoss < 0.75) ||
-         (lastLead < 0 && lead < lastLead - 5 && winLoss > -0.75) ||
-         (lastWinLoss > 0 && winLoss > lastWinLoss + 0.1) ||
-         (lastWinLoss < 0 && winLoss < lastWinLoss - 0.1)
-      ) {
-        float fairKomi = PlayUtils::roundAndClipKomi(hist.rules.komi - lastShift * 0.5f, board);
-        hist.setKomi(fairKomi);
-        // cout << "STOP" << endl;
-        // cout << lastLead << " " << lead << " " << lastWinLoss << " " << winLoss << endl;
-        break;
-      }
-    }
-    lastLead = lead;
-    lastWinLoss = winLoss;
-
-    // cout << hist.rules.komi << " " << lead << " " << winLoss << endl;
-
-    //Shift by the predicted lead
-    double shift = -lead;
-    //Under no situations should the shift be bigger in absolute value than the last shift
-    if(i > 0 && std::fabs(shift) > std::fabs(lastShift)) {
-      if(shift < 0) shift = -std::fabs(lastShift);
-      else if(shift > 0) shift = std::fabs(lastShift);
-    }
-    lastShift = shift;
-
-    //If the score and winrate would like to move in opposite directions, quit immediately.
-    if((shift > 0 && winLoss > 0) || (shift < 0 && lead < 0))
-      break;
-
-    // cout << "Shifting by " << shift << endl;
-    float fairKomi = PlayUtils::roundAndClipKomi(hist.rules.komi + shift, board);
-    hist.setKomi(fairKomi);
-
-    //After a small shift, break out to the binary search.
-    if(std::fabs(shift) < 16.0)
-      break;
-  }
-
-  //Try a small window and do a binary search
-  auto evalWinLoss = [&](double delta) {
-    double newKomi = hist.rules.komi + delta;
-    double winLoss = evalKomi(scoreWLCache,botB,botW,board,hist,pla,numVisits,otherGameProps,PlayUtils::roundAndClipKomi(newKomi,board)).second;
-    // cout << "Delta " << delta << " wr " << winLoss << endl;
-    return winLoss;
-  };
-
-  double lowerDelta;
-  double upperDelta;
-  double lowerWinLoss;
-  double upperWinLoss;
-
-  //Grow window outward
-  {
-    double winLossZero = evalWinLoss(0);
-    if(winLossZero < 0) {
-      //Losing, so this is the lower bound
-      lowerDelta = 0.0;
-      lowerWinLoss = winLossZero;
-      for(int i = 0; i<=5; i++) {
-        upperDelta = round(pow(2.0,i));
-        upperWinLoss = evalWinLoss(upperDelta);
-        if(upperWinLoss >= 0)
-          break;
-      }
-    }
-    else {
-      //Winning, so this is the upper bound
-      upperDelta = 0.0;
-      upperWinLoss = winLossZero;
-      for(int i = 0; i<=5; i++) {
-        lowerDelta = -round(pow(2.0,i));
-        lowerWinLoss = evalWinLoss(lowerDelta);
-        if(lowerWinLoss <= 0)
-          break;
-      }
-    }
-  }
-
-  while(upperDelta - lowerDelta > 0.50001) {
-    double midDelta = 0.5 * (lowerDelta + upperDelta);
-    double midWinLoss = evalWinLoss(midDelta);
-    if(midWinLoss < 0) {
-      lowerDelta = midDelta;
-      lowerWinLoss = midWinLoss;
-    }
-    else {
-      upperDelta = midDelta;
-      upperWinLoss = midWinLoss;
-    }
-  }
-  //Floating point math should be exact to multiples of 0.5 so this should hold *exactly*.
-  assert(upperDelta - lowerDelta == 0.5);
-
-  double finalDelta;
-  //If the winLoss are crossed, potentially due to noise, then just pick the average
-  if(lowerWinLoss >= upperWinLoss - 1e-30)
-    finalDelta = 0.5 * (lowerDelta + upperDelta);
-  //If 0 is outside of the range, then choose the endpoint of the range.
-  else if(upperWinLoss <= 0)
-    finalDelta = upperDelta;
-  else if(lowerWinLoss >= 0)
-    finalDelta = lowerDelta;
-  //Interpolate
-  else
-    finalDelta = lowerDelta + (upperDelta - lowerDelta) * (0-lowerWinLoss) / (upperWinLoss-lowerWinLoss);
-
-  double newKomi = hist.rules.komi + finalDelta;
-  // cout << "Final " << finalDelta << " " << newKomi << endl;
-
-  hist.setKomi(oldKomi);
-  return newKomi;
-}
-
-void PlayUtils::adjustKomiToEven(
-  Search* botB,
-  Search* botW,
-  const Board& board,
-  BoardHistory& hist,
-  Player pla,
-  int64_t numVisits,
-  const OtherGameProperties& otherGameProps,
-  Rand& rand
-) {
-  map<float,std::pair<double,double>> scoreWLCache;
-  double newKomi = getNaiveEvenKomiHelper(scoreWLCache,botB,botW,board,hist,pla,numVisits,otherGameProps);
-  double lower = floor(newKomi * 2.0) * 0.5;
-  double upper = lower + 0.5;
-  if(rand.nextBool((newKomi - lower) / (upper - lower)))
-    newKomi = upper;
-  else
-    newKomi = lower;
-  hist.setKomi(PlayUtils::roundAndClipKomi(newKomi,board));
-}
-
-float PlayUtils::computeLead(
-  Search* botB,
-  Search* botW,
-  const Board& board,
-  BoardHistory& hist,
-  Player pla,
-  int64_t numVisits,
-  const OtherGameProperties& otherGameProps
-) {
-  map<float,std::pair<double,double>> scoreWLCache;
-  float oldKomi = hist.rules.komi;
-  double naiveKomi = getNaiveEvenKomiHelper(scoreWLCache,botB,botW,board,hist,pla,numVisits,otherGameProps);
-
-  bool granularityIsCoarse = true;
-  if(!granularityIsCoarse) {
-    assert(hist.rules.komi == oldKomi);
-    return (float)(oldKomi - naiveKomi);
-  }
-
-  auto evalWinLoss = [&](double newKomi) {
-    double winLoss = evalKomi(scoreWLCache,botB,botW,board,hist,pla,numVisits,otherGameProps,PlayUtils::roundAndClipKomi(newKomi,board)).second;
-    // cout << "Delta " << delta << " wr " << winLoss << endl;
-    return winLoss;
-  };
-
-  //Smooth over area scoring 2-point granularity
-
-  //If komi is exactly an integer, then we're good.
-  if(naiveKomi == round(naiveKomi)) {
-    assert(hist.rules.komi == oldKomi);
-    return (float)(oldKomi - naiveKomi);
-  }
-
-  double lower = floor(naiveKomi * 2.0) * 0.5;
-  double upper = lower + 0.5;
-
-  //Average out the oscillation
-  double lowerWinLoss = 0.5 * (evalWinLoss(upper) + evalWinLoss(lower-0.5));
-  double upperWinLoss = 0.5 * (evalWinLoss(upper + 0.5) + evalWinLoss(lower));
-
-  //If the winLoss are crossed, potentially due to noise, then just pick the average
-  double result;
-  if(lowerWinLoss >= upperWinLoss - 1e-30)
-    result = 0.5 * (lower + upper);
-  else {
-    //Interpolate
-    result = lower + (upper - lower) * (0-lowerWinLoss) / (upperWinLoss-lowerWinLoss);
-    //Bound the result to be within lower-0.5 and upper+0.5
-    if(result < lower-0.5) result = lower-0.5;
-    if(result > upper+0.5) result = upper+0.5;
-  }
-  assert(hist.rules.komi == oldKomi);
-  return (float)(oldKomi - result);
-}
-
-
 double PlayUtils::getSearchFactor(
   double searchFactorWhenWinningThreshold,
   double searchFactorWhenWinning,
@@ -658,35 +292,6 @@ double PlayUtils::getSearchFactor(
     }
   }
   return searchFactor;
-}
-
-vector<double> PlayUtils::computeOwnership(
-  Search* bot,
-  const Board& board,
-  const BoardHistory& hist,
-  Player pla,
-  int64_t numVisits
-) {
-  assert(numVisits > 0);
-  bool oldAlwaysIncludeOwnerMap = bot->alwaysIncludeOwnerMap;
-  bot->setAlwaysIncludeOwnerMap(true);
-
-  SearchParams oldParams = bot->searchParams;
-  SearchParams newParams = getNoiselessParams(oldParams,numVisits);
-  newParams.playoutDoublingAdvantagePla = C_EMPTY;
-  newParams.playoutDoublingAdvantage = 0.0;
-
-  bot->setParams(newParams);
-  bot->setPosition(pla,board,hist);
-  bot->runWholeSearch(pla);
-
-  vector<double> ownerships = bot->getAverageTreeOwnership();
-
-  bot->setParams(oldParams);
-  bot->setAlwaysIncludeOwnerMap(oldAlwaysIncludeOwnerMap);
-  bot->clearSearch();
-
-  return ownerships;
 }
 
 string PlayUtils::BenchmarkResults::toStringNotDone() const {

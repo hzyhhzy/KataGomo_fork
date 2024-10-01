@@ -875,62 +875,7 @@ void NNEvaluator::evaluate(
 
     //Fix up the value as well. Note that the neural net gives us back the value from the perspective
     //of the player so we need to negate that to make it the white value.
-    if(modelVersion == 3) {
-      const double twoOverPi = 0.63661977236758134308;
-
-      double winProb;
-      double lossProb;
-      double noResultProb;
-      //Version 3 neural nets just pack the pre-arctanned scoreValue into the whiteScoreMean field
-      double scoreValue = atan(buf.result->whiteScoreMean) * twoOverPi;
-      {
-        double winLogits = buf.result->whiteWinProb;
-        double lossLogits = buf.result->whiteLossProb;
-        double noResultLogits = buf.result->whiteNoResultProb;
-
-        //Softmax
-        double maxLogits = std::max(std::max(winLogits,lossLogits),noResultLogits);
-        winProb = exp(winLogits - maxLogits);
-        lossProb = exp(lossLogits - maxLogits);
-        noResultProb = exp(noResultLogits - maxLogits);
-
-        double probSum = winProb + lossProb + noResultProb;
-        winProb /= probSum;
-        lossProb /= probSum;
-        noResultProb /= probSum;
-
-        if(!isfinite(probSum) || !isfinite(scoreValue)) {
-          cout << "Got nonfinite for nneval value" << endl;
-          cout << winLogits << " " << lossLogits << " " << noResultLogits << " " << scoreValue << endl;
-          throw StringError("Got nonfinite for nneval value");
-        }
-      }
-
-      if(nextPlayer == P_WHITE) {
-        buf.result->whiteWinProb = (float)winProb;
-        buf.result->whiteLossProb = (float)lossProb;
-        buf.result->whiteNoResultProb = (float)noResultProb;
-        buf.result->whiteScoreMean = (float)ScoreValue::approxWhiteScoreOfScoreValueSmooth(scoreValue,0.0,2.0,board.sqrtBoardArea());
-        buf.result->whiteScoreMeanSq = buf.result->whiteScoreMean * buf.result->whiteScoreMean;
-        buf.result->whiteLead = buf.result->whiteScoreMean;
-        buf.result->varTimeLeft = -1;
-        buf.result->shorttermWinlossError = -1;
-        buf.result->shorttermScoreError = -1;
-      }
-      else {
-        buf.result->whiteWinProb = (float)lossProb;
-        buf.result->whiteLossProb = (float)winProb;
-        buf.result->whiteNoResultProb = (float)noResultProb;
-        buf.result->whiteScoreMean = -(float)ScoreValue::approxWhiteScoreOfScoreValueSmooth(scoreValue,0.0,2.0,board.sqrtBoardArea());
-        buf.result->whiteScoreMeanSq = buf.result->whiteScoreMean * buf.result->whiteScoreMean;
-        buf.result->whiteLead = buf.result->whiteScoreMean;
-        buf.result->varTimeLeft = -1;
-        buf.result->shorttermWinlossError = -1;
-        buf.result->shorttermScoreError = -1;
-      }
-
-    }
-    else if(modelVersion >= 4) {
+    if(modelVersion >= 4) {
       double winProb;
       double lossProb;
       double noResultProb;
@@ -946,7 +891,8 @@ void NNEvaluator::evaluate(
         double noResultLogits = buf.result->whiteNoResultProb;
         double scoreMeanPreScaled = buf.result->whiteScoreMean;
         double scoreStdevPreSoftplus = buf.result->whiteScoreMeanSq;
-        double leadPreScaled = buf.result->whiteLead;
+        //double leadPreScaled = buf.result->whiteLead;
+        double leadPreScaled = buf.result->whiteScoreMean; //lead is disabled
         double varTimeLeftPreSoftplus = buf.result->varTimeLeft;
         double shorttermWinlossErrorPreSoftplus = buf.result->shorttermWinlossError;
         double shorttermScoreErrorPreSoftplus = buf.result->shorttermScoreError;

@@ -205,12 +205,6 @@ void BoardHistory::setKomi(float newKomi) {
   float oldKomi = rules.komi;
   rules.komi = newKomi;
 
-  //Recompute the game result due to the new komi
-  if (isGameFinished)
-  {
-    isGameFinished = false;
-    winner = C_EMPTY;
-  }
 }
 
 
@@ -308,7 +302,7 @@ bool BoardHistory::makeBoardMoveTolerant(Board& board, Loc moveLoc, Player moveP
 
 void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player movePla) {
   Hash128 posHashBeforeMove = board.pos_hash;
-
+  assert(!isGameFinished);
 
   //And if somehow we're making a move after the game was ended, just clear those values and continue.
   isGameFinished = false;
@@ -341,15 +335,15 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   //Mark all locations that are superko-illegal for the next player, by iterating and testing each point.
   Player nextPla = getOpp(movePla);
 
+  
+  if(moveLoc == Board::PASS_LOC)
+    endAndSetWinner(getOpp(movePla));
 
   //Phase transitions and game end
   if(consecutiveEndingPasses >= 2) {
     endAndSetWinner(C_EMPTY);
     ASSERT_UNREACHABLE;
   }
-
-  if(moveLoc == Board::PASS_LOC)
-    endAndSetWinner(getOpp(movePla));
 
   int myCapture = movePla == C_WHITE ? board.numBlackCaptures : board.numWhiteCaptures;
   int oppCapture = movePla == C_WHITE ? board.numBlackCaptures : board.numWhiteCaptures;

@@ -8,23 +8,11 @@ struct PlaySettings {
   bool initGamesWithPolicy;
   double policyInitAreaProp; //Avg number of moves is this * board area
   double startPosesPolicyInitAreaProp; //Avg number of moves when using a starting position from sgf
-  double compensateAfterPolicyInitProb; //Chance to adjust komi to cancel the effect of imbalanced init
   //Occasionally try some alternative moves and search the responses to them.
   double sidePositionProb;
 
   //Temperature to use for placing handicap stones and for initializing the board position
   double policyInitAreaTemperature;
-  double handicapTemperature;
-
-  //Use this many visits in a short search to estimate the score, for adjusting komi
-  int compensateKomiVisits;
-  //When NOT compensating komi, set the fair komi for white playing first rather than black playing first.
-  double flipKomiProbWhenNoCompensate;
-
-  //Use this many visits in a short search to estimate the score, for computing lead
-  int estimateLeadVisits;
-  //On each train position, estimate the lead in points with this probability
-  double estimateLeadProb;
 
   //Occasionally fork an entire new game to try out an experimental move in the opening
   double earlyForkGameProb; //Expected number of early forked games per game
@@ -34,8 +22,6 @@ struct PlaySettings {
   int earlyForkGameMaxChoices; //Fork between the favorite of this many random legal moves, at maximum
   int forkGameMaxChoices; //Fork between the favorite of this many random legal moves, at maximum
 
-  //Hack to improve learning of very weird komi and very lopsided positions
-  bool fancyKomiVarying;
 
   //With this probability, use only this many visits for a move, and record it with only this weight
   double cheapSearchProb;
@@ -73,7 +59,6 @@ struct PlaySettings {
   bool forSelfPlay;
 
   //Asymmetric playouts training
-  double handicapAsymmetricPlayoutProb; //Probability of asymmetric playouts on handicap games
   double normalAsymmetricPlayoutProb; //Probability of asymmetric playouts on normal games
   double maxAsymmetricRatio;
   double minAsymmetricCompensateKomiProb; //Minimum probability to make game fair if asymmetric (other probs will also override)

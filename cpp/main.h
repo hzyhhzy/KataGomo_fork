@@ -16,8 +16,6 @@ namespace MainCmds {
 
   int runtests(const std::vector<std::string>& args);
 
-  int samplesgfs(const std::vector<std::string>& args);
-  int dataminesgfs(const std::vector<std::string>& args);
   int genbook(const std::vector<std::string>& args);
   int writebook(const std::vector<std::string>& args);
   int checkbook(const std::vector<std::string>& args);
