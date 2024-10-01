@@ -259,7 +259,6 @@ add_executable(katago
   command/sandbox.cpp
   command/selfplay.cpp
   command/tune.cpp
-  command/writetrainingdata.cpp
   main.cpp
   )
 

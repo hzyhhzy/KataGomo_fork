@@ -430,13 +430,6 @@ void Search::runWholeSearch(
   double maxTime = pondering ? searchParams.maxTimePondering : searchParams.maxTime;
 
   {
-    //Possibly reduce computation time, for human friendliness
-    if(rootHistory.moveHistory.size() >= 1 && rootHistory.moveHistory[rootHistory.moveHistory.size()-1].loc == Board::PASS_LOC) {
-      if(rootHistory.moveHistory.size() >= 3 && rootHistory.moveHistory[rootHistory.moveHistory.size()-3].loc == Board::PASS_LOC)
-        searchFactor *= searchParams.searchFactorAfterTwoPass;
-      else
-        searchFactor *= searchParams.searchFactorAfterOnePass;
-    }
 
     if(searchFactor != 1.0) {
       double cap = (double)((int64_t)1L << 62);
@@ -1202,9 +1195,7 @@ bool Search::playoutDescend(
 
       //If conservative pass, passing from the root is always non-terminal
       //If friendly passing rules, we might also be non-terminal
-      const bool forceNonTerminal = bestChildMoveLoc == Board::PASS_LOC && (
-        (searchParams.conservativePass && (&node == rootNode)) 
-      );
+      const bool forceNonTerminal = false;
       child = allocateOrFindNode(thread, thread.pla, bestChildMoveLoc, forceNonTerminal, thread.graphHash);
       child->virtualLosses.fetch_add(1,std::memory_order_release);
 

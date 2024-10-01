@@ -1328,7 +1328,6 @@ struct GTPEngine {
     {
       SearchParams tmpParams = genmoveParams;
       tmpParams.playoutDoublingAdvantage = 0.0;
-      tmpParams.conservativePass = true;
       tmpParams.antiMirror = false;
       tmpParams.avoidRepeatedPatternUtility = 0;
       bot->setParams(tmpParams);
@@ -1797,16 +1796,9 @@ int MainCmds::gtp(const vector<string>& args) {
 
   auto loadParams = [&hasHumanModel](ConfigParser& config, SearchParams& genmoveOut, SearchParams& analysisOut) {
     SearchParams params = Setup::loadSingleParams(config,Setup::SETUP_FOR_GTP,hasHumanModel);
-    //Set a default for conservativePass that differs from matches or selfplay
-    if(!config.contains("conservativePass"))
-      params.conservativePass = true;
-    if(!config.contains("fillDameBeforePass"))
-      params.fillDameBeforePass = true;
 
     const double analysisWideRootNoise =
       config.contains("analysisWideRootNoise") ? config.getDouble("analysisWideRootNoise",0.0,5.0) : Setup::DEFAULT_ANALYSIS_WIDE_ROOT_NOISE;
-    const double analysisIgnorePreRootHistory =
-      config.contains("analysisIgnorePreRootHistory") ? config.getBool("analysisIgnorePreRootHistory") : Setup::DEFAULT_ANALYSIS_IGNORE_PRE_ROOT_HISTORY;
     const bool genmoveAntiMirror =
       config.contains("genmoveAntiMirror") ? config.getBool("genmoveAntiMirror") : config.contains("antiMirror") ? config.getBool("antiMirror") : true;
 
@@ -1815,7 +1807,6 @@ int MainCmds::gtp(const vector<string>& args) {
 
     genmoveOut.antiMirror = genmoveAntiMirror;
     analysisOut.wideRootNoise = analysisWideRootNoise;
-    analysisOut.ignorePreRootHistory = analysisIgnorePreRootHistory;
   };
 
   SearchParams initialGenmoveParams;
@@ -2277,14 +2268,10 @@ int MainCmds::gtp(const vector<string>& args) {
         const SearchParams& analysisParams = engine->getAnalysisParams();
         if(pieces[0] == "analysisWideRootNoise")
           response = Global::doubleToString(analysisParams.wideRootNoise);
-        else if(pieces[0] == "analysisIgnorePreRootHistory")
-          response = Global::boolToString(analysisParams.ignorePreRootHistory);
         else if(pieces[0] == "genmoveAntiMirror")
           response = Global::boolToString(genmoveParams.antiMirror);
         else if(pieces[0] == "antiMirror")
           response = Global::boolToString(analysisParams.antiMirror);
-        else if(pieces[0] == "humanSLProfile")
-          response = cfg.contains("humanSLProfile") ? cfg.getString("humanSLProfile") : "";
         else if(pieces[0] == "allowResignation")
           response = Global::boolToString(allowResignation);
         else if(pieces[0] == "ponderingEnabled")
@@ -2324,10 +2311,8 @@ int MainCmds::gtp(const vector<string>& args) {
       const SearchParams& analysisParams = engine->getAnalysisParams();
       nlohmann::json params = engine->getGenmoveParams().changeableParametersToJson();
       params["analysisWideRootNoise"] = Global::doubleToString(analysisParams.wideRootNoise);
-      params["analysisIgnorePreRootHistory"] = Global::boolToString(analysisParams.ignorePreRootHistory);
       params["genmoveAntiMirror"] = Global::boolToString(genmoveParams.antiMirror);
       params["antiMirror"] = Global::boolToString(analysisParams.antiMirror);
-      params["humanSLProfile"] = cfg.contains("humanSLProfile") ? cfg.getString("humanSLProfile") : "";
       params["allowResignation"] = Global::boolToString(allowResignation);
       params["ponderingEnabled"] = Global::boolToString(ponderingEnabled);
       params["delayMoveScale"] = Global::doubleToString(engine->delayMoveScale);

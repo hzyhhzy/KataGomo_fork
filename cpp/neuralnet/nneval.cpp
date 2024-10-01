@@ -839,27 +839,11 @@ void NNEvaluator::evaluate(
 
     float policySum = 0.0f;
 
-    if(nnInputParams.enablePassingHacks) {
-      //Cap passing prior policy at 95% (19x other moves)
-      float maxPassPolicySumFactor = 19.0f;
-
-      for(int i = 0; i<policySize-1; i++) {
-        policy[i] = exp(policy[i] - maxPolicy);
-        policySum += policy[i];
-      }
-      int passPos = NNPos::locToPos(Board::PASS_LOC, xSize, nnXLen, nnYLen);
-      assert(passPos == policySize-1);
-      int i = passPos;
-      policy[i] = std::max(1e-20f, std::min(exp(policy[i] - maxPolicy), policySum * maxPassPolicySumFactor));
+    for(int i = 0; i<policySize; i++) {
+      policy[i] = exp(policy[i] - maxPolicy);
       policySum += policy[i];
     }
-    else {
-      for(int i = 0; i<policySize; i++) {
-        policy[i] = exp(policy[i] - maxPolicy);
-        policySum += policy[i];
-      }
-    }
-
+    
     if(!isfinite(policySum)) {
       cout << "Got nonfinite for policy sum" << endl;
       history.printDebugInfo(cout,board);

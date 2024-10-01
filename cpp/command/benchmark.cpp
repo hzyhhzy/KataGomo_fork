@@ -188,8 +188,6 @@ int MainCmds::benchmark(const vector<string>& args) {
   params.maxVisits = maxVisits;
   params.maxPlayouts = maxVisits;
   params.maxTime = 1e20;
-  params.searchFactorAfterOnePass = 1.0;
-  params.searchFactorAfterTwoPass = 1.0;
 
   Setup::initializeSession(cfg);
 
@@ -896,8 +894,6 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
     params.maxVisits = defaultMaxVisits;
     params.maxPlayouts = defaultMaxVisits;
     params.maxTime = 1e20;
-    params.searchFactorAfterOnePass = 1.0;
-    params.searchFactorAfterTwoPass = 1.0;
 
     Setup::initializeSession(cfg);
 

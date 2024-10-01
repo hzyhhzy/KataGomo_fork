@@ -997,7 +997,6 @@ int MainCmds::samplesgfs(const vector<string>& args) {
 
       for(size_t m = 0; m<sgfMoves.size()+1; m++) {
         MiscNNInputParams nnInputParams;
-        nnInputParams.conservativePassAndIsRoot = true;
         if(forTesting)
           nnInputParams.symmetry = 0;
         NNResultBuf buf;

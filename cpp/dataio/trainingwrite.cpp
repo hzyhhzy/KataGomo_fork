@@ -85,10 +85,6 @@ FinishedGameData::FinishedGameData()
    policyTargetsByTurn(),
    whiteValueTargetsByTurn(),
    nnRawStatsByTurn(),
-   finalFullArea(NULL),
-   finalOwnership(NULL),
-   finalSekiAreas(NULL),
-   finalWhiteScoring(NULL),
 
    trainingWeight(1.0),
 
@@ -104,15 +100,6 @@ FinishedGameData::FinishedGameData()
 FinishedGameData::~FinishedGameData() {
   for(size_t i = 0; i<policyTargetsByTurn.size(); i++)
     delete policyTargetsByTurn[i].policyTargets;
-
-  if(finalFullArea != NULL)
-    delete[] finalFullArea;
-  if(finalOwnership != NULL)
-    delete[] finalOwnership;
-  if(finalSekiAreas != NULL)
-    delete[] finalSekiAreas;
-  if(finalWhiteScoring != NULL)
-    delete[] finalWhiteScoring;
 
   for(size_t i = 0; i<sidePositions.size(); i++)
     delete sidePositions[i];
@@ -170,42 +157,6 @@ void FinishedGameData::printDebug(ostream& out) const {
   }
   for(int i = 0; i<nnRawStatsByTurn.size(); i++) {
     out << "Raw Stats " << nnRawStatsByTurn[i].whiteWinLoss << " " << nnRawStatsByTurn[i].whiteScoreMean << " " << nnRawStatsByTurn[i].policyEntropy << endl;
-  }
-  if(finalFullArea != NULL) {
-    for(int y = 0; y<startBoard.y_size; y++) {
-      for(int x = 0; x<startBoard.x_size; x++) {
-        Loc loc = Location::getLoc(x,y,startBoard.x_size);
-        out << PlayerIO::colorToChar(finalFullArea[loc]);
-      }
-      out << endl;
-    }
-  }
-  if(finalOwnership != NULL) {
-    for(int y = 0; y<startBoard.y_size; y++) {
-      for(int x = 0; x<startBoard.x_size; x++) {
-        Loc loc = Location::getLoc(x,y,startBoard.x_size);
-        out << PlayerIO::colorToChar(finalOwnership[loc]);
-      }
-      out << endl;
-    }
-  }
-  if(finalSekiAreas != NULL) {
-    for(int y = 0; y<startBoard.y_size; y++) {
-      for(int x = 0; x<startBoard.x_size; x++) {
-        Loc loc = Location::getLoc(x,y,startBoard.x_size);
-        out << (int)finalSekiAreas[loc];
-      }
-      out << endl;
-    }
-  }
-  if(finalWhiteScoring != NULL) {
-    for(int y = 0; y<startBoard.y_size; y++) {
-      for(int x = 0; x<startBoard.x_size; x++) {
-        Loc loc = Location::getLoc(x,y,startBoard.x_size);
-        out << Global::strprintf(" %.3f",finalWhiteScoring[loc]);
-      }
-      out << endl;
-    }
   }
   out << "trainingWeight " << trainingWeight << endl;
   for(int i = 0; i<sidePositions.size(); i++) {
@@ -575,11 +526,10 @@ void TrainingWriteBuffers::addRow(
   int8_t* rowScoreDistr = scoreDistrN.data + curRows * scoreDistrLen;
   int8_t* rowOwnership = valueTargetsNCHW.data + curRows * VALUE_SPATIAL_TARGET_NUM_CHANNELS * posArea;
 
-  if(finalOwnership == NULL || (actualGameEndHist.isGameFinished && actualGameEndHist.isNoResult)) {
+
+  if(!actualGameEndHist.isGameFinished || actualGameEndHist.isNoResult || isSidePosition) {
     rowGlobal[27] = 0.0f;
     rowGlobal[20] = 0.0f;
-    for(int i = 0; i<posArea*2; i++)
-      rowOwnership[i] = 0;
     for(int i = 0; i<scoreDistrLen; i++)
       rowScoreDistr[i] = 0;
     //Dummy value, to make sure it still sums to 100
@@ -587,8 +537,8 @@ void TrainingWriteBuffers::addRow(
     rowScoreDistr[scoreDistrMid] = 50;
   }
   else {
-    assert(finalFullArea != NULL);
-    assert(finalBoard != NULL);
+    if(finalBoard == NULL)
+      ASSERT_UNREACHABLE;
 
     //Ownership weight scales by value weight
     rowGlobal[27] = valueTargetWeight;
@@ -602,16 +552,18 @@ void TrainingWriteBuffers::addRow(
       rowOwnership[i] = 0;
 
     //Fill ownership info
+    //channel 0 is the final board
+    //channel 1,4 are disabled
     Player opp = getOpp(nextPlayer);
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
         int pos = NNPos::xyToPos(x,y,dataXLen);
         Loc loc = Location::getLoc(x,y,board.x_size);
-        if(finalOwnership[loc] == nextPlayer) rowOwnership[pos] = 1;
-        else if(finalOwnership[loc] == opp) rowOwnership[pos] = -1;
-        //Mark full area points that ended up not being owned
-        if(finalFullArea[loc] != C_EMPTY && finalOwnership[loc] == C_EMPTY)
-          rowOwnership[pos+posArea] = (finalFullArea[loc] == nextPlayer ? 1 : -1);
+        if(finalBoard->colors[loc] == nextPlayer)
+          rowOwnership[pos] = 1;
+        else if(finalBoard->colors[loc] == opp)
+          rowOwnership[pos] = -1;
+        rowOwnership[pos+posArea] = 0.0;
       }
     }
 
@@ -672,7 +624,7 @@ void TrainingWriteBuffers::addRow(
   }
 
 
-  if(finalWhiteScoring == NULL || (actualGameEndHist.isGameFinished && actualGameEndHist.isNoResult)) {
+  if(!actualGameEndHist.isGameFinished || actualGameEndHist.isNoResult || isSidePosition) {
     rowGlobal[34] = 0.0f;
     for(int i = 0; i<posArea; i++) {
       rowOwnership[i+posArea*4] = 0;
@@ -685,16 +637,6 @@ void TrainingWriteBuffers::addRow(
     for(int i = 0; i<posArea; i++) {
       rowOwnership[i+posArea*4] = 0;
     }
-
-    for(int y = 0; y<board.y_size; y++) {
-      for(int x = 0; x<board.x_size; x++) {
-        int pos = NNPos::xyToPos(x,y,dataXLen);
-        Loc loc = Location::getLoc(x,y,board.x_size);
-        float scoring = (nextPlayer == P_WHITE ? finalWhiteScoring[loc] : -finalWhiteScoring[loc]);
-        assert(scoring <= 1.0f && scoring >= -1.0f);
-        rowOwnership[pos+posArea*4] = convertRadiusOneToRadius120(scoring,rand);
-      }
-    }
   }
 
   if(hasMetadataInput) {
@@ -705,6 +647,7 @@ void TrainingWriteBuffers::addRow(
 
   curRows++;
 }
+
 
 void TrainingWriteBuffers::writeToZipFile(const string& fileName) {
   ZipFile zipFile(fileName);
@@ -1092,9 +1035,6 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             tdValueTargetWeight,
             leadTargetWeightFactor,
             sp->nnRawStats,
-            NULL,
-            NULL,
-            NULL,
             NULL,
             NULL,
             isSidePosition,

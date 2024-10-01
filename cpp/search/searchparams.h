@@ -84,10 +84,7 @@ struct SearchParams {
   //Mild behavior hackery
   double rootEndingBonusPoints; //Extra bonus (or penalty) to encourage good passing behavior at the end of the game.
   bool rootPruneUselessMoves; //Prune moves that are entirely useless moves that prolong the game.
-  bool conservativePass; //Never assume one's own pass will end the game.
-  bool fillDameBeforePass; //When territory scoring, heuristically discourage passing before filling the dame.
   double wideRootNoise; //Explore at the root more widely
-  bool enablePassingHacks; //Enable some hacks that mitigate rare instances when passing messes up deeper searches.
 
   double playoutDoublingAdvantage; //Play as if we have this many doublings of playouts vs the opponent
   Player playoutDoublingAdvantagePla; //Negate playoutDoublingAdvantage when making a move for the opponent of this player. If empty, opponent of the root player.
@@ -96,13 +93,6 @@ struct SearchParams {
 
   float nnPolicyTemperature; //Scale neural net policy probabilities by this temperature, applies everywhere in the tree
   bool antiMirror; //Enable anti-mirroring logic
-
-  //Ignore history prior to the root of the search. This is enforced strictly only for the root node of the
-  //search. Deeper nodes may see history prior to the root of the search if searches were performed from earlier positions
-  //and those gamestates were also reached by those earlier searches with the nn evals cached.
-  //This is true even without tree reuse.
-  bool ignorePreRootHistory;
-  bool ignoreAllHistory; //Always ignore history entirely
 
   double subtreeValueBiasFactor; //Dynamically adjust neural net utilties based on empirical stats about their errors in search
   int32_t subtreeValueBiasTableNumShards; //Number of shards for subtreeValueBiasFactor for initial hash lookup and mutexing
@@ -127,10 +117,6 @@ struct SearchParams {
 
   //Amount of time to reserve for lag when using a time control
   double lagBuffer;
-
-  //Human-friendliness
-  double searchFactorAfterOnePass; //Multiply playouts and visits and time by this much after a pass by the opponent
-  double searchFactorAfterTwoPass; //Multiply playouts and visits and time by this after two passes by the opponent
 
   //Time control
   double treeReuseCarryOverTimeFactor; //Assume we gain this much "time" on the next move purely from % tree preserved * time spend on that tree.

@@ -353,8 +353,6 @@ static SearchParams getNoiselessParams(SearchParams oldParams, int64_t numVisits
   newParams.rootFpuLossProp = newParams.fpuLossProp;
   newParams.rootDesiredPerChildVisitsCoeff = 0.0;
   newParams.rootNumSymmetriesToSample = 1;
-  newParams.searchFactorAfterOnePass = 1.0;
-  newParams.searchFactorAfterTwoPass = 1.0;
   if(newParams.numThreads > (numVisits+7)/8)
     newParams.numThreads = (int)((numVisits+7)/8);
   return newParams;
@@ -677,8 +675,6 @@ vector<double> PlayUtils::computeOwnership(
   SearchParams newParams = getNoiselessParams(oldParams,numVisits);
   newParams.playoutDoublingAdvantagePla = C_EMPTY;
   newParams.playoutDoublingAdvantage = 0.0;
-  //Make sure the search is always from a state where the game isn't believed to end with another pass
-  newParams.conservativePass = true;
 
   bot->setParams(newParams);
   bot->setPosition(pla,board,hist);

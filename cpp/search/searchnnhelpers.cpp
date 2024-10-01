@@ -14,8 +14,6 @@ void Search::computeRootNNEvaluation(NNResultBuf& nnResultBuf, bool includeOwner
   bool isRoot = true;
   MiscNNInputParams nnInputParams;
   nnInputParams.drawEquivalentWinsForWhite = searchParams.drawEquivalentWinsForWhite;
-  nnInputParams.conservativePassAndIsRoot = searchParams.conservativePass && isRoot;
-  nnInputParams.enablePassingHacks = searchParams.enablePassingHacks;
   nnInputParams.nnPolicyTemperature = searchParams.nnPolicyTemperature;
   nnInputParams.policyOptimism = searchParams.rootPolicyOptimism;
   if(searchParams.playoutDoublingAdvantage != 0) {
@@ -24,8 +22,6 @@ void Search::computeRootNNEvaluation(NNResultBuf& nnResultBuf, bool includeOwner
       getOpp(pla) == playoutDoublingAdvantagePla ? -searchParams.playoutDoublingAdvantage : searchParams.playoutDoublingAdvantage
     );
   }
-  if(searchParams.ignorePreRootHistory || searchParams.ignoreAllHistory)
-    nnInputParams.maxHistory = 0;
   nnEvaluator->evaluate(
     board, hist, pla,
     nnInputParams,
@@ -51,8 +47,6 @@ bool Search::initNodeNNOutput(
   }
   MiscNNInputParams nnInputParams;
   nnInputParams.drawEquivalentWinsForWhite = searchParams.drawEquivalentWinsForWhite;
-  nnInputParams.conservativePassAndIsRoot = searchParams.conservativePass && isRoot;
-  nnInputParams.enablePassingHacks = searchParams.enablePassingHacks;
   nnInputParams.nnPolicyTemperature = searchParams.nnPolicyTemperature;
   nnInputParams.policyOptimism = isRoot ? searchParams.rootPolicyOptimism : searchParams.policyOptimism;
   if(searchParams.playoutDoublingAdvantage != 0) {
@@ -60,11 +54,6 @@ bool Search::initNodeNNOutput(
     nnInputParams.playoutDoublingAdvantage = (
       getOpp(thread.pla) == playoutDoublingAdvantagePla ? -searchParams.playoutDoublingAdvantage : searchParams.playoutDoublingAdvantage
     );
-  }
-  if(searchParams.ignoreAllHistory)
-    nnInputParams.maxHistory = 0;
-  else if(searchParams.ignorePreRootHistory) {
-    nnInputParams.maxHistory = isRoot ? 0 : std::max(0, (int)thread.history.moveHistory.size() - (int)rootHistory.moveHistory.size());
   }
 
   std::shared_ptr<NNOutput>* result = NULL;
@@ -153,8 +142,7 @@ bool Search::maybeRecomputeExistingNNOutput(
       //Also do so when ignoring history pre root
       if(nnOutput->whiteOwnerMap == NULL ||
          searchParams.rootNumSymmetriesToSample > 1 ||
-         searchParams.rootPolicyOptimism != searchParams.policyOptimism ||
-         (searchParams.ignorePreRootHistory && !searchParams.ignoreAllHistory) 
+         searchParams.rootPolicyOptimism != searchParams.policyOptimism  
       ) {
         //We *can* use cached evaluations even though parameters are changing, because:
         //conservativePass is part of the nn hash

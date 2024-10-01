@@ -22,7 +22,6 @@ namespace MainCmds {
   int writebook(const std::vector<std::string>& args);
   int checkbook(const std::vector<std::string>& args);
   int booktoposes(const std::vector<std::string>& args);
-  int writetrainingdata(const std::vector<std::string>& args);
 
   int trystartposes(const std::vector<std::string>& args);
   int viewstartposes(const std::vector<std::string>& args);

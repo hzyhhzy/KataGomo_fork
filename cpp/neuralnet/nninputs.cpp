@@ -820,28 +820,12 @@ Hash128 NNInputs::getHash(
     //Technically some of the below only apply when passing ends the game, but it's pretty harmless to use the more
     //conservative hashing including them when the phase would end too.
 
-    //And in the case that a pass ends the phase, conservativePass also affects the result for the root node
-    if(nnInputParams.conservativePassAndIsRoot)
-      hash ^= MiscNNInputParams::ZOBRIST_CONSERVATIVE_PASS;
-
-    //Passing hacks can also affect things at game or phase end.
-    if(nnInputParams.enablePassingHacks)
-      hash ^= MiscNNInputParams::ZOBRIST_PASSING_HACKS;
   }
   //Fold in whether the game is over or not, since this affects how we compute input features
   //but is not a function necessarily of previous hashed values.
   //If the history is in a weird prolonged state, also treat it similarly.
   if(hist.isGameFinished)
     hash ^= Board::ZOBRIST_GAME_IS_OVER;
-
-  //Distinguish between forcing the history to always be empty and allow any nonempty amount
-  //We already tolerate caching and reusing evals across distinct transpositions with different
-  //history, for performance reasons, but the case of no history at all is probably distinct
-  //enough that we should distinguish it.
-  if(nnInputParams.maxHistory <= 0) {
-    hash.hash0 += MiscNNInputParams::ZOBRIST_ZERO_HISTORY.hash0;
-    hash.hash1 += MiscNNInputParams::ZOBRIST_ZERO_HISTORY.hash1;
-  }
 
   //Fold in asymmetric playout indicator
   if(nnInputParams.playoutDoublingAdvantage != 0) {
@@ -948,7 +932,6 @@ void NNInputs::fillRowV7(
     // Include one of the passes, at the end of that sequence
     maxTurnsOfHistoryToInclude = 1;
   }
-  maxTurnsOfHistoryToInclude = std::min(maxTurnsOfHistoryToInclude, nnInputParams.maxHistory);
 
   int numTurnsOfHistoryIncluded = 0;
 

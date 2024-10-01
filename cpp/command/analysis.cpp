@@ -129,9 +129,6 @@ int MainCmds::analysis(const vector<string>& args) {
     bool hasHumanModel = humanModelFile != "";
     params = Setup::loadSingleParams(config,Setup::SETUP_FOR_ANALYSIS,hasHumanModel);
     perspective = Setup::parseReportAnalysisWinrates(config,defaultPerspective);
-    //Set a default for conservativePass that differs from matches or selfplay
-    if(!config.contains("conservativePass"))
-      params.conservativePass = true;
   };
 
   SearchParams defaultParams;

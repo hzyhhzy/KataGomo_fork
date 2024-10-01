@@ -96,8 +96,7 @@ struct BoardHistory {
   bool makeBoardMoveTolerant(Board& board, Loc moveLoc, Player movePla);
   bool isLegalTolerant(const Board& board, Loc moveLoc, Player movePla) const;
 
-  //Score the board as-is. If the game is already finished, and is NOT a no-result, then this should be idempotent.
-  void endAndScoreGameNow(const Board& board);
+  void endAndSetWinner(Color winner0, float whiteScore);
 
   void setWinnerByResignation(Player pla);
 
@@ -118,7 +117,6 @@ struct BoardHistory {
 
 private:
   int countAreaScoreWhiteMinusBlack(const Board& board) const;
-  void setFinalScoreAndWinner(float score);
   int newConsecutiveEndingPassesAfterPass() const;
 };
 

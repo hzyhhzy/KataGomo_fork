@@ -1562,6 +1562,8 @@ FinishedGameData* Play::runGame(
 
     }
     else {
+      //For go-like games, draw can be regarded as 50%win + 50%lose
+      //For other games like gomoku, better to use "noResult" as draw
       finalValueTargets.win = (float)ScoreValue::whiteWinsOfWinner(hist.winner, gameData->drawEquivalentWinsForWhite);
       finalValueTargets.loss = 1.0f - finalValueTargets.win;
       finalValueTargets.noResult = 0.0f;

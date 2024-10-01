@@ -549,26 +549,6 @@ int MainCmds::evalsgf(const vector<string>& args) {
     }
   }
 
-  if(printScoreNow) {
-    sout << "Score now (ROOT position):\n";
-    Board copy(board);
-    BoardHistory copyHist(hist);
-    Color area[Board::MAX_ARR_SIZE];
-    copyHist.endAndScoreGameNow(copy,area);
-
-    for(int y = 0; y<copy.y_size; y++) {
-      for(int x = 0; x<copy.x_size; x++) {
-        Loc l = Location::getLoc(x,y,copy.x_size);
-        sout << PlayerIO::colorToChar(area[l]);
-      }
-      sout << endl;
-    }
-    sout << endl;
-
-    sout << "Komi: " << copyHist.rules.komi << endl;
-    sout << "Final: "; WriteSgf::printGameResult(sout, copyHist); sout << endl;
-  }
-
   if(printRootEndingBonus) {
     sout << "Ending bonus (ROOT position)\n";
     search->printRootEndingScoreValueBonus(sout);

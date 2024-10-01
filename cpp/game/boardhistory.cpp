@@ -206,8 +206,11 @@ void BoardHistory::setKomi(float newKomi) {
   rules.komi = newKomi;
 
   //Recompute the game result due to the new komi
-  if(isGameFinished && isScored)
-    setFinalScoreAndWinner(finalWhiteMinusBlackScore - oldKomi + newKomi);
+  if (isGameFinished)
+  {
+    isGameFinished = false;
+    winner = C_EMPTY;
+  }
 }
 
 
@@ -234,34 +237,18 @@ float BoardHistory::currentSelfKomi(Player pla, double drawEquivalentWinsForWhit
   }
 }
 
-int BoardHistory::countAreaScoreWhiteMinusBlack(const Board& board) const {
-  int score = 0;
-  todo
-  return score;
-}
-
-
-void BoardHistory::setFinalScoreAndWinner(float score) {
-  finalWhiteMinusBlackScore = score;
-  if(finalWhiteMinusBlackScore > 0.0f)
-    winner = C_WHITE;
-  else if(finalWhiteMinusBlackScore < 0.0f)
-    winner = C_BLACK;
-  else
-    winner = C_EMPTY;
-}
-
-
-void BoardHistory::endAndScoreGameNow(const Board& board) {
-  int boardScore;
-  boardScore = countAreaScoreWhiteMinusBlack(board);
-  double whiteBonusScore = 0;
-
-  setFinalScoreAndWinner(boardScore + whiteBonusScore + rules.komi);
+void BoardHistory::endAndSetWinner(Color winner0, float whiteScore = 0.0) {
+  winner = winner0;
+  finalWhiteMinusBlackScore = whiteScore;
   isScored = true;
   isNoResult = false;
   isResignation = false;
   isGameFinished = true;
+}
+
+int BoardHistory::countAreaScoreWhiteMinusBlack(const Board& board) const {
+  ASSERT_UNREACHABLE;  // This function is only for "scoring" games.
+  return 0;
 }
 
 
@@ -357,16 +344,28 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
 
   //Phase transitions and game end
   if(consecutiveEndingPasses >= 2) {
-    endAndScoreGameNow(board);
+    endAndSetWinner(C_EMPTY);
+    ASSERT_UNREACHABLE;
   }
+
+  if(moveLoc == Board::PASS_LOC)
+    endAndSetWinner(getOpp(movePla));
+
+  int myCapture = movePla == C_WHITE ? board.numBlackCaptures : board.numWhiteCaptures;
+  int oppCapture = movePla == C_WHITE ? board.numBlackCaptures : board.numWhiteCaptures;
+  if(myCapture > 0)
+    endAndSetWinner(movePla);
+  else if(oppCapture > 0)
+    endAndSetWinner(getOpp(movePla));
 
   //Break long cycles with no-result
   if(moveLoc != Board::PASS_LOC && rules.koRule == Rules::KO_SIMPLE) {
     //static_assert(false, "TODO: find a simple method to detect long cycles");
 
-    if(moveHistory.size() > board.x_size * board.y_size * 3) {
+    if(moveHistory.size() > board.x_size * board.y_size * 5) {
       isNoResult = true;
       isGameFinished = true;
+      ASSERT_UNREACHABLE;
     }
   }
 

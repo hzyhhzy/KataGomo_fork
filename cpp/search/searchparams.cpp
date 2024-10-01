@@ -64,17 +64,12 @@ SearchParams::SearchParams()
    useNonBuggyLcb(false),
    rootEndingBonusPoints(0.0),
    rootPruneUselessMoves(false),
-   conservativePass(false),
-   fillDameBeforePass(false),
    wideRootNoise(0.0),
-   enablePassingHacks(false),
    playoutDoublingAdvantage(0.0),
    playoutDoublingAdvantagePla(C_EMPTY),
    avoidRepeatedPatternUtility(0.0),
    nnPolicyTemperature(1.0f),
    antiMirror(false),
-   ignorePreRootHistory(false),
-   ignoreAllHistory(false),
    subtreeValueBiasFactor(0.0),
    subtreeValueBiasTableNumShards(65536),
    subtreeValueBiasFreeProp(0.8),
@@ -90,8 +85,6 @@ SearchParams::SearchParams()
    maxPlayoutsPondering(((int64_t)1) << 50),
    maxTimePondering(1.0e20),
    lagBuffer(0.0),
-   searchFactorAfterOnePass(1.0),
-   searchFactorAfterTwoPass(1.0),
    treeReuseCarryOverTimeFactor(0.0),
    overallocateTimeFactor(1.0),
    midgameTimeFactor(1.0),
@@ -176,10 +169,7 @@ bool SearchParams::operator==(const SearchParams& other) const {
 
     rootEndingBonusPoints == other.rootEndingBonusPoints &&
     rootPruneUselessMoves == other.rootPruneUselessMoves &&
-    conservativePass == other.conservativePass &&
-    fillDameBeforePass == other.fillDameBeforePass &&
     wideRootNoise == other.wideRootNoise &&
-    enablePassingHacks == other.enablePassingHacks &&
 
     playoutDoublingAdvantage == other.playoutDoublingAdvantage &&
     playoutDoublingAdvantagePla == other.playoutDoublingAdvantagePla &&
@@ -188,9 +178,6 @@ bool SearchParams::operator==(const SearchParams& other) const {
 
     nnPolicyTemperature == other.nnPolicyTemperature &&
     antiMirror == other.antiMirror &&
-
-    ignorePreRootHistory == other.ignorePreRootHistory &&
-    ignoreAllHistory == other.ignoreAllHistory &&
 
     subtreeValueBiasFactor == other.subtreeValueBiasFactor &&
     subtreeValueBiasTableNumShards == other.subtreeValueBiasTableNumShards &&
@@ -211,9 +198,6 @@ bool SearchParams::operator==(const SearchParams& other) const {
     maxTimePondering == other.maxTimePondering &&
 
     lagBuffer == other.lagBuffer &&
-
-    searchFactorAfterOnePass == other.searchFactorAfterOnePass &&
-    searchFactorAfterTwoPass == other.searchFactorAfterTwoPass &&
 
     treeReuseCarryOverTimeFactor == other.treeReuseCarryOverTimeFactor &&
     overallocateTimeFactor == other.overallocateTimeFactor &&
@@ -250,7 +234,6 @@ SearchParams SearchParams::forTestsV1() {
   params.minVisitPropForLCB = 0.15;
   params.rootEndingBonusPoints = 0.5;
   params.rootPruneUselessMoves = true;
-  params.conservativePass = true;
   params.useNonBuggyLcb = true;
   return params;
 }
@@ -271,7 +254,6 @@ SearchParams SearchParams::forTestsV2() {
   params.minVisitPropForLCB = 0.15;
   params.rootEndingBonusPoints = 0.5;
   params.rootPruneUselessMoves = true;
-  params.conservativePass = true;
   params.useNonBuggyLcb = true;
   params.useGraphSearch = true;
   params.fpuParentWeightByVisitedPolicy = true;
@@ -284,7 +266,6 @@ SearchParams SearchParams::forTestsV2() {
   params.cpuctUtilityStdevPrior = 0.40;
   params.cpuctUtilityStdevPriorWeight = 2.0;
   params.cpuctUtilityStdevScale = 0.85;
-  params.fillDameBeforePass = true;
   params.subtreeValueBiasFactor = 0.45;
   params.subtreeValueBiasFreeProp = 0.8;
   params.subtreeValueBiasWeightExponent = 0.85;
@@ -307,8 +288,6 @@ SearchParams SearchParams::basicDecentParams() {
   params.minVisitPropForLCB = 0.20;
   params.rootEndingBonusPoints = 0.5;
   params.rootPruneUselessMoves = true;
-  params.conservativePass = true;
-  params.enablePassingHacks = true;
   params.useNonBuggyLcb = true;
   params.useGraphSearch = true;
   params.fpuParentWeightByVisitedPolicy = true;
@@ -321,7 +300,6 @@ SearchParams SearchParams::basicDecentParams() {
   params.cpuctUtilityStdevPrior = 0.40;
   params.cpuctUtilityStdevPriorWeight = 2.0;
   params.cpuctUtilityStdevScale = 0.85;
-  params.fillDameBeforePass = true;
   params.subtreeValueBiasFactor = 0.45;
   params.subtreeValueBiasFreeProp = 0.8;
   params.subtreeValueBiasWeightExponent = 0.85;
@@ -404,12 +382,9 @@ json SearchParams::changeableParametersToJson() const {
   ret["rootEndingBonusPoints"] = rootEndingBonusPoints;
 
   ret["rootPruneUselessMoves"] = rootPruneUselessMoves;
-  ret["conservativePass"] = conservativePass;
-  ret["fillDameBeforePass"] = fillDameBeforePass;
   // Unused
   // ret["avoidMYTDaggerHackPla"] = PlayerIO::playerToStringShort(avoidMYTDaggerHackPla);
   ret["wideRootNoise"] = wideRootNoise;
-  ret["enablePassingHacks"] = enablePassingHacks;
 
   // Special handling in GTP
   ret["playoutDoublingAdvantage"] = playoutDoublingAdvantage;
@@ -421,9 +396,6 @@ json SearchParams::changeableParametersToJson() const {
   ret["nnPolicyTemperature"] = nnPolicyTemperature;
   // Special handling in GTP
   // ret["antiMirror"] = antiMirror;
-
-  ret["ignorePreRootHistory"] = ignorePreRootHistory;
-  ret["ignoreAllHistory"] = ignoreAllHistory;
 
   ret["subtreeValueBiasFactor"] = subtreeValueBiasFactor;
   ret["subtreeValueBiasTableNumShards"] = subtreeValueBiasTableNumShards;
@@ -444,9 +416,6 @@ json SearchParams::changeableParametersToJson() const {
   ret["maxTimePondering"] = maxTimePondering;
 
   ret["lagBuffer"] = lagBuffer;
-
-  ret["searchFactorAfterOnePass"] = searchFactorAfterOnePass;
-  ret["searchFactorAfterTwoPass"] = searchFactorAfterTwoPass;
 
   ret["treeReuseCarryOverTimeFactor"] = treeReuseCarryOverTimeFactor;
   ret["overallocateTimeFactor"] = overallocateTimeFactor;
@@ -539,10 +508,7 @@ void SearchParams::printParams(std::ostream& out) const {
 
   PRINTPARAM(rootEndingBonusPoints);
   PRINTPARAM(rootPruneUselessMoves);
-  PRINTPARAM(conservativePass);
-  PRINTPARAM(fillDameBeforePass);
   PRINTPARAM(wideRootNoise);
-  PRINTPARAM(enablePassingHacks);
 
   PRINTPARAM(playoutDoublingAdvantage);
   std::cout << "playoutDoublingAdvantagePla" << ": " << (int)playoutDoublingAdvantagePla << std::endl;
@@ -551,9 +517,6 @@ void SearchParams::printParams(std::ostream& out) const {
 
   PRINTPARAM(nnPolicyTemperature);
   PRINTPARAM(antiMirror);
-
-  PRINTPARAM(ignorePreRootHistory);
-  PRINTPARAM(ignoreAllHistory);
 
   PRINTPARAM(subtreeValueBiasFactor);
   PRINTPARAM(subtreeValueBiasTableNumShards);
@@ -579,9 +542,6 @@ void SearchParams::printParams(std::ostream& out) const {
 
   PRINTPARAM(lagBuffer);
 
-
-  PRINTPARAM(searchFactorAfterOnePass);
-  PRINTPARAM(searchFactorAfterTwoPass);
 
 
   PRINTPARAM(treeReuseCarryOverTimeFactor);
