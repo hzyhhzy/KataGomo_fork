@@ -12,8 +12,16 @@
 #include "../external/nlohmann_json/json.hpp"
 
 #ifndef COMPILE_MAX_BOARD_LEN
-#define COMPILE_MAX_BOARD_LEN 9
+#define COMPILE_MAX_BOARD_LEN 19
 #endif
+
+static const double CAPTURE_BONUS = 2;  // how many extra score for each captured stone
+static const double MOVE_LIMIT_SCALE = 5;  // if move number > MOVE_LIMIT_SCALE*H*W, regard as infinite loop (noresult)
+static const bool FORCE_SCORING_WHEN_REACHES_MOVE_LIMIT =  
+  true;  // if long loop and reaches move number limit, scoring as if the game finished. "Send-two-return-one" will lose when CAPTURE_BONUS>0
+static const double SCORE_BOUND_AS_NORESULT_SCALE =
+  0.25;  // if the score is small when reaches move limit, means it is a "three-ko" like situation, rather than "Send-two-return-one", regard as noresult. Set to 0 to disable
+
 
 //TYPES AND CONSTANTS-----------------------------------------------------------------
 

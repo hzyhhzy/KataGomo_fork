@@ -223,7 +223,7 @@ float BoardHistory::whiteKomiAdjustmentForDraws(double drawEquivalentWinsForWhit
 
 float BoardHistory::currentSelfKomi(Player pla, double drawEquivalentWinsForWhite) const {
   float whiteKomiAdjusted = rules.komi + whiteKomiAdjustmentForDraws(drawEquivalentWinsForWhite);
-
+  whiteKomiAdjusted += CAPTURE_BONUS * (getRecentBoard(0).numBlackCaptures - getRecentBoard(0).numWhiteCaptures);
   if(pla == P_WHITE)
     return whiteKomiAdjusted;
   else if(pla == P_BLACK)
@@ -254,6 +254,11 @@ int BoardHistory::countAreaScoreWhiteMinusBlack(const Board& board) const {
           score -= 1;
       }
     }
+  score += CAPTURE_BONUS * (board.numBlackCaptures - board.numWhiteCaptures);
+  if(score > board.x_size * board.y_size)
+    score = board.x_size * board.y_size;
+  if(score < -board.x_size * board.y_size)
+    score = -board.x_size * board.y_size;
   return score;
 }
 
@@ -428,9 +433,24 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   if(moveLoc != Board::PASS_LOC && rules.koRule == Rules::KO_SIMPLE) {
     //static_assert(false, "TODO: find a simple method to detect long cycles");
 
-    if(moveHistory.size() > board.x_size * board.y_size * 3) {
-      isNoResult = true;
-      isGameFinished = true;
+    if(moveHistory.size() > board.x_size * board.y_size * MOVE_LIMIT_SCALE) {
+      if (FORCE_SCORING_WHEN_REACHES_MOVE_LIMIT)
+      {
+        int score = countAreaScoreWhiteMinusBlack(board);
+        int scoreBound = SCORE_BOUND_AS_NORESULT_SCALE * board.x_size * board.y_size;
+        if(SCORE_BOUND_AS_NORESULT_SCALE > 0 && score < scoreBound && score > -scoreBound) {  // three-ko loop, captures are equal
+          isNoResult = true;
+          isGameFinished = true;
+        }
+        else //probably send-two-return-one loop
+        {
+          endAndScoreGameNow(board);
+        }
+      } 
+      else {
+        isNoResult = true;
+        isGameFinished = true;
+      }
     }
   }
 
