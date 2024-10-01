@@ -479,7 +479,7 @@ Hash128 BoardHistory::getSituationAndSimpleKoHash(const Board& board, Player nex
 
   hash.hash0 = Hash::rrmxmx(hash.hash0 + Hash::nasam(board.numWhiteCaptures * m0));
   hash.hash1 = Hash::splitMix64(hash.hash1 + Hash::murmurMix(board.numWhiteCaptures * m0));
-  
+
 
   return hash;
 }
@@ -522,6 +522,21 @@ Hash128 BoardHistory::getSituationRulesAndKoHash(const Board& board, const Board
   int movenum = hist.moveHistory.size();
   hash.hash0 = Hash::rrmxmx(hash.hash0 + Hash::nasam(movenum * m0));
   hash.hash1 = Hash::splitMix64(hash.hash1 + Hash::murmurMix(movenum * m0));
+
+  
+  //fold in two recent boards
+  if(hist.moveHistory.size() >= 2) {
+    Hash128 mixed;
+    mixed.hash1 = Hash::rrmxmx(hash.hash0);
+    mixed.hash0 = Hash::splitMix64(hash.hash1);
+    mixed ^= hist.getRecentBoard(1).pos_hash;
+    hash = mixed;
+    mixed.hash1 = Hash::rrmxmx(hash.hash0);
+    mixed.hash0 = Hash::splitMix64(hash.hash1);
+    mixed ^= hist.getRecentBoard(2).pos_hash;
+    hash = mixed;
+  }
+
   return hash;
 }
 
