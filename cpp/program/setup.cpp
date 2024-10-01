@@ -731,21 +731,14 @@ Rules Setup::loadSingleRules(
 
   if(cfg.contains("rules")) {
     if(cfg.contains("koRule")) throw StringError("Cannot both specify 'rules' and individual rules like koRule");
-    if(cfg.contains("scoringRule")) throw StringError("Cannot both specify 'rules' and individual rules like scoringRule");
     if(cfg.contains("multiStoneSuicideLegal")) throw StringError("Cannot both specify 'rules' and individual rules like multiStoneSuicideLegal");
-    if(cfg.contains("hasButton")) throw StringError("Cannot both specify 'rules' and individual rules like hasButton");
-    if(cfg.contains("taxRule")) throw StringError("Cannot both specify 'rules' and individual rules like taxRule");
-    if(cfg.contains("whiteHandicapBonus")) throw StringError("Cannot both specify 'rules' and individual rules like whiteHandicapBonus");
-    if(cfg.contains("friendlyPassOk")) throw StringError("Cannot both specify 'rules' and individual rules like friendlyPassOk");
-    if(cfg.contains("whiteBonusPerHandicapStone")) throw StringError("Cannot both specify 'rules' and individual rules like whiteBonusPerHandicapStone");
-
+    
     rules = Rules::parseRules(cfg.getString("rules"));
   }
   else {
     string koRule = cfg.getString("koRule", Rules::koRuleStrings());
     string scoringRule = cfg.getString("scoringRule", Rules::scoringRuleStrings());
     bool multiStoneSuicideLegal = cfg.getBool("multiStoneSuicideLegal");
-    bool hasButton = cfg.contains("hasButton") ? cfg.getBool("hasButton") : false;
     float komi = 7.5f;
 
     rules.koRule = Rules::parseKoRule(koRule);
@@ -789,7 +782,7 @@ bool Setup::loadDefaultBoardXYSize(
 vector<pair<set<string>,set<string>>> Setup::getMutexKeySets() {
   vector<pair<set<string>,set<string>>> mutexKeySets = {
     std::make_pair<set<string>,set<string>>(
-    {"rules"},{"koRule","scoringRule","multiStoneSuicideLegal","taxRule","hasButton","whiteBonusPerHandicapStone","friendlyPassOk","whiteHandicapBonus"}
+    {"rules"},{"koRule","multiStoneSuicideLegal"}
     ),
   };
   return mutexKeySets;

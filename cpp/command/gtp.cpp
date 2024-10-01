@@ -64,7 +64,6 @@ static const vector<string> knownCommands = {
   "clear_cache",
 
   "showboard",
-  "fixed_handicap",
   "place_free_handicap",
   "set_free_handicap",
 
@@ -378,7 +377,7 @@ struct GTPEngine {
     Rules initialRules,
     bool autoPattern,
     double dynamicPDACapPerOppLead, bool staticPDAPrecedence,
-    double normAvoidRepeatedPatternUtility, double hcapAvoidRepeatedPatternUtility,
+    double normAvoidRepeatedPatternUtility, 
     double delayScale, double delayMax,
     Player persp, int pvLen,
     std::unique_ptr<PatternBonusTable>&& pbTable
@@ -1296,9 +1295,9 @@ struct GTPEngine {
     const Board oldBoard = bot->getRootBoard();
     const BoardHistory oldHist = bot->getRootHist();
 
-    Board board = bot->getRootBoard();
+    //Board board = bot->getRootBoard();
     BoardHistory hist = bot->getRootHist();
-    Player pla = bot->getRootPla();
+    //Player pla = bot->getRootPla();
 
     //Tromp-taylorish scoring, or finished territory game scoring (including noresult)
     if(hist.isGameFinished) 
@@ -1781,8 +1780,6 @@ int MainCmds::gtp(const vector<string>& args) {
     cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead") ? cfg.getDouble("dynamicPlayoutDoublingAdvantageCapPerOppLead",0.0,0.5) : 0.045;
   bool staticPDATakesPrecedence = cfg.contains("playoutDoublingAdvantage") && !cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead");
   const double normalAvoidRepeatedPatternUtility = initialGenmoveParams.avoidRepeatedPatternUtility;
-  const double handicapAvoidRepeatedPatternUtility = cfg.contains("avoidRepeatedPatternUtility") ?
-    initialGenmoveParams.avoidRepeatedPatternUtility : 0.005;
   const double initialDelayMoveScale = cfg.contains("delayMoveScale") ? cfg.getDouble("delayMoveScale",0.0,10000.0) : 0.0;
   const double initialDelayMoveMax = cfg.contains("delayMoveMax") ? cfg.getDouble("delayMoveMax",0.0,1000000.0) : 1000000.0;
 
@@ -1825,7 +1822,7 @@ int MainCmds::gtp(const vector<string>& args) {
     autoAvoidPatterns,
     dynamicPlayoutDoublingAdvantageCapPerOppLead,
     staticPDATakesPrecedence,
-    normalAvoidRepeatedPatternUtility, handicapAvoidRepeatedPatternUtility,
+    normalAvoidRepeatedPatternUtility, 
     initialDelayMoveScale,initialDelayMoveMax,
     perspective,analysisPVLen,
     std::move(patternBonusTable)

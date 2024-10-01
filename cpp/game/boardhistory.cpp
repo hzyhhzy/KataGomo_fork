@@ -4,26 +4,6 @@
 
 using namespace std;
 
-static Hash128 getKoHash(const Rules& rules, const Board& board, Player pla, Hash128 koRecapBlockHash) {
-  if(rules.koRule == Rules::KO_SIMPLE)
-    return board.pos_hash ^ Board::ZOBRIST_PLAYER_HASH[pla] ^ koRecapBlockHash;
-  else
-    return board.pos_hash ^ koRecapBlockHash;
-}
-static Hash128 getKoHashAfterMoveNonEncore(const Rules& rules, Hash128 posHashAfterMove, Player pla) {
-  if(rules.koRule == Rules::KO_SIMPLE)
-    return posHashAfterMove ^ Board::ZOBRIST_PLAYER_HASH[pla];
-  else
-    return posHashAfterMove;
-}
-// static Hash128 getKoHashAfterMove(const Rules& rules, Hash128 posHashAfterMove, Player pla, int encorePhase, Hash128 koRecapBlockHashAfterMove) {
-//   if(rules.koRule == Rules::KO_SITUATIONAL || rules.koRule == Rules::KO_SIMPLE || encorePhase > 0)
-//     return posHashAfterMove ^ Board::ZOBRIST_PLAYER_HASH[pla] ^ koRecapBlockHashAfterMove;
-//   else
-//     return posHashAfterMove ^ koRecapBlockHashAfterMove;
-// }
-
-
 BoardHistory::BoardHistory()
   :rules(),
    moveHistory(),
@@ -202,9 +182,7 @@ const Board& BoardHistory::getRecentBoard(int numMovesAgo) const {
 
 
 void BoardHistory::setKomi(float newKomi) {
-  float oldKomi = rules.komi;
   rules.komi = newKomi;
-
 }
 
 
@@ -281,19 +259,19 @@ int BoardHistory::newConsecutiveEndingPassesAfterPass() const {
 }
 
 
-bool BoardHistory::passWouldEndGame(const Board& board, Player movePla) const {
-  return newConsecutiveEndingPassesAfterPass() >= 2;
-}
-
 bool BoardHistory::isLegalTolerant(const Board& board, Loc moveLoc, Player movePla) const {
   bool multiStoneSuicideLegal = true; //Tolerate suicide regardless of rules
   if(board.isKoBanned(moveLoc))
     return false;
+  if(!board.isLegalIgnoringKo(moveLoc,movePla,multiStoneSuicideLegal))
+    return false;
   return true;
 }
 bool BoardHistory::makeBoardMoveTolerant(Board& board, Loc moveLoc, Player movePla) {
-  bool multiStoneSuicideLegal = true; //Tolerate suicide regardless of rules
+  bool multiStoneSuicideLegal = true;  // Tolerate suicide regardless of rules
   if(board.isKoBanned(moveLoc))
+    return false;
+  if(!board.isLegalIgnoringKo(moveLoc, movePla, multiStoneSuicideLegal))
     return false;
   
   makeBoardMoveAssumeLegal(board,moveLoc,movePla);
@@ -301,7 +279,6 @@ bool BoardHistory::makeBoardMoveTolerant(Board& board, Loc moveLoc, Player moveP
 }
 
 void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player movePla) {
-  Hash128 posHashBeforeMove = board.pos_hash;
   assert(!isGameFinished);
 
   //And if somehow we're making a move after the game was ended, just clear those values and continue.
@@ -332,12 +309,11 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   presumedNextMovePla = getOpp(movePla);
 
 
-  //Mark all locations that are superko-illegal for the next player, by iterating and testing each point.
-  Player nextPla = getOpp(movePla);
+  Player opp = getOpp(movePla);
 
   
   if(moveLoc == Board::PASS_LOC)
-    endAndSetWinner(getOpp(movePla));
+    endAndSetWinner(opp);
 
   //Phase transitions and game end
   if(consecutiveEndingPasses >= 2) {
@@ -418,9 +394,7 @@ Hash128 BoardHistory::getSituationAndSimpleKoAndPrevPosHash(const Board& board, 
 }
 
 Hash128 BoardHistory::getSituationRulesAndKoHash(const Board& board, const BoardHistory& hist, Player nextPlayer, double drawEquivalentWinsForWhite) {
-  int xSize = board.x_size;
-  int ySize = board.y_size;
-
+  
   //Note that board.pos_hash also incorporates the size of the board.
   Hash128 hash = board.pos_hash;
   hash ^= Board::ZOBRIST_PLAYER_HASH[nextPlayer];
@@ -447,7 +421,7 @@ Hash128 BoardHistory::getSituationRulesAndKoHash(const Board& board, const Board
   static constexpr uint64_t m1 = 3103394289034396213ULL;
   int movenum = hist.moveHistory.size();
   hash.hash0 ^= Hash::nasam(movenum * m0);
-  hash.hash1 ^= Hash::murmurMix(movenum * m0);
+  hash.hash1 ^= Hash::murmurMix(movenum * m1);
   return hash;
 }
 

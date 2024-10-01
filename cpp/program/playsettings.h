@@ -77,7 +77,7 @@ struct PlaySettings {
 
   static PlaySettings loadForMatch(ConfigParser& cfg);
   static PlaySettings loadForGatekeeper(ConfigParser& cfg);
-  static PlaySettings loadForSelfplay(ConfigParser& cfg, bool isDistributed);
+  static PlaySettings loadForSelfplay(ConfigParser& cfg);
 };
 
 #endif // PROGRAM_PLAYSETTINGS_H_

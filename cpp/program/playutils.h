@@ -49,7 +49,7 @@ namespace PlayUtils {
   );
   void initializeGameUsingPolicy(
     Search* botB, Search* botW, Board& board, BoardHistory& hist, Player& pla,
-    Rand& gameRand, bool doEndGameIfAllPassAlive,
+    Rand& gameRand, 
     double proportionOfBoardArea, double temperature
   );
 

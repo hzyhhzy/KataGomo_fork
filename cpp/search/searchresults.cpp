@@ -1886,7 +1886,7 @@ bool Search::getAnalysisJson(
   static constexpr int OUTPUT_PRECISION = 8;
 
   const Board& board = rootBoard;
-  const BoardHistory& hist = rootHistory;
+  //const BoardHistory& hist = rootHistory;
   bool duplicateForSymmetries = true;
   getAnalysisData(buf, minMoves, false, analysisPVLen, duplicateForSymmetries);
 

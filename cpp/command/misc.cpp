@@ -349,7 +349,6 @@ static void initializeDemoGame(Board& board, BoardHistory& hist, Player& pla, Ra
 
       } //Close while(true)
 
-      int numVisits = 20;
       double komi = hist.rules.komi + 0.3 * rand.nextGaussian();
       komi = 0.5 * round(2.0 * komi);
       hist.setKomi((float)komi);
@@ -652,26 +651,6 @@ static bool maybeGetValuesAfterMove(
   return true;
 }
 
-
-
-//We want surprising moves that turned out not poorly
-//The more surprising, the more we will weight it
-static double surpriseWeight(double policyProb, Rand& rand, bool alwaysAddWeight) {
-  if(policyProb < 0)
-    return 0;
-  double weight = 0.12 / (policyProb + 0.02) - 0.5;
-  if(alwaysAddWeight && weight < 1.0)
-    weight = 1.0;
-
-  if(weight <= 0)
-    return 0;
-  if(weight < 0.2) {
-    if(rand.nextDouble() * 0.2 >= weight)
-      return 0;
-    return 0.2;
-  }
-  return weight;
-}
 
 struct PosQueueEntry {
   BoardHistory* hist;
@@ -1087,8 +1066,7 @@ int MainCmds::sampleinitializations(const vector<string>& args) {
   //Play no moves in game, since we're sampling initializations
   cfg.overrideKey("maxMovesPerGame","0");
 
-  const bool isDistributed = false;
-  PlaySettings playSettings = PlaySettings::loadForSelfplay(cfg, isDistributed);
+  PlaySettings playSettings = PlaySettings::loadForSelfplay(cfg);
   GameRunner* gameRunner = new GameRunner(cfg, playSettings, logger);
 
   for(int i = 0; i<numToGen; i++) {

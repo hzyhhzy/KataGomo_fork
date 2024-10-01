@@ -54,7 +54,7 @@ PlaySettings PlaySettings::loadForGatekeeper(ConfigParser& cfg) {
   return playSettings;
 }
 
-PlaySettings PlaySettings::loadForSelfplay(ConfigParser& cfg, bool isDistributed) {
+PlaySettings PlaySettings::loadForSelfplay(ConfigParser& cfg) {
   PlaySettings playSettings;
   playSettings.initGamesWithPolicy = cfg.getBool("initGamesWithPolicy");
   playSettings.policyInitAreaProp = cfg.contains("policyInitAreaProp") ? cfg.getDouble("policyInitAreaProp",0.0,1.0) : 0.04;

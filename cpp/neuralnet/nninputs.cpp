@@ -927,7 +927,6 @@ void NNInputs::fillRowV7(
   //Hide history from the net if a pass would end things and we're behaving as if a pass won't.
   //Or if the game is in fact over right now!
   int maxTurnsOfHistoryToInclude = 5;
-  bool suppressPassWouldEndPhase = false;
   if(hist.isGameFinished) {
     // Include one of the passes, at the end of that sequence
     maxTurnsOfHistoryToInclude = 1;

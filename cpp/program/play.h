@@ -207,28 +207,12 @@ class MatchPairer {
 
 //Functions to run a single game or other things
 namespace Play {
-
-  //In the case where checkForNewNNEval is provided, will MODIFY the provided botSpecs with any new nneval!
-  FinishedGameData* runGame(
-    const Board& startBoard, Player pla, const BoardHistory& startHist, 
-    MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW,
-    const std::string& searchRandSeed,
-    bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
-    Logger& logger, bool logSearchInfo, bool logMoves,
-    int maxMovesPerGame, const std::function<bool()>& shouldStop,
-    const WaitableFlag* shouldPause,
-    const PlaySettings& playSettings, const OtherGameProperties& otherGameProps,
-    Rand& gameRand,
-    std::function<NNEvaluator*()> checkForNewNNEval,
-    std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove
-  );
-
   //In the case where checkForNewNNEval is provided, will MODIFY the provided botSpecs with any new nneval!
   FinishedGameData* runGame(
     const Board& startBoard, Player pla, const BoardHistory& startHist, 
     MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW,
     Search* botB, Search* botW,
-    bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
+    bool clearBotBeforeSearch,
     Logger& logger, bool logSearchInfo, bool logMoves,
     int maxMovesPerGame, const std::function<bool()>& shouldStop,
     const WaitableFlag* shouldPause,

@@ -139,10 +139,7 @@ int MainCmds::analysis(const vector<string>& args) {
   }
 
   const int analysisPVLen = cfg.contains("analysisPVLen") ? cfg.getInt("analysisPVLen",1,100) : 15;
-  const bool assumeMultipleStartingBlackMovesAreHandicap =
-    cfg.contains("assumeMultipleStartingBlackMovesAreHandicap") ? cfg.getBool("assumeMultipleStartingBlackMovesAreHandicap") : true;
-  const bool preventEncore = cfg.contains("preventCleanupPhase") ? cfg.getBool("preventCleanupPhase") : true;
-
+  
   NNEvaluator* nnEval = NULL;
   {
     Setup::initializeSession(cfg);
@@ -198,7 +195,6 @@ int MainCmds::analysis(const vector<string>& args) {
     "priorities",
     "rules",
     "komi",
-    "whiteHandicapBonus",
     "overrideSettings",
     "maxVisits",
     "analysisPVLen",
@@ -283,7 +279,7 @@ int MainCmds::analysis(const vector<string>& args) {
   };
 
   //Returns false if no analysis was reportable due to there being no root node or search results.
-  auto reportAnalysis = [&preventEncore,&pushToWrite](const AnalyzeRequest* request, const Search* search, bool isDuringSearch) {
+  auto reportAnalysis = [&pushToWrite](const AnalyzeRequest* request, const Search* search, bool isDuringSearch) {
     json ret;
     ret["id"] = request->id;
     ret["turnNumber"] = request->turnNumber;

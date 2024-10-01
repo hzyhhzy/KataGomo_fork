@@ -844,7 +844,6 @@ Book::Book(
   int symmetryToAlign;
   vector<int> rootSymmetries;
 
-  int initialEncorePhase = 0;
   BoardHistory initialHist(initialBoard, initialPla, initialRules);
   BookHash::getHashAndSymmetry(initialHist, repBound, rootHash, symmetryToAlign, rootSymmetries, bookVersion);
 
@@ -864,7 +863,6 @@ BoardHistory Book::getInitialHist() const {
   return getInitialHist(0);
 }
 BoardHistory Book::getInitialHist(int symmetry) const {
-  int initialEncorePhase = 0;
   return BoardHistory(SymmetryHelpers::getSymBoard(initialBoard,symmetry), initialPla, initialRules);
 }
 

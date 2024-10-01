@@ -11,7 +11,6 @@ void Search::computeRootNNEvaluation(NNResultBuf& nnResultBuf, bool includeOwner
   const BoardHistory& hist = rootHistory;
   Player pla = rootPla;
   bool skipCache = false;
-  bool isRoot = true;
   MiscNNInputParams nnInputParams;
   nnInputParams.drawEquivalentWinsForWhite = searchParams.drawEquivalentWinsForWhite;
   nnInputParams.nnPolicyTemperature = searchParams.nnPolicyTemperature;

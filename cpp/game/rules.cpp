@@ -180,7 +180,6 @@ static Rules parseRulesHelper(const string& sOrig, bool allowKomi) {
     if(s.length() <= 0)
       throw IOError("Could not parse rules: " + sOrig);
 
-    bool komiSpecified = false;
     while(true) {
       if(s.length() <= 0)
         break;
@@ -198,7 +197,6 @@ static Rules parseRulesHelper(const string& sOrig, bool allowKomi) {
         if(!std::isfinite(komi) || komi > 1e5 || komi < -1e5)
           throw IOError("Could not parse rules: " + sOrig);
         rules.komi = komi;
-        komiSpecified = true;
         s = s.substr(endIdx);
         s = Global::trim(s);
         continue;

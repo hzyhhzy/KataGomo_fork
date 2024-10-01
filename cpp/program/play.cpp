@@ -1103,57 +1103,11 @@ static Loc runBotWithLimits(
 }
 
 
-//Run a game between two bots. It is OK if both bots are the same bot.
-FinishedGameData* Play::runGame(
-  const Board& startBoard, Player pla, const BoardHistory& startHist,
-  MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW,
-  const string& searchRandSeed,
-  bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
-  Logger& logger, bool logSearchInfo, bool logMoves,
-  int maxMovesPerGame, const std::function<bool()>& shouldStop,
-  const WaitableFlag* shouldPause,
-  const PlaySettings& playSettings, const OtherGameProperties& otherGameProps,
-  Rand& gameRand,
-  std::function<NNEvaluator*()> checkForNewNNEval,
-  std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove
-) {
-  Search* botB;
-  Search* botW;
-  if(botSpecB.botIdx == botSpecW.botIdx) {
-    botB = new Search(botSpecB.baseParams, botSpecB.nnEval, &logger, searchRandSeed);
-    botW = botB;
-  }
-  else {
-    botB = new Search(botSpecB.baseParams, botSpecB.nnEval, &logger, searchRandSeed + "@B");
-    botW = new Search(botSpecW.baseParams, botSpecW.nnEval, &logger, searchRandSeed + "@W");
-  }
-
-  FinishedGameData* gameData = runGame(
-    startBoard, pla, startHist, 
-    botSpecB, botSpecW,
-    botB, botW,
-    doEndGameIfAllPassAlive, clearBotBeforeSearch,
-    logger, logSearchInfo, logMoves,
-    maxMovesPerGame, shouldStop,
-    shouldPause,
-    playSettings, otherGameProps,
-    gameRand,
-    checkForNewNNEval,
-    onEachMove
-  );
-
-  if(botW != botB)
-    delete botW;
-  delete botB;
-
-  return gameData;
-}
-
 FinishedGameData* Play::runGame(
   const Board& startBoard, Player startPla, const BoardHistory& startHist, 
   MatchPairer::BotSpec& botSpecB, MatchPairer::BotSpec& botSpecW,
   Search* botB, Search* botW,
-  bool doEndGameIfAllPassAlive, bool clearBotBeforeSearch,
+  bool clearBotBeforeSearch,
   Logger& logger, bool logSearchInfo, bool logMoves,
   int maxMovesPerGame, const std::function<bool()>& shouldStop,
   const WaitableFlag* shouldPause,
@@ -1230,7 +1184,7 @@ FinishedGameData* Play::runGame(
       {
         double temperature = playSettings.policyInitAreaTemperature;
         assert(temperature > 0.0 && temperature < 10.0);
-        PlayUtils::initializeGameUsingPolicy(botB, botW, board, hist, pla, gameRand, doEndGameIfAllPassAlive, proportionOfBoardArea, temperature);
+        PlayUtils::initializeGameUsingPolicy(botB, botW, board, hist, pla, gameRand, proportionOfBoardArea, temperature);
       }
     }
   }
@@ -1977,11 +1931,6 @@ FinishedGameData* GameRunner::runGame(
     clearBotBeforeSearchThisGame = true;
   }
 
-  //In 2% of games, don't autoterminate the game upon all pass alive, to just provide a tiny bit of training data on positions that occur
-  //as both players must wrap things up manually, because within the search we don't autoterminate games, meaning that the NN will get
-  //called on positions that occur after the game would have been autoterminated.
-  bool doEndGameIfAllPassAlive = playSettings.forSelfPlay ? gameRand.nextBool(0.98) : true;
-
   Search* botB;
   Search* botW;
   if(botSpecB.botIdx == botSpecW.botIdx) {
@@ -2006,7 +1955,7 @@ FinishedGameData* GameRunner::runGame(
     board,pla,hist,
     botSpecB,botSpecW,
     botB,botW,
-    doEndGameIfAllPassAlive,clearBotBeforeSearchThisGame,
+    clearBotBeforeSearchThisGame,
     logger,logSearchInfo,logMoves,
     maxMovesPerGame,shouldStop,
     shouldPause,
