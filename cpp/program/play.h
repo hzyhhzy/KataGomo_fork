@@ -129,6 +129,8 @@ class GameInitializer {
   std::vector<std::pair<int,int>> allowedBSizes;
   std::vector<double> allowedBSizeRelProbs;
 
+  double randomInitialStonesProb;
+
   float komiMean; //disabled, replaced by komiMeanMatrix
   float komiMeanMatrix[MAX_CAPTURE_TO_WIN][MAX_CAPTURE_TO_WIN];//different capture num needs different komis
   float komiStdev;

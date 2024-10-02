@@ -10,9 +10,9 @@ using json = nlohmann::json;
 Rules::Rules() {
   //Defaults if not set - closest match to TT rules
   koRule = KO_SIMPLE;
+  blackCapturesToWin = 5;
+  whiteCapturesToWin = 5;
   multiStoneSuicideLegal = true;
-  blackCapturesToWin = 1;
-  whiteCapturesToWin = 1;
   komi = 7.5f;
 }
 
@@ -23,8 +23,9 @@ Rules::Rules(
   int capW,
   float km
 )
-  :koRule(kRule), multiStoneSuicideLegal(suic), 
-   blackCapturesToWin(capB), whiteCapturesToWin(capW),
+  :koRule(kRule), 
+   blackCapturesToWin(capB), whiteCapturesToWin(capW), 
+   multiStoneSuicideLegal(suic), 
    komi(km)
 {}
 
@@ -51,12 +52,8 @@ bool Rules::gameResultWillBeInteger() const {
 }
 
 Rules Rules::getTrompTaylorish() {
-  Rules rules;
-  rules.koRule = KO_SIMPLE;
+  Rules rules = Rules();
   rules.multiStoneSuicideLegal = true;
-  rules.komi = 7.5f;
-  rules.blackCapturesToWin = 1;
-  rules.whiteCapturesToWin = 1;
   return rules;
 }
 
@@ -133,16 +130,16 @@ Rules Rules::updateRules(const string& k, const string& v, Rules oldRules) {
   else if(key == "suicide")
     rules.multiStoneSuicideLegal = Global::stringToBool(value);
   else if(key == "capb" || key == "capw" || key == "cap") {
-    int v = Global::stringToInt(value);
-    if(v <= 0 || v > MAX_CAPTURE_TO_WIN)
+    int va = Global::stringToInt(value);
+    if(va <= 0 || va > MAX_CAPTURE_TO_WIN)
       throw IOError("Bad cap rules option: " + key + ". value should between 1 and" + to_string(MAX_CAPTURE_TO_WIN));
     if(key == "capb")
-      rules.blackCapturesToWin = v;
+      rules.blackCapturesToWin = va;
     else if(key == "capw")
-      rules.whiteCapturesToWin = v;
+      rules.whiteCapturesToWin = va;
     else {
-      rules.blackCapturesToWin = v;
-      rules.whiteCapturesToWin = v;
+      rules.blackCapturesToWin = va;
+      rules.whiteCapturesToWin = va;
     }
   }
   else throw IOError("Unknown rules option: " + key);

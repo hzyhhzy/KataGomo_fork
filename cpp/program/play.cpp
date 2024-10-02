@@ -149,7 +149,7 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
       relProbSum += p;
     if(relProbSum <= 1e-100)
       throw IOError("bSizeRelProbs must sum to a positive value");
-    double allowUnbalancedCaptureNumProb =
+    allowUnbalancedCaptureNumProb =
       cfg.contains("allowUnbalancedCaptureNumProb") ? cfg.getDouble("allowUnbalancedCaptureNumProb", 0.0, 1.0) : 0.0;
 
     if(allowedEdges.size() <= 0)
@@ -185,7 +185,10 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
 
   if(!cfg.contains("komiMean"))
     throw IOError("Must specify komiMean=<komi value> in config");
-
+  
+  randomInitialStonesProb =
+    cfg.contains("randomInitialStonesProb") ? cfg.getDouble("randomInitialStonesProb", 0.0, 1.0) : 0.0;
+  
   komiMean = cfg.contains("komiMean") ? cfg.getFloat("komiMean",Rules::MIN_USER_KOMI,Rules::MAX_USER_KOMI) : 7.5f;
   //does not support changing in cfg file until now
   for(int x=0;x<MAX_CAPTURE_TO_WIN;x++)
@@ -556,14 +559,36 @@ void GameInitializer::createGameSharedUnsynchronized(
     otherGameProps.hintTurn = (int)hist.moveHistory.size();
     otherGameProps.hintPosHash = board.pos_hash;
     otherGameProps.trainingWeight = startPos.trainingWeight;
-  }
-  else {
+  } else {
     int xSize = allowedBSizes[bSizeIdx].first;
     int ySize = allowedBSizes[bSizeIdx].second;
-    board = Board(xSize,ySize);
+    board = Board(xSize, ySize);
     pla = P_BLACK;
+
+    // randomly set some stones, to make sure the network has seen stonenum unbalanced openings
+    if(randomInitialStonesProb > 0 && rand.nextBool(randomInitialStonesProb)) {
+      double densityProb = 0.01 * rand.nextExponential();
+      if(densityProb > 0.3)
+        densityProb = 0.3;
+      for(int y = 0; y < board.y_size; y++)
+        for(int x = 0; x < board.x_size; x++) {
+          double r = rand.nextDouble();
+          Color c = r < densityProb ? C_BLACK : r < 2 * densityProb ? C_WHITE : C_EMPTY;
+          if(c == C_EMPTY)
+            continue;
+          Loc loc = Location::getLoc(x, y, board.x_size);
+          if(!board.isLegal(loc, c, false))
+            continue;
+          board.playMoveAssumeLegal(loc, c);
+        }
+      if(board.numBlackCaptures != 0 || board.numWhiteCaptures != 0) { //bad opening
+        board = Board(xSize, ySize);
+      }
+    }
+
     hist.clear(board,pla,rules);
     float komiMean1 = komiMeanMatrix[rules.blackCapturesToWin - 1][rules.whiteCapturesToWin - 1];
+    komiMean1 += 6.0 * (board.numPlaStonesOnBoard(C_BLACK) - board.numPlaStonesOnBoard(C_WHITE));
     hist.setKomi(getRandomKomi(board.x_size * board.y_size, komiMean1));
 
 
@@ -1240,7 +1265,6 @@ FinishedGameData* Play::runGame(
       }
     }
   };
-
   if(playSettings.initGamesWithPolicy && otherGameProps.allowPolicyInit) {
     double proportionOfBoardArea = otherGameProps.isSgfPos ? playSettings.startPosesPolicyInitAreaProp : playSettings.policyInitAreaProp;
     if(proportionOfBoardArea > 0) {
@@ -1458,6 +1482,8 @@ FinishedGameData* Play::runGame(
   gameData->endHist = hist;
   if(hist.isGameFinished)
     gameData->hitTurnLimit = false;
+  else if(shouldStop != nullptr && shouldStop()) {
+  } 
   else {
     ASSERT_UNREACHABLE;
     gameData->hitTurnLimit = true;
