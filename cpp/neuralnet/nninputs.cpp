@@ -926,7 +926,7 @@ void NNInputs::fillRowV7(
   
   //Hide history from the net if a pass would end things and we're behaving as if a pass won't.
   //Or if the game is in fact over right now!
-  int maxTurnsOfHistoryToInclude = 5;
+  int maxTurnsOfHistoryToInclude = 2;
   if(hist.isGameFinished) {
     // Include one of the passes, at the end of that sequence
     maxTurnsOfHistoryToInclude = 1;
@@ -961,40 +961,6 @@ void NNInputs::fillRowV7(
         else if(prev2Loc != Board::NULL_LOC) {
           int pos = NNPos::locToPos(prev2Loc,xSize,nnXLen,nnYLen);
           setRowBin(rowBin,pos,10, 1.0f, posStride, featureStride);
-        }
-        if(amountOfHistoryToTryToUse >= 3 && moveHistory[moveHistoryLen-3].pla == opp) {
-          Loc prev3Loc = moveHistory[moveHistoryLen-3].loc;
-          numTurnsOfHistoryIncluded = 3;
-          if(prev3Loc == Board::PASS_LOC) {
-            
-          }
-          else if(prev3Loc != Board::NULL_LOC) {
-            int pos = NNPos::locToPos(prev3Loc,xSize,nnXLen,nnYLen);
-            setRowBin(rowBin,pos,11, 1.0f, posStride, featureStride);
-          }
-          if(amountOfHistoryToTryToUse >= 4 && moveHistory[moveHistoryLen-4].pla == pla) {
-            Loc prev4Loc = moveHistory[moveHistoryLen-4].loc;
-            numTurnsOfHistoryIncluded = 4;
-            if(prev4Loc == Board::PASS_LOC) {
-              
-            }
-            else if(prev4Loc != Board::NULL_LOC) {
-              int pos = NNPos::locToPos(prev4Loc,xSize,nnXLen,nnYLen);
-              setRowBin(rowBin,pos,12, 1.0f, posStride, featureStride);
-            }
-            if(amountOfHistoryToTryToUse >= 5 && moveHistory[moveHistoryLen-5].pla == opp) {
-              Loc prev5Loc = moveHistory[moveHistoryLen-5].loc;
-              numTurnsOfHistoryIncluded = 5;
-              if (prev5Loc == Board::PASS_LOC)
-              {
-
-              }
-              else if(prev5Loc != Board::NULL_LOC) {
-                int pos = NNPos::locToPos(prev5Loc,xSize,nnXLen,nnYLen);
-                setRowBin(rowBin,pos,13, 1.0f, posStride, featureStride);
-              }
-            }
-          }
         }
       }
     }
@@ -1041,25 +1007,45 @@ void NNInputs::fillRowV7(
   //The first 5 of them were set already above to flag which of the past 5 moves were passes.
 
   //Komi and any score adjustments
-  float selfKomi = hist.currentSelfKomi(nextPlayer,nnInputParams.drawEquivalentWinsForWhite);
+  float selfKomi = hist.currentSelfKomi(board,nextPlayer,nnInputParams.drawEquivalentWinsForWhite);
   float bArea = (float)(xSize * ySize);
   //Bound komi just in case
   if(selfKomi > bArea+NNPos::KOMI_CLIP_RADIUS)
     selfKomi = bArea+NNPos::KOMI_CLIP_RADIUS;
   if(selfKomi < -bArea-NNPos::KOMI_CLIP_RADIUS)
     selfKomi = -bArea-NNPos::KOMI_CLIP_RADIUS;
-  rowGlobal[5] = selfKomi/20.0f;
+  
+  rowGlobal[2] = selfKomi/ 20.0f;
+
+  int myRemainCaptures = hist.requireCapturesToWin(board, pla);
+  int oppRemainCaptures = hist.requireCapturesToWin(board, opp);
+  if(myRemainCaptures <= 0)
+    std::cout << "myRemainCaptures" << myRemainCaptures;
+  if(oppRemainCaptures <= 0)
+    std::cout << "oppRemainCaptures" << oppRemainCaptures;
+  rowGlobal[3] = oppRemainCaptures / 5.0;
+  rowGlobal[4] = oppRemainCaptures >= 2;
+  rowGlobal[5] = oppRemainCaptures >= 3;
+  rowGlobal[6] = oppRemainCaptures >= 4;
+  rowGlobal[7] = oppRemainCaptures >= 5;
+  rowGlobal[8] = myRemainCaptures / 5.0;
+  rowGlobal[9] = myRemainCaptures >= 2;
+  rowGlobal[10] = myRemainCaptures >= 3;
+  rowGlobal[11] = myRemainCaptures >= 4;
+  rowGlobal[12] = myRemainCaptures >= 5;
+
 
   //Ko rule
   if(hist.rules.koRule == Rules::KO_SIMPLE) {}
   else
     ASSERT_UNREACHABLE;
 
-  //Suicide
-  if(hist.rules.multiStoneSuicideLegal)
-    rowGlobal[8] = 1.0f;
 
+  rowGlobal[13] = hist.allowPass(board,pla);
 
+    
+  // Suicide
+  if(hist.rules.multiStoneSuicideLegal) rowGlobal[14] = 1.0f;
 
   //Used for handicap play
   //Parameter 15 is used because there's actually a discontinuity in how training behavior works when this is
@@ -1069,69 +1055,7 @@ void NNInputs::fillRowV7(
     rowGlobal[16] = (float)(0.5 * nnInputParams.playoutDoublingAdvantage);
   }
 
-
-  //Provide parity information about the board size and komi
-  //This comes from the following observation:
-  //From white's perspective:
-  //Komi = 0.0 - Draw possible
-  //Komi = 0.5 - Win the games we would have drawn with komi 0.0
-  //Komi = 1.0 - Usually no difference from komi 0.5
-  //Komi = 1.5 - Usually no difference from komi 0.5
-  //Komi = 2.0 - Draw possible
-  //If we were to assign an "effective goodness" to these komis in order it would look like
-  //0 1 1 1 2 3 3 3 4 5 5 5 6 ...
-  //since when away from the right parity, increasing the komi doesn't help us except in cases of seki with odd numbers of dame.
-  //If we were to add 0.5 times a vector like:
-  //0 -1 0 1 0 -1 0 1 0 -1 0 ...
-  //Then this would become a linear function and hopefully easier for a neural net to learn.
-  //We expect that this is hard for a neural net to learn since it depends on the parity of the board size
-  //and is very "xor"like.
-  //So we provide it as an input.
-  //Since we are using a model where games are jittered by 0.5 (see BoardHistory::whiteKomiAdjustmentForDraws)
-  //in theory right thing to first order to provide should be a triangular wave with a period of 2 komi points:
-  //  ../\........
-  //  ./..\.......
-  //  /....\..../.
-  //  ......\../..
-  //  .......\/...
-  //The upsloping part of the wave is centered around the komi value where you could draw
-  //since komi is extra valuable when it turns losses into draws into wins, peaking at the komi value where you could draw + 0.5.
-  //It's downsloping around the komi value where you can't draw, since the marginal komi there is nearly useless, not causing you to win
-  //more games except in case of odd-dame seki.
-
-  if(true) {
-    bool boardAreaIsEven = (xSize*ySize) % 2 == 0;
-
-    //What is the parity of the komi values that can produce jigos?
-    bool drawableKomisAreEven = boardAreaIsEven;
-
-    //Find the difference between the komi viewed from our perspective and the nearest drawable komi below it.
-    float komiFloor;
-    if(drawableKomisAreEven)
-      komiFloor = floor(selfKomi / 2.0f) * 2.0f;
-    else
-      komiFloor = floor((selfKomi-1.0f) / 2.0f) * 2.0f + 1.0f;
-
-    //Cap just in case we have floating point weirdness
-    float delta = selfKomi - komiFloor;
-    assert(delta >= -0.0001f);
-    assert(delta <= 2.0001f);
-    if(delta < 0.0f)
-      delta = 0.0f;
-    if(delta > 2.0f)
-      delta = 2.0f;
-
-    //Create the triangle wave based on the difference
-    float wave;
-    if(delta < 0.5f)
-      wave = delta;
-    else if(delta < 1.5f)
-      wave = 1.0f-delta;
-    else
-      wave = delta-2.0f;
-
-    //NOTE: If ever changing which feature this is, must also update index in model.py where we multiply it into the scorebelief parity vector
-    rowGlobal[18] = wave;
-  }
+  rowGlobal[18] = (xSize * ySize) % 2 == 0;
+  
 
 }

@@ -175,6 +175,50 @@ void BoardHistory::printDebugInfo(ostream& out, const Board& board) const {
   out << endl;
 }
 
+int BoardHistory::requireCapturesToWin(const Board& board, Player pla) const {
+  int req = 0;
+  if(pla == C_BLACK)
+    req = rules.blackCapturesToWin - board.numWhiteCaptures;
+  else if(pla == C_WHITE)
+    req = rules.whiteCapturesToWin - board.numBlackCaptures;
+  if(req < 0)
+    req = 0;
+  if(req > MAX_CAPTURE_TO_WIN)
+    ASSERT_UNREACHABLE;
+  return req;
+}
+
+bool BoardHistory::allowPass(const Board& board, Player pla) const {
+  if(pla != allowPassSide())
+    return false;
+  float komi1 = rules.komi + board.numBlackPasses - board.numWhitePasses;
+  if(komi1 >= 0.75 && pla == C_WHITE)
+    return true;
+  if(komi1 <= 0.25 && pla == C_BLACK)
+    return true;
+  return false;
+}
+
+Color BoardHistory::allowPassSide() const {
+  assert(Rules::komiIsIntOrHalfInt(rules.komi));
+  if(rules.komi >= 0.75)
+    return C_WHITE;
+  if(rules.komi <= 0.25)
+    return C_BLACK;
+  return C_EMPTY;
+}
+
+bool BoardHistory::isOverpassedDraw(const Board& board, Player pla) const {
+  Color passSide = allowPassSide();
+  if(pla != passSide)
+    return false;
+  float komi1 = rules.komi + board.numBlackPasses - board.numWhitePasses;
+  if(passSide == C_WHITE && komi1 < 0.25)
+    return true;
+  if(passSide == C_BLACK && komi1 > 0.75)
+    return true;
+  return false;
+}
 
 const Board& BoardHistory::getRecentBoard(int numMovesAgo) const {
   assert(numMovesAgo >= 0 && numMovesAgo < NUM_RECENT_BOARDS);
@@ -198,9 +242,9 @@ float BoardHistory::whiteKomiAdjustmentForDraws(double drawEquivalentWinsForWhit
   return drawAdjustment;
 }
 
-float BoardHistory::currentSelfKomi(Player pla, double drawEquivalentWinsForWhite) const {
+float BoardHistory::currentSelfKomi(const Board& board, Player pla, double drawEquivalentWinsForWhite) const {
   float whiteKomiAdjusted = rules.komi + whiteKomiAdjustmentForDraws(drawEquivalentWinsForWhite);
-
+  whiteKomiAdjusted += (board.numBlackPasses - board.numWhitePasses);
   if(pla == P_WHITE)
     return whiteKomiAdjusted;
   else if(pla == P_BLACK)
@@ -218,6 +262,39 @@ void BoardHistory::endAndSetWinner(Color winner0, float whiteScore = 0.0) {
   isNoResult = false;
   isResignation = false;
   isGameFinished = true;
+}
+
+void BoardHistory::maybeEndGame(Board& board, Loc moveLoc, Player movePla) {
+  Color opp = getOpp(movePla);
+  if (moveLoc == Board::PASS_LOC) {
+    if(movePla != allowPassSide())
+      endAndSetWinner(opp);
+
+    float komi1 = rules.komi + board.numBlackPasses - board.numWhitePasses;
+    //pass too many times
+    if((komi1 < -0.25 && movePla == C_WHITE) || (komi1 > 1.25 && movePla == C_BLACK))
+      endAndSetWinner(opp);
+  }
+
+
+  int myReqCapture = requireCapturesToWin(board, movePla);
+  int oppReqCapture = requireCapturesToWin(board, getOpp(movePla));
+
+  if(myReqCapture <= 0) {
+    //if at the critical komi, draw rather than win
+    if(isOverpassedDraw(board, movePla)) 
+      endAndSetWinner(C_EMPTY);
+    else
+      endAndSetWinner(movePla);
+  } else if(oppReqCapture <= 0)
+    endAndSetWinner(opp);
+
+  // Break long cycles with no-result
+  if(moveHistory.size() > board.x_size * board.y_size * 5) {
+    isNoResult = true;
+    isGameFinished = true;
+    ASSERT_UNREACHABLE;
+  }
 }
 
 int BoardHistory::countAreaScoreWhiteMinusBlack(const Board& board) const {
@@ -313,33 +390,8 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
 
   Player opp = getOpp(movePla);
 
-  
-  if(moveLoc == Board::PASS_LOC)
-    endAndSetWinner(opp);
 
-  //Phase transitions and game end
-  if(consecutiveEndingPasses >= 2) {
-    endAndSetWinner(C_EMPTY);
-    ASSERT_UNREACHABLE;
-  }
-
-  int myCapture = movePla == C_WHITE ? board.numBlackCaptures : board.numWhiteCaptures;
-  int oppCapture = movePla == C_WHITE ? board.numBlackCaptures : board.numWhiteCaptures;
-  if(myCapture > 0)
-    endAndSetWinner(movePla);
-  else if(oppCapture > 0)
-    endAndSetWinner(getOpp(movePla));
-
-  //Break long cycles with no-result
-  if(moveLoc != Board::PASS_LOC && rules.koRule == Rules::KO_SIMPLE) {
-    //static_assert(false, "TODO: find a simple method to detect long cycles");
-
-    if(moveHistory.size() > board.x_size * board.y_size * 5) {
-      isNoResult = true;
-      isGameFinished = true;
-      ASSERT_UNREACHABLE;
-    }
-  }
+  maybeEndGame(board, moveLoc, movePla);
 
 }
 
@@ -405,7 +457,7 @@ Hash128 BoardHistory::getSituationRulesAndKoHash(const Board& board, const Board
     hash ^= Board::ZOBRIST_KO_LOC_HASH[board.ko_loc];
   
 
-  float selfKomi = hist.currentSelfKomi(nextPlayer,drawEquivalentWinsForWhite);
+  float selfKomi = hist.currentSelfKomi(board,nextPlayer,drawEquivalentWinsForWhite);
 
   //Discretize the komi for the purpose of matching hash
   int64_t komiDiscretized = (int64_t)(selfKomi*256.0f);

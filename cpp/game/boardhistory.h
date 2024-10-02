@@ -70,7 +70,7 @@ struct BoardHistory {
   BoardHistory copyToInitial() const;
 
   float whiteKomiAdjustmentForDraws(double drawEquivalentWinsForWhite) const;
-  float currentSelfKomi(Player pla, double drawEquivalentWinsForWhite) const;
+  float currentSelfKomi(const Board& board, Player pla, double drawEquivalentWinsForWhite) const;
 
   //Returns a reference a recent board state, where 0 is the current board, 1 is 1 move ago, etc.
   //Requires that numMovesAgo < NUM_RECENT_BOARDS
@@ -95,11 +95,26 @@ struct BoardHistory {
   bool isLegalTolerant(const Board& board, Loc moveLoc, Player movePla) const;
 
   void endAndSetWinner(Color winner0, float whiteScore);
+  //check whether the game ends AFTER the hist and board played
+  void maybeEndGame(Board& board, Loc moveLoc, Player movePla);
 
   void setWinnerByResignation(Player pla);
 
   void printBasicInfo(std::ostream& out, const Board& board) const;
   void printDebugInfo(std::ostream& out, const Board& board) const;
+
+  //remain capture num until win
+  //pla=C_WHITE means white capture black stones, return whiteCapturesToWin-blackCapture
+  int requireCapturesToWin(const Board& board, Player pla) const;
+
+  //can this player pass now
+  bool allowPass(const Board& board, Player pla) const;
+  //which player can pass Initially
+  Color allowPassSide() const;
+
+  //komi = k: White can pass k times, but if white has passed exactly k times until having enough captures, then the game is a draw
+  //komi = 1 - k : Black can pass k times, but if black has passed exactly k times until having enough captures, then the game is a draw
+  bool isOverpassedDraw(const Board& board, Player pla) const;
 
 
   //Heuristically check if this history looks like an sgf variation where black passed to effectively

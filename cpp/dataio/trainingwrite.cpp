@@ -485,7 +485,7 @@ void TrainingWriteBuffers::addRow(
   rowGlobal[46] = (float)((gameHash.hash1 >> 44) & 0xFFFFF);
 
   //Various other data
-  rowGlobal[47] = hist.currentSelfKomi(nextPlayer,drawEquivalentWinsForWhite);
+  rowGlobal[47] = hist.currentSelfKomi(board,nextPlayer,drawEquivalentWinsForWhite);
   rowGlobal[48] = 1.0f;
 
   //Earlier neural net metadata
