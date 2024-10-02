@@ -3,6 +3,7 @@
 POSLEN=9
 LRSCALE=2.0
 SAMPLEPEREPOCH=1000000
+SWASCALE=1.0 #1.0 to disable SWA. 8.0 is default but not good for short runs
 
 set -o pipefail
 {
@@ -65,6 +66,7 @@ time python3 ./train.py \
      -samples-per-epoch "$SAMPLEPEREPOCH" \
      -lr-scale "$LRSCALE" \
      -use-fp16 \
+     -swa-scale "$SWASCALE" \
      -batch-size "$BATCHSIZE" \
      -model-kind "$MODELKIND" \
      $EXTRAFLAG \

@@ -691,8 +691,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             if group_name == "normal":
                 normal_weight_decay = param_group["weight_decay"]
 
-            if changed:
-                logging.info(f"Param group {param_group['group_name']} lr {param_group['lr']} weight_decay {param_group['weight_decay']}")
+            #if changed:
+            #    logging.info(f"Param group {param_group['group_name']} lr {param_group['lr']} weight_decay {param_group['weight_decay']}")
 
         return per_sample_lr * warmup_scale, normal_weight_decay
 
