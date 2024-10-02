@@ -1015,24 +1015,20 @@ void NNInputs::fillRowV7(
   if(selfKomi < -bArea-NNPos::KOMI_CLIP_RADIUS)
     selfKomi = -bArea-NNPos::KOMI_CLIP_RADIUS;
   
-  rowGlobal[2] = selfKomi/ 20.0f;
+  rowGlobal[0] = selfKomi/ 20.0f;
 
+  static_assert(MAX_CAPTURE_TO_WIN == 5, "");
   int myRemainCaptures = hist.requireCapturesToWin(board, pla);
   int oppRemainCaptures = hist.requireCapturesToWin(board, opp);
-  if(myRemainCaptures <= 0)
-    std::cout << "myRemainCaptures" << myRemainCaptures;
-  if(oppRemainCaptures <= 0)
-    std::cout << "oppRemainCaptures" << oppRemainCaptures;
-  rowGlobal[3] = oppRemainCaptures / 5.0;
-  rowGlobal[4] = oppRemainCaptures >= 2;
-  rowGlobal[5] = oppRemainCaptures >= 3;
-  rowGlobal[6] = oppRemainCaptures >= 4;
-  rowGlobal[7] = oppRemainCaptures >= 5;
-  rowGlobal[8] = myRemainCaptures / 5.0;
-  rowGlobal[9] = myRemainCaptures >= 2;
-  rowGlobal[10] = myRemainCaptures >= 3;
-  rowGlobal[11] = myRemainCaptures >= 4;
-  rowGlobal[12] = myRemainCaptures >= 5;
+  rowGlobal[1] = oppRemainCaptures >= 2;
+  rowGlobal[2] = oppRemainCaptures >= 3;
+  rowGlobal[3] = oppRemainCaptures >= 4;
+  rowGlobal[4] = oppRemainCaptures >= 5;
+  rowGlobal[5] = myRemainCaptures >= 2;
+  rowGlobal[6] = myRemainCaptures >= 3;
+  rowGlobal[7] = myRemainCaptures >= 4;
+  rowGlobal[8] = myRemainCaptures >= 5;
+
 
 
   //Ko rule
@@ -1040,8 +1036,11 @@ void NNInputs::fillRowV7(
   else
     ASSERT_UNREACHABLE;
 
-
-  rowGlobal[13] = hist.allowPass(board,pla);
+  rowGlobal[11] = hist.isOverpassedDraw(board, pla);
+  rowGlobal[12] = hist.isOverpassedDraw(board, opp);
+  
+  rowGlobal[13] = hist.allowPass(board, pla);
+  rowGlobal[14] = hist.allowPass(board, opp);
 
     
   // Suicide
