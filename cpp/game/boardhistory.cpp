@@ -412,18 +412,8 @@ Hash128 BoardHistory::getSituationRulesAndKoHash(const Board& board, const Board
   uint64_t komiHash = Hash::murmurMix((uint64_t)komiDiscretized);
   hash.hash0 ^= komiHash;
   hash.hash1 ^= Hash::basicLCong(komiHash);
-
-  //Fold in the ko, scoring, and suicide rules
-  hash ^= Rules::ZOBRIST_KO_RULE_HASH[hist.rules.koRule];
-  if(hist.rules.multiStoneSuicideLegal)
-    hash ^= Rules::ZOBRIST_MULTI_STONE_SUICIDE_HASH;
-
-  // Fold in movenum.
-  static constexpr uint64_t m0 = 7607666294965183507ULL;
-  static constexpr uint64_t m1 = 3103394289034396213ULL;
-  int movenum = hist.moveHistory.size();
-  hash.hash0 ^= Hash::nasam(movenum * m0);
-  hash.hash1 ^= Hash::murmurMix(movenum * m1);
+  
+  hash ^= hist.rules.getRuleHashExceptKomi();
   return hash;
 }
 

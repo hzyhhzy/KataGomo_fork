@@ -737,7 +737,6 @@ Rules Setup::loadSingleRules(
   }
   else {
     string koRule = cfg.getString("koRule", Rules::koRuleStrings());
-    string scoringRule = cfg.getString("scoringRule", Rules::scoringRuleStrings());
     bool multiStoneSuicideLegal = cfg.getBool("multiStoneSuicideLegal");
     float komi = 7.5f;
 

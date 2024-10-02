@@ -11,6 +11,8 @@ struct Rules {
   static const int KO_SIMPLE = 0;
   int koRule;
 
+  int blackCapturesToWin;  // if black get these much white captures, black win
+  int whiteCapturesToWin;  // if white get these much black captures, white win
 
   bool multiStoneSuicideLegal;
 
@@ -23,6 +25,8 @@ struct Rules {
   Rules(
     int koRule,
     bool multiStoneSuicideLegal,
+    int capB,
+    int capW,
     float komi
   );
   ~Rules();
@@ -30,13 +34,11 @@ struct Rules {
   bool operator==(const Rules& other) const;
   bool operator!=(const Rules& other) const;
 
-  bool equalsIgnoringKomi(const Rules& other) const;
   bool gameResultWillBeInteger() const;
 
   static Rules getTrompTaylorish();
 
   static std::set<std::string> koRuleStrings();
-  static std::set<std::string> scoringRuleStrings();
   static int parseKoRule(const std::string& s);
   static std::string writeKoRule(int koRule);
 
@@ -51,8 +53,11 @@ struct Rules {
   std::string toString() const;
   std::string toJsonString() const;
   nlohmann::json toJson() const;
+  Hash128 getRuleHashExceptKomi() const;
 
-  static const Hash128 ZOBRIST_KO_RULE_HASH[4];
+  static const Hash128 ZOBRIST_KO_RULE_HASH[2];
+  static const Hash128 ZOBRIST_BLACK_CAPTURENUM_RULE_HASH;
+  static const Hash128 ZOBRIST_WHITE_CAPTURENUM_RULE_HASH;
   static const Hash128 ZOBRIST_MULTI_STONE_SUICIDE_HASH;
 
 };

@@ -112,7 +112,7 @@ class GameInitializer {
   );
   Rules createRulesUnsynchronized();
 
-  float getRandomKomi(float boardArea);
+  float getRandomKomi(float boardArea, float komiMean);
 
   std::mutex createGameMutex;
   Rand rand;
@@ -122,10 +122,15 @@ class GameInitializer {
 
   std::vector<int> allowedKoRules;
 
+  std::vector<std::pair<int, int>> allowedCaptureNums;
+  std::vector<double> allowedCaptureNumProbs;
+  double allowUnbalancedCaptureNumProb;
+
   std::vector<std::pair<int,int>> allowedBSizes;
   std::vector<double> allowedBSizeRelProbs;
 
-  float komiMean;
+  float komiMean; //disabled, replaced by komiMeanMatrix
+  float komiMeanMatrix[MAX_CAPTURE_TO_WIN][MAX_CAPTURE_TO_WIN];//different capture num needs different komis
   float komiStdev;
   double komiAllowIntegerProb;
   double komiBigStdevProb;

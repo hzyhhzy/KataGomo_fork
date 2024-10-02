@@ -3232,7 +3232,44 @@ int MainCmds::gtp(const vector<string>& args) {
     else if(command == "stop") {
       //Stop any ongoing ponder or analysis
       engine->stopAndWait();
-    }
+    } 
+    else if(command == "cap")  // Maxmoves settings
+    {
+      int capb,capw;
+      if(!((pieces.size() == 1 && Global::tryStringToInt(pieces[0], capb))||
+           (pieces.size() == 2 && Global::tryStringToInt(pieces[0], capb) && Global::tryStringToInt(pieces[1], capw)))
+        ) 
+      {
+        responseIsError = true;
+        response = "Expected one or two integer arguments for cap but got '" + Global::concat(pieces, " ") + "'";
+      } 
+      else {
+        if(pieces.size() == 1)
+          capw = capb;
+        Rules currentRules = engine->getCurrentRules();
+        Rules newRules;
+        bool parseSuccess = false;
+        try {
+          newRules = Rules::updateRules("capb", to_string(capb), currentRules);
+          newRules = Rules::updateRules("capw", to_string(capw), newRules);
+          parseSuccess = true;
+        } catch(const StringError& err) {
+          responseIsError = true;
+          response = err.what();
+        }
+        if(parseSuccess) {
+          string error;
+          bool suc = engine->setRulesNotIncludingKomi(newRules, error);
+          if(!suc) {
+            responseIsError = true;
+            response = error;
+          }
+          logger.write("Changed rules to " + newRules.toString());
+          if(!logger.isLoggingToStderr())
+            cerr << "Changed rules to " + newRules.toString() << endl;
+        }
+      }
+    } 
 
     else {
       responseIsError = true;

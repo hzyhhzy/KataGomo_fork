@@ -945,8 +945,9 @@ void NNInputs::fillRowV7(
     if(amountOfHistoryToTryToUse >= 1 && moveHistory[moveHistoryLen-1].pla == opp) {
       Loc prev1Loc = moveHistory[moveHistoryLen-1].loc;
       numTurnsOfHistoryIncluded = 1;
-      if(prev1Loc == Board::PASS_LOC)
-        rowGlobal[0] = 1.0;
+      if(prev1Loc == Board::PASS_LOC) {
+        
+      }
       else if(prev1Loc != Board::NULL_LOC) {
         int pos = NNPos::locToPos(prev1Loc,xSize,nnXLen,nnYLen);
         setRowBin(rowBin,pos,9, 1.0f, posStride, featureStride);
@@ -954,8 +955,9 @@ void NNInputs::fillRowV7(
       if(amountOfHistoryToTryToUse >= 2 && moveHistory[moveHistoryLen-2].pla == pla) {
         Loc prev2Loc = moveHistory[moveHistoryLen-2].loc;
         numTurnsOfHistoryIncluded = 2;
-        if(prev2Loc == Board::PASS_LOC)
-          rowGlobal[1] = 1.0;
+        if (prev2Loc == Board::PASS_LOC){
+
+        }
         else if(prev2Loc != Board::NULL_LOC) {
           int pos = NNPos::locToPos(prev2Loc,xSize,nnXLen,nnYLen);
           setRowBin(rowBin,pos,10, 1.0f, posStride, featureStride);
@@ -963,8 +965,9 @@ void NNInputs::fillRowV7(
         if(amountOfHistoryToTryToUse >= 3 && moveHistory[moveHistoryLen-3].pla == opp) {
           Loc prev3Loc = moveHistory[moveHistoryLen-3].loc;
           numTurnsOfHistoryIncluded = 3;
-          if(prev3Loc == Board::PASS_LOC)
-            rowGlobal[2] = 1.0;
+          if(prev3Loc == Board::PASS_LOC) {
+            
+          }
           else if(prev3Loc != Board::NULL_LOC) {
             int pos = NNPos::locToPos(prev3Loc,xSize,nnXLen,nnYLen);
             setRowBin(rowBin,pos,11, 1.0f, posStride, featureStride);
@@ -972,8 +975,9 @@ void NNInputs::fillRowV7(
           if(amountOfHistoryToTryToUse >= 4 && moveHistory[moveHistoryLen-4].pla == pla) {
             Loc prev4Loc = moveHistory[moveHistoryLen-4].loc;
             numTurnsOfHistoryIncluded = 4;
-            if(prev4Loc == Board::PASS_LOC)
-              rowGlobal[3] = 1.0;
+            if(prev4Loc == Board::PASS_LOC) {
+              
+            }
             else if(prev4Loc != Board::NULL_LOC) {
               int pos = NNPos::locToPos(prev4Loc,xSize,nnXLen,nnYLen);
               setRowBin(rowBin,pos,12, 1.0f, posStride, featureStride);
@@ -981,8 +985,10 @@ void NNInputs::fillRowV7(
             if(amountOfHistoryToTryToUse >= 5 && moveHistory[moveHistoryLen-5].pla == opp) {
               Loc prev5Loc = moveHistory[moveHistoryLen-5].loc;
               numTurnsOfHistoryIncluded = 5;
-              if(prev5Loc == Board::PASS_LOC)
-                rowGlobal[4] = 1.0;
+              if (prev5Loc == Board::PASS_LOC)
+              {
+
+              }
               else if(prev5Loc != Board::NULL_LOC) {
                 int pos = NNPos::locToPos(prev5Loc,xSize,nnXLen,nnYLen);
                 setRowBin(rowBin,pos,13, 1.0f, posStride, featureStride);
