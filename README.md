@@ -1,8 +1,14 @@
-# CaptureGo games basic branch (2024.8)
-This branch is for games with Go-like captures   
-For example: Capture go, NoGo(Reverse capture go)
+# CaptureGo (2024.8)
+This branch is for Capture-Go   
+## Rule
+Who firstly capture N stones wins. 1<=N<=5   
+Pass is not allowed. If no one has enough captures, just continue, then one player will fill the eyes and die. In this case, it is like area-ish scoring with group tax(还棋头).    
+   
+So we can define komi(贴目) as the following:   
+komi=0.5: Original rule, no one can pass   
+komi=0.5+k: White can pass k times   
+komi=0.5-k: Black can pass k times   
+komi=k: White can pass k times, but if white has passed exactly k times until having enough captures, then the game is a draw   
+komi=1-k: Black can pass k times, but if black has passed exactly k times until having enough captures, then the game is a draw   
 
-Modified from KataGo v1.15.3 https://github.com/lightvector/KataGo/releases/tag/v1.15.3   
-Various rules except Area+SimpleKo are removed   
-HumanSL is removed
-....TODO
+
