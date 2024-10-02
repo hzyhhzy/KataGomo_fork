@@ -11,9 +11,7 @@
 #include "../core/hash.h"
 #include "../external/nlohmann_json/json.hpp"
 
-#ifndef COMPILE_MAX_BOARD_LEN
-#define COMPILE_MAX_BOARD_LEN 19
-#endif
+
 
 //TYPES AND CONSTANTS-----------------------------------------------------------------
 
@@ -117,6 +115,10 @@ struct Board
   static Hash128 ZOBRIST_PLAYER_HASH[4];
   static Hash128 ZOBRIST_KO_LOC_HASH[MAX_ARR_SIZE];
   static Hash128 ZOBRIST_KO_MARK_HASH[MAX_ARR_SIZE][4];
+  static Hash128 ZOBRIST_CAPTURE_B_HASH[2 * MAX_ARR_SIZE];
+  static Hash128 ZOBRIST_CAPTURE_W_HASH[2 * MAX_ARR_SIZE];
+  static Hash128 ZOBRIST_PASSNUM_B_HASH[2 * MAX_ARR_SIZE];
+  static Hash128 ZOBRIST_PASSNUM_W_HASH[2 * MAX_ARR_SIZE];
   static const Hash128 ZOBRIST_PASS_ENDS_PHASE;
   static const Hash128 ZOBRIST_GAME_IS_OVER;
 
@@ -294,6 +296,8 @@ struct Board
 
   int numBlackCaptures; //Number of b stones captured, informational and used by board history when clearing pos
   int numWhiteCaptures; //Number of w stones captured, informational and used by board history when clearing pos
+  int numBlackPasses;
+  int numWhitePasses; 
 
   short adj_offsets[8]; //Indices 0-3: Offsets to add for adjacent points. Indices 4-7: Offsets for diagonal points. 2 and 3 are +x and +y.
 
@@ -321,6 +325,10 @@ struct Board
 
   bool countEmptyHelper(bool* emptyCounted, Loc initialLoc, int& count, int bound) const;
 
+  void setBlackCaptures(int x);
+  void setWhiteCaptures(int x);
+  void setBlackPasses(int x);
+  void setWhitePasses(int x);
   //static void monteCarloOwner(Player player, Board* board, int mc_counts[]);
 };
 

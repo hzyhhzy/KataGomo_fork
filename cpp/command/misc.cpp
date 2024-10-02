@@ -64,6 +64,8 @@ static void writeLine(
   cout << baseHist.moveHistory.size() << " ";
   cout << board.numBlackCaptures << " ";
   cout << board.numWhiteCaptures << " ";
+  cout << board.numBlackPasses << " ";
+  cout << board.numWhitePasses << " ";
 
   for(int y = 0; y<board.y_size; y++) {
     for(int x = 0; x<board.x_size; x++) {

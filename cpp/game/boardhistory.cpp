@@ -158,6 +158,8 @@ void BoardHistory::printBasicInfo(ostream& out, const Board& board) const {
   out << "Rules: " << rules.toJsonString() << endl;
   out << "B stones captured: " << board.numBlackCaptures << endl;
   out << "W stones captured: " << board.numWhiteCaptures << endl;
+  out << "B passed: " << board.numBlackPasses << endl;
+  out << "W passed: " << board.numWhitePasses << endl;
 }
 
 void BoardHistory::printDebugInfo(ostream& out, const Board& board) const {

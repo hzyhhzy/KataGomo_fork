@@ -21,6 +21,17 @@
 #include <vector>
 #include <memory>
 
+
+#ifdef COMPILE_MAX_BOARD_LEN
+static_assert(false, "");
+#endif
+
+#define COMPILE_MAX_BOARD_LEN 19
+
+static const int MAX_CAPTURE_TO_WIN = 5;  //does not support capture >5 stones to win
+
+
+
 //GLOBAL DEFINES AND FLAGS----------------------------------------------------
 #ifdef __GNUG__  //On g++ only
 

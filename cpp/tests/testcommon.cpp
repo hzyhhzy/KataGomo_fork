@@ -10,6 +10,10 @@ bool TestCommon::boardsSeemEqual(const Board& b1, const Board& b2) {
     return false;
   if(b1.numWhiteCaptures != b2.numWhiteCaptures)
     return false;
+  if(b1.numBlackPasses != b2.numBlackPasses)
+    return false;
+  if(b1.numWhitePasses != b2.numWhitePasses)
+    return false;
   return true;
 }
 
