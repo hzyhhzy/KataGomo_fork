@@ -62,15 +62,15 @@ GameInitializer::GameInitializer(ConfigParser& cfg, Logger& logger, const string
 {
   initShared(cfg,logger);
 }
-static_assert(MAX_CAPTURE_TO_WIN == 5, "the following matrix should be changed");
+//if capb!=capw, komi mean should be changed
 //this value should be tuned after some training
-static const int komiMeanMatrixDefault[MAX_CAPTURE_TO_WIN][MAX_CAPTURE_TO_WIN] = {
-  {4, 18, 23, 27, 31},
-  {-10, 6, 11, 15, 18},
-  {-15, 0, 7, 11, 14},
-  double capLossAreaFactor[MAX_CAPTURE_TO_WIN + 1] = {1, 0.66, 0.53, 0.47, 0.03, 0};
-  {-23, -10, -3, 3, 7},
-};
+static const double komiMeanBiasCap(int capb,int capw,int boardH,int boardW){
+  double area = boardH * boardW;
+
+  static_assert(MAX_CAPTURE_TO_WIN == 5, "the following matrix should be changed");
+  double capLossAreaFactor[MAX_CAPTURE_TO_WIN + 1] = {1, 0.66, 0.54, 0.45, 0.37, 0.30};
+  return area * (capLossAreaFactor[capb] - capLossAreaFactor[capw]);
+}
 
 void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
 
@@ -190,12 +190,6 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     cfg.contains("randomInitialStonesProb") ? cfg.getDouble("randomInitialStonesProb", 0.0, 1.0) : 0.0;
   
   komiMean = cfg.contains("komiMean") ? cfg.getFloat("komiMean",Rules::MIN_USER_KOMI,Rules::MAX_USER_KOMI) : 7.5f;
-  //does not support changing in cfg file until now
-  for(int x=0;x<MAX_CAPTURE_TO_WIN;x++)
-    for (int y = 0; y < MAX_CAPTURE_TO_WIN; y++)
-    {
-      komiMeanMatrix[x][y] = komiMeanMatrixDefault[x][y];
-    }
   komiStdev = cfg.contains("komiStdev") ? cfg.getFloat("komiStdev",0.0f,60.0f) : 0.0f;
   komiBigStdevProb = cfg.contains("komiBigStdevProb") ? cfg.getDouble("komiBigStdevProb",0.0,1.0) : 0.0;
   komiBigStdev = cfg.contains("komiBigStdev") ? cfg.getFloat("komiBigStdev",0.0f,60.0f) : 10.0f;
@@ -587,8 +581,9 @@ void GameInitializer::createGameSharedUnsynchronized(
     }
 
     hist.clear(board,pla,rules);
-    float komiMean1 = komiMeanMatrix[rules.blackCapturesToWin - 1][rules.whiteCapturesToWin - 1];
-    komiMean1 += 6.0 * (board.numPlaStonesOnBoard(C_BLACK) - board.numPlaStonesOnBoard(C_WHITE));
+    float komiMean1 =
+      komiMean + komiMeanBiasCap(rules.blackCapturesToWin, rules.whiteCapturesToWin, board.y_size, board.x_size);
+    komiMean1 += 2 * komiMean * (board.numPlaStonesOnBoard(C_BLACK) - board.numPlaStonesOnBoard(C_WHITE));
     hist.setKomi(getRandomKomi(board.x_size * board.y_size, komiMean1));
 
 
