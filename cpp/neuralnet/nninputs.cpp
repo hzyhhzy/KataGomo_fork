@@ -1034,15 +1034,7 @@ void NNInputs::fillRowV7(
   //Global features.
   //The first 5 of them were set already above to flag which of the past 5 moves were passes.
 
-  //Komi and any score adjustments
-  float selfKomi = hist.currentSelfKomi(nextPlayer,nnInputParams.drawEquivalentWinsForWhite);
-  float bArea = (float)(xSize * ySize);
-  //Bound komi just in case
-  if(selfKomi > bArea+NNPos::KOMI_CLIP_RADIUS)
-    selfKomi = bArea+NNPos::KOMI_CLIP_RADIUS;
-  if(selfKomi < -bArea-NNPos::KOMI_CLIP_RADIUS)
-    selfKomi = -bArea-NNPos::KOMI_CLIP_RADIUS;
-  rowGlobal[5] = selfKomi/20.0f;
+  rowGlobal[5] = pla == C_WHITE ? 1.0 : -1.0;
 
   //Ko rule
   if(hist.rules.koRule == Rules::KO_SIMPLE) {}
@@ -1063,69 +1055,5 @@ void NNInputs::fillRowV7(
     rowGlobal[16] = (float)(0.5 * nnInputParams.playoutDoublingAdvantage);
   }
 
-
-  //Provide parity information about the board size and komi
-  //This comes from the following observation:
-  //From white's perspective:
-  //Komi = 0.0 - Draw possible
-  //Komi = 0.5 - Win the games we would have drawn with komi 0.0
-  //Komi = 1.0 - Usually no difference from komi 0.5
-  //Komi = 1.5 - Usually no difference from komi 0.5
-  //Komi = 2.0 - Draw possible
-  //If we were to assign an "effective goodness" to these komis in order it would look like
-  //0 1 1 1 2 3 3 3 4 5 5 5 6 ...
-  //since when away from the right parity, increasing the komi doesn't help us except in cases of seki with odd numbers of dame.
-  //If we were to add 0.5 times a vector like:
-  //0 -1 0 1 0 -1 0 1 0 -1 0 ...
-  //Then this would become a linear function and hopefully easier for a neural net to learn.
-  //We expect that this is hard for a neural net to learn since it depends on the parity of the board size
-  //and is very "xor"like.
-  //So we provide it as an input.
-  //Since we are using a model where games are jittered by 0.5 (see BoardHistory::whiteKomiAdjustmentForDraws)
-  //in theory right thing to first order to provide should be a triangular wave with a period of 2 komi points:
-  //  ../\........
-  //  ./..\.......
-  //  /....\..../.
-  //  ......\../..
-  //  .......\/...
-  //The upsloping part of the wave is centered around the komi value where you could draw
-  //since komi is extra valuable when it turns losses into draws into wins, peaking at the komi value where you could draw + 0.5.
-  //It's downsloping around the komi value where you can't draw, since the marginal komi there is nearly useless, not causing you to win
-  //more games except in case of odd-dame seki.
-
-  if(true) {
-    bool boardAreaIsEven = (xSize*ySize) % 2 == 0;
-
-    //What is the parity of the komi values that can produce jigos?
-    bool drawableKomisAreEven = boardAreaIsEven;
-
-    //Find the difference between the komi viewed from our perspective and the nearest drawable komi below it.
-    float komiFloor;
-    if(drawableKomisAreEven)
-      komiFloor = floor(selfKomi / 2.0f) * 2.0f;
-    else
-      komiFloor = floor((selfKomi-1.0f) / 2.0f) * 2.0f + 1.0f;
-
-    //Cap just in case we have floating point weirdness
-    float delta = selfKomi - komiFloor;
-    assert(delta >= -0.0001f);
-    assert(delta <= 2.0001f);
-    if(delta < 0.0f)
-      delta = 0.0f;
-    if(delta > 2.0f)
-      delta = 2.0f;
-
-    //Create the triangle wave based on the difference
-    float wave;
-    if(delta < 0.5f)
-      wave = delta;
-    else if(delta < 1.5f)
-      wave = 1.0f-delta;
-    else
-      wave = delta-2.0f;
-
-    //NOTE: If ever changing which feature this is, must also update index in model.py where we multiply it into the scorebelief parity vector
-    rowGlobal[18] = wave;
-  }
 
 }
