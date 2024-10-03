@@ -261,6 +261,7 @@ struct Board
   //WILL perform a mutable search - may alter the linked lists or heads, etc.
   bool searchIsLadderCaptured(Loc loc, bool defenderFirst, std::vector<Loc>& buf);
   bool searchIsLadderCapturedAttackerFirst2Libs(Loc loc, std::vector<Loc>& buf, std::vector<Loc>& workingMoves);
+  bool anyAlive(Player pla, bool isMultiStoneSuicideLegal) const;
 
   //Run some basic sanity checks on the board state, throws an exception if not consistent, for testing/debugging
   void checkConsistency() const;

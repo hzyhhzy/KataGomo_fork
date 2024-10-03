@@ -1783,6 +1783,278 @@ bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf
 
 }
 
+// This marks pass-alive stones, pass-alive territory always.
+// If safeBigTerritories, marks empty regions bordered by pla stones and no opp stones, where all pla stones are
+// pass-alive. If unsafeBigTerritories, marks empty regions bordered by pla stones and no opp stones, but ONLY on
+// locations in result that are C_EMPTY. The reason for this is to avoid overwriting the opponent's pass-alive territory
+// in situations like this:
+//  .ox.x.x
+//  oxxxxxx
+//  xx.....
+// The top left corner is black's pass-alive territory. It's also an empty region bordered only by white, but we should
+// not mark it as white's unsafeBigTerritory because it's already marked as black's pass alive territory.
+
+bool Board::anyAlive(Player pla, bool isMultiStoneSuicideLegal) const {
+  Color opp = getOpp(pla);
+
+  // https://senseis.xmp.net/?BensonsAlgorithm
+  // https://zhuanlan.zhihu.com/p/110998764
+  // First compute all empty-or-opp regions
+
+  // For each loc, if it's empty or opp, the index of the region
+  int16_t regionIdxByLoc[MAX_ARR_SIZE];
+  // For each loc, if it's empty or opp, the next empty or opp belonging to the same region
+  Loc nextEmptyOrOpp[MAX_ARR_SIZE];
+  // Does this border a pla group that has been marked as not pass alive?
+  bool bordersNonPassAlivePlaByHead[MAX_ARR_SIZE];
+
+  // Set to initial values. Faster than std::fill in O2 optimization by compiler, might be similar when use O3.
+  // This code assumes twos complement. Memset only sets bytes, so we are relying on the concatenation of two -1 bytes
+  // being the same as (int16_t)(-1). Technically C++ doesn't mandate twos-complement, but everything in practice uses
+  // it.
+  memset(regionIdxByLoc, -1, sizeof(regionIdxByLoc[0]) * MAX_ARR_SIZE);
+  // This memset is only safe because Board::NULL_LOC is 0. If it were a nonzero value, setting adjacent bytes to that
+  // value is NOT equivalent to setting each Loc (2 bytes) to that value.
+  static_assert(Board::NULL_LOC == 0, "Memset in Board::calculateAreaForPla relies on Board::NULL_LOC == 0");
+  memset(nextEmptyOrOpp, NULL_LOC, sizeof(nextEmptyOrOpp[0]) * MAX_ARR_SIZE);
+  memset(bordersNonPassAlivePlaByHead, false, sizeof(bordersNonPassAlivePlaByHead[0]) * MAX_ARR_SIZE);
+
+  // A list for each region head, indicating which pla group heads the region is vital for.
+  // A region is vital for a pla group if all its spaces are adjacent to that pla group.
+  // All lists are concatenated together, the most we can have is bounded by (MAX_LEN * MAX_LEN+1) / 2
+  // independent regions, each one vital for at most 4 pla groups, add some extra just in case.
+  static constexpr int maxRegions = (MAX_LEN * MAX_LEN + 1) / 2 + 1;
+  static constexpr int vitalForPlaHeadsListsMaxLen = maxRegions * 4;
+  Loc vitalForPlaHeadsLists[vitalForPlaHeadsListsMaxLen];
+  int vitalForPlaHeadsListsTotal = 0;
+
+  // A list of region heads
+  int numRegions = 0;
+  Loc regionHeads[maxRegions];
+  // Start indices and list lengths in vitalForPlaHeadsLists
+  uint16_t vitalStart[maxRegions];
+  uint16_t vitalLen[maxRegions];
+  // For each region, are there 0, 1, or 2+ spaces of that region not bordering any pla?
+  uint8_t numInternalSpacesMax2[maxRegions];
+  bool containsOpp[maxRegions];
+
+  // Breadth-first-search trace maximal non-pla regions of the board and record their properties and join them into a
+  // linked list through nextEmptyOrOpp.
+  // Takes as input the location serving as the head, the tip node of the linked list so far, the next loc, and the
+  // numeric index of the region
+  // Returns the loc serving as the current tip node ("tailTarget") of the linked list.
+
+  Loc buildRegionQueue[MAX_ARR_SIZE];
+
+  auto buildRegion = [pla,
+                      opp,
+                      isMultiStoneSuicideLegal,
+                      &regionIdxByLoc,
+                      &vitalForPlaHeadsLists,
+                      &vitalStart,
+                      &vitalLen,
+                      &numInternalSpacesMax2,
+                      &containsOpp,
+                      &buildRegionQueue,
+                      this,
+                      &nextEmptyOrOpp](Loc initialLoc, int regionIdx) -> Loc {
+    // Commented out - we don't check if this region is already built or not, but carefully rely on the caller to ensure
+    // it is not. if(regionIdxByLoc[initialLoc] != -1)
+    //   return tailTarget;
+
+    // This code use a queue to build regions. We use the initial provided location as the beginning of the tail of the
+    // linkedlist
+    Loc tailTarget = initialLoc;
+
+    bool isVlenNonZero = vitalLen[regionIdx] > 0;
+    int buildRegionQueueHead = 0;
+    int buildRegionQueueTail = 1;
+    buildRegionQueue[0] = initialLoc;
+    regionIdxByLoc[initialLoc] = regionIdx;
+
+    while(buildRegionQueueHead != buildRegionQueueTail) {
+      // Pop next location off queue
+      Loc loc = buildRegionQueue[buildRegionQueueHead];
+      buildRegionQueueHead += 1;
+
+      // First, filter out any pla heads it turns out we're not vital for because we're not adjacent to them
+      // In the case where suicide is disallowed, we only do this filtering on intersections that are actually empty
+      {
+        if(isVlenNonZero && (isMultiStoneSuicideLegal || colors[loc] == C_EMPTY)) {
+          uint16_t vStart = vitalStart[regionIdx];
+          uint16_t oldVLen = vitalLen[regionIdx];
+          uint16_t newVLen = 0;
+          for(uint16_t i = 0; i < oldVLen; i++) {
+            if(isAdjacentToPlaHead(pla, loc, vitalForPlaHeadsLists[vStart + i])) {
+              vitalForPlaHeadsLists[vStart + newVLen] = vitalForPlaHeadsLists[vStart + i];
+              newVLen += 1;
+            }
+          }
+          vitalLen[regionIdx] = newVLen;
+          isVlenNonZero = (newVLen > 0);
+        }
+      }
+
+      // Determine if this point is internal, unless we already have many internal points
+      if(numInternalSpacesMax2[regionIdx] < 2 && !isAdjacentToPla(loc, pla)) {
+        numInternalSpacesMax2[regionIdx] += 1;
+      }
+
+      if(colors[loc] == opp)
+        containsOpp[regionIdx] = true;
+
+      nextEmptyOrOpp[loc] = tailTarget;
+      tailTarget = loc;
+
+      // Push adjacent locations on to queue.
+      FOREACHADJ(Loc adj = loc + ADJOFFSET;
+                 if((colors[adj] == C_EMPTY || colors[adj] == opp) && regionIdxByLoc[adj] == -1) {
+                   buildRegionQueue[buildRegionQueueTail] = adj;
+                   buildRegionQueueTail += 1;
+                   regionIdxByLoc[adj] = regionIdx;
+                 });
+    }
+
+    assert(buildRegionQueueTail < MAX_ARR_SIZE);
+    return tailTarget;
+  };
+
+  bool atLeastOnePla = false;
+  for(int y = 0; y < y_size; y++) {
+    for(int x = 0; x < x_size; x++) {
+      Loc loc = Location::getLoc(x, y, x_size);
+      if(regionIdxByLoc[loc] != -1)
+        continue;
+      if(colors[loc] != C_EMPTY) {
+        atLeastOnePla |= (colors[loc] == pla);
+        continue;
+      }
+      int16_t regionIdx = numRegions;
+      numRegions++;
+      assert(numRegions <= maxRegions);
+
+      // Initialize region metadata
+      regionHeads[regionIdx] = loc;  // Use loc itself as the head
+      vitalStart[regionIdx] = vitalForPlaHeadsListsTotal;
+      vitalLen[regionIdx] = 0;
+      numInternalSpacesMax2[regionIdx] = 0;
+      containsOpp[regionIdx] = false;
+
+      // Fill in all adjacent pla heads as vital, which will get filtered during buildRegion
+      {
+        uint16_t vStart = vitalStart[regionIdx];
+        assert(vStart + 4 <= vitalForPlaHeadsListsMaxLen);
+        uint16_t initialVLen = 0;
+        for(int i = 0; i < 4; i++) {
+          Loc adj = loc + adj_offsets[i];
+          if(colors[adj] == pla) {
+            Loc plaHead = chain_head[adj];
+            bool alreadyPresent = false;
+            for(int j = 0; j < initialVLen; j++) {
+              if(vitalForPlaHeadsLists[vStart + j] == plaHead) {
+                alreadyPresent = true;
+                break;
+              }
+            }
+            if(!alreadyPresent) {
+              vitalForPlaHeadsLists[vStart + initialVLen] = plaHead;
+              initialVLen += 1;
+            }
+          }
+        }
+        vitalLen[regionIdx] = initialVLen;
+      }
+      Loc tailTarget = buildRegion(loc, regionIdx);  // buildRegion uses loc itself as the head
+      nextEmptyOrOpp[loc] = tailTarget;  // Close the circular linked list - loc points to buildRegion's tailTarget
+
+      vitalForPlaHeadsListsTotal += vitalLen[regionIdx];
+
+      // for(int k = 0; k<vitalLen[regionIdx]; k++)
+      //   cout << Location::toString(head,x_size) << "is vital for" <<
+      //   Location::toString(vitalForPlaHeadsLists[vitalStart[regionIdx]+k],x_size) << endl;
+    }
+  }
+
+  // Also accumulate all player heads
+  int numPlaHeads = 0;
+  Loc allPlaHeads[MAX_PLAY_SIZE];
+  for(Loc loc = 0; loc < MAX_ARR_SIZE; loc++) {
+    if(colors[loc] == pla && chain_head[loc] == loc)
+      allPlaHeads[numPlaHeads++] = loc;
+  }
+
+  bool plaHasBeenKilled[MAX_PLAY_SIZE];
+  memset(plaHasBeenKilled, false, sizeof(plaHasBeenKilled[0]) * numPlaHeads);
+
+  // Zero out vital liberties by head
+  uint16_t vitalCountByPlaHead[MAX_ARR_SIZE];
+  for(int i = 0; i < numPlaHeads; i++)
+    vitalCountByPlaHead[allPlaHeads[i]] = 0;
+
+  // Walk all regions and accumulate a vital liberty to each pla it is vital for.
+  for(int i = 0; i < numRegions; i++) {
+    int vStart = vitalStart[i];
+    int vLen = vitalLen[i];
+    for(int j = 0; j < vLen; j++) {
+      Loc plaHead = vitalForPlaHeadsLists[vStart + j];
+      vitalCountByPlaHead[plaHead] += 1;
+    }
+  }
+
+  // Now, we can begin the benson iteration
+  while(true) {
+    // Walk all player heads and kill them if they haven't accumulated at least 2 vital liberties
+    bool killedAnything = false;
+    for(int i = 0; i < numPlaHeads; i++) {
+      // Already killed - skip
+      if(plaHasBeenKilled[i])
+        continue;
+
+      Loc plaHead = allPlaHeads[i];
+      if(vitalCountByPlaHead[plaHead] < 2) {
+        plaHasBeenKilled[i] = true;
+        killedAnything = true;
+        // Walk the pla chain to update bordering regions
+        Loc cur = plaHead;
+        do {
+          for(int j = 0; j < 4; j++) {
+            Loc adj = cur + adj_offsets[j];
+            int16_t regionIdx = regionIdxByLoc[adj];
+            // Mark regions as no longer vital
+            if(
+              regionIdx >= 0 && !bordersNonPassAlivePlaByHead[regionHeads[regionIdx]] &&
+              (colors[adj] == C_EMPTY || colors[adj] == opp)) {
+              bordersNonPassAlivePlaByHead[regionHeads[regionIdx]] = true;
+              // Decrement vitality for all pla chains that it was vital for.
+              int vStart = vitalStart[regionIdx];
+              int vLen = vitalLen[regionIdx];
+              for(int k = 0; k < vLen; k++) {
+                Loc plaH = vitalForPlaHeadsLists[vStart + k];
+                vitalCountByPlaHead[plaH] -= 1;
+              }
+            }
+          }
+          cur = next_in_chain[cur];
+        } while(cur != plaHead);
+      }
+    }
+    if(!killedAnything)
+      break;
+  }
+
+  // Debug - Make sure nothing overflowed
+  //  for(int i = 0; i<numPlaHeads; i++)
+  //   assert(vitalCountByPlaHead[allPlaHeads[i]] >= 0 && vitalCountByPlaHead[allPlaHeads[i]] < 1000);
+
+  // Mark result with pass-alive groups
+  for(int i = 0; i < numPlaHeads; i++) {
+    if(!plaHasBeenKilled[i]) {
+      return true;
+    }
+  }
+  return false;
+}
+
 
 void Board::checkConsistency() const {
   const string errLabel = string("Board::checkConsistency(): ");

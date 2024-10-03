@@ -312,32 +312,28 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   Player opp = getOpp(movePla);
 
   
-  if(moveLoc == Board::PASS_LOC)
-    endAndSetWinner(opp);
 
   //Phase transitions and game end
   if(consecutiveEndingPasses >= 2) {
-    endAndSetWinner(C_EMPTY);
-    ASSERT_UNREACHABLE;
+    if(board.numPlaStonesOnBoard(C_WHITE) > 0)
+      endAndSetWinner(C_WHITE);
+    else
+      endAndSetWinner(C_BLACK);
   }
 
-  int myCapture = movePla == C_WHITE ? board.numBlackCaptures : board.numWhiteCaptures;
-  int oppCapture = movePla == C_WHITE ? board.numBlackCaptures : board.numWhiteCaptures;
-  if(myCapture > 0)
-    endAndSetWinner(movePla);
-  else if(oppCapture > 0)
-    endAndSetWinner(getOpp(movePla));
+
 
   //Break long cycles with no-result
   if(moveLoc != Board::PASS_LOC && rules.koRule == Rules::KO_SIMPLE) {
-    //static_assert(false, "TODO: find a simple method to detect long cycles");
 
-    if(moveHistory.size() > board.x_size * board.y_size * 5) {
-      isNoResult = true;
-      isGameFinished = true;
-      ASSERT_UNREACHABLE;
+    if(moveHistory.size() > board.x_size * board.y_size * 3) {
+      endAndSetWinner(C_WHITE);
     }
   }
+
+  if(board.anyAlive(C_WHITE, rules.multiStoneSuicideLegal))
+    endAndSetWinner(C_WHITE);
+
 
 }
 
