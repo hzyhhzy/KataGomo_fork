@@ -1044,7 +1044,6 @@ void NNInputs::fillRowV7(
     rowGlobal[13] = hist.allowPass(board, pla);
   } 
   else {
-
     rowGlobal[0] = selfKomi / 20.0f;
 
     static_assert(MAX_CAPTURE_TO_WIN == 5, "");
@@ -1059,11 +1058,9 @@ void NNInputs::fillRowV7(
     rowGlobal[7] = myRemainCaptures >= 4;
     rowGlobal[8] = myRemainCaptures >= 5;
 
-
-
-    //Ko rule
-    if(hist.rules.koRule == Rules::KO_SIMPLE) {}
-    else
+    // Ko rule
+    if(hist.rules.koRule == Rules::KO_SIMPLE) {
+    } else
       ASSERT_UNREACHABLE;
 
     rowGlobal[11] = hist.isOverpassedDraw(board, pla);
@@ -1072,9 +1069,10 @@ void NNInputs::fillRowV7(
     rowGlobal[13] = hist.allowPass(board, pla);
     rowGlobal[14] = hist.allowPass(board, opp);
 
-    
     // Suicide
-  if(hist.rules.multiStoneSuicideLegal) rowGlobal[14] = 1.0f;
+    if(hist.rules.multiStoneSuicideLegal)
+      rowGlobal[14] = 1.0f;
+  }
 
   //Used for handicap play
   //Parameter 15 is used because there's actually a discontinuity in how training behavior works when this is
