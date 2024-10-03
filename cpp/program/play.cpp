@@ -68,7 +68,7 @@ static const int komiMeanMatrixDefault[MAX_CAPTURE_TO_WIN][MAX_CAPTURE_TO_WIN] =
   {4, 18, 23, 27, 31},
   {-10, 6, 11, 15, 18},
   {-15, 0, 7, 11, 14},
-  {-19, -5, 2, 7, 10},
+  double capLossAreaFactor[MAX_CAPTURE_TO_WIN + 1] = {1, 0.66, 0.53, 0.47, 0.03, 0};
   {-23, -10, -3, 3, 7},
 };
 
