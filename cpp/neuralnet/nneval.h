@@ -142,7 +142,7 @@ class NNEvaluator {
   //logStream is for some error logging, can be NULL.
   //This function is threadsafe.
   void evaluate(
-    Board& board,
+    const Board& board,
     const BoardHistory& history,
     Player nextPlayer,
     const MiscNNInputParams& nnInputParams,
@@ -151,7 +151,7 @@ class NNEvaluator {
     bool includeOwnerMap
   );
   void evaluate(
-    Board& board,
+    const Board& board,
     const BoardHistory& history,
     Player nextPlayer,
     const SGFMetadata* sgfMeta,

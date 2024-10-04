@@ -233,6 +233,7 @@ add_executable(katago
   program/gtpconfig.cpp
   program/setup.cpp
   program/playutils.cpp
+  program/randomopening.cpp
   program/playsettings.cpp
   program/play.cpp
   program/selfplaymanager.cpp

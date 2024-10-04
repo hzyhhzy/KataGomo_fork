@@ -4,6 +4,7 @@
 #include "../core/fileutils.h"
 #include "../core/timer.h"
 #include "../program/playutils.h"
+#include "../program/randomopening.h"
 #include "../program/setup.h"
 #include "../search/asyncbot.h"
 #include "../search/searchnode.h"
@@ -991,9 +992,11 @@ static SearchLimitsThisMove getSearchLimitsThisMove(
 
     //Hardcoded limit here to ensure sanity
     if(numAlterVisits < 5)
-      throw StringError("ERROR: asymmetric playout doubling resulted in fewer than 5 visits");
+      numAlterVisits = 5;
+      //throw StringError("ERROR: asymmetric playout doubling resulted in fewer than 5 visits");
     if(numAlterPlayouts < 5)
-      throw StringError("ERROR: asymmetric playout doubling resulted in fewer than 5 playouts");
+      numAlterPlayouts = 5;
+      //throw StringError("ERROR: asymmetric playout doubling resulted in fewer than 5 playouts");
   }
 
   SearchLimitsThisMove limits;
@@ -1158,9 +1161,10 @@ FinishedGameData* Play::runGame(
       }
     }
   };
+
   if(gameData->mode == FinishedGameData::MODE_NORMAL) {
     assert(board.numStonesOnBoard() == 0);
-    PlayUtils::getRandomInitialOpening(board, pla, gameRand);
+    RandomOpening::getOpening(botB, board, pla, gameRand);
     Rules r = hist.rules;
     hist.clear(board, pla, r);
   }

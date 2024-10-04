@@ -537,38 +537,3 @@ std::shared_ptr<NNOutput> PlayUtils::getFullSymmetryNNOutput(const Board& board,
   return result;
 }
 
-static Loc getOneRandomLegalLocation(const Board& board, Player pla, Rand& rand)
-{
-  while (true) {
-    int x = rand.nextUInt(board.x_size);
-    int y = rand.nextUInt(board.y_size);
-    Loc loc = Location::getLoc(x, y, board.x_size);
-    if(board.isLegal(loc, pla, false))
-      return loc;
-  }
-}
-
-const bool EARLY_STAGE = true;
-void PlayUtils::getRandomInitialOpening(Board& board, Player& pla, Rand& rand) {
-  double blackFillDensity = 22.0 / 361.0;
-  if(EARLY_STAGE) {
-    if(rand.nextBool(0.99))
-      blackFillDensity += 0.1 * (rand.nextBool(0.5) ? 1.0 : -1.0) * rand.nextExponential();
-  } 
-  else {
-    if(rand.nextBool(0.3))
-      blackFillDensity += 0.02 * (rand.nextBool(0.5) ? 1.0 : -1.0) * rand.nextExponential();
-  }
-  int blackFillNum = int(blackFillDensity * board.x_size * board.y_size + rand.nextGaussian());
-  if(blackFillNum < 1)
-    blackFillNum = 1;
-  if(blackFillNum > board.x_size * board.y_size / 2)
-    blackFillNum = board.x_size * board.y_size / 2;
-
-  for (int i = 0; i < blackFillNum; i++)
-  {
-    Loc loc = getOneRandomLegalLocation(board, C_BLACK, rand);
-    board.playMoveAssumeLegal(loc, C_BLACK);
-  }
-  pla = C_WHITE;
-}

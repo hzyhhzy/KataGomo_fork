@@ -656,7 +656,7 @@ std::shared_ptr<NNOutput>* NNEvaluator::averageMultipleSymmetries(
 }
 
 void NNEvaluator::evaluate(
-  Board& board,
+  const Board& board,
   const BoardHistory& history,
   Player nextPlayer,
   const MiscNNInputParams& nnInputParams,
@@ -677,7 +677,7 @@ void NNEvaluator::evaluate(
 }
 
 void NNEvaluator::evaluate(
-  Board& board,
+  const Board& board,
   const BoardHistory& history,
   Player nextPlayer,
   const SGFMetadata* sgfMeta,

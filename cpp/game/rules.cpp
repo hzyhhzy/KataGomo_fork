@@ -11,7 +11,7 @@ Rules::Rules() {
   //Defaults if not set - closest match to TT rules
   koRule = KO_SIMPLE;
   multiStoneSuicideLegal = true;
-  komi = 7.5f;
+  komi = 0.0f;
 }
 
 Rules::Rules(
@@ -53,10 +53,8 @@ bool Rules::gameResultWillBeInteger() const {
 }
 
 Rules Rules::getTrompTaylorish() {
-  Rules rules;
-  rules.koRule = KO_SIMPLE;
+  Rules rules = Rules();
   rules.multiStoneSuicideLegal = true;
-  rules.komi = 7.5f;
   return rules;
 }
 
@@ -120,17 +118,12 @@ Rules Rules::updateRules(const string& k, const string& v, Rules oldRules) {
 }
 
 static Rules parseRulesHelper(const string& sOrig, bool allowKomi) {
-  Rules rules;
+  Rules rules = Rules();
   string lowercased = Global::trim(Global::toLower(sOrig));
   if(lowercased == "chinese") {
-    rules.koRule = Rules::KO_SIMPLE;
-    rules.multiStoneSuicideLegal = false;
-    rules.komi = 7.5;
   }
   else if(lowercased == "tromp-taylor" || lowercased == "tromp_taylor" || lowercased == "tromp taylor" || lowercased == "tromptaylor") {
-    rules.koRule = Rules::KO_SIMPLE;
     rules.multiStoneSuicideLegal = true;
-    rules.komi = 7.5;
   }
   else if(sOrig.length() > 0 && sOrig[0] == '{') {
     //Default if not specified
