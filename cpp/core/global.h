@@ -26,7 +26,7 @@
 static_assert(false, "");
 #endif
 
-#define COMPILE_MAX_BOARD_LEN 19
+#define COMPILE_MAX_BOARD_LEN 13
 
 static const int MAX_CAPTURE_TO_WIN = 5;  //does not support capture >5 stones to win
 

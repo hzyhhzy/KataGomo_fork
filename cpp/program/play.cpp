@@ -64,12 +64,20 @@ GameInitializer::GameInitializer(ConfigParser& cfg, Logger& logger, const string
 }
 //if capb!=capw, komi mean should be changed
 //this value should be tuned after some training
+static_assert(MAX_CAPTURE_TO_WIN == 5, "the following matrix should be changed");
+//tested on 13x13 board.
+//komiBias=x*area*(2/169)
+const double komiBiasAreaFactor[MAX_CAPTURE_TO_WIN][MAX_CAPTURE_TO_WIN] = {
+  {0, 38, 68, 99, 120},
+  {-38, 0, 19, 36, 51},
+  {-68, -19, 0, 14, 25},
+  {-99, -36, -14, 0, 9},
+  {-120, -51, -25, -9, 0},
+};
 static const double komiMeanBiasCap(int capb,int capw,int boardH,int boardW){
   double area = boardH * boardW;
 
-  static_assert(MAX_CAPTURE_TO_WIN == 5, "the following matrix should be changed");
-  double capLossAreaFactor[MAX_CAPTURE_TO_WIN + 1] = {1, 0.66, 0.54, 0.45, 0.37, 0.30};
-  return area * (capLossAreaFactor[capb] - capLossAreaFactor[capw]);
+  return area * (0.5 / 169.0) * komiBiasAreaFactor[capb - 1][capw - 1];
 }
 
 void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
