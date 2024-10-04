@@ -397,26 +397,7 @@ Rules GameInitializer::createRulesUnsynchronized() {
 }
 
 float GameInitializer::getRandomKomi(float boardArea) {
-  float stdevToUse = 0.0f;
-  if(komiStdev > 0.0f)
-    stdevToUse = komiStdev;
-  if(komiBigStdev > 0.0f && rand.nextBool(komiBigStdevProb))
-    stdevToUse = komiBigStdev;
-  if(komiBiggerStdev > 0.0f && komiBiggerStdevProb > 0 && rand.nextBool(komiBiggerStdevProb))
-    stdevToUse = komiBiggerStdev;
-  // Adjust for board size, so that we don't give the same massive komis on smaller boards
-  stdevToUse = stdevToUse * (float)(sqrt(boardArea) / 19.0);
-
-  bool allowInteger = rand.nextBool(komiAllowIntegerProb);
-
-  float komi = komiMean;
-  if(stdevToUse > 0)
-    komi += stdevToUse * (float)rand.nextGaussianTruncated(3.0);
-  komi = PlayUtils::roundAndClipKomi(komi, boardArea);
-  assert(Rules::komiIsIntOrHalfInt(komi));
-  if(!allowInteger && komi == (int)komi)
-    komi += rand.nextBool(0.5) ? (-0.5f) : (0.5f);
-  return komi;
+  return 0.0;
 }
 
 void GameInitializer::createGameSharedUnsynchronized(
@@ -499,6 +480,7 @@ void GameInitializer::createGameSharedUnsynchronized(
     int ySize = allowedBSizes[bSizeIdx].second;
     board = Board(xSize,ySize);
     pla = P_BLACK;
+
     hist.clear(board,pla,rules);
     hist.setKomi(getRandomKomi(board.x_size * board.y_size));
 
@@ -1176,6 +1158,12 @@ FinishedGameData* Play::runGame(
       }
     }
   };
+  if(gameData->mode == FinishedGameData::MODE_NORMAL) {
+    assert(board.numStonesOnBoard() == 0);
+    PlayUtils::getRandomInitialOpening(board, pla, gameRand);
+    Rules r = hist.rules;
+    hist.clear(board, pla, r);
+  }
 
   if(playSettings.initGamesWithPolicy && otherGameProps.allowPolicyInit) {
     double proportionOfBoardArea = otherGameProps.isSgfPos ? playSettings.startPosesPolicyInitAreaProp : playSettings.policyInitAreaProp;
@@ -1394,6 +1382,8 @@ FinishedGameData* Play::runGame(
   gameData->endHist = hist;
   if(hist.isGameFinished)
     gameData->hitTurnLimit = false;
+  else if(shouldStop != nullptr && shouldStop()) {
+  } 
   else {
     ASSERT_UNREACHABLE;
     gameData->hitTurnLimit = true;

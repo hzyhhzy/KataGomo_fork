@@ -110,7 +110,8 @@ namespace PlayUtils {
   Rules genRandomRules(Rand& rand);
 
   std::shared_ptr<NNOutput> getFullSymmetryNNOutput(const Board& board, const BoardHistory& hist, Player pla, bool includeOwnerMap, NNEvaluator* nnEval);
-
+  
+  void getRandomInitialOpening(Board& board, Player& pla, Rand& rand);
 }
 
 
