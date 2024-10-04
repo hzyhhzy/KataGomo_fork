@@ -38,7 +38,6 @@ void RandomOpening::getRandomBalanceOpening(Search* bot, Board& board, Player& p
   pla = C_WHITE;
   if(board.numStonesOnBoard() > board.x_size * board.y_size / 4)
     throw StringError("Don't call RandomOpening::getRandomBalanceOpening when the board have too many stones");
-  int minInitialStones = int(board.x_size * board.y_size * 0.03);
   int maxInitialStones = int(board.x_size * board.y_size * 0.10);
 
   Board boardTmp = board;
@@ -49,20 +48,29 @@ void RandomOpening::getRandomBalanceOpening(Search* bot, Board& board, Player& p
   vector<Loc> locSeq;
   vector<double> locNumList;  // which number of initial stones are possible
   vector<double> probList;  // more balanced winrate has higher prob
+
+  //zero initialStones
+  {
+    int stoneNum = 0;
+    BoardHistory hist(boardTmp, C_WHITE, Rules());
+    double whiteValue = getBoardValue(bot, boardTmp, hist, C_WHITE);
+    double prob = 0.001 + pow(1 - whiteValue * whiteValue, 4);
+
+    locNumList.push_back(stoneNum);
+    probList.push_back(prob);
+  }
+
   for(int i = 0; i < maxInitialStones; i++) {
     Loc loc = getOneRandomLegalLocation(boardTmp, C_BLACK, rand);
     boardTmp.playMoveAssumeLegal(loc, C_BLACK);
     locSeq.push_back(loc);
     int stoneNum = i + 1;
-    if (stoneNum >= minInitialStones)
-    {
-      BoardHistory hist(boardTmp, C_WHITE, Rules());
-      double whiteValue = getBoardValue(bot, boardTmp, hist, C_WHITE);
-      double prob = 0.001 + pow(1 - whiteValue * whiteValue, 4);
+    BoardHistory hist(boardTmp, C_WHITE, Rules());
+    double whiteValue = getBoardValue(bot, boardTmp, hist, C_WHITE);
+    double prob = 0.001 + pow(1 - whiteValue * whiteValue, 4);
 
-      locNumList.push_back(stoneNum);
-      probList.push_back(prob);
-    }
+    locNumList.push_back(stoneNum);
+    probList.push_back(prob);
   }
   assert(locNumList.size() == probList.size());
   assert(locSeq.size() == locNumList[locNumList.size()-1]);
@@ -76,8 +84,316 @@ void RandomOpening::getRandomBalanceOpening(Search* bot, Board& board, Player& p
   }
 
 }
-void RandomOpening::getOpening(Search* bot, Board& board, Player& pla, Rand& rand) {
+bool RandomOpening::getPredefinedOpening(Board& board, Player& pla, Rand& rand) {
+  if(board.numStonesOnBoard() > 0)
+    return false;
+  string boardStr = "";
+  if (board.x_size == 19 && board.y_size == 19)
+  {
+    std::string openingStrs19x[] = {
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . x . . x . . . x . . . x . . x . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . x . . x . . . . . . . . . . x . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . x . . . . . . x . . . . . . x . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . x . . . . . . . . . . x . . x . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . x . . x . . . x . . . x . . x . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . ",
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . x . . . . . . x . . . . . . x . . "
+      ". . . x . . . . . x . . . . . x . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . x . . . . . . . . . "
+      ". . x x . . . . x . x . . . . x x . . "
+      ". . . . . . . . . x . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . x . . . . . x . . . . . x . . . "
+      ". . x . . . . . . x . . . . . . x . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . ",
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . x . . . . . x . . . . . x . . . "
+      ". . x . . . . . . x . . . . . . x . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . x . . . . . . . . . "
+      ". . x x . . . . x . x . . . . x x . . "
+      ". . . . . . . . . x . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . x . . . . . . x . . . . . . x . . "
+      ". . . x . . . . . x . . . . . x . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . ",
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . x . . . . . x . . . . . x . . . "
+      ". . x . x . . . . . . . . . x . x . . "
+      ". . . x . . . . . . . . . . . x . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . x . . . . . . . . . "
+      ". . x . . . . . . . . . . . . . x . . "
+      ". . . . . . . . . x . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . x . . . . . . . . . . . x . . . "
+      ". . x . x . . . . . . . . . x . x . . "
+      ". . . x . . . . . x . . . . . x . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . ",
+      "x x x x x x x x x x x x x x x x x x x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x x x x x x x x x x x x x x x x x x x ",
+      "x x x x x x x x x x x x x x x x x x x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . o . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x x x x x x x x x x x x x x x x x x x ",
+      "x x x x x x x x x x x x x x x x x x x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x x x x x x x x x x x x x x x x x x x ",
+      "x x x x x x x x x x x x x x x x x x x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . o . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x x x x x x x x x x x x x x x x x x x ",
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . x . . x . . x . . x . . x . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . x . . x . . x . . x . . x . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . x . . x . . x . . x . . x . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . x . . x . . x . . x . . x . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . x . . x . . x . . x . . x . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . ",
+
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . x . . x . . x . . x . . x . . . "
+      ". . x . . . . . . . . . . . . . x . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . x . . . . . . . . . . . . . x . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . x . . . . . . . . . . . . . x . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . x . . . . . . . . . . . . . x . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . x . . . . . . . . . . . . . x . . "
+      ". . . x . . x . . x . . x . . x . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . ",
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . x . . . . . . x . . . . . . x . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . x . . . . x . . . . x . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . x . . . . . x . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . x . x . . . . . . . . . x . x . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . x . . . . . x . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . x . . . . x . . . . x . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . x . . . . . . x . . . . . . x . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "};
+
+    const int numOpenings = sizeof(openingStrs19x) / sizeof(string);
+    int openingID = rand.nextUInt(numOpenings);
+    boardStr = openingStrs19x[openingID];
+    
+  } 
+  else if(board.x_size == 10 && board.y_size == 10) {
+    if(rand.nextBool(0.9))
+      return false;
+    std::string openingStrs10x[] = {
+      ". . . . . . . . . . "
+      "x x x x x x x x x x "
+      ". . . . . . . . . x "
+      ". . . . . . . . . x "
+      ". . . . . . . . . x "
+      ". . . . . . . . . x "
+      ". . . . . . . . . x "
+      ". . . . . . . . . x "
+      ". . . . . . . . . x "
+      ". . . . . . . . . x "
+      ,
+    };
+
+    const int numOpenings = sizeof(openingStrs10x) / sizeof(string);
+    int openingID = rand.nextUInt(numOpenings);
+    boardStr = openingStrs10x[openingID];
+  } 
+  else if(board.x_size == 19 && board.y_size == 7) {
+    if(rand.nextBool(0.8))
+      return false;
+    std::string openingStrs19x7[] = {
+      ". . . . . . . . . . . . . . . . . . . "
+      "x x x x x x x x x x x x x x x x x x x "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . ",
+    };
+
+    const int numOpenings = sizeof(openingStrs19x7) / sizeof(string);
+    int openingID = rand.nextUInt(numOpenings);
+    boardStr = openingStrs19x7[openingID];
+  } 
+
+  if(boardStr == "")
+    return false;
+  assert(boardStr.size() == 2 * board.x_size * board.y_size + 1);
+
+  for(int y = 0; y < board.y_size; y++)
+    for(int x = 0; x < board.x_size; x++) {
+      int pos = x + y * board.x_size;
+      char c = boardStr[2 * pos];
+      Color color = c == 'x' ? C_BLACK : c == 'o' ? C_WHITE : C_EMPTY;
+      Loc loc = Location::getLoc(x, y, board.x_size);
+      assert(board.isLegal(loc, color, false));
+      board.playMoveAssumeLegal(loc, color);
+    }
+  return true;
+}
+
+void RandomOpening::randomizePredefinedOpening(Search* bot, Board& board, Player& pla, Rand& rand) {
+  if(rand.nextBool(0.5))  // not randomize
+    return;
+  int stoneNum = board.numStonesOnBoard();
+  if(stoneNum == 0)
+    throw StringError("RandomOpening::randomizePredefinedOpening should not called for empty boards");
+
+  double removeProb = 2.0 / stoneNum;  // averagely remove 2 stones
+  for(int y = 0; y < board.y_size; y++)
+    for(int x = 0; x < board.x_size; x++) {
+      Loc loc = Location::getLoc(x, y, board.x_size);
+      if(board.colors[loc] != C_EMPTY)
+        if(rand.nextBool(removeProb)) {
+          board.setStone(loc, C_EMPTY);
+        }
+    }
+
+
+  //make it balanced
   getRandomBalanceOpening(bot, board, pla, rand);
+}
+
+void RandomOpening::getOpening(Search* bot, Board& board, Player& pla, double predefinedOpeningProb, Rand& rand) {
+  bool usePredefinedOpening = false;
+  if(rand.nextBool(predefinedOpeningProb))  // try to use predefinedOpening
+  {
+    usePredefinedOpening = getPredefinedOpening(board, pla, rand);
+  }
+  if(usePredefinedOpening)
+    randomizePredefinedOpening(bot, board, pla, rand);
+  else
+    getRandomBalanceOpening(bot, board, pla, rand);
 }
 
 

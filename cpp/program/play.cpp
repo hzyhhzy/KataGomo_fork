@@ -1164,7 +1164,8 @@ FinishedGameData* Play::runGame(
 
   if(gameData->mode == FinishedGameData::MODE_NORMAL) {
     assert(board.numStonesOnBoard() == 0);
-    RandomOpening::getOpening(botB, board, pla, gameRand);
+    double predefinedOpeningProb = 0.5;
+    RandomOpening::getOpening(botB, board, pla, predefinedOpeningProb, gameRand);
     Rules r = hist.rules;
     hist.clear(board, pla, r);
   }

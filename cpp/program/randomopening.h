@@ -14,10 +14,10 @@ namespace RandomOpening {
   //some common openings, return false if no available opening for this boardsize
   bool getPredefinedOpening(Board& board, Player& pla, Rand& rand);
   //random move some stones
-  void randomizePredefinedOpening(Board& board, Player& pla, Rand& rand);
+  void randomizePredefinedOpening(Search* bot, Board& board, Player& pla, Rand& rand);
 
   //randomly call getRandomBalanceOpening or getPredefinedOpening
-  void getOpening(Search* bot, Board& board, Player& pla, Rand& rand);
+  void getOpening(Search* bot, Board& board, Player& pla, double predefinedOpeningProb, Rand& rand);
 
   //old
   void getRandomInitialOpeningOld(Board& board, Player& pla, Rand& rand);
