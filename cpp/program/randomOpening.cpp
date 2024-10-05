@@ -348,16 +348,18 @@ bool RandomOpening::getPredefinedOpening(Board& board, Player& pla, Rand& rand) 
 
   if(boardStr == "")
     return false;
-  assert(boardStr.size() == 2 * board.x_size * board.y_size + 1);
+  assert(boardStr.size() == 2 * board.x_size * board.y_size);
 
   for(int y = 0; y < board.y_size; y++)
     for(int x = 0; x < board.x_size; x++) {
       int pos = x + y * board.x_size;
       char c = boardStr[2 * pos];
       Color color = c == 'x' ? C_BLACK : c == 'o' ? C_WHITE : C_EMPTY;
-      Loc loc = Location::getLoc(x, y, board.x_size);
-      assert(board.isLegal(loc, color, false));
-      board.playMoveAssumeLegal(loc, color);
+      if(color != C_EMPTY) {
+        Loc loc = Location::getLoc(x, y, board.x_size);
+        assert(board.isLegal(loc, color, false));
+        board.playMoveAssumeLegal(loc, color);
+      }
     }
   return true;
 }
