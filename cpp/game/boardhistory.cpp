@@ -415,13 +415,13 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
     endAndScoreGameNow(board);
   }
 
-  if(board.numBlackCaptures > 0 || board.numWhiteCaptures > 0) {
-    isScored = true;
-    isNoResult = false;
-    isResignation = false;
-    isGameFinished = true;
-    setFinalScoreAndWinner(board.numBlackCaptures - board.numWhiteCaptures);
-  }
+  //if(board.numBlackCaptures > 0 || board.numWhiteCaptures > 0) {
+  //  isScored = true;
+  //  isNoResult = false;
+  //  isResignation = false;
+  //  isGameFinished = true;
+  //  setFinalScoreAndWinner(board.numBlackCaptures - board.numWhiteCaptures);
+  //}
 
   //Break long cycles with no-result
   if(moveLoc != Board::PASS_LOC && rules.koRule == Rules::KO_SIMPLE) {
