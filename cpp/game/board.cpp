@@ -1060,16 +1060,10 @@ void Board::changeSurroundingLiberties(Loc loc, Player pla, int delta)
     chain_data[chain_head[adj5]].num_liberties += delta;
 }
 
-int Location::distance(Loc loc0, Loc loc1, int x_size) {
-  int dx = getX(loc1,x_size) - getX(loc0,x_size);
-  int dy = (loc1-loc0-dx) / (x_size+1);
-  return (dx >= 0 ? dx : -dx) + (dy >= 0 ? dy : -dy);
-}
-
 int Location::euclideanDistanceSquared(Loc loc0, Loc loc1, int x_size) {
   int dx = getX(loc1,x_size) - getX(loc0,x_size);
   int dy = (loc1-loc0-dx) / (x_size+1);
-  return dx*dx + dy*dy;
+  return dx*dx + dy*dy + dx*dy;
 }
 
 //TACTICAL STUFF--------------------------------------------------------------------
@@ -1826,38 +1820,43 @@ Player PlayerIO::parsePlayer(const string& s) {
   return pla;
 }
 
-string Location::toStringMach(Loc loc, int x_size)
-{
+string Location::toStringMach(Loc loc, int x_size) {
   if(loc == Board::PASS_LOC)
     return string("pass");
   if(loc == Board::NULL_LOC)
     return string("null");
+  int x = getX(loc, x_size), y = getY(loc, x_size);
+  int x_print = LIZZIE_LOC ? 2 * x + y + 1 : x;
+  int y_print = LIZZIE_LOC ? 2 * y + 1 : y;
   char buf[128];
-  sprintf(buf,"(%d,%d)",getX(loc,x_size),getY(loc,x_size));
+  sprintf(buf, "(%d,%d)", x_print, y_print);
   return string(buf);
 }
 
-string Location::toString(Loc loc, int x_size, int y_size)
-{
-  if(x_size > 25*25)
-    return toStringMach(loc,x_size);
+string Location::toString(Loc loc, int x_size, int y_size) {
+  if(x_size > 25 * 5 || y_size > 25 * 5)
+    return toStringMach(loc, x_size);
   if(loc == Board::PASS_LOC)
     return string("pass");
   if(loc == Board::NULL_LOC)
     return string("null");
   const char* xChar = "ABCDEFGHJKLMNOPQRSTUVWXYZ";
-  int x = getX(loc,x_size);
-  int y = getY(loc,x_size);
+  int x = getX(loc, x_size);
+  int y = getY(loc, x_size);
   if(x >= x_size || x < 0 || y < 0 || y >= y_size)
-    return toStringMach(loc,x_size);
+    return toStringMach(loc, x_size);
+  int x_print = LIZZIE_LOC ? 2 * x + y + 1 : x;
+  int y_print = LIZZIE_LOC ? 2 * y + 1 : y;
+  int y_size_print = LIZZIE_LOC ? y_size * 2 + 1 : y_size;
 
   char buf[128];
-  if(x <= 24)
-    sprintf(buf,"%c%d",xChar[x],y_size-y);
+  if(x_print <= 24)
+    sprintf(buf, "%c%d", xChar[x_print], y_size_print - y_print);
   else
-    sprintf(buf,"%c%c%d",xChar[x/25-1],xChar[x%25],y_size-y);
+    sprintf(buf, "%c%c%d", xChar[x_print / 25 - 1], xChar[x_print % 25], y_size_print - y_print);
   return string(buf);
 }
+
 
 string Location::toString(Loc loc, const Board& b) {
   return toString(loc,b.x_size,b.y_size);
@@ -1902,7 +1901,18 @@ bool Location::tryOfString(const string& str, int x_size, int y_size, Loc& resul
     bool sucY = Global::tryStringToInt(pieces[1],y);
     if(!sucX || !sucY)
       return false;
-    result = Location::getLoc(x,y,x_size);
+    if(LIZZIE_LOC) {
+      if(y % 2 == 0)
+        return false;
+      y = (y - 1) / 2;
+      if((x - y) % 2 == 0)
+        return false;
+      x = (x - y - 1) / 2;
+    }
+    if(x < 0 || y < 0 || x >= x_size || y >= y_size)
+      return false;
+    result = Location::getLoc(x, y, x_size);
+    
     return true;
   }
   else {
@@ -1926,7 +1936,18 @@ bool Location::tryOfString(const string& str, int x_size, int y_size, Loc& resul
     bool sucY = Global::tryStringToInt(s,y);
     if(!sucY)
       return false;
-    y = y_size - y;
+    
+    if(LIZZIE_LOC) {
+      y = 2 * y_size + 1 - y;
+      if(y % 2 == 0)
+        return false;
+      y = (y - 1) / 2;
+      if((x - y) % 2 == 0)
+        return false;
+      x = (x - y - 1) / 2;
+    } 
+    else
+      y = y_size - y;
     if(x < 0 || y < 0 || x >= x_size || y >= y_size)
       return false;
     result = Location::getLoc(x,y,x_size);
@@ -2005,8 +2026,9 @@ void Board::printBoard(ostream& out, const Board& board, Loc markLoc, const vect
     out << "\n";
   }
 
-  for(int y = 0; y < board.y_size; y++)
-  {
+  for(int y = 0; y < board.y_size; y++) {
+    for(int t = 0; t < y; t++)
+      out << " ";
     if(showCoords) {
       char buf[16];
       sprintf(buf,"%2d",board.y_size-y);
