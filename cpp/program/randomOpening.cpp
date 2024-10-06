@@ -90,7 +90,7 @@ bool RandomOpening::getPredefinedOpening(Board& board, Player& pla, Rand& rand) 
   string boardStr = "";
   if (board.x_size == 19 && board.y_size == 19)
   {
-    std::string openingStrs19x[] = {
+    std::string openingStrs[] = {
       ". . . . . . . . . . . . . . . . . . . "
       ". . . . . . . . . . . . . . . . . . . "
       ". . x . . x . . . x . . . x . . x . . "
@@ -214,7 +214,7 @@ bool RandomOpening::getPredefinedOpening(Board& board, Player& pla, Rand& rand) 
       "x . . . . . . . . . . . . . . . . . x "
       "x . . . . . . . . . . . . . . . . . x "
       "x . . . . . . . . . . . . . . . . . x "
-      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . o . . . . . . . . x "
       "x . . . . . . . . . . . . . . . . . x "
       "x . . . . . . . . . . . . . . . . . x "
       "x . . . . . . . . . . . . . . . . . x "
@@ -302,15 +302,148 @@ bool RandomOpening::getPredefinedOpening(Board& board, Player& pla, Rand& rand) 
       ". . . . . . . . . . . . . . . . . . . "
       ". . . . . . . . . . . . . . . . . . . "};
 
-    const int numOpenings = sizeof(openingStrs19x) / sizeof(string);
+    const int numOpenings = sizeof(openingStrs) / sizeof(string);
     int openingID = rand.nextUInt(numOpenings);
-    boardStr = openingStrs19x[openingID];
+    boardStr = openingStrs[openingID];
     
   } 
-  else if(board.x_size == 10 && board.y_size == 10) {
-    if(rand.nextBool(0.9))
+  else if(board.x_size == 9 && board.y_size == 9) {
+    if(rand.nextBool(0.5))
       return false;
-    std::string openingStrs10x[] = {
+    std::string openingStrs[] = {
+      ". . . . . . . . . "
+      ". . . . . . . . . "
+      ". . x . . . x . . "
+      ". . . . . . . . . "
+      ". . . . . . . . . "
+      ". . . . . . . . . "
+      ". . x . . . x . . "
+      ". . . . . . . . . "
+      ". . . . . . . . . "
+      ,
+      ". . . . . . . . . "
+      ". . . . . . . . . "
+      ". . x . . . x . . "
+      ". . . . . . . . . "
+      ". . . . . . . . . "
+      ". . . . . . . . . "
+      ". . x . . . x . . "
+      ". . . . . . . . . "
+      ". . . . . . . . . "
+      ,
+      ". x . . . . . x . "
+      "x . . . . . . . x "
+      ". . . . . . . . . "
+      ". . . . . . . . . "
+      ". . . . x . . . . "
+      ". . . . . . . . . "
+      ". . . . . . . . . "
+      "x . . . . . . . x "
+      ". x . . . . . x . "
+      ,
+      ". . . . . . . . . "
+      ". . . . . . . . . "
+      ". . . . . . . . . "
+      ". . . x x x . . . "
+      ". . . x . x . . . "
+      ". . . x x x . . . "
+      ". . . . . . . . . "
+      ". . . . . . . . . "
+      ". . . . . . . . . "
+      ,
+    };
+
+    const int numOpenings = sizeof(openingStrs) / sizeof(string);
+    int openingID = rand.nextUInt(numOpenings);
+    boardStr = openingStrs[openingID];
+  } 
+  else if(board.x_size == 7 && board.y_size == 7) {
+    if(rand.nextBool(0.5))
+      return false;
+    std::string openingStrs[] = {
+      ". x . . . x . "
+      "x . . . . . x "
+      ". . . . . . . "
+      ". . . o . . . "
+      ". . . . . . . "
+      "x . . . . . x "
+      ". x . . . x . "
+      ,
+      "x x . . . x x "
+      "x . . . . . x "
+      ". . . . . . . "
+      ". . . . . . . "
+      ". . . . . . . "
+      "x . . . . . x "
+      "x x . . . x x "
+      ,
+    };
+
+    const int numOpenings = sizeof(openingStrs) / sizeof(string);
+    int openingID = rand.nextUInt(numOpenings);
+    boardStr = openingStrs[openingID];
+  } 
+  else if(board.x_size == 8 && board.y_size == 8) {
+    if(rand.nextBool(0.8))
+      return false;
+    std::string openingStrs[] = {
+      ". x . . . . x . "
+      "x . . . . . . x "
+      ". . . . . . . . "
+      ". . . . . . . . "
+      ". . . . . . . . "
+      ". . . . . . . . "
+      "x . . . . . . x "
+      ". x . . . . x . "
+      ,
+    };
+
+    const int numOpenings = sizeof(openingStrs) / sizeof(string);
+    int openingID = rand.nextUInt(numOpenings);
+    boardStr = openingStrs[openingID];
+  } 
+  else if(board.x_size == 13 && board.y_size == 13) {
+    if(rand.nextBool(0.5))
+      return false;
+    std::string openingStrs[] = {
+      ". . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . "
+      ". . x . . . x . . . x . . "
+      ". . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . "
+      ". . x . . . x . . . x . . "
+      ". . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . "
+      ". . x . . . x . . . x . . "
+      ". . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . "
+      ,
+      ". . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . "
+      ". . x . . . . . . . x . . "
+      ". . . x . . . . . x . . . "
+      ". . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . "
+      ". . . . . . x . . . . . . "
+      ". . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . "
+      ". . . x . . . . . x . . . "
+      ". . x . . . . . . . x . . "
+      ". . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . "
+      ,
+    };
+
+    const int numOpenings = sizeof(openingStrs) / sizeof(string);
+    int openingID = rand.nextUInt(numOpenings);
+    boardStr = openingStrs[openingID];
+  } 
+  else if(board.x_size == 10 && board.y_size == 10) {
+    if(rand.nextBool(0.95))
+      return false;
+    std::string openingStrs[] = {
       ". . . . . . . . . . "
       "x x x x x x x x x x "
       ". . . . . . . . . x "
@@ -324,14 +457,14 @@ bool RandomOpening::getPredefinedOpening(Board& board, Player& pla, Rand& rand) 
       ,
     };
 
-    const int numOpenings = sizeof(openingStrs10x) / sizeof(string);
+    const int numOpenings = sizeof(openingStrs) / sizeof(string);
     int openingID = rand.nextUInt(numOpenings);
-    boardStr = openingStrs10x[openingID];
+    boardStr = openingStrs[openingID];
   } 
   else if(board.x_size == 19 && board.y_size == 7) {
-    if(rand.nextBool(0.8))
+    if(rand.nextBool(0.5))
       return false;
-    std::string openingStrs19x7[] = {
+    std::string openingStrs[] = {
       ". . . . . . . . . . . . . . . . . . . "
       "x x x x x x x x x x x x x x x x x x x "
       ". . . . . . . . . . . . . . . . . . . "
@@ -341,9 +474,9 @@ bool RandomOpening::getPredefinedOpening(Board& board, Player& pla, Rand& rand) 
       ". . . . . . . . . . . . . . . . . . . ",
     };
 
-    const int numOpenings = sizeof(openingStrs19x7) / sizeof(string);
+    const int numOpenings = sizeof(openingStrs) / sizeof(string);
     int openingID = rand.nextUInt(numOpenings);
-    boardStr = openingStrs19x7[openingID];
+    boardStr = openingStrs[openingID];
   } 
 
   if(boardStr == "")
@@ -365,7 +498,7 @@ bool RandomOpening::getPredefinedOpening(Board& board, Player& pla, Rand& rand) 
 }
 
 void RandomOpening::randomizePredefinedOpening(Search* bot, Board& board, Player& pla, Rand& rand) {
-  if(rand.nextBool(0.5))  // not randomize
+  if(rand.nextBool(0.1))  // not randomize
     return;
   int stoneNum = board.numStonesOnBoard();
   if(stoneNum == 0)
