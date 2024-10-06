@@ -132,8 +132,8 @@ struct NNOutput {
 namespace SymmetryHelpers {
   //A symmetry is 3 bits flipY(bit 0), flipX(bit 1), transpose(bit 2). They are applied in that order.
   //The first four symmetries only reflect, and do not transpose X and Y.
-  constexpr int NUM_SYMMETRIES = 8;
-  constexpr int NUM_SYMMETRIES_WITHOUT_TRANSPOSE = 4;
+  constexpr int NUM_SYMMETRIES = 4;
+  constexpr int NUM_SYMMETRIES_WITHOUT_TRANSPOSE = 2;
 
   //These two IGNORE transpose if hSize and wSize do not match. So non-square transposes are disallowed.
   //copyOutputsWithSymmetry performs the inverse of symmetry.
@@ -155,8 +155,10 @@ namespace SymmetryHelpers {
   int compose(int firstSymmetry, int nextSymmetry);
   int compose(int firstSymmetry, int nextSymmetry, int nextNextSymmetry);
 
-  inline bool isTranspose(int symmetry) { return (symmetry & 0x4) != 0; }
-  inline bool isFlipX(int symmetry) { return (symmetry & 0x2) != 0; }
+  static_assert(NUM_SYMMETRIES == 4, "Hex board");
+  static_assert(NUM_SYMMETRIES_WITHOUT_TRANSPOSE == 2, "Hex board");
+  inline bool isTranspose(int symmetry) { return (symmetry & 0x2) != 0; }
+  inline bool isFlipX(int symmetry) { return (symmetry & 0x1) != 0; }
   inline bool isFlipY(int symmetry) { return (symmetry & 0x1) != 0; }
 
   //Fill isSymDupLoc with true on all but one copy of each symmetrically equivalent move, and false everywhere else.

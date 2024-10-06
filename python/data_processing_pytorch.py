@@ -70,7 +70,9 @@ def read_npz_training_data(
             )
 
             if randomize_symmetries:
-                symm = int(rand.integers(0,8))
+                #symm = int(rand.integers(0,8))
+                allowed_syms = [0,2,4,6]
+                symm = allowed_syms[int(rand.integers(0, 4))]
                 batch_binaryInputNCHW = apply_symmetry(batch_binaryInputNCHW, symm)
                 batch_policyTargetsNCMove = apply_symmetry_policy(batch_policyTargetsNCMove, symm, pos_len)
                 batch_valueTargetsNCHW = apply_symmetry(batch_valueTargetsNCHW, symm)
