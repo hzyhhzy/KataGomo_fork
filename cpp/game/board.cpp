@@ -49,9 +49,9 @@ void Location::getAdjacentOffsets(short adj_offsets[8], int x_size)
   adj_offsets[1] = -1;
   adj_offsets[2] = 1;
   adj_offsets[3] = (x_size+1);
-  adj_offsets[4] = -(x_size+1)-1;
+  adj_offsets[4] = (x_size+1)-1;
   adj_offsets[5] = -(x_size+1)+1;
-  adj_offsets[6] = (x_size+1)-1;
+  adj_offsets[6] = -(x_size+1)-1;
   adj_offsets[7] = (x_size+1)+1;
 }
 
@@ -89,11 +89,13 @@ bool Location::isNearCentral(Loc loc, int x_size, int y_size) {
 }
 
 
-#define FOREACHADJ(BLOCK) {int ADJOFFSET = -(x_size+1); {BLOCK}; ADJOFFSET = -1; {BLOCK}; ADJOFFSET = 1; {BLOCK}; ADJOFFSET = x_size+1; {BLOCK}};
+#define FOREACHADJ(BLOCK) {int ADJOFFSET = -(x_size+1); {BLOCK}; ADJOFFSET = -1; {BLOCK}; ADJOFFSET = 1; {BLOCK}; ADJOFFSET = x_size+1; {BLOCK}; ADJOFFSET = x_size; {BLOCK}; ADJOFFSET = -x_size; {BLOCK}};
 #define ADJ0 (-(x_size+1))
 #define ADJ1 (-1)
 #define ADJ2 (1)
 #define ADJ3 (x_size+1)
+#define ADJ4 (x_size)
+#define ADJ5 (-x_size)
 
 //CONSTRUCTORS AND INITIALIZATION----------------------------------------------------------
 
@@ -308,7 +310,7 @@ void Board::getBoundNumLibertiesAfterPlay(Loc loc, Player pla, int& lowerBound, 
   int numConnectionLibs = 0; //Sum over friendly groups connected to of their libs-1
   int maxConnectionLibs = 0; //Max over friendly groups connected to of their libs-1
 
-  for(int i = 0; i < 4; i++) {
+  for(int i = 0; i < 6; i++) {
     Loc adj = loc + adj_offsets[i];
     if(colors[adj] == C_EMPTY) {
       numImmediateLibs++;
@@ -342,10 +344,10 @@ int Board::getNumLibertiesAfterPlay(Loc loc, Player pla, int max) const
   int numLibs = 0;
   Loc libs[MAX_PLAY_SIZE];
   int numCapturedGroups = 0;
-  Loc capturedGroupHeads[4];
+  Loc capturedGroupHeads[6];
 
   //First, count immediate liberties and groups that would be captured
-  for(int i = 0; i < 4; i++) {
+  for(int i = 0; i < 6; i++) {
     Loc adj = loc + adj_offsets[i];
     if(colors[adj] == C_EMPTY) {
       libs[numLibs++] = adj;
@@ -381,8 +383,8 @@ int Board::getNumLibertiesAfterPlay(Loc loc, Player pla, int max) const
 
   //Next, walk through all stones of all surrounding groups we would connect with and count liberties, avoiding overlap.
   int numConnectingGroups = 0;
-  Loc connectingGroupHeads[4];
-  for(int i = 0; i<4; i++) {
+  Loc connectingGroupHeads[6];
+  for(int i = 0; i<6; i++) {
     Loc adj = loc + adj_offsets[i];
     if(colors[adj] == pla) {
       Loc head = chain_head[adj];
@@ -397,7 +399,7 @@ int Board::getNumLibertiesAfterPlay(Loc loc, Player pla, int max) const
         Loc cur = adj;
         do
         {
-          for(int k = 0; k < 4; k++) {
+          for(int k = 0; k < 6; k++) {
             Loc possibleLib = cur + adj_offsets[k];
             if(possibleLib != loc && wouldBeEmpty(possibleLib)) {
               bool alreadyCounted = false;
@@ -421,12 +423,6 @@ int Board::getNumLibertiesAfterPlay(Loc loc, Player pla, int max) const
   return numLibs;
 }
 
-//Check if moving here is illegal due to simple ko
-bool Board::isKoBanned(Loc loc) const
-{
-  return loc == ko_loc;
-}
-
 bool Board::isOnBoard(Loc loc) const {
   return loc >= 0 && loc < MAX_ARR_SIZE && colors[loc] != C_WALL;
 }
@@ -440,57 +436,10 @@ bool Board::isLegal(Loc loc, Player pla, bool isMultiStoneSuicideLegal) const
     loc >= 0 &&
     loc < MAX_ARR_SIZE &&
     (colors[loc] == C_EMPTY) &&
-    !isKoBanned(loc) &&
     !isIllegalSuicide(loc, pla, isMultiStoneSuicideLegal)
   );
 }
 
-//Check if moving here is illegal, ignoring simple ko
-bool Board::isLegalIgnoringKo(Loc loc, Player pla, bool isMultiStoneSuicideLegal) const
-{
-  if(pla != P_BLACK && pla != P_WHITE)
-    return false;
-  return loc == PASS_LOC || (
-    loc >= 0 &&
-    loc < MAX_ARR_SIZE &&
-    (colors[loc] == C_EMPTY) &&
-    !isIllegalSuicide(loc, pla, isMultiStoneSuicideLegal)
-  );
-}
-
-//Check if this location contains a simple eye for the specified player.
-bool Board::isSimpleEye(Loc loc, Player pla) const
-{
-  if(colors[loc] != C_EMPTY)
-    return false;
-
-  bool against_wall = false;
-
-  //Check that surounding points are owned
-  for(int i = 0; i < 4; i++)
-  {
-    Loc adj = loc + adj_offsets[i];
-    if(colors[adj] == C_WALL)
-      against_wall = true;
-    else if(colors[adj] != pla)
-      return false;
-  }
-
-  //Check that opponent does not own too many diagonal points
-  Player opp = getOpp(pla);
-  int num_opp_corners = 0;
-  for(int i = 4; i < 8; i++)
-  {
-    Loc corner = loc + adj_offsets[i];
-    if(colors[corner] == opp)
-      num_opp_corners++;
-  }
-
-  if(num_opp_corners >= 2 || (against_wall && num_opp_corners >= 1))
-    return false;
-
-  return true;
-}
 
 bool Board::wouldBeCapture(Loc loc, Player pla) const {
   if(colors[loc] != C_EMPTY)
@@ -508,74 +457,12 @@ bool Board::wouldBeCapture(Loc loc, Player pla) const {
   return false;
 }
 
-
-bool Board::wouldBeKoCapture(Loc loc, Player pla) const {
-  if(colors[loc] != C_EMPTY)
-    return false;
-  //Check that surounding points are are all opponent owned and exactly one of them is capturable
-  Player opp = getOpp(pla);
-  Loc oppCapturableLoc = NULL_LOC;
-  for(int i = 0; i < 4; i++)
-  {
-    Loc adj = loc + adj_offsets[i];
-    if(colors[adj] != C_WALL && colors[adj] != opp)
-      return false;
-    if(colors[adj] == opp && getNumLiberties(adj) == 1) {
-      if(oppCapturableLoc != NULL_LOC)
-        return false;
-      oppCapturableLoc = adj;
-    }
-  }
-  if(oppCapturableLoc == NULL_LOC)
-    return false;
-
-  //Check that the capturable loc has exactly one stone
-  if(chain_data[chain_head[oppCapturableLoc]].num_locs != 1)
-    return false;
-  return true;
-}
-
-Loc Board::getKoCaptureLoc(Loc loc, Player pla) const {
-  if(colors[loc] != C_EMPTY)
-    return NULL_LOC;
-  //Check that surounding points are are all opponent owned and exactly one of them is capturable
-  Player opp = getOpp(pla);
-  Loc oppCapturableLoc = NULL_LOC;
-  for(int i = 0; i < 4; i++)
-  {
-    Loc adj = loc + adj_offsets[i];
-    if(colors[adj] != C_WALL && colors[adj] != opp)
-      return NULL_LOC;
-    if(colors[adj] == opp && getNumLiberties(adj) == 1) {
-      if(oppCapturableLoc != NULL_LOC)
-        return NULL_LOC;
-      oppCapturableLoc = adj;
-    }
-  }
-  if(oppCapturableLoc == NULL_LOC)
-    return NULL_LOC;
-
-  //Check that the capturable loc has exactly one stone
-  if(chain_data[chain_head[oppCapturableLoc]].num_locs != 1)
-    return NULL_LOC;
-  return oppCapturableLoc;
-}
-
 bool Board::isAdjacentToPla(Loc loc, Player pla) const {
   FOREACHADJ(
     Loc adj = loc + ADJOFFSET;
     if(colors[adj] == pla)
       return true;
   );
-  return false;
-}
-
-bool Board::isAdjacentOrDiagonalToPla(Loc loc, Player pla) const {
-  for(int i = 0; i<8; i++) {
-    Loc adj = loc + adj_offsets[i];
-    if(colors[adj] == pla)
-      return true;
-  }
   return false;
 }
 
@@ -590,34 +477,6 @@ bool Board::isAdjacentToChain(Loc loc, Loc chain) const {
   return false;
 }
 
-
-//Does this connect two pla distinct groups that are not both pass-alive and not within opponent pass-alive area either?
-bool Board::isNonPassAliveSelfConnection(Loc loc, Player pla, Color* passAliveArea) const {
-  if(colors[loc] != C_EMPTY || passAliveArea[loc] == pla)
-    return false;
-
-  Loc nonPassAliveAdjHead = NULL_LOC;
-  for(int i = 0; i < 4; i++)
-  {
-    Loc adj = loc + adj_offsets[i];
-    if(colors[adj] == pla && passAliveArea[adj] == C_EMPTY) {
-      nonPassAliveAdjHead = chain_head[adj];
-      break;
-    }
-  }
-
-  if(nonPassAliveAdjHead == NULL_LOC)
-    return false;
-
-  for(int i = 0; i < 4; i++)
-  {
-    Loc adj = loc + adj_offsets[i];
-    if(colors[adj] == pla && chain_head[adj] != nonPassAliveAdjHead)
-      return true;
-  }
-
-  return false;
-}
 
 bool Board::isEmpty() const {
   for(int y = 0; y < y_size; y++) {
@@ -744,162 +603,6 @@ bool Board::playMove(Loc loc, Player pla, bool isMultiStoneSuicideLegal)
   return false;
 }
 
-//Plays the specified move, assuming it is legal, and returns a MoveRecord for the move
-Board::MoveRecord Board::playMoveRecorded(Loc loc, Player pla)
-{
-  MoveRecord record;
-  record.loc = loc;
-  record.pla = pla;
-  record.ko_loc = ko_loc;
-  record.capDirs = 0;
-
-  if(loc != PASS_LOC) {
-    Player opp = getOpp(pla);
-
-    { int adj = loc + ADJ0;
-      if(colors[adj] == opp && getNumLiberties(adj) == 1)
-        record.capDirs |= (((uint8_t)1) << 0); }
-    { int adj = loc + ADJ1;
-      if(colors[adj] == opp && getNumLiberties(adj) == 1)
-        record.capDirs |= (((uint8_t)1) << 1); }
-    { int adj = loc + ADJ2;
-      if(colors[adj] == opp && getNumLiberties(adj) == 1)
-        record.capDirs |= (((uint8_t)1) << 2); }
-    { int adj = loc + ADJ3;
-      if(colors[adj] == opp && getNumLiberties(adj) == 1)
-        record.capDirs |= (((uint8_t)1) << 3); }
-
-    if(record.capDirs == 0 && isSuicide(loc,pla))
-      record.capDirs = 0x10;
-  }
-
-  playMoveAssumeLegal(loc, pla);
-  return record;
-}
-
-//Undo the move given by record. Moves MUST be undone in the order they were made.
-//Undos will NOT typically restore the precise representation in the board to the way it was. The heads of chains
-//might change, the order of the circular lists might change, etc.
-void Board::undo(Board::MoveRecord record)
-{
-  ko_loc = record.ko_loc;
-
-  Loc loc = record.loc;
-  if(loc == PASS_LOC)
-    return;
-
-  //Re-fill stones in all captured directions
-  for(int i = 0; i<4; i++)
-  {
-    int adj = loc + adj_offsets[i];
-    if(record.capDirs & (1 << i))
-    {
-      if(colors[adj] == C_EMPTY) {
-        addChain(adj, getOpp(record.pla));
-
-        int numUncaptured = chain_data[chain_head[adj]].num_locs;
-        if(record.pla == P_BLACK)
-          numWhiteCaptures -= numUncaptured;
-        else
-          numBlackCaptures -= numUncaptured;
-      }
-    }
-  }
-  //Re-fill suicided stones
-  if(record.capDirs == 0x10) {
-    assert(colors[loc] == C_EMPTY);
-    addChain(loc,record.pla);
-    int numUncaptured = chain_data[chain_head[loc]].num_locs;
-    if(record.pla == P_BLACK)
-      numBlackCaptures -= numUncaptured;
-    else
-      numWhiteCaptures -= numUncaptured;
-  }
-
-  //Delete the stone played here.
-  pos_hash ^= ZOBRIST_BOARD_HASH[loc][colors[loc]];
-  colors[loc] = C_EMPTY;
-  // empty_list.add(loc);
-
-  //Uneat opp liberties
-  changeSurroundingLiberties(loc, getOpp(record.pla),+1);
-
-  //If this was not a single stone, we may need to recompute the chain from scratch
-  if(chain_data[chain_head[loc]].num_locs > 1)
-  {
-    int numNeighbors = 0;
-    FOREACHADJ(
-      int adj = loc + ADJOFFSET;
-      if(colors[adj] == record.pla)
-        numNeighbors++;
-    );
-
-    //If the move had exactly one neighbor, we know its undoing didn't disconnect the group,
-    //so don't need to rebuild the whole chain.
-    if(numNeighbors <= 1) {
-      //If the undone move was the location of the head, we need to move the head.
-      Loc head = chain_head[loc];
-      if(head == loc) {
-        Loc newHead = next_in_chain[loc];
-        //Run through the whole chain and make their heads point to the new head
-        Loc cur = loc;
-        do
-        {
-          chain_head[cur] = newHead;
-          cur = next_in_chain[cur];
-        } while (cur != loc);
-
-        //Move over the head data
-        chain_data[newHead] = chain_data[head];
-        head = newHead;
-      }
-
-      //Extract this move out of the circlar list of stones. Unfortunately we don't have a prev pointer, so we need to walk the loop.
-      {
-        //Starting at the head is likely to need to walk less since whenever we merge a single stone into an existing group
-        //we put it right after the old head.
-        Loc cur = head;
-        while(next_in_chain[cur] != loc)
-          cur = next_in_chain[cur];
-        //Advance the pointer to put loc out of the loop
-        next_in_chain[cur] = next_in_chain[loc];
-      }
-
-      //Lastly, fix up liberties. Removing this stone removed all liberties next to this stone
-      //that weren't already liberties of the group.
-      int libertyDelta = 0;
-      FOREACHADJ(
-        int adj = loc + ADJOFFSET;
-        if(colors[adj] == C_EMPTY && !isLibertyOf(adj,head)) libertyDelta--;
-      );
-      //Removing this stone itself added a liberty to the group though.
-      libertyDelta++;
-      chain_data[head].num_liberties += libertyDelta;
-      //And update the count of stones in the group
-      chain_data[head].num_locs--;
-    }
-    //More than one neighbor. Removing this stone potentially disconnects the group into two, so we just do a complete rebuild
-    //of the resulting group(s).
-    else {
-      //Run through the whole chain and make their heads point to nothing
-      Loc cur = loc;
-      do
-      {
-        chain_head[cur] = NULL_LOC;
-        cur = next_in_chain[cur];
-      } while (cur != loc);
-
-      //Rebuild each chain adjacent now
-      for(int i = 0; i<4; i++)
-      {
-        int adj = loc + adj_offsets[i];
-        if(colors[adj] == record.pla && chain_head[adj] == NULL_LOC)
-          rebuildChain(adj, record.pla);
-      }
-    }
-  }
-}
-
 Hash128 Board::getPosHashAfterMove(Loc loc, Player pla) const {
   if(loc == PASS_LOC)
     return pos_hash;
@@ -913,8 +616,8 @@ Hash128 Board::getPosHashAfterMove(Loc loc, Player pla) const {
   //Count immediate liberties and groups that would be captured
   bool wouldBeSuicide = true;
   int numCapturedGroups = 0;
-  Loc capturedGroupHeads[4];
-  for(int i = 0; i < 4; i++) {
+  Loc capturedGroupHeads[6];
+  for(int i = 0; i < 6; i++) {
     Loc adj = loc + adj_offsets[i];
     if(colors[adj] == C_EMPTY)
       wouldBeSuicide = false;
@@ -949,7 +652,7 @@ Hash128 Board::getPosHashAfterMove(Loc loc, Player pla) const {
   if(wouldBeSuicide) {
     assert(numCapturedGroups == 0);
 
-    for(int i = 0; i < 4; i++) {
+    for(int i = 0; i < 6; i++) {
       Loc adj = loc + adj_offsets[i];
       //Suicide capture!
       if(colors[adj] == pla && getNumLiberties(adj) == 1) {
@@ -1006,9 +709,9 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
   int num_captured = 0; //Number of stones captured
   Loc possible_ko_loc = NULL_LOC;  //What location a ko ban might become possible in
   int num_opps_seen = 0;  //How many opp chains we have seen so far
-  Loc opp_heads_seen[4];   //Heads of the opp chains seen so far
+  Loc opp_heads_seen[6];   //Heads of the opp chains seen so far
 
-  for(int i = 0; i < 4; i++)
+  for(int i = 0; i < 6; i++)
   {
     int adj = loc + adj_offsets[i];
 
@@ -1082,22 +785,10 @@ int Board::getNumImmediateLiberties(Loc loc) const
   if(colors[loc + ADJ1] == C_EMPTY) num_libs++;
   if(colors[loc + ADJ2] == C_EMPTY) num_libs++;
   if(colors[loc + ADJ3] == C_EMPTY) num_libs++;
+  if(colors[loc + ADJ4] == C_EMPTY) num_libs++;
+  if(colors[loc + ADJ5] == C_EMPTY) num_libs++;
 
   return num_libs;
-}
-
-int Board::countHeuristicConnectionLibertiesX2(Loc loc, Player pla) const
-{
-  int num_libsX2 = 0;
-  for(int i = 0; i < 4; i++) {
-    Loc adj = loc + adj_offsets[i];
-    if(colors[adj] == pla) {
-      int libs = chain_data[chain_head[adj]].num_liberties;
-      if(libs > 1)
-        num_libsX2 += libs * 2 - 3;
-    }
-  }
-  return num_libsX2;
 }
 
 //Loc is a liberty of head's chain if loc is empty and adjacent to a stone of head.
@@ -1115,6 +806,12 @@ bool Board::isLibertyOf(Loc loc, Loc head) const
   if(colors[adj] == colors[head] && chain_head[adj] == head)
     return true;
   adj = loc + ADJ3;
+  if(colors[adj] == colors[head] && chain_head[adj] == head)
+    return true;
+  adj = loc + ADJ4;
+  if(colors[adj] == colors[head] && chain_head[adj] == head)
+    return true;
+  adj = loc + ADJ5;
   if(colors[adj] == colors[head] && chain_head[adj] == head)
     return true;
 
@@ -1259,7 +956,7 @@ Loc Board::addChainHelper(Loc head, Loc tailTarget, Loc loc, Player pla)
 
   //Recursively add stones around us.
   Loc nextTailTarget = loc;
-  for(int i = 0; i<4; i++)
+  for(int i = 0; i<6; i++)
   {
     Loc adj = loc + adj_offsets[i];
     if(colors[adj] == C_EMPTY)
@@ -1295,6 +992,8 @@ Loc Board::rebuildChainHelper(Loc head, Loc tailTarget, Loc loc, Player pla)
   Loc adj1 = loc + ADJ1;
   Loc adj2 = loc + ADJ2;
   Loc adj3 = loc + ADJ3;
+  Loc adj4 = loc + ADJ4;
+  Loc adj5 = loc + ADJ5;
 
   //Count new liberties
   int numHeadLibertiesToAdd = 0;
@@ -1302,6 +1001,8 @@ Loc Board::rebuildChainHelper(Loc head, Loc tailTarget, Loc loc, Player pla)
   if(colors[adj1] == C_EMPTY && !isLibertyOf(adj1,head)) numHeadLibertiesToAdd++;
   if(colors[adj2] == C_EMPTY && !isLibertyOf(adj2,head)) numHeadLibertiesToAdd++;
   if(colors[adj3] == C_EMPTY && !isLibertyOf(adj3,head)) numHeadLibertiesToAdd++;
+  if(colors[adj4] == C_EMPTY && !isLibertyOf(adj4,head)) numHeadLibertiesToAdd++;
+  if(colors[adj5] == C_EMPTY && !isLibertyOf(adj5,head)) numHeadLibertiesToAdd++;
   chain_data[head].num_liberties += numHeadLibertiesToAdd;
 
   //Add stone here to the chain by setting its head
@@ -1315,6 +1016,8 @@ Loc Board::rebuildChainHelper(Loc head, Loc tailTarget, Loc loc, Player pla)
   if(colors[adj1] == pla && chain_head[adj1] != head) nextTailTarget = rebuildChainHelper(head,nextTailTarget,adj1,pla);
   if(colors[adj2] == pla && chain_head[adj2] != head) nextTailTarget = rebuildChainHelper(head,nextTailTarget,adj2,pla);
   if(colors[adj3] == pla && chain_head[adj3] != head) nextTailTarget = rebuildChainHelper(head,nextTailTarget,adj3,pla);
+  if(colors[adj4] == pla && chain_head[adj4] != head) nextTailTarget = rebuildChainHelper(head,nextTailTarget,adj4,pla);
+  if(colors[adj5] == pla && chain_head[adj5] != head) nextTailTarget = rebuildChainHelper(head,nextTailTarget,adj5,pla);
   return nextTailTarget;
 }
 
@@ -1325,6 +1028,8 @@ void Board::changeSurroundingLiberties(Loc loc, Player pla, int delta)
   Loc adj1 = loc + ADJ1;
   Loc adj2 = loc + ADJ2;
   Loc adj3 = loc + ADJ3;
+  Loc adj4 = loc + ADJ4;
+  Loc adj5 = loc + ADJ5;
 
   if(colors[adj0] == pla)
     chain_data[chain_head[adj0]].num_liberties += delta;
@@ -1340,68 +1045,20 @@ void Board::changeSurroundingLiberties(Loc loc, Player pla, int delta)
      && !(colors[adj1] == pla && chain_head[adj1] == chain_head[adj3])
      && !(colors[adj2] == pla && chain_head[adj2] == chain_head[adj3]))
     chain_data[chain_head[adj3]].num_liberties += delta;
+  if(colors[adj4] == pla
+     && !(colors[adj0] == pla && chain_head[adj0] == chain_head[adj4])
+     && !(colors[adj1] == pla && chain_head[adj1] == chain_head[adj4])
+     && !(colors[adj2] == pla && chain_head[adj2] == chain_head[adj4])
+     && !(colors[adj3] == pla && chain_head[adj3] == chain_head[adj4]))
+    chain_data[chain_head[adj4]].num_liberties += delta;
+  if(colors[adj5] == pla
+     && !(colors[adj0] == pla && chain_head[adj0] == chain_head[adj5])
+     && !(colors[adj1] == pla && chain_head[adj1] == chain_head[adj5])
+     && !(colors[adj2] == pla && chain_head[adj2] == chain_head[adj5])
+     && !(colors[adj3] == pla && chain_head[adj3] == chain_head[adj5])
+     && !(colors[adj4] == pla && chain_head[adj4] == chain_head[adj5]))
+    chain_data[chain_head[adj5]].num_liberties += delta;
 }
-
-
-// Board::PointList::PointList()
-// {
-//   std::memset(list_, NULL_LOC, sizeof(list_));
-//   std::memset(indices_, -1, sizeof(indices_));
-//   size_ = 0;
-// }
-
-// Board::PointList::PointList(const Board::PointList& other)
-// {
-//   std::memcpy(list_, other.list_, sizeof(list_));
-//   std::memcpy(indices_, other.indices_, sizeof(indices_));
-//   size_ = other.size_;
-// }
-
-// void Board::PointList::operator=(const Board::PointList& other)
-// {
-//   if(this == &other)
-//     return;
-//   std::memcpy(list_, other.list_, sizeof(list_));
-//   std::memcpy(indices_, other.indices_, sizeof(indices_));
-//   size_ = other.size_;
-// }
-
-// void Board::PointList::add(Loc loc)
-// {
-//   //assert (size_ < MAX_PLAY_SIZE);
-//   list_[size_] = loc;
-//   indices_[loc] = size_;
-//   size_++;
-// }
-
-// void Board::PointList::remove(Loc loc)
-// {
-//   //assert(size_ >= 0);
-//   int index = indices_[loc];
-//   //assert(index >= 0 && index < size_);
-//   //assert(list_[index] == loc);
-//   Loc end_loc = list_[size_-1];
-//   list_[index] = end_loc;
-//   list_[size_-1] = NULL_LOC;
-//   indices_[end_loc] = index;
-//   indices_[loc] = -1;
-//   size_--;
-// }
-
-// int Board::PointList::size() const
-// {
-//   return size_;
-// }
-
-// Loc& Board::PointList::operator[](int n)
-// {
-//   assert (n < size_);
-//   return list_[n];
-// }
-
-// bool Board::PointList::contains(Loc loc) const {
-//   return indices_[loc] != -1;
-// }
 
 int Location::distance(Loc loc0, Loc loc1, int x_size) {
   int dx = getX(loc1,x_size) - getX(loc0,x_size);
@@ -1424,7 +1081,7 @@ int Board::findLiberties(Loc loc, vector<Loc>& buf, int bufStart, int bufIdx) co
   Loc cur = loc;
   do
   {
-    for(int i = 0; i < 4; i++) {
+    for(int i = 0; i < 6; i++) {
       Loc lib = cur + adj_offsets[i];
       if(colors[lib] == C_EMPTY) {
         //Check for dups
@@ -1464,7 +1121,7 @@ int Board::findLibertyGainingCaptures(Loc loc, vector<Loc>& buf, int bufStart, i
   Loc cur = loc;
   do
   {
-    for(int i = 0; i < 4; i++) {
+    for(int i = 0; i < 6; i++) {
       Loc adj = cur + adj_offsets[i];
       if(colors[adj] == opp) {
         Loc head = chain_head[adj];
@@ -1509,278 +1166,6 @@ bool Board::hasLibertyGainingCaptures(Loc loc) const {
   } while (cur != loc);
 
   return false;
-}
-
-bool Board::searchIsLadderCapturedAttackerFirst2Libs(Loc loc, vector<Loc>& buf, vector<Loc>& workingMoves) {
-  if(loc < 0 || loc >= MAX_ARR_SIZE)
-    return false;
-  if(colors[loc] != C_BLACK && colors[loc] != C_WHITE)
-    return false;
-  if(chain_data[chain_head[loc]].num_liberties != 2)
-    return false;
-
-  //Make it so that pla is always the defender
-  Player pla = colors[loc];
-  Player opp = getOpp(pla);
-
-  int numLibs = findLiberties(loc,buf,0,0);
-  assert(numLibs == 2);
-  (void)numLibs; //Avoid warning when asserts are off
-
-  Loc move0 = buf[0];
-  Loc move1 = buf[1];
-  bool move0Works = false;
-  bool move1Works = false;
-
-  //Suicide never relevant for ladders
-  //Attacker: A suicide move cannot reduce the defender's liberties
-  //Defender: A suicide move cannot gain liberties
-  bool isMultiStoneSuicideLegal = false;
-  if(isLegal(move0,opp,isMultiStoneSuicideLegal)) {
-    MoveRecord record = playMoveRecorded(move0,opp);
-    move0Works = searchIsLadderCaptured(loc,true,buf);
-    undo(record);
-  }
-  if(isLegal(move1,opp,isMultiStoneSuicideLegal)) {
-    MoveRecord record = playMoveRecorded(move1,opp);
-    move1Works = searchIsLadderCaptured(loc,true,buf);
-    undo(record);
-  }
-
-  if(move0Works || move1Works) {
-    workingMoves.clear();
-    if(move0Works)
-      workingMoves.push_back(move0);
-    if(move1Works)
-      workingMoves.push_back(move1);
-    return true;
-  }
-  return false;
-}
-
-bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf) {
-  if(loc < 0 || loc >= MAX_ARR_SIZE)
-    return false;
-  if(colors[loc] != C_BLACK && colors[loc] != C_WHITE)
-    return false;
-
-  if(chain_data[chain_head[loc]].num_liberties > 2 || (defenderFirst && chain_data[chain_head[loc]].num_liberties > 1))
-    return false;
-
-  //Make it so that pla is always the defender
-  Player pla = colors[loc];
-  Player opp = getOpp(pla);
-
-  //Clear the ko loc for the defender at the root node - assume all kos work for the defender
-  Loc ko_loc_saved = ko_loc;
-  if(defenderFirst)
-    ko_loc = NULL_LOC;
-
-  //Stack for the search. These point to lists of possible moves to search at each level of the stack, indices refer to indices in [buf].
-  int stackSize = x_size*y_size*3/2+1; //A bit bigger due to paranoia about recaptures making the sequence longer.
-  static constexpr int arrSize = MAX_PLAY_SIZE * 3 / 2 + 1;
-  int moveListStarts[arrSize]; //Buf idx of start of list
-  int moveListLens[arrSize]; //Len of list
-  int moveListCur[arrSize]; //Current move list idx searched, equal to -1 if list has not been generated.
-  MoveRecord records[arrSize]; //Records so that we can undo moves as we search back up.
-  int stackIdx = 0;
-  int searchNodeCount = 0;
-  static const int MAX_LADDER_SEARCH_NODE_BUDGET = 25000;
-
-  moveListCur[0] = -1;
-  moveListStarts[0] = 0;
-  moveListLens[0] = 0;
-  bool returnValue = false;
-  bool returnedFromDeeper = false;
-  // bool print = true;
-
-  while(true) {
-    // if(print) cout << ": " << stackIdx << " " << moveListCur[stackIdx] << " " << moveListStarts[stackIdx] << " " << moveListLens[stackIdx] << " " << returnValue << " " << returnedFromDeeper << endl;
-
-    //Returned from the root - so that's the answer
-    if(stackIdx <= -1) {
-      assert(stackIdx == -1);
-      ko_loc = ko_loc_saved;
-      return returnValue;
-    }
-
-    //If we hit the stack limit, just consider it a failed ladder.
-    if(stackIdx >= stackSize-1) {
-      returnValue = true; returnedFromDeeper = true; stackIdx--; continue;
-    }
-    //If we hit a total node count limit, then just assume it doesn't work.
-    if(searchNodeCount >= MAX_LADDER_SEARCH_NODE_BUDGET) {
-      stackIdx -= 1;
-      while(stackIdx >= 0) {
-        undo(records[stackIdx]);
-        stackIdx -= 1;
-      }
-      return false;
-    }
-
-    bool isDefender = (defenderFirst && (stackIdx % 2) == 0) || (!defenderFirst && (stackIdx % 2) == 1);
-
-    //We just entered this level?
-    if(moveListCur[stackIdx] == -1) {
-      int libs = chain_data[chain_head[loc]].num_liberties;
-
-      //Base cases.
-      //If we are the attacker and the group has only 1 liberty, we already win.
-      if(!isDefender && libs <= 1) { returnValue = true; returnedFromDeeper = true; stackIdx--; continue; }
-      //If we are the attacker and the group has 3 liberties, we already lose.
-      if(!isDefender && libs >= 3) { returnValue = false; returnedFromDeeper = true; stackIdx--; continue; }
-      //If we are the defender and the group has 2 liberties, we already win.
-      if(isDefender && libs >= 2) { returnValue = false; returnedFromDeeper = true; stackIdx--; continue; }
-      //If we are the defender and the attacker left a simple ko point, assume we already win
-      //because we don't want to say yes on ladders that depend on kos
-      //This should also hopefully prevent any possible infinite loops - I don't know of any infinite loop
-      //that would come up in a continuous atari sequence that doesn't ever leave a simple ko point.
-      if(isDefender && ko_loc != NULL_LOC) { returnValue = false; returnedFromDeeper = true; stackIdx--; continue; }
-
-      //Otherwise we need to keep searching.
-      //Generate the move list. Attacker and defender generate moves on the group's liberties, but only the defender
-      //generates moves on surrounding capturable opposing groups.
-      int start = moveListStarts[stackIdx];
-      int moveListLen = 0;
-      if(isDefender) {
-        moveListLen = findLibertyGainingCaptures(loc,buf,start,start);
-        moveListLen += findLiberties(loc,buf,start,start+moveListLen);
-
-        int lowerBoundLibs;
-        int upperBoundLibs;
-        //List is always nonempty, and the last element always is the lone liberty of the defender group
-        getBoundNumLibertiesAfterPlay(buf[start+moveListLen-1], pla, lowerBoundLibs, upperBoundLibs);
-        //Defender immediately wins if there are provably enough libs
-        if(lowerBoundLibs >= 3)
-        { returnValue = false; returnedFromDeeper = true; stackIdx--; continue; }
-        //Attacker immediately wins if defender has not enough libs and there are no alternatives
-        if(moveListLen == 1 && upperBoundLibs <= 1)
-        { returnValue = true; returnedFromDeeper = true; stackIdx--; continue; }
-      }
-      else {
-        moveListLen += findLiberties(loc,buf,start,start);
-        // if(moveListLen != 2) {
-        //   cout << *this << endl;
-        //   cout << stackIdx << endl;
-        //   for(int i = 0; i<stackIdx; i++) {
-        //     cout << moveListCur[stackIdx] << " " << moveListStarts[stackIdx] << " " << moveListLens[stackIdx] << " "
-        //          << Location::toString(buf[moveListStarts[stackIdx] + moveListCur[stackIdx]],*this) << endl;
-        //   }
-        //   cout << "===" << endl;
-        //   checkConsistency();
-        // }
-        assert(moveListLen == 2);
-
-        int libs0 = getNumImmediateLiberties(buf[start]);
-        int libs1 = getNumImmediateLiberties(buf[start+1]);
-
-        //If we are the attacker and we're in a double-ko death situation, then assume we win.
-        //Both defender liberties must be ko mouths, connecting either ko mouth must not increase the defender's
-        //liberties, and none of the attacker's surrounding stones can currently be in atari.
-        //This is not complete - there are situations where the defender's connections increase liberties, or where
-        //the attacker has stones in atari, but where the defender is still in inescapable atari even if they have
-        //a large finite number of ko threats. But it's better than nothing.
-        if(libs0 == 0 && libs1 == 0 && wouldBeKoCapture(buf[start],opp) && wouldBeKoCapture(buf[start+1],opp)) {
-          if(getNumLibertiesAfterPlay(buf[start],pla,3) <= 2 && getNumLibertiesAfterPlay(buf[start+1],pla,3) <= 2) {
-            if(!hasLibertyGainingCaptures(loc))
-            { returnValue = true; returnedFromDeeper = true; stackIdx--; continue; }
-          }
-        }
-
-        //Early quitouts if the liberties are not adjacent
-        //(so that filling one doesn't fill an immediate liberty of the other)
-        if(!Location::isAdjacent(buf[start],buf[start+1],x_size)) {
-          //We lose automatically if both escapes get the defender too many libs
-          if(libs0 >= 3 && libs1 >= 3)
-          { returnValue = false; returnedFromDeeper = true; stackIdx--; continue; }
-          //Move 1 is not possible, so shrink the list
-          else if(libs0 >= 3)
-          { moveListLen = 1; }
-          //Move 0 is not possible, so swap and shrink the list
-          else if(libs1 >= 3)
-          { buf[start] = buf[start+1]; moveListLen = 1; }
-        }
-        //Order the two moves based on a simple heuristic - for each neighboring group with any liberties
-        //count that the opponent could connect to, count liberties - 1.5.
-        if(moveListLen > 1) {
-          libs0 = libs0 * 2 + countHeuristicConnectionLibertiesX2(buf[start],pla);
-          libs1 = libs1 * 2 + countHeuristicConnectionLibertiesX2(buf[start+1],pla);
-          if(libs1 > libs0) {
-            int tmp = buf[start];
-            buf[start] = buf[start+1];
-            buf[start+1] = tmp;
-          }
-        }
-      }
-      moveListLens[stackIdx] = moveListLen;
-
-      //And indicate to begin search on the first move generated.
-      moveListCur[stackIdx] = 0;
-    }
-    //Else, we returned from a deeper level (or the same level, via illegal move)
-    else {
-      assert(moveListCur[stackIdx] >= 0);
-      assert(moveListCur[stackIdx] < moveListLens[stackIdx]);
-      //If we returned from deeper we need to undo the move we made
-      if(returnedFromDeeper)
-        undo(records[stackIdx]);
-
-      //Defender has a move that is not ladder captured?
-      if(isDefender && !returnValue) {
-        //Return! (returnValue is still false, as desired)
-        returnedFromDeeper = true;
-        stackIdx--;
-        continue;
-      }
-      //Attacker has a move that does ladder capture?
-      if(!isDefender && returnValue) {
-        //Return! (returnValue is still true, as desired)
-        returnedFromDeeper = true;
-        stackIdx--;
-        continue;
-      }
-
-      //Move on to the next move to search
-      moveListCur[stackIdx]++;
-    }
-
-    //If there is no next move to search, then we lose.
-    if(moveListCur[stackIdx] >= moveListLens[stackIdx]) {
-      //For a defender, that means a ladder capture.
-      //For an attacker, that means no ladder capture found.
-      returnValue = isDefender;
-      returnedFromDeeper = true;
-      stackIdx--;
-      continue;
-    }
-
-    //Otherwise we do have an next move to search. Grab it.
-    Loc move = buf[moveListStarts[stackIdx] + moveListCur[stackIdx]];
-    Player p = (isDefender ? pla : opp);
-
-    // if(print) cout << "play " << Location::getX(move,x_size) << " " << Location::getY(move,x_size) << " " << p << endl;
-
-    //Illegal move - treat it the same as a failed move, but don't return up a level so that we
-    //loop again and just try the next move.
-    bool isMultiStoneSuicideLegal = false;
-    if(!isLegal(move,p,isMultiStoneSuicideLegal)) {
-      returnValue = isDefender;
-      returnedFromDeeper = false;
-      // if(print) cout << "illegal " << endl;
-      continue;
-    }
-
-    //Play and record the move!
-    records[stackIdx] = playMoveRecorded(move,p);
-    searchNodeCount++;
-
-    //And recurse to the next level
-    stackIdx++;
-    moveListCur[stackIdx] = -1;
-    moveListStarts[stackIdx] = moveListStarts[stackIdx-1] + moveListLens[stackIdx-1];
-    moveListLens[stackIdx] = 0;
-  }
-
 }
 
 
@@ -2350,7 +1735,7 @@ bool Board::simpleRepetitionBoundGt(Loc loc, int bound) const {
   else {
     Loc cur = loc;
     do {
-      for(int i = 0; i < 4; i++) {
+      for(int i = 0; i < 6; i++) {
         Loc lib = cur + adj_offsets[i];
         if(colors[lib] == C_EMPTY) {
           if(countEmptyHelper(emptyCounted, lib, count, bound))

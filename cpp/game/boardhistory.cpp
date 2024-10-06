@@ -237,11 +237,8 @@ bool BoardHistory::isLegal(const Board& board, Loc moveLoc, Player movePla) cons
   //Ko-moves in the encore that are recapture blocked are interpreted as pass-for-ko, so they are legal
   {
     //Only check ko bans during normal play.
-    //Ko mechanics in the encore are totally different, we ignore simple ko loc.
-    if(board.isKoBanned(moveLoc))
-      return false;
   }
-  if(!board.isLegalIgnoringKo(moveLoc,movePla,rules.multiStoneSuicideLegal))
+  if(!board.isLegal(moveLoc,movePla,rules.multiStoneSuicideLegal))
     return false;
 
   return true;
@@ -261,17 +258,13 @@ int BoardHistory::newConsecutiveEndingPassesAfterPass() const {
 
 bool BoardHistory::isLegalTolerant(const Board& board, Loc moveLoc, Player movePla) const {
   bool multiStoneSuicideLegal = true; //Tolerate suicide regardless of rules
-  if(board.isKoBanned(moveLoc))
-    return false;
-  if(!board.isLegalIgnoringKo(moveLoc,movePla,multiStoneSuicideLegal))
+  if(!board.isLegal(moveLoc,movePla,multiStoneSuicideLegal))
     return false;
   return true;
 }
 bool BoardHistory::makeBoardMoveTolerant(Board& board, Loc moveLoc, Player movePla) {
   bool multiStoneSuicideLegal = true;  // Tolerate suicide regardless of rules
-  if(board.isKoBanned(moveLoc))
-    return false;
-  if(!board.isLegalIgnoringKo(moveLoc, movePla, multiStoneSuicideLegal))
+  if(!board.isLegal(moveLoc, movePla, multiStoneSuicideLegal))
     return false;
   
   makeBoardMoveAssumeLegal(board,moveLoc,movePla);
