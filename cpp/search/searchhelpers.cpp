@@ -349,50 +349,7 @@ double Search::getPatternBonus(Hash128 patternBonusHash, Player prevMovePla) con
 
 
 double Search::getEndingWhiteScoreBonus(const SearchNode& parent, Loc moveLoc) const {
-  if(&parent != rootNode || moveLoc == Board::NULL_LOC)
-    return 0.0;
-
-  const NNOutput* nnOutput = parent.getNNOutput();
-  if(nnOutput == NULL || nnOutput->whiteOwnerMap == NULL)
-    return 0.0;
-
-  assert(nnOutput->nnXLen == nnXLen);
-  assert(nnOutput->nnYLen == nnYLen);
-  float* whiteOwnerMap = nnOutput->whiteOwnerMap;
-
-  const double extreme = 0.95;
-  const double tail = 0.05;
-
-  //Extra points from the perspective of the root player
-  double extraRootPoints = 0.0;
-  bool isAreaIsh = true;
-  if(isAreaIsh) {
-    //Areaish scoring - in an effort to keep the game short and slightly discourage pointless territory filling at the end
-    //discourage any move that, except in case of ko, is either:
-    // * On a spot that the opponent almost surely owns, unless it captures stones.
-    // * On a spot that the player almost surely owns and it is not adjacent to opponent stones and is not a connection of non-pass-alive groups.
-    //These conditions should still make it so that "cleanup" and dame-filling moves are not discouraged.
-    // * When playing button go, very slightly discourage passing - so that if there are an even number of dame, filling a dame is still favored over passing.
-    if(moveLoc != Board::PASS_LOC && rootBoard.ko_loc == Board::NULL_LOC) {
-      int pos = NNPos::locToPos(moveLoc,rootBoard.x_size,nnXLen,nnYLen);
-      double plaOwnership = rootPla == P_WHITE ? whiteOwnerMap[pos] : -whiteOwnerMap[pos];
-      if(plaOwnership <= -extreme) {
-        if(!rootBoard.wouldBeCapture(moveLoc,rootPla))
-          extraRootPoints -= searchParams.rootEndingBonusPoints * ((-extreme - plaOwnership) / tail);
-      }
-      else if(plaOwnership >= extreme) {
-        if(!rootBoard.isAdjacentToPla(moveLoc,getOpp(rootPla)) &&
-           !rootBoard.isNonPassAliveSelfConnection(moveLoc,rootPla,rootSafeArea)) {
-          extraRootPoints -= searchParams.rootEndingBonusPoints * ((plaOwnership - extreme) / tail);
-        }
-      }
-    }
-  }
- 
-  if(rootPla == P_WHITE)
-    return extraRootPoints;
-  else
-    return -extraRootPoints;
+  return 0.0;
 }
 
 double Search::interpolateEarly(double halflife, double earlyValue, double value) const {
