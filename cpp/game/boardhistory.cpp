@@ -289,13 +289,6 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   isNoResult = false;
   isResignation = false;
 
-  //Update consecutiveEndingPasses and button
-  if(moveLoc != Board::PASS_LOC)
-    consecutiveEndingPasses = 0;
-  else {
-
-    consecutiveEndingPasses = newConsecutiveEndingPassesAfterPass();
-  }
 
   //Otherwise handle regular moves
   board.playMoveAssumeLegal(moveLoc,movePla);
@@ -315,18 +308,8 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
   if(moveLoc == Board::PASS_LOC)
     endAndSetWinner(opp);
 
-  //Phase transitions and game end
-  if(consecutiveEndingPasses >= 2) {
-    endAndSetWinner(C_EMPTY);
-    ASSERT_UNREACHABLE;
-  }
+  todo;
 
-  int myCapture = movePla == C_WHITE ? board.numBlackCaptures : board.numWhiteCaptures;
-  int oppCapture = movePla == C_WHITE ? board.numBlackCaptures : board.numWhiteCaptures;
-  if(myCapture > 0)
-    endAndSetWinner(movePla);
-  else if(oppCapture > 0)
-    endAndSetWinner(getOpp(movePla));
 
   //Break long cycles with no-result
   if(moveLoc != Board::PASS_LOC && rules.koRule == Rules::KO_SIMPLE) {
@@ -342,65 +325,19 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
 }
 
 
-bool BoardHistory::hasBlackPassOrWhiteFirst() const {
-  //First move was made by white this game, on an empty board.
-  if(initialBoard.isEmpty() && moveHistory.size() > 0 && moveHistory[0].pla == P_WHITE)
-    return true;
-  //Black passed exactly once or white doublemoved
-  int numBlackPasses = 0;
-  int numWhitePasses = 0;
-  int numBlackDoubleMoves = 0;
-  int numWhiteDoubleMoves = 0;
-  for(int i = 0; i<moveHistory.size(); i++) {
-    if(moveHistory[i].loc == Board::PASS_LOC && moveHistory[i].pla == P_BLACK)
-      numBlackPasses++;
-    if(moveHistory[i].loc == Board::PASS_LOC && moveHistory[i].pla == P_WHITE)
-      numWhitePasses++;
-    if(i > 0 && moveHistory[i].pla == P_BLACK && moveHistory[i-1].pla == P_BLACK)
-      numBlackDoubleMoves++;
-    if(i > 0 && moveHistory[i].pla == P_WHITE && moveHistory[i-1].pla == P_WHITE)
-      numWhiteDoubleMoves++;
-  }
-  if(numBlackPasses == 1 && numWhitePasses == 0 && numBlackDoubleMoves == 0 && numWhiteDoubleMoves == 0)
-    return true;
-  if(numBlackPasses == 0 && numWhitePasses == 0 && numBlackDoubleMoves == 0 && numWhiteDoubleMoves == 1)
-    return true;
-
-  return false;
-}
-
-Hash128 BoardHistory::getSituationAndSimpleKoHash(const Board& board, Player nextPlayer) {
+Hash128 BoardHistory::getSituationHash(const Board& board, Player nextPlayer) {
   //Note that board.pos_hash also incorporates the size of the board.
   Hash128 hash = board.pos_hash;
   hash ^= Board::ZOBRIST_PLAYER_HASH[nextPlayer];
-  if(board.ko_loc != Board::NULL_LOC)
-    hash ^= Board::ZOBRIST_KO_LOC_HASH[board.ko_loc];
   return hash;
 }
 
-Hash128 BoardHistory::getSituationAndSimpleKoAndPrevPosHash(const Board& board, const BoardHistory& hist, Player nextPlayer) {
-  //Note that board.pos_hash also incorporates the size of the board.
-  Hash128 hash = board.pos_hash;
-  hash ^= Board::ZOBRIST_PLAYER_HASH[nextPlayer];
-  if(board.ko_loc != Board::NULL_LOC)
-    hash ^= Board::ZOBRIST_KO_LOC_HASH[board.ko_loc];
-
-  Hash128 mixed;
-  mixed.hash1 = Hash::rrmxmx(hash.hash0);
-  mixed.hash0 = Hash::splitMix64(hash.hash1);
-  if(hist.moveHistory.size() > 0)
-    mixed ^= hist.getRecentBoard(1).pos_hash;
-  return mixed;
-}
-
-Hash128 BoardHistory::getSituationRulesAndKoHash(const Board& board, const BoardHistory& hist, Player nextPlayer, double drawEquivalentWinsForWhite) {
+Hash128 BoardHistory::getSituationRulesHash(const Board& board, const BoardHistory& hist, Player nextPlayer, double drawEquivalentWinsForWhite) {
   
   //Note that board.pos_hash also incorporates the size of the board.
   Hash128 hash = board.pos_hash;
   hash ^= Board::ZOBRIST_PLAYER_HASH[nextPlayer];
 
-  if(board.ko_loc != Board::NULL_LOC)
-    hash ^= Board::ZOBRIST_KO_LOC_HASH[board.ko_loc];
   
 
   float selfKomi = hist.currentSelfKomi(nextPlayer,drawEquivalentWinsForWhite);

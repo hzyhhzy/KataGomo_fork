@@ -28,9 +28,6 @@ struct BoardHistory {
   Player presumedNextMovePla;
 
 
-  //Number of consecutive passes made that count for ending the game or phase
-  int consecutiveEndingPasses;
-
 
 
   //Is the game supposed to be ended now?
@@ -102,16 +99,11 @@ struct BoardHistory {
   void printDebugInfo(std::ostream& out, const Board& board) const;
 
 
-  //Heuristically check if this history looks like an sgf variation where black passed to effectively
-  //turn into white, or similar.
-  bool hasBlackPassOrWhiteFirst() const;
 
   //Compute a hash that takes into account the full situation and simple ko prohibition. Does NOT include rules or history.
-  static Hash128 getSituationAndSimpleKoHash(const Board& board, Player nextPlayer);
-  //Compute a hash that takes into account the full situation, simple ko prohibition, and the previous turn's position. (Does NOT include rules).
-  static Hash128 getSituationAndSimpleKoAndPrevPosHash(const Board& board, const BoardHistory& hist, Player nextPlayer);
-  //Compute a hash that takes into account the full situation, the rules, discretized komi, and any immediate ko prohibitions.
-  static Hash128 getSituationRulesAndKoHash(const Board& board, const BoardHistory& hist, Player nextPlayer, double drawEquivalentWinsForWhite);
+  static Hash128 getSituationHash(const Board& board, Player nextPlayer);
+   //Compute a hash that takes into account the full situation, the rules, discretized komi, and any immediate ko prohibitions.
+  static Hash128 getSituationRulesHash(const Board& board, const BoardHistory& hist, Player nextPlayer, double drawEquivalentWinsForWhite);
 
 private:
   int countAreaScoreWhiteMinusBlack(const Board& board) const;
