@@ -190,7 +190,7 @@ struct Board
   short adj_offsets[8]; //Indices 0-3: Offsets to add for adjacent points. Indices 4-7: Offsets for diagonal points. 2 and 3 are +x and +y.
 
   int inWhichSubBoard(Loc loc) const;
-  Color getWinner() const;
+  Color getWinner(int rule) const;
 private:
   void init(int xS, int yS);
 

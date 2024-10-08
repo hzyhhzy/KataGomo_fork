@@ -41,16 +41,18 @@ Rules Rules::getTrompTaylorish() {
 
 
 set<string> Rules::scoringRuleStrings() {
-  return {"AREA"};
+  return {"AREA", "CON"};
 }
 
 int Rules::parseScoringRule(const string& s) {
   if(s == "AREA") return Rules::SCORING_AREA;
+  if(s == "CON") return Rules::SCORING_CON;
   else throw IOError("Rules::parseScoringRule: Invalid scoring rule: " + s);
 }
 
 string Rules::writeScoringRule(int scoringRule) {
   if(scoringRule == Rules::SCORING_AREA) return string("AREA");
+  if(scoringRule == Rules::SCORING_CON) return string("CON");
   return string("UNKNOWN");
 }
 

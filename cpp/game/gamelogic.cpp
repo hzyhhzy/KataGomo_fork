@@ -28,7 +28,7 @@ Color GameLogic::checkWinnerAfterPlayed(
     return getOpp(pla);  //pass is not allowed
   
   //write your own logic here
-  Color winner = board.getWinner();
+  Color winner = board.getWinner(hist.rules.scoringRule);
   if(winner != C_WALL)
     return winner;
 

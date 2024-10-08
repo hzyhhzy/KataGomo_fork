@@ -522,6 +522,20 @@ void NNInputs::fillRowV7(
       else if(stone == opp)
         setRowBin(rowBin,pos,2, 1.0f, posStride, featureStride);
 
+      int sub = board.inWhichSubBoard(loc);
+      Color sbr = board.subBoardResult[sub];
+      if(sbr == pla)
+        setRowBin(rowBin, pos, 3, 1.0f, posStride, featureStride);
+      else if(sbr == opp)
+        setRowBin(rowBin, pos, 4, 1.0f, posStride, featureStride);
+      else if(sbr == C_EMPTY)
+        setRowBin(rowBin, pos, 5, 1.0f, posStride, featureStride);
+      else
+      {
+        if(board.lastLocIdx == sub && board.lastLocIdx == -1)
+          setRowBin(rowBin, pos, 6, 1.0f, posStride, featureStride);
+      }
+
     }
   }
 
@@ -539,7 +553,7 @@ void NNInputs::fillRowV7(
       setRowBin(
         rowBin,
         NNPos::locToPos(resultsBeforeNN.myOnlyLoc, board.x_size, nnXLen, nnYLen),
-        3,
+        20,
         1.0f,
         posStride,
         featureStride);
@@ -559,6 +573,8 @@ void NNInputs::fillRowV7(
   
   // Parameter 0 noResultUtilityForWhite, when draw, white's win rate = 0.5*(noResultUtilityForWhite+1)
   rowGlobal[0] = pla == C_WHITE ? nnInputParams.noResultUtilityForWhite : -nnInputParams.noResultUtilityForWhite;
+
+  rowGlobal[6] = hist.rules.scoringRule == Rules::SCORING_CON;
 
   // Parameter 15 is used because there's actually a discontinuity in how training behavior works when this is
   // nonzero, no matter how slightly.

@@ -168,7 +168,7 @@ Color Board::getSubBoardResult(int idx) const{
   auto checkLine = [&](Loc loc1, Loc loc2, Loc loc3) {
     if(colors[loc1] == C_BLACK && colors[loc2] == C_BLACK && colors[loc3] == C_BLACK)
       return C_BLACK;
-    if(colors[loc1] == C_BLACK && colors[loc2] == C_BLACK && colors[loc3] == C_BLACK)
+    if(colors[loc1] == C_WHITE && colors[loc2] == C_WHITE && colors[loc3] == C_WHITE)
       return C_WHITE;
     return C_EMPTY;
   };
@@ -211,7 +211,7 @@ Color Board::updateSubBoardResult(int idx) {
   return r;
 }
 
-Color Board::getWinner() const {
+Color Board::getWinner(int rule) const {
   static_assert(CON_LEN == 3, "");
   const int lines[8][3] = {
     {0,1,2},
@@ -232,11 +232,26 @@ Color Board::getWinner() const {
   }
 
   // full?
-  for(int li = 0; li < 8; li++) {
-    if(subBoardResult[li] == C_WALL)
+  for(int i = 0; i < CON_LEN * CON_LEN; i++) {
+    if(subBoardResult[i] == C_WALL)
       return C_WALL;
   }
+  if(rule == 1)
+    return C_EMPTY;//SCORING_CON
+
+  int score = 0;
+  for(int i = 0; i < CON_LEN * CON_LEN; i++) {
+    if(subBoardResult[i] == C_BLACK)
+      score += 1;
+    if(subBoardResult[i] == C_WHITE)
+      score -= 1;
+  }
+  if(score > 0)
+    return C_BLACK;
+  if(score < 0)
+    return C_WHITE;
   return C_EMPTY;
+
 }
 
 void Board::setLastLocIdx(int x) {
@@ -348,7 +363,8 @@ bool Board::isLegal(Loc loc, Player pla) const
   if(pla != P_BLACK && pla != P_WHITE)
     return false;
   if(loc == PASS_LOC)
-    return getWinner() != C_WALL; //pass is not allowed, allow pass after game finished just to avoid some crashes
+    return getWinner(0) !=
+           C_WALL;  // pass is not allowed, allow pass after game finished just to avoid some crashes
 
   if(!isOnBoard(loc))
     return false;

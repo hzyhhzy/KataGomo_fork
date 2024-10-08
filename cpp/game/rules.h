@@ -8,8 +8,9 @@
 
 struct Rules {
 
-
-  static const int SCORING_AREA = 0;
+  
+  static const int SCORING_AREA = 0; //if no connection, whose area bigger wins
+  static const int SCORING_CON = 1; //only consider connection
   int scoringRule;
 
 
