@@ -866,6 +866,7 @@ Sgf::PositionSample Sgf::PositionSample::ofJsonLine(const string& s) {
 }
 
 Sgf::PositionSample Sgf::PositionSample::getColorFlipped() const {
+  ASSERT_UNREACHABLE;//some details should be modified, but I'm lazy
   Sgf::PositionSample other = *this;
   Board newBoard(other.board.x_size,other.board.y_size);
   for(int y = 0; y < other.board.y_size; y++) {

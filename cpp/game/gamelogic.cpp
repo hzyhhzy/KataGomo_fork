@@ -28,15 +28,11 @@ Color GameLogic::checkWinnerAfterPlayed(
     return getOpp(pla);  //pass is not allowed
   
   //write your own logic here
-  for (int i = 0; i < 8; i++)
-  {
-    if(board.colors[loc + board.adj_offsets[i]] == pla)
-      return getOpp(pla);
-  }
+  Color winner = board.getWinner();
+  if(winner != C_WALL)
+    return winner;
 
 
-  if(board.movenum >= board.x_size * board.y_size)
-    return C_EMPTY;
 
   return C_WALL;
 }

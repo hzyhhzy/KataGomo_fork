@@ -14,7 +14,7 @@
 #ifdef COMPILE_MAX_BOARD_LEN
 static_assert(COMPILE_MAX_BOARD_LEN should not be defined);
 #endif
-#define COMPILE_MAX_BOARD_LEN 19
+#define COMPILE_MAX_BOARD_LEN 9
 
 //TYPES AND CONSTANTS-----------------------------------------------------------------
 
@@ -98,8 +98,10 @@ struct Board
 
   //Board parameters and Constants----------------------------------------
 
+  static constexpr int CON_LEN = 3;//tic-tac-toc rule
   static constexpr int MAX_LEN = COMPILE_MAX_BOARD_LEN;  //Maximum edge length allowed for the board
-  static constexpr int DEFAULT_LEN = std::min(MAX_LEN,19); //Default edge length for board if unspecified
+  static constexpr int DEFAULT_LEN = MAX_LEN; //Default edge length for board if unspecified
+  static_assert(CON_LEN * CON_LEN == MAX_LEN, "Game rule only allow xsize=ysize=n^2 , n is usually 3");
   static constexpr int MAX_PLAY_SIZE = MAX_LEN * MAX_LEN;  //Maximum number of playable spaces
   static constexpr int MAX_ARR_SIZE = (MAX_LEN+1)*(MAX_LEN+2)+1; //Maximum size of arrays needed
 
@@ -115,6 +117,8 @@ struct Board
   static Hash128 ZOBRIST_BOARD_HASH[MAX_ARR_SIZE][4];
   static Hash128 ZOBRIST_MOVENUM_HASH[MAX_ARR_SIZE];
   static Hash128 ZOBRIST_BOARD_HASH2[MAX_ARR_SIZE][4];
+  static Hash128 ZOBRIST_SUBBOARD_RESULT_HASH[CON_LEN * CON_LEN][4];
+  static Hash128 ZOBRIST_LASTLOCIDX_HASH[CON_LEN * CON_LEN + 1];
   static Hash128 ZOBRIST_PLAYER_HASH[4];
   static const Hash128 ZOBRIST_GAME_IS_OVER;
 
@@ -174,6 +178,8 @@ struct Board
   int x_size;                  //Horizontal size of board
   int y_size;                  //Vertical size of board
   Color colors[MAX_ARR_SIZE];  //Color of each location on the board.
+  Color subBoardResult[CON_LEN * CON_LEN]; //winner of every 3x3 local board. C_WALL if not finished, C_EMPTY if draw
+  int lastLocIdx;//which local board should next move be in, -1 if everywhere is ok
   int movenum; //how many moves
   int stonenum; //how many stones on board
 
@@ -183,10 +189,19 @@ struct Board
 
   short adj_offsets[8]; //Indices 0-3: Offsets to add for adjacent points. Indices 4-7: Offsets for diagonal points. 2 and 3 are +x and +y.
 
-  private:
+  int inWhichSubBoard(Loc loc) const;
+  Color getWinner() const;
+private:
   void init(int xS, int yS);
 
   friend std::ostream& operator<<(std::ostream& out, const Board& board);
+
+  void setLastLocIdx(int x);
+  void setSubBoardResult(int idx, Color winner);
+  int getSubLoc(Loc loc) const;
+  Loc subBoardFirstLoc(int idx) const;
+  Color getSubBoardResult(int idx) const;
+  Color updateSubBoardResult(int idx);
 
 
   //static void monteCarloOwner(Player player, Board* board, int mc_counts[]);

@@ -318,6 +318,11 @@ Loc SymmetryHelpers::getSymLoc(Loc loc, int xSize, int ySize, int symmetry) {
 
 
 Board SymmetryHelpers::getSymBoard(const Board& board, int symmetry) {
+  if (symmetry != 0)
+  {
+    cout << "warning: SymmetryHelpers::getSymBoard is not implemented" << endl;
+    symmetry = 0;
+  }
   bool transpose = (symmetry & 0x4) != 0;
   bool flipX = (symmetry & 0x2) != 0;
   bool flipY = (symmetry & 0x1) != 0;

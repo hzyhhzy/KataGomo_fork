@@ -24,6 +24,8 @@ Hash128 Board::ZOBRIST_BOARD_HASH[MAX_ARR_SIZE][4];
 Hash128 Board::ZOBRIST_PLAYER_HASH[4];
 Hash128 Board::ZOBRIST_MOVENUM_HASH[MAX_ARR_SIZE];
 Hash128 Board::ZOBRIST_BOARD_HASH2[MAX_ARR_SIZE][4];
+Hash128 Board::ZOBRIST_SUBBOARD_RESULT_HASH[CON_LEN * CON_LEN][4];
+Hash128 Board::ZOBRIST_LASTLOCIDX_HASH[CON_LEN * CON_LEN + 1];
 const Hash128 Board::ZOBRIST_GAME_IS_OVER = //Based on sha256 hash of Board::ZOBRIST_GAME_IS_OVER
   Hash128(0xb6f9e465597a77eeULL, 0xf1d583d960a4ce7fULL);
 
@@ -65,19 +67,19 @@ Loc Location::getCenterLoc(int x_size, int y_size) {
 }
 
 Loc Location::getCenterLoc(const Board& b) {
-  return getCenterLoc(b.x_size,b.y_size);
+  return getCenterLoc(b.x_size, b.y_size);
 }
 
 bool Location::isCentral(Loc loc, int x_size, int y_size) {
-  int x = getX(loc,x_size);
-  int y = getY(loc,x_size);
-  return x >= (x_size-1)/2 && x <= x_size/2 && y >= (y_size-1)/2 && y <= y_size/2;
+  int x = getX(loc, x_size);
+  int y = getY(loc, x_size);
+  return x >= (x_size - 1) / 2 && x <= x_size / 2 && y >= (y_size - 1) / 2 && y <= y_size / 2;
 }
 
 bool Location::isNearCentral(Loc loc, int x_size, int y_size) {
-  int x = getX(loc,x_size);
-  int y = getY(loc,x_size);
-  return x >= (x_size-1)/2-1 && x <= x_size/2+1 && y >= (y_size-1)/2-1 && y <= y_size/2+1;
+  int x = getX(loc, x_size);
+  int y = getY(loc, x_size);
+  return x >= (x_size - 1) / 2 - 1 && x <= x_size / 2 + 1 && y >= (y_size - 1) / 2 - 1 && y <= y_size / 2 + 1;
 }
 
 
@@ -86,17 +88,19 @@ bool Location::isNearCentral(Loc loc, int x_size, int y_size) {
 #define ADJ1 (-1)
 #define ADJ2 (1)
 #define ADJ3 (x_size+1)
+#define ADJX (1)
+#define ADJY (x_size+1)
 
 //CONSTRUCTORS AND INITIALIZATION----------------------------------------------------------
 
 Board::Board()
 {
-  init(DEFAULT_LEN,DEFAULT_LEN);
+  init(DEFAULT_LEN, DEFAULT_LEN);
 }
 
 Board::Board(int x, int y)
 {
-  init(x,y);
+  init(x, y);
 }
 
 
@@ -105,45 +109,168 @@ Board::Board(const Board& other)
   x_size = other.x_size;
   y_size = other.y_size;
 
-  memcpy(colors, other.colors, sizeof(Color)*MAX_ARR_SIZE);
+  memcpy(colors, other.colors, sizeof(Color) * MAX_ARR_SIZE);
+  memcpy(subBoardResult, other.subBoardResult, sizeof(Color) * CON_LEN * CON_LEN);
 
+  lastLocIdx = other.lastLocIdx;
   movenum = other.movenum;
   stonenum = other.stonenum;
   pos_hash = other.pos_hash;
 
-  memcpy(adj_offsets, other.adj_offsets, sizeof(short)*8);
+  memcpy(adj_offsets, other.adj_offsets, sizeof(short) * 8);
 }
 
 void Board::init(int xS, int yS)
 {
   assert(IS_ZOBRIST_INITALIZED);
-  if(xS < 0 || yS < 0 || xS > MAX_LEN || yS > MAX_LEN)
+  if (xS < 0 || yS < 0 || xS > MAX_LEN || yS > MAX_LEN)
     throw StringError("Board::init - invalid board size");
+
+  if (xS != MAX_LEN || yS != MAX_LEN)
+    throw StringError("Board::init - 9x9 board only");
 
   x_size = xS;
   y_size = yS;
 
-  for(int i = 0; i < MAX_ARR_SIZE; i++)
+  for (int i = 0; i < MAX_ARR_SIZE; i++)
     colors[i] = C_WALL;
 
   movenum = 0;
   stonenum = 0;
 
-  for(int y = 0; y < y_size; y++)
+  for (int y = 0; y < y_size; y++)
   {
-    for(int x = 0; x < x_size; x++)
+    for (int x = 0; x < x_size; x++)
     {
-      Loc loc = (x+1) + (y+1)*(x_size+1);
+      Loc loc = (x + 1) + (y + 1) * (x_size + 1);
       colors[loc] = C_EMPTY;
       // empty_list.add(loc);
     }
   }
+  for (int i = 0; i < CON_LEN * CON_LEN; i++)
+    subBoardResult[i] = C_WALL;
+  lastLocIdx = -1;
 
   pos_hash = ZOBRIST_SIZE_X_HASH[x_size] ^ ZOBRIST_SIZE_Y_HASH[y_size];
 
-  Location::getAdjacentOffsets(adj_offsets,x_size);
+  Location::getAdjacentOffsets(adj_offsets, x_size);
 }
 
+
+Loc Board::subBoardFirstLoc(int idx) const {
+  int idxX = idx % CON_LEN;
+  int idxY = idx / CON_LEN;
+  return Location::getLoc(idxX * CON_LEN, idxY * CON_LEN, x_size);
+}
+
+Color Board::getSubBoardResult(int idx) const{
+  static_assert(CON_LEN == 3, "");
+  auto checkLine = [&](Loc loc1, Loc loc2, Loc loc3) {
+    if(colors[loc1] == C_BLACK && colors[loc2] == C_BLACK && colors[loc3] == C_BLACK)
+      return C_BLACK;
+    if(colors[loc1] == C_BLACK && colors[loc2] == C_BLACK && colors[loc3] == C_BLACK)
+      return C_WHITE;
+    return C_EMPTY;
+  };
+  Loc loc0 = subBoardFirstLoc(idx);
+  Color res = C_EMPTY;
+  res = checkLine(loc0 + ADJX * 0 + ADJY * 0, loc0 + ADJX * 1 + ADJY * 0, loc0 + ADJX * 2 + ADJY * 0);
+  if(res != C_EMPTY)return res;
+  res = checkLine(loc0 + ADJX * 0 + ADJY * 1, loc0 + ADJX * 1 + ADJY * 1, loc0 + ADJX * 2 + ADJY * 1);
+  if(res != C_EMPTY)return res;
+  res = checkLine(loc0 + ADJX * 0 + ADJY * 2, loc0 + ADJX * 1 + ADJY * 2, loc0 + ADJX * 2 + ADJY * 2);
+  if(res != C_EMPTY)return res;
+  res = checkLine(loc0 + ADJX * 0 + ADJY * 0, loc0 + ADJX * 0 + ADJY * 1, loc0 + ADJX * 0 + ADJY * 2);
+  if(res != C_EMPTY)return res;
+  res = checkLine(loc0 + ADJX * 1 + ADJY * 0, loc0 + ADJX * 1 + ADJY * 1, loc0 + ADJX * 1 + ADJY * 2);
+  if(res != C_EMPTY)return res;
+  res = checkLine(loc0 + ADJX * 2 + ADJY * 0, loc0 + ADJX * 2 + ADJY * 1, loc0 + ADJX * 2 + ADJY * 2);
+  if(res != C_EMPTY)return res;
+
+  res = checkLine(loc0 + ADJX * 0 + ADJY * 0, loc0 + ADJX * 1 + ADJY * 1, loc0 + ADJX * 2 + ADJY * 2);
+  if(res != C_EMPTY)return res;
+  res = checkLine(loc0 + ADJX * 0 + ADJY * 2, loc0 + ADJX * 1 + ADJY * 1, loc0 + ADJX * 2 + ADJY * 0);
+  if(res != C_EMPTY)return res;
+
+  //full?
+  for(int y = 0; y < CON_LEN; y++)
+    for(int x = 0; x < CON_LEN; x++)
+    {
+      Loc loc = loc0 + ADJX * x + ADJY * y;
+      if(colors[loc] == C_EMPTY)
+        return C_WALL;
+    }
+  return C_EMPTY;
+}
+
+Color Board::updateSubBoardResult(int idx) {
+  Color r = getSubBoardResult(idx);
+  if(r == C_WALL)
+    return C_WALL;
+  setSubBoardResult(idx, r);
+  return r;
+}
+
+Color Board::getWinner() const {
+  static_assert(CON_LEN == 3, "");
+  const int lines[8][3] = {
+    {0,1,2},
+    {3,4,5},
+    {6,7,8},
+    {0,3,6},
+    {1,4,7},
+    {2,5,8},
+    {0,4,8},
+    {2,4,6}
+  };
+  for (int li = 0; li < 8; li++)
+  {
+    if(subBoardResult[lines[li][0]] == C_BLACK && subBoardResult[lines[li][1]] == C_BLACK && subBoardResult[lines[li][2]] == C_BLACK)
+      return C_BLACK;
+    if(subBoardResult[lines[li][0]] == C_WHITE && subBoardResult[lines[li][1]] == C_WHITE && subBoardResult[lines[li][2]] == C_WHITE)
+      return C_WHITE;
+  }
+
+  // full?
+  for(int li = 0; li < 8; li++) {
+    if(subBoardResult[li] == C_WALL)
+      return C_WALL;
+  }
+  return C_EMPTY;
+}
+
+void Board::setLastLocIdx(int x) {
+  assert(x >= -1 && x < CON_LEN * CON_LEN);
+  pos_hash ^= ZOBRIST_LASTLOCIDX_HASH[lastLocIdx + 1];
+  lastLocIdx = x;
+  pos_hash ^= ZOBRIST_LASTLOCIDX_HASH[lastLocIdx + 1];
+}
+
+void Board::setSubBoardResult(int idx, Color winner) {
+  pos_hash ^= ZOBRIST_SUBBOARD_RESULT_HASH[idx][subBoardResult[idx]];
+  pos_hash ^= ZOBRIST_SUBBOARD_RESULT_HASH[idx][winner];
+  subBoardResult[idx] = winner;
+  //fill the subboard
+  Loc loc0 = subBoardFirstLoc(idx);
+  for(int y = 0; y < CON_LEN; y++)
+    for(int x = 0; x < CON_LEN; x++) {
+      Loc loc = loc0 + ADJX * x + ADJY * y;
+      setStone(loc, winner);
+    }
+
+}
+int Board::inWhichSubBoard(Loc loc) const {
+  int x = Location::getX(loc, x_size);
+  int y = Location::getY(loc, x_size);
+  assert(x >= 0 && y >= 0);
+  return CON_LEN * (y / CON_LEN) + (x / CON_LEN);
+}
+int Board::getSubLoc(Loc loc) const {
+  int x = Location::getX(loc, x_size);
+  int y = Location::getY(loc, x_size);
+  assert(x >= 0 && y >= 0);
+  return CON_LEN * (y % CON_LEN) + (x % CON_LEN);
+}
 void Board::initHash()
 {
   if(IS_ZOBRIST_INITALIZED)
@@ -170,6 +297,19 @@ void Board::initHash()
 
     }
   }
+
+  for(int i = 0; i < CON_LEN * CON_LEN; i++) {
+    for(Color j = 0; j < 4; j++) {
+      if(j == C_WALL)
+        ZOBRIST_SUBBOARD_RESULT_HASH[i][j] = Hash128();
+      else
+        ZOBRIST_BOARD_HASH[i][j] = nextHash();
+    }
+  }
+  for(int i = 0; i < CON_LEN * CON_LEN + 1; i++) {
+    ZOBRIST_LASTLOCIDX_HASH[i] = nextHash();
+  }
+  ZOBRIST_LASTLOCIDX_HASH[0] = Hash128();
 
   for(int i = 0; i < MAX_ARR_SIZE; i++) {
     ZOBRIST_MOVENUM_HASH[i] = nextHash();
@@ -207,11 +347,23 @@ bool Board::isLegal(Loc loc, Player pla) const
 {
   if(pla != P_BLACK && pla != P_WHITE)
     return false;
-  return loc == PASS_LOC || (
-    loc >= 0 &&
-    loc < MAX_ARR_SIZE &&
-    (colors[loc] == C_EMPTY) 
-  );
+  if(loc == PASS_LOC)
+    return getWinner() != C_WALL; //pass is not allowed, allow pass after game finished just to avoid some crashes
+
+  if(!isOnBoard(loc))
+    return false;
+
+  int subboard = inWhichSubBoard(loc);
+  if(lastLocIdx != -1 && subboard != lastLocIdx)
+    return false;
+  if (subBoardResult[subboard] != C_WALL)
+  {
+    assert(lastLocIdx == -1);//or this loc should be filtered out by subboard != lastLocIdx
+    return false;
+  }
+  if(colors[loc] != C_EMPTY)
+    return false;
+  return true;
 }
 
 bool Board::isEmpty() const {
@@ -269,6 +421,7 @@ bool Board::setStone(Loc loc, Color color)
   return true;
 }
 bool Board::setStones(std::vector<Move> placements) {
+  throw StringError("Board::setStones disabled");
   std::set<Loc> locs;
   for(const Move& placement: placements) {
     if(locs.find(placement.loc) != locs.end())
@@ -304,6 +457,13 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
     return;
   }
   setStone(loc, pla);
+  int subboard = inWhichSubBoard(loc);
+  updateSubBoardResult(subboard);
+  int subLoc = getSubLoc(loc);
+  if(subBoardResult[subLoc] == C_WALL)
+    setLastLocIdx(subLoc);
+  else
+    setLastLocIdx(-1);
 
 }
 
@@ -356,6 +516,34 @@ void Board::checkConsistency() const {
   }
 
   tmp_pos_hash ^= ZOBRIST_MOVENUM_HASH[movenum];
+
+  for(int i = 0; i < CON_LEN * CON_LEN; i++) {
+    Color sbr = subBoardResult[i];
+    tmp_pos_hash ^= ZOBRIST_SUBBOARD_RESULT_HASH[i][sbr];
+    if(sbr != C_WALL) { //subboard finished, should be filled
+      Loc sbloc0 = subBoardFirstLoc(i);
+      for(int dy = 0; dy < CON_LEN; dy++)
+        for(int dx = 0; dx < CON_LEN; dx++) {
+          Loc loc1 = sbloc0 + ADJX * dx + ADJY * dy;
+          if(colors[loc1] != sbr)
+            throw StringError(errLabel + " Sub-board should be filled if finished");
+        }
+    }
+    else //the subboard should at least not filled
+    {
+      bool anyEmpty = false;
+      Loc sbloc0 = subBoardFirstLoc(i);
+      for(int dy = 0; dy < CON_LEN; dy++)
+        for(int dx = 0; dx < CON_LEN; dx++) {
+          Loc loc1 = sbloc0 + ADJX * dx + ADJY * dy;
+          if(colors[loc1] == C_EMPTY)
+            anyEmpty = true;
+        }
+      if(!anyEmpty)
+        throw StringError(errLabel + " Sub-board should not be filled if not finished");
+    }
+  }
+  tmp_pos_hash ^= ZOBRIST_LASTLOCIDX_HASH[lastLocIdx + 1];
 
   if(pos_hash != tmp_pos_hash)
     throw StringError(errLabel + "Pos hash does not match expected");

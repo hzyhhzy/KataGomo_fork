@@ -946,6 +946,7 @@ int MainCmds::analysis(const vector<string>& args) {
 
 
       Board board(boardXSize,boardYSize);
+      ASSERT_UNREACHABLE;//some details should be modified, but I'm lazy
       for(int i = 0; i<placements.size(); i++) {
         board.setStone(placements[i].loc,placements[i].pla);
       }
