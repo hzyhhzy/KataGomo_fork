@@ -566,7 +566,10 @@ void NNInputs::fillRowV7(
   //The first 5 of them were set already above to flag which of the past 5 moves were passes.
 
   //Scoring
-  if(hist.rules.scoringRule == Rules::SCORING_AREA) {}
+  if(hist.rules.scoringRule == Rules::SCORING_AREA) {} 
+  else if(hist.rules.scoringRule == Rules::SCORING_CON) {
+    rowGlobal[6] = 1.0;
+  }
   else
     ASSERT_UNREACHABLE;
 
@@ -574,7 +577,6 @@ void NNInputs::fillRowV7(
   // Parameter 0 noResultUtilityForWhite, when draw, white's win rate = 0.5*(noResultUtilityForWhite+1)
   rowGlobal[0] = pla == C_WHITE ? nnInputParams.noResultUtilityForWhite : -nnInputParams.noResultUtilityForWhite;
 
-  rowGlobal[6] = hist.rules.scoringRule == Rules::SCORING_CON;
 
   // Parameter 15 is used because there's actually a discontinuity in how training behavior works when this is
   // nonzero, no matter how slightly.

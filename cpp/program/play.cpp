@@ -1225,6 +1225,19 @@ FinishedGameData* Play::runGame(
     }
   };
 
+  if (gameRand.nextBool(0.95))
+  {
+    if (board.stonenum == 0)
+    {
+      //random play first move
+      int x = gameRand.nextUInt(board.x_size);
+      int y = gameRand.nextUInt(board.y_size);
+      Loc loc = Location::getLoc(x, y, board.x_size);
+      assert(pla == C_BLACK);
+      assert(board.isLegal(loc, pla));
+      hist.makeBoardMoveAssumeLegal(board, loc, pla);
+    }
+  }
 
   if(playSettings.initGamesWithPolicy && otherGameProps.allowPolicyInit) {
     double avgPolicyInitMoveNum =
