@@ -22,10 +22,10 @@ Hash128 Board::ZOBRIST_SIZE_X_HASH[MAX_LEN+1];
 Hash128 Board::ZOBRIST_SIZE_Y_HASH[MAX_LEN+1];
 Hash128 Board::ZOBRIST_BOARD_HASH[MAX_ARR_SIZE][NUM_BOARD_COLORS];
 Hash128 Board::ZOBRIST_STAGENUM_HASH[STAGE_NUM_EACH_PLA];
-Hash128 Board::ZOBRIST_STAGELOC_HASH[MAX_ARR_SIZE][STAGE_NUM_EACH_PLA];
 Hash128 Board::ZOBRIST_NEXTPLA_HASH[4];
 Hash128 Board::ZOBRIST_MOVENUM_HASH[MAX_MOVE_NUM];
 Hash128 Board::ZOBRIST_PLAYER_HASH[4];
+Hash128 Board::ZOBRIST_FENCENUM_HASH[MAX_FENCE_NUM + 1][2];
 const Hash128 Board::ZOBRIST_GAME_IS_OVER = //Based on sha256 hash of Board::ZOBRIST_GAME_IS_OVER
   Hash128(0xb6f9e465597a77eeULL, 0xf1d583d960a4ce7fULL);
 
@@ -109,6 +109,8 @@ Board::Board(const Board& other)
 
   memcpy(colors, other.colors, sizeof(Color)*MAX_ARR_SIZE);
 
+  blackFences = other.blackFences;
+  whiteFences = other.whiteFences;
   movenum = other.movenum;
   pos_hash = other.pos_hash;
 
@@ -151,20 +153,24 @@ void Board::init(int xS, int yS)
   pos_hash = ZOBRIST_SIZE_X_HASH[x_size] ^ ZOBRIST_SIZE_Y_HASH[y_size] ^ ZOBRIST_NEXTPLA_HASH[nextPla] ^
              ZOBRIST_STAGENUM_HASH[stage];
 
+  blackFences = MAX_FENCE_NUM;
+  whiteFences = MAX_FENCE_NUM;
+  pos_hash ^= ZOBRIST_FENCENUM_HASH[blackFences][0];
+  pos_hash ^= ZOBRIST_FENCENUM_HASH[whiteFences][1];
+
   Location::getAdjacentOffsets(adj_offsets, x_size);
 
-  if(y_size < 4) {
-    cout << "y_size < 4 is not supported for Breakthrough";
+  if(x_size % 2 == 0 || y_size % 2 == 0) {
+    throw StringError("Real board size is 2*n-1, so both xsize and ysize should be odd");
     return;
   }
 
-  //initial stones of breakthrough
-  for(int x = 0; x < x_size; x++) {
-    setStone(Location::getLoc(x, 0, x_size), C_WHITE);
-    setStone(Location::getLoc(x, 1, x_size), C_WHITE);
-    setStone(Location::getLoc(x, y_size - 1, x_size), C_BLACK);
-    setStone(Location::getLoc(x, y_size - 2, x_size), C_BLACK);
-  }
+  //initial stone
+  int midX = (x_size - 1) / 2;
+  if(midX % 2 == 0)
+    throw StringError("xsize should be 4*n+1");
+  setStone(Location::getLoc(midX, 0, x_size), C_WHITE);
+  setStone(Location::getLoc(midX, y_size - 1, x_size), C_BLACK);
 }
 
 void Board::initHash()
@@ -195,10 +201,13 @@ void Board::initHash()
 
   for(int i = 0; i < STAGE_NUM_EACH_PLA; i++) {
     ZOBRIST_STAGENUM_HASH[i] = nextHash();
-    for(int j = 0; j < MAX_ARR_SIZE; j++)
-      ZOBRIST_STAGELOC_HASH[j][i] = nextHash();
-    ZOBRIST_STAGELOC_HASH[Board::NULL_LOC][i] = Hash128();
   }
+  for(int i = 0; i < MAX_FENCE_NUM + 1; i++) {
+    ZOBRIST_FENCENUM_HASH[i][0] = nextHash();
+    ZOBRIST_FENCENUM_HASH[i][1] = nextHash();
+  }
+
+
   ZOBRIST_STAGENUM_HASH[0] = Hash128();
 
   for(Color j = 0; j < 4; j++) {
@@ -419,10 +428,9 @@ void Board::checkConsistency() const {
 
   tmp_pos_hash ^= ZOBRIST_NEXTPLA_HASH[nextPla];
   tmp_pos_hash ^= ZOBRIST_STAGENUM_HASH[stage];
-  for(int i = 0; i < STAGE_NUM_EACH_PLA; i++) {
-    // std::cout << ZOBRIST_STAGELOC_HASH[midLocs[i]][i]<<" ";
-    tmp_pos_hash ^= ZOBRIST_STAGELOC_HASH[midLocs[i]][i];
-  }
+
+  tmp_pos_hash ^= ZOBRIST_FENCENUM_HASH[blackFences][0];
+  tmp_pos_hash ^= ZOBRIST_FENCENUM_HASH[whiteFences][1];
 
   if(pos_hash != tmp_pos_hash) {
     std::cout << "Stage=" << stage << ",NextPla=" << int(nextPla) << std::endl;

@@ -14,7 +14,31 @@
 #ifdef COMPILE_MAX_BOARD_LEN
 static_assert(COMPILE_MAX_BOARD_LEN should not be defined);
 #endif
-#define COMPILE_MAX_BOARD_LEN 8
+#define COMPILE_MAX_BOARD_LEN 17 //9x9 board
+
+/*
+Board representation
+For a 9x9 board, there are 8x8 places to place horizontal or vertical fences
+Use a 17x17 matrix to represent the board.
+(odd,odd) locations are where can pawns reach
+(even,even) are where can place fences. The length of the fence is 3, and the center is (even,even)
+(even,odd) and (odd,even) locations can show whether the fence is horizontal or vertical, so no need to record the direction.
+
+The legal actions is 9*9 + 2*8*8
+However, Katago only support 1*H*W+1 policy output. 
+So I use "pass" to divide the actions to two parts: first 17x17 is 9*9 + 8*8, the second 17*17 is another 8*8
+
+Move pawns: Directly play at an (odd,odd) location
+Place horizontal(y direction) fences: Directly play at an (even,even) location
+Place vertical(x direction) fences: Pass, then play at an (even,even) location
+
+
+*/
+
+
+
+//how many fences does each player have
+static const int MAX_FENCE_NUM = 10;
 
 //how many stages in each move
 //eg: Chess has 2 stages: moving which piece, and where to place.
@@ -39,7 +63,8 @@ static constexpr Color C_EMPTY = 0;
 static constexpr Color C_BLACK = 1;
 static constexpr Color C_WHITE = 2;
 static constexpr Color C_WALL = 3;
-static constexpr int NUM_BOARD_COLORS = 4;
+static constexpr Color C_FENCE = 4;
+static constexpr int NUM_BOARD_COLORS = 5;
 
 static inline Color getOpp(Color c)
 {return c ^ 3;}
@@ -122,10 +147,11 @@ struct Board
   static Hash128 ZOBRIST_SIZE_Y_HASH[MAX_LEN+1];
   static Hash128 ZOBRIST_BOARD_HASH[MAX_ARR_SIZE][NUM_BOARD_COLORS];
   static Hash128 ZOBRIST_STAGENUM_HASH[STAGE_NUM_EACH_PLA];
-  static Hash128 ZOBRIST_STAGELOC_HASH[MAX_ARR_SIZE][STAGE_NUM_EACH_PLA];
+  //static Hash128 ZOBRIST_STAGELOC_HASH[MAX_ARR_SIZE][STAGE_NUM_EACH_PLA];
   static Hash128 ZOBRIST_NEXTPLA_HASH[4];
   static Hash128 ZOBRIST_MOVENUM_HASH[MAX_MOVE_NUM];
   static Hash128 ZOBRIST_PLAYER_HASH[4];
+  static Hash128 ZOBRIST_FENCENUM_HASH[MAX_FENCE_NUM + 1][2];
   static const Hash128 ZOBRIST_GAME_IS_OVER;
 
   //Structs---------------------------------------
@@ -167,11 +193,13 @@ struct Board
 
   // who plays the last move
   Player prevPla() const;
-
+  
 
   
   Hash128 getSitHash(Player pla) const;
   
+  bool isBoardNotConnected() const;//Every fence should ensure not block the path
+  Loc directionTowardsDestination(Player pla) const;//find the direction to destination. Only used at the beginning of the training to ensure the game ends
 
   //Run some basic sanity checks on the board state, throws an exception if not consistent, for testing/debugging
   void checkConsistency() const;
@@ -191,6 +219,8 @@ struct Board
   int x_size;                  //Horizontal size of board
   int y_size;                  //Vertical size of board
   Color colors[MAX_ARR_SIZE];  //Color of each location on the board.
+  int blackFences;
+  int whiteFences;
   int movenum; //how many moves
 
   /* PointList empty_list; //List of all empty locations on board */
