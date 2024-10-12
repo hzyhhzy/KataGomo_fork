@@ -353,79 +353,8 @@ void SymmetryHelpers::markDuplicateMoveLocs(
   validSymmetries.clear();
   validSymmetries.reserve(SymmetryHelpers::NUM_SYMMETRIES);
   validSymmetries.push_back(0);
+  return;
 
-
-  //If board has different sizes of x and y, we will not search symmetries involved with transpose.
-  int symmetrySearchUpperBound = board.x_size == board.y_size ? SymmetryHelpers::NUM_SYMMETRIES : SymmetryHelpers::NUM_SYMMETRIES_WITHOUT_TRANSPOSE;
-
-  for(int symmetry = 1; symmetry < symmetrySearchUpperBound; symmetry++) {
-    if(onlySymmetries != NULL && !contains(*onlySymmetries,symmetry))
-      continue;
-
-    bool isBoardSym = true;
-
-    //check chosen pieces first
-    for(int i = 0; i < board.stage; i++) {
-      Loc loc = board.midLocs[i];
-      if(board.isOnBoard(loc)) {
-        Loc symLoc = getSymLoc(loc, board, symmetry);
-        if(symLoc != loc)
-          isBoardSym = false;
-      }
-    }
-
-    for(int y = 0; y < board.y_size; y++) {
-      for(int x = 0; x < board.x_size; x++) {
-        Loc loc = Location::getLoc(x, y, board.x_size);
-        Loc symLoc = getSymLoc(x, y, board,symmetry);
-        bool isStoneSym = (board.colors[loc] == board.colors[symLoc]);
-        if(!isStoneSym ) {
-          isBoardSym = false;
-          break;
-        }
-      }
-      if(!isBoardSym)
-        break;
-    }
-    if(isBoardSym)
-      validSymmetries.push_back(symmetry);
-  }
-
-  //The way we iterate is to achieve https://senseis.xmp.net/?PlayingTheFirstMoveInTheUpperRightCorner%2FDiscussion
-  //Reverse the iteration order for white, so that natural openings result in white on the left and black on the right
-  //as is common now in SGFs
-  if(hist.presumedNextMovePla == P_BLACK) {
-    for(int x = board.x_size-1; x >= 0; x--) {
-      for(int y = 0; y < board.y_size; y++) {
-        Loc loc = Location::getLoc(x, y, board.x_size);
-        if(avoidMoves.size() > 0 && avoidMoves[loc] > 0)
-          continue;
-        for(int symmetry: validSymmetries) {
-          if(symmetry == 0)
-            continue;
-          Loc symLoc = getSymLoc(x, y, board, symmetry);
-          if(!isSymDupLoc[loc] && loc != symLoc)
-            isSymDupLoc[symLoc] = true;
-        }
-      }
-    }
-  }
-  else {
-    for(int x = 0; x < board.x_size; x++) {
-      for(int y = board.y_size-1; y >= 0; y--) {
-        Loc loc = Location::getLoc(x, y, board.x_size);
-        if(avoidMoves.size() > 0 && avoidMoves[loc] > 0)
-          continue;
-        for(int symmetry: validSymmetries) {
-          if(symmetry == 0)
-            continue;
-          Loc symLoc = getSymLoc(x, y, board, symmetry);
-          if(!isSymDupLoc[loc] && loc != symLoc)
-            isSymDupLoc[symLoc] = true;
-        }
-      }
-    }
-  }
 }
 
 //-------------------------------------------------------------------------------------------------------------
@@ -538,13 +467,6 @@ void NNInputs::fillRowV7(
   } else if(board.stage == 1)  // place
   {
     rowGlobal[0] = 1.0f;
-    Loc chosenMove = board.midLocs[0];
-    if(!board.isOnBoard(chosenMove)) {
-      std::cout << "nninput: chosen move not on board ";
-    } else {
-      int pos = NNPos::locToPos(chosenMove, board.x_size, nnXLen, nnYLen);
-      setRowBin(rowBin, pos, 3, 1.0f, posStride, featureStride);
-    }
   } else
     ASSERT_UNREACHABLE;
 

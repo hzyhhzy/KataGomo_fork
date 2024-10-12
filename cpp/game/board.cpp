@@ -111,6 +111,8 @@ Board::Board(const Board& other)
 
   blackFences = other.blackFences;
   whiteFences = other.whiteFences;
+  blackPawnLoc = other.blackPawnLoc;
+  whitePawnLoc = other.whitePawnLoc;
   movenum = other.movenum;
   pos_hash = other.pos_hash;
 
@@ -118,7 +120,6 @@ Board::Board(const Board& other)
 
   nextPla = other.nextPla;
   stage = other.stage;
-  memcpy(midLocs, other.midLocs, sizeof(Loc) * STAGE_NUM_EACH_PLA);
 }
 
 void Board::init(int xS, int yS)
@@ -144,9 +145,6 @@ void Board::init(int xS, int yS)
       // empty_list.add(loc);
     }
   }
-  for(int i = 0; i < STAGE_NUM_EACH_PLA; i++) {
-    midLocs[i] = Board::NULL_LOC;
-  }
   nextPla = C_BLACK;
   stage = 0;
 
@@ -167,10 +165,24 @@ void Board::init(int xS, int yS)
 
   //initial stone
   int midX = (x_size - 1) / 2;
-  if(midX % 2 == 0)
+  if(midX % 2 == 1)
     throw StringError("xsize should be 4*n+1");
-  setStone(Location::getLoc(midX, 0, x_size), C_WHITE);
-  setStone(Location::getLoc(midX, y_size - 1, x_size), C_BLACK);
+  whitePawnLoc = Location::getLoc(midX, 0, x_size);
+  setStone(whitePawnLoc, C_WHITE);
+  blackPawnLoc = Location::getLoc(midX, y_size - 1, x_size);
+  setStone(blackPawnLoc, C_BLACK);
+}
+
+void Board::placeFence(Loc loc, bool isVertical) {
+  setStone(loc, C_FENCE);
+  if(isVertical) {
+    setStone(loc + adj_offsets[0], C_FENCE);
+    setStone(loc + adj_offsets[3], C_FENCE);
+  } 
+  else {
+    setStone(loc + adj_offsets[1], C_FENCE);
+    setStone(loc + adj_offsets[2], C_FENCE);
+  }
 }
 
 void Board::initHash()
@@ -238,9 +250,110 @@ bool Board::isOnBoard(Loc loc) const {
 }
 
 //Check if moving here is illegal.
-bool Board::isLegal(Loc loc, Player pla) const
-{
-  return GameLogic::isLegal(*this, pla, loc);
+bool Board::isLegal(Loc loc, Player pla) const {
+  if(pla != nextPla) {
+    std::cout << "Error next player ";
+    return false;
+  }
+
+  if(loc == Board::PASS_LOC) {
+    int myFenceNum = pla == C_BLACK ? blackFences : whiteFences;
+    if(myFenceNum <= 0)
+      return false;
+    else
+      return stage == 0;
+  }
+
+  if(!isOnBoard(loc))
+    return false;
+
+  if(colors[loc] != C_EMPTY)
+    return false;
+
+  int x = Location::getX(loc, x_size);
+  int y = Location::getY(loc, x_size);
+  if(x % 2 == 0 && y % 2 == 0)  // move the pawn
+  {
+    if(stage != 0)
+      return false;
+
+    Loc myPawnLoc = pla == C_BLACK ? blackPawnLoc : whitePawnLoc;
+    int xp = Location::getX(myPawnLoc, x_size);
+    int yp = Location::getY(myPawnLoc, x_size);
+
+    int dsqr = (x - xp) * (x - xp) + (y - yp) * (y - yp);
+    if (dsqr == 4)//simple move
+    {
+      Loc midLoc = (myPawnLoc + loc) / 2;
+      if(colors[midLoc] == C_EMPTY)
+        return true;
+      else
+        return false;
+    } 
+    else if (dsqr == 16)  // simple jump
+    {
+      Loc midLoc1 = (3 * myPawnLoc + loc) / 4;
+      Loc midLoc2 = (myPawnLoc + loc) / 2;
+      Loc midLoc3 = (myPawnLoc + 3 * loc) / 4;
+      return (colors[midLoc1] == C_EMPTY) && (colors[midLoc3] == C_EMPTY) && (colors[midLoc2] == getOpp(pla));
+    } 
+    else if(dsqr == 8)  // diagonal move (jump but blocked)
+    {
+      assert(xp - x == 2 || xp - x == -2);
+      assert(yp - y == 2 || yp - y == -2);
+      int xdir = (x - xp) / 2;
+      int ydir = (y - yp) / 2;
+      //case 1, opp stone is at Y direction
+      if(colors[Location::getLoc(xp, yp + ydir * 2, x_size)] == getOpp(pla)) {
+        //require a fence or wall at the direction
+        int x1 = x;
+        int y1 = y + 3 * ydir;
+        if(x1 >= 0 && x1 < x_size && y1 >= 0 && y1 < y_size && colors[Location::getLoc(x1, y1, x_size)] != C_FENCE)
+          return false; // no wall or fence
+        if(colors[Location::getLoc(xp, yp + ydir * 1, x_size)] != C_EMPTY)
+          return false;
+        if(colors[Location::getLoc(xp + xdir, yp + ydir * 2, x_size)] != C_EMPTY)
+          return false;
+        return true;
+      }
+      // case 2, opp stone is at X direction
+      else if(colors[Location::getLoc(xp + xdir * 2, yp, x_size)] == getOpp(pla)) {
+        int x1 = x + 3 * xdir;
+        int y1 = y;
+        if(x1 >= 0 && x1 < x_size && y1 >= 0 && y1 < y_size && colors[Location::getLoc(x1, y1, x_size)] != C_FENCE)
+          return false;  // no wall or fence
+        if(colors[Location::getLoc(xp + xdir * 1, yp, x_size)] != C_EMPTY)
+          return false;
+        if(colors[Location::getLoc(xp + xdir * 2, yp + ydir, x_size)] != C_EMPTY)
+          return false;
+        return true;
+      } 
+      else
+        return false;
+    }
+    else return false;
+  } 
+  else if(x % 2 == 1 && y % 2 == 1)  // place a fence
+  {
+    int myFenceNum = pla == C_BLACK ? blackFences : whiteFences;
+    if(myFenceNum <= 0)
+      return false;
+    if(stage == 0)  // x direction
+    {
+      return (colors[loc + adj_offsets[1]] == C_EMPTY) && (colors[loc + adj_offsets[2]] == C_EMPTY);
+    } 
+    else if(stage == 1)  // y direction
+    {
+      return (colors[loc + adj_offsets[0]] == C_EMPTY) && (colors[loc + adj_offsets[3]] == C_EMPTY);
+    } 
+    else
+      ASSERT_UNREACHABLE;
+  } 
+  else
+    return false;
+
+  ASSERT_UNREACHABLE;
+  return false;
 }
 
 bool Board::isEmpty() const {
@@ -321,44 +434,48 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
     std::cout << "Error next player ";
   }
 
+  if (loc == PASS_LOC) { //play vertical fences
+    pos_hash ^= ZOBRIST_STAGENUM_HASH[stage];
+    pos_hash ^= ZOBRIST_STAGENUM_HASH[1];
+    stage = 1;
+    return;
+  }
+
   pos_hash ^= ZOBRIST_MOVENUM_HASH[movenum];
   movenum++;
   pos_hash ^= ZOBRIST_MOVENUM_HASH[movenum];
 
-  if(stage == 0)  //choose
-  {
-    stage = 1;
+  bool isVerticalFence = stage != 0;
+  if (stage != 0) {
+    pos_hash ^= ZOBRIST_STAGENUM_HASH[stage];
     pos_hash ^= ZOBRIST_STAGENUM_HASH[0];
-    pos_hash ^= ZOBRIST_STAGENUM_HASH[1];
-
-    midLocs[0] = loc;
-    pos_hash ^= ZOBRIST_STAGELOC_HASH[loc][0];
-  } 
-  else if(stage == 1)  //place
-  {
     stage = 0;
-    pos_hash ^= ZOBRIST_STAGENUM_HASH[1];
-    pos_hash ^= ZOBRIST_STAGENUM_HASH[0];
+  }
 
-    if(isOnBoard(loc)) {
-      Loc chosenLoc = midLocs[0];
-      if(isOnBoard(chosenLoc))
-        setStone(chosenLoc, C_EMPTY);
-      setStone(loc, nextPla);
+  
+  int x = Location::getX(loc, x_size);
+  int y = Location::getY(loc, x_size);
+
+  if (x % 2 == 0 && y % 2 == 0)  // move the pawn
+  {
+    if(pla == C_BLACK) {
+      setStone(blackPawnLoc, C_EMPTY);
+      setStone(loc, C_BLACK);
+      blackPawnLoc = loc;
     }
-
-    for(int i = 0; i < STAGE_NUM_EACH_PLA - 1; i++) {
-      pos_hash ^= ZOBRIST_STAGELOC_HASH[midLocs[i]][i];
-      midLocs[i] = Board::NULL_LOC;
+    else {
+      setStone(whitePawnLoc, C_EMPTY);
+      setStone(loc, C_WHITE);
+      whitePawnLoc = loc;
     }
-
-    nextPla = getOpp(nextPla);
-    pos_hash ^= ZOBRIST_NEXTPLA_HASH[getOpp(nextPla)];
-    pos_hash ^= ZOBRIST_NEXTPLA_HASH[nextPla];
-
-  } 
-  else
-    ASSERT_UNREACHABLE;
+  }
+  else if(x % 2 == 1 && y % 2 == 1)  // place a fence
+  {
+    placeFence(loc, isVerticalFence);
+  }
+  nextPla = getOpp(nextPla);
+  pos_hash ^= ZOBRIST_NEXTPLA_HASH[getOpp(nextPla)];
+  pos_hash ^= ZOBRIST_NEXTPLA_HASH[nextPla];
 
 }
 
@@ -421,8 +538,16 @@ void Board::checkConsistency() const {
       }
       else
         throw StringError(errLabel + "Non-(black,white,empty) value within board legal area");
+      if(colors[loc] == C_BLACK && loc != blackPawnLoc)
+        throw StringError(errLabel + "Wrong blackPawnLoc");
+      if(colors[loc] == C_WHITE && loc != whitePawnLoc)
+        throw StringError(errLabel + "Wrong whitePawnLoc");
     }
   }
+  if(colors[blackPawnLoc] != C_BLACK)
+    throw StringError(errLabel + "Disappeared blackPawnLoc");
+  if(colors[whitePawnLoc] != C_WHITE)
+    throw StringError(errLabel + "Disappeared whitePawnLoc");
 
   tmp_pos_hash ^= ZOBRIST_MOVENUM_HASH[movenum];
 
@@ -682,6 +807,9 @@ void Board::printBoard(ostream& out, const Board& board, Loc markLoc, const vect
   if(hist != NULL)
     out << "MoveNum: " << hist->size() << " ";
   out << "HASH: " << board.pos_hash << "\n";
+  out << "Black remain fences: " << board.blackFences << "\n";
+  out << "White remain fences: " << board.whiteFences << "\n";
+  out << "Stage: " << board.stage << "\n";
   bool showCoords = board.x_size <= 50 && board.y_size <= 50;
   if(showCoords) {
     const char* xChar = "ABCDEFGHJKLMNOPQRSTUVWXYZ";

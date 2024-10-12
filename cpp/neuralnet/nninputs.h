@@ -105,8 +105,8 @@ struct NNOutput {
 namespace SymmetryHelpers {
   //A symmetry is 3 bits flipY(bit 0), flipX(bit 1), transpose(bit 2). They are applied in that order.
   //The first four symmetries only reflect, and do not transpose X and Y.
-  constexpr int NUM_SYMMETRIES = 8;
-  constexpr int NUM_SYMMETRIES_WITHOUT_TRANSPOSE = 4;
+  constexpr int NUM_SYMMETRIES = 2;
+  constexpr int NUM_SYMMETRIES_WITHOUT_TRANSPOSE = 2;
 
   //These two IGNORE transpose if hSize and wSize do not match. So non-square transposes are disallowed.
   //copyOutputsWithSymmetry performs the inverse of symmetry.

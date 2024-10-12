@@ -221,6 +221,8 @@ struct Board
   Color colors[MAX_ARR_SIZE];  //Color of each location on the board.
   int blackFences;
   int whiteFences;
+  Loc blackPawnLoc;
+  Loc whitePawnLoc;
   int movenum; //how many moves
 
   /* PointList empty_list; //List of all empty locations on board */
@@ -236,13 +238,12 @@ struct Board
   //who plays the next move
   Color nextPla;
 
-  //一步内每一阶段的选点
-  //例如：象棋类midLoc[0]是选择的棋子，midLoc[1]是落点
-  Loc midLocs[STAGE_NUM_EACH_PLA];
 
 
   private:
   void init(int xS, int yS);
+
+  void placeFence(Loc loc, bool isVertical);
 
   friend std::ostream& operator<<(std::ostream& out, const Board& board);
 

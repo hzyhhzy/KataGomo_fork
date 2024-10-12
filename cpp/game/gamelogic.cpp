@@ -19,59 +19,14 @@ using namespace std;
 
 
 
-bool GameLogic::isLegal(const Board& board, Player pla, Loc loc) {
-  if(pla != board.nextPla) {
-    std::cout << "Error next player ";
-    return false;
-  }
-
-  if(loc == Board::PASS_LOC)  // pass is lose, but not illegal
-    return true;
-
-  if(!board.isOnBoard(loc))
-    return false;
-
-  if(board.stage == 0)  // choose a piece
-  {
-    return board.colors[loc] == pla;
-  } 
-  else if(board.stage == 1)  // place the piece
-  {
-    Color c = board.colors[loc];
-    Color opp = getOpp(pla);
-    Loc chosenMove = board.midLocs[0];
-    int x0 = Location::getX(chosenMove, board.x_size);
-    int y0 = Location::getY(chosenMove, board.x_size);
-    int x1 = Location::getX(loc, board.x_size);
-    int y1 = Location::getY(loc, board.x_size);
-    int dy = y1 - y0;
-    int dx = x1 - x0;
-    if(!((pla == C_BLACK && dy == -1) || (pla == C_WHITE && dy == 1)))
-      return false;
-    if(dx == 1 || dx == -1)
-      return c == opp || c == C_EMPTY;
-    else if(dx == 0)
-      return c == C_EMPTY;
-    else
-      return false;
-  }
-  ASSERT_UNREACHABLE;
-  return false;
-}
-
 GameLogic::MovePriority GameLogic::getMovePriorityAssumeLegal(const Board& board, const BoardHistory& hist, Player pla, Loc loc) {
   if(loc == Board::PASS_LOC)
     return MP_NORMAL;
 
   int y = Location::getY(loc, board.x_size);
-  if(board.stage == 0) {
-    if((pla == C_BLACK && y == 1) || (pla == C_WHITE && y == board.y_size - 2))
-      return MP_WINNING;
-  }
-  else if(board.stage == 1) {
-    if((pla == C_BLACK && y == 0) || (pla == C_WHITE && y == board.y_size - 1))
-      return MP_SUDDEN_WIN;
-  }
+  if((pla == C_BLACK && y == 0) || (pla == C_WHITE && y == board.y_size - 1))
+    return MP_SUDDEN_WIN;
+  
 
 
   return MP_NORMAL;
@@ -94,9 +49,8 @@ Color GameLogic::checkWinnerAfterPlayed(
   const BoardHistory& hist,
   Player pla,
   Loc loc) {
-  if(loc == Board::PASS_LOC)
-    return getOpp(pla);  //pass is not allowed
   
+  //TODO: 
   
   int y = Location::getY(loc, board.x_size);
   if((pla == C_BLACK && y == 0) || (pla == C_WHITE && y == board.y_size - 1))
