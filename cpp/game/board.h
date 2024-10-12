@@ -199,7 +199,8 @@ struct Board
   Hash128 getSitHash(Player pla) const;
   
   bool isBoardNotConnected() const;//Every fence should ensure not block the path
-  Loc directionTowardsDestination(Player pla) const;//find the direction to destination. Only used at the beginning of the training to ensure the game ends
+  // calculate distances to destination. 0 is disconnected, -1 is wall or fence. res should be int32_t[MAX_ARR_SIZE]
+  void calDistMap(Player pla, int32_t* res) const;
 
   //Run some basic sanity checks on the board state, throws an exception if not consistent, for testing/debugging
   void checkConsistency() const;

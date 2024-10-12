@@ -50,12 +50,13 @@ Color GameLogic::checkWinnerAfterPlayed(
   Player pla,
   Loc loc) {
   
-  //TODO: 
   
   int y = Location::getY(loc, board.x_size);
   if((pla == C_BLACK && y == 0) || (pla == C_WHITE && y == board.y_size - 1))
       return pla;
 
+  if(board.isBoardNotConnected())// the fences have blocked the pawn completely, which is not allowed
+    return getOpp(pla);
 
   return C_WALL;
 }

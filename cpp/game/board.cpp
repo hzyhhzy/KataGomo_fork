@@ -499,6 +499,66 @@ Hash128 Board::getSitHash(Player pla) const {
   return h;
 }
 
+//calculate distances to destination
+void Board::calDistMap(Player pla, int32_t* res) const
+{
+  for (Loc loc = 0; loc < MAX_ARR_SIZE; loc++)
+  {
+    if(colors[loc] == C_WALL || colors[loc] == C_FENCE)
+      res[loc] = -1;
+    else
+      res[loc] = 0;
+  }
+
+  vector<Loc> toExpand;
+  vector<Loc> nextExpand;
+  for (int x1 = 0; x1 < (x_size + 1) / 2; x1++)
+  {
+    int x = x1 * 2;
+    int y = pla == C_BLACK ? 0 : y_size - 1;
+    Loc loc = Location::getLoc(x, y, x_size);
+    res[loc] = 1;
+    toExpand.push_back(loc);
+  }
+
+  for (int step = 2; step < MAX_ARR_SIZE; step++)
+  {
+    if(toExpand.size() == 0)
+      break;
+    for (int idx = 0; idx < toExpand.size(); idx++)
+    {
+      Loc loc0 = toExpand[idx];
+      for (int a = 0; a < 4; a++)
+      {
+        int adj = adj_offsets[a];
+        if(res[loc0 + adj] == -1)//outside board or fence
+          continue;
+        Loc loc = loc0 + 2 * adj;
+        assert(isOnBoard(loc));
+        if (res[loc] == 0)//new node to expand
+        {
+          res[loc] = step;
+          nextExpand.push_back(loc);
+        }
+
+      }
+    }
+    toExpand.clear();
+    std::swap(toExpand, nextExpand);
+  }
+}
+
+bool Board::isBoardNotConnected() const {
+  int32_t dist[MAX_ARR_SIZE];
+  calDistMap(C_BLACK, dist);
+  if(dist[blackPawnLoc] == 0)
+    return true;
+  calDistMap(C_WHITE, dist);
+  if(dist[whitePawnLoc] == 0)
+    return true;
+  return false;
+}
+
 int Location::distance(Loc loc0, Loc loc1, int x_size) {
   int dx = getX(loc1,x_size) - getX(loc0,x_size);
   int dy = (loc1-loc0-dx) / (x_size+1);
