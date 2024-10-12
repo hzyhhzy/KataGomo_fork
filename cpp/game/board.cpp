@@ -472,6 +472,16 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
   else if(x % 2 == 1 && y % 2 == 1)  // place a fence
   {
     placeFence(loc, isVerticalFence);
+    if (pla == C_BLACK && blackFences > 0) {
+      pos_hash ^= ZOBRIST_FENCENUM_HASH[blackFences][0];
+      blackFences -= 1;
+      pos_hash ^= ZOBRIST_FENCENUM_HASH[blackFences][0];
+    }
+    if(pla == C_WHITE && whiteFences > 0) {
+      pos_hash ^= ZOBRIST_FENCENUM_HASH[whiteFences][1];
+      whiteFences -= 1;
+      pos_hash ^= ZOBRIST_FENCENUM_HASH[whiteFences][1];
+    }
   }
   nextPla = getOpp(nextPla);
   pos_hash ^= ZOBRIST_NEXTPLA_HASH[getOpp(nextPla)];

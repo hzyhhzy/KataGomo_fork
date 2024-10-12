@@ -698,6 +698,30 @@ void NNEvaluator::evaluate(
         Loc loc = NNPos::posToLoc(i, xSize, ySize, nnXLen, nnYLen);
         isLegal[i] = history.isLegal(board, loc, nextPlayer);
       }
+
+      if(debugSkipNeuralNet && board.stage == 0)  // For the first generation(random) of the training, encourage moves towards destination
+      {
+        int32_t dist[Board::MAX_ARR_SIZE];
+        board.calDistMap(nextPlayer, dist);
+        Loc myPawnLoc = nextPlayer == C_BLACK ? board.blackPawnLoc : board.whitePawnLoc;
+        assert(dist[myPawnLoc] > 0);
+
+        for(int y = 0; y < board.y_size; y++) {
+          if(y % 2 == 1)
+            continue;
+          for(int x = 0; x < board.x_size; x++) {
+            if(x % 2 == 1)
+              continue;
+            int pos = NNPos::xyToPos(x, y, nnXLen);
+            if(!isLegal[pos])
+              continue;
+            Loc loc = Location::getLoc(x, y, board.x_size);
+            assert(dist[loc] != 0);
+            if(dist[loc] < dist[myPawnLoc])
+              policy[pos] += 1.5;
+          }
+        }
+      }
     } 
     else  // assume all other moves are illegal
     {
