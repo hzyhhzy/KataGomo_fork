@@ -456,18 +456,27 @@ void NNInputs::fillRowV7(
         setRowBin(rowBin, pos, 1, 1.0f, posStride, featureStride);
       else if (stone == opp)
         setRowBin(rowBin, pos, 2, 1.0f, posStride, featureStride);
+      else if(stone == C_FENCE)
+        setRowBin(rowBin, pos, 3, 1.0f, posStride, featureStride);
+
+      //destination
+      if ((y == 0 && nextPlayer == C_BLACK) || (y == board.y_size - 1 && nextPlayer == C_WHITE))
+      {
+        setRowBin(rowBin, pos, 4, 1.0f, posStride, featureStride);
+      }
 
     }
   }
-  
   // mid state
-  if(board.stage == 0)  // choose
+  if(board.stage == 0)  
   {
     // do nothing
-  } else if(board.stage == 1)  // place
+  } 
+  else if(board.stage == 1)  
   {
     rowGlobal[0] = 1.0f;
-  } else
+  } 
+  else
     ASSERT_UNREACHABLE;
 
   // Precalculated results as nn input
@@ -477,19 +486,17 @@ void NNInputs::fillRowV7(
   // Global features 5 - the only location is Pass
   if(resultsBeforeNN.inited) {
     rowGlobal[1] = 1.0;
-    rowGlobal[2] = resultsBeforeNN.winner == C_EMPTY;
-    rowGlobal[3] = resultsBeforeNN.winner == nextPlayer;
-    rowGlobal[4] = resultsBeforeNN.winner == getOpp(nextPlayer);
+    rowGlobal[2] = resultsBeforeNN.winner == nextPlayer;
     if(board.isOnBoard(resultsBeforeNN.myOnlyLoc))
       setRowBin(
         rowBin,
         NNPos::locToPos(resultsBeforeNN.myOnlyLoc, board.x_size, nnXLen, nnYLen),
-        4,
+        18,
         1.0f,
         posStride,
         featureStride);
     else if(resultsBeforeNN.myOnlyLoc == Board::PASS_LOC)
-      rowGlobal[5] = 1.0;
+      ASSERT_UNREACHABLE;
   }
 
 
@@ -498,9 +505,26 @@ void NNInputs::fillRowV7(
   else
     ASSERT_UNREACHABLE;
 
-  
-  // Parameter 14 noResultUtilityForWhite
-  rowGlobal[14] = pla == C_WHITE ? nnInputParams.noResultUtilityForWhite : -nnInputParams.noResultUtilityForWhite;
+  int myFenceNum = nextPlayer == C_BLACK ? board.blackFences : board.whiteFences;
+  if (myFenceNum > 0)
+  {
+    double d = myFenceNum - 1;
+    rowGlobal[3] = 1.0;
+    rowGlobal[4] = exp(-d / 1.0);
+    rowGlobal[5] = exp(-d / 2.0);
+    rowGlobal[6] = exp(-d / 4.0);
+    rowGlobal[7] = exp(-d / 8.0);
+  }
+
+  int oppFenceNum = nextPlayer == C_WHITE ? board.blackFences : board.whiteFences;
+  if(oppFenceNum > 0) {
+    double d = oppFenceNum - 1;
+    rowGlobal[8] = 1.0;
+    rowGlobal[9] = exp(-d / 1.0);
+    rowGlobal[10] = exp(-d / 2.0);
+    rowGlobal[11] = exp(-d / 4.0);
+    rowGlobal[12] = exp(-d / 8.0);
+  }
 
   // Parameter 15 is used because there's actually a discontinuity in how training behavior works when this is
   // nonzero, no matter how slightly.
