@@ -306,8 +306,8 @@ bool Board::isLegal(Loc loc, Player pla) const {
       //case 1, opp stone is at Y direction
       if(colors[Location::getLoc(xp, yp + ydir * 2, x_size)] == getOpp(pla)) {
         //require a fence or wall at the direction
-        int x1 = x;
-        int y1 = y + 3 * ydir;
+        int x1 = xp;
+        int y1 = yp + 3 * ydir;
         if(x1 >= 0 && x1 < x_size && y1 >= 0 && y1 < y_size && colors[Location::getLoc(x1, y1, x_size)] != C_FENCE)
           return false; // no wall or fence
         if(colors[Location::getLoc(xp, yp + ydir * 1, x_size)] != C_EMPTY)
@@ -318,8 +318,8 @@ bool Board::isLegal(Loc loc, Player pla) const {
       }
       // case 2, opp stone is at X direction
       else if(colors[Location::getLoc(xp + xdir * 2, yp, x_size)] == getOpp(pla)) {
-        int x1 = x + 3 * xdir;
-        int y1 = y;
+        int x1 = xp + 3 * xdir;
+        int y1 = yp;
         if(x1 >= 0 && x1 < x_size && y1 >= 0 && y1 < y_size && colors[Location::getLoc(x1, y1, x_size)] != C_FENCE)
           return false;  // no wall or fence
         if(colors[Location::getLoc(xp + xdir * 1, yp, x_size)] != C_EMPTY)
