@@ -26,11 +26,13 @@ Use a 17x17 matrix to represent the board.
 
 The legal actions is 9*9 + 2*8*8
 However, Katago only support 1*H*W+1 policy output. 
-So I use "pass" to divide the actions to two parts: first 17x17 is 9*9 + 8*8, the second 17*17 is another 8*8
+So I use a 17*17 array to represent the board and the legal actions
 
-Move pawns: Directly play at an (odd,odd) location
-Place horizontal(y direction) fences: Directly play at an (even,even) location
-Place vertical(x direction) fences: Pass, then play at an (even,even) location
+Move pawns: Directly play at an (even,even) location
+Place horizontal(x direction) fences: Play at an (odd,odd) location
+Place vertical(y direction) fences: Play at an (odd,even) location. Notice that this location is not the center of the fence. 
+  For black, if played at (x,y), then (x,y),(x,y-1),(x,y-2) are the fence area
+  For white, it is y-symmetry: if played at (x,y), then (x,y),(x,y+1),(x,y+2) are the fence area
 
 
 */
@@ -146,8 +148,6 @@ struct Board
   static Hash128 ZOBRIST_SIZE_X_HASH[MAX_LEN+1];
   static Hash128 ZOBRIST_SIZE_Y_HASH[MAX_LEN+1];
   static Hash128 ZOBRIST_BOARD_HASH[MAX_ARR_SIZE][NUM_BOARD_COLORS];
-  static Hash128 ZOBRIST_STAGENUM_HASH[STAGE_NUM_EACH_PLA];
-  //static Hash128 ZOBRIST_STAGELOC_HASH[MAX_ARR_SIZE][STAGE_NUM_EACH_PLA];
   static Hash128 ZOBRIST_NEXTPLA_HASH[4];
   static Hash128 ZOBRIST_MOVENUM_HASH[MAX_MOVE_NUM];
   static Hash128 ZOBRIST_PLAYER_HASH[4];
@@ -232,9 +232,6 @@ struct Board
 
   short adj_offsets[8]; //Indices 0-3: Offsets to add for adjacent points. Indices 4-7: Offsets for diagonal points. 2 and 3 are +x and +y.
 
-  
-  //which stage. Normally 0 = choosing piece. 1 = where to place
-  int stage;
 
   //who plays the next move
   Color nextPla;

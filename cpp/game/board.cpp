@@ -21,7 +21,6 @@ bool Board::IS_ZOBRIST_INITALIZED = false;
 Hash128 Board::ZOBRIST_SIZE_X_HASH[MAX_LEN+1];
 Hash128 Board::ZOBRIST_SIZE_Y_HASH[MAX_LEN+1];
 Hash128 Board::ZOBRIST_BOARD_HASH[MAX_ARR_SIZE][NUM_BOARD_COLORS];
-Hash128 Board::ZOBRIST_STAGENUM_HASH[STAGE_NUM_EACH_PLA];
 Hash128 Board::ZOBRIST_NEXTPLA_HASH[4];
 Hash128 Board::ZOBRIST_MOVENUM_HASH[MAX_MOVE_NUM];
 Hash128 Board::ZOBRIST_PLAYER_HASH[4];
@@ -119,7 +118,6 @@ Board::Board(const Board& other)
   memcpy(adj_offsets, other.adj_offsets, sizeof(short) * 8);
 
   nextPla = other.nextPla;
-  stage = other.stage;
 }
 
 void Board::init(int xS, int yS)
@@ -146,10 +144,8 @@ void Board::init(int xS, int yS)
     }
   }
   nextPla = C_BLACK;
-  stage = 0;
 
-  pos_hash = ZOBRIST_SIZE_X_HASH[x_size] ^ ZOBRIST_SIZE_Y_HASH[y_size] ^ ZOBRIST_NEXTPLA_HASH[nextPla] ^
-             ZOBRIST_STAGENUM_HASH[stage];
+  pos_hash = ZOBRIST_SIZE_X_HASH[x_size] ^ ZOBRIST_SIZE_Y_HASH[y_size] ^ ZOBRIST_NEXTPLA_HASH[nextPla];
 
   blackFences = MAX_FENCE_NUM;
   whiteFences = MAX_FENCE_NUM;
@@ -211,16 +207,12 @@ void Board::initHash()
     }
   }
 
-  for(int i = 0; i < STAGE_NUM_EACH_PLA; i++) {
-    ZOBRIST_STAGENUM_HASH[i] = nextHash();
-  }
   for(int i = 0; i < MAX_FENCE_NUM + 1; i++) {
     ZOBRIST_FENCENUM_HASH[i][0] = nextHash();
     ZOBRIST_FENCENUM_HASH[i][1] = nextHash();
   }
 
 
-  ZOBRIST_STAGENUM_HASH[0] = Hash128();
 
   for(Color j = 0; j < 4; j++) {
     ZOBRIST_NEXTPLA_HASH[j] = nextHash();
@@ -257,11 +249,7 @@ bool Board::isLegal(Loc loc, Player pla) const {
   }
 
   if(loc == Board::PASS_LOC) {
-    int myFenceNum = pla == C_BLACK ? blackFences : whiteFences;
-    if(myFenceNum <= 0)
-      return false;
-    else
-      return stage == 0;
+    return false;
   }
 
   if(!isOnBoard(loc))
@@ -274,9 +262,6 @@ bool Board::isLegal(Loc loc, Player pla) const {
   int y = Location::getY(loc, x_size);
   if(x % 2 == 0 && y % 2 == 0)  // move the pawn
   {
-    if(stage != 0)
-      return false;
-
     Loc myPawnLoc = pla == C_BLACK ? blackPawnLoc : whitePawnLoc;
     int xp = Location::getX(myPawnLoc, x_size);
     int yp = Location::getY(myPawnLoc, x_size);
@@ -333,18 +318,25 @@ bool Board::isLegal(Loc loc, Player pla) const {
     }
     else return false;
   } 
-  else if(x % 2 == 1 && y % 2 == 1)  // place a fence
+  else if(x % 2 == 1 && y % 2 == 1)  // place a horizontal fence
   {
     int myFenceNum = pla == C_BLACK ? blackFences : whiteFences;
     if(myFenceNum <= 0)
       return false;
-    if(stage == 0)  // x direction
+    return (colors[loc + adj_offsets[1]] == C_EMPTY) && (colors[loc + adj_offsets[2]] == C_EMPTY);
+  } 
+  else if(x % 2 == 1 && y % 2 == 0)  // place a vertical fence
+  {
+    int myFenceNum = pla == C_BLACK ? blackFences : whiteFences;
+    if(myFenceNum <= 0)
+      return false;
+    if(pla == C_BLACK)  // -y (Up) direction
     {
-      return (colors[loc + adj_offsets[1]] == C_EMPTY) && (colors[loc + adj_offsets[2]] == C_EMPTY);
+      return y >= 2 && (colors[loc + adj_offsets[0]] == C_EMPTY) && (colors[loc + 2 * adj_offsets[0]] == C_EMPTY);
     } 
-    else if(stage == 1)  // y direction
+    else if(pla == C_WHITE)  // +y (Down) direction
     {
-      return (colors[loc + adj_offsets[0]] == C_EMPTY) && (colors[loc + adj_offsets[3]] == C_EMPTY);
+      return y < y_size-2 && (colors[loc + adj_offsets[3]] == C_EMPTY) && (colors[loc + 2 * adj_offsets[3]] == C_EMPTY);
     } 
     else
       ASSERT_UNREACHABLE;
@@ -434,25 +426,14 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
     std::cout << "Error next player ";
   }
 
-  if (loc == PASS_LOC) { //play vertical fences
-    pos_hash ^= ZOBRIST_STAGENUM_HASH[stage];
-    pos_hash ^= ZOBRIST_STAGENUM_HASH[1];
-    stage = 1;
-    return;
-  }
-
   pos_hash ^= ZOBRIST_MOVENUM_HASH[movenum];
   movenum++;
   pos_hash ^= ZOBRIST_MOVENUM_HASH[movenum];
 
-  bool isVerticalFence = stage != 0;
-  if (stage != 0) {
-    pos_hash ^= ZOBRIST_STAGENUM_HASH[stage];
-    pos_hash ^= ZOBRIST_STAGENUM_HASH[0];
-    stage = 0;
+  if (loc == PASS_LOC) { //illegal
+    return;
   }
 
-  
   int x = Location::getX(loc, x_size);
   int y = Location::getY(loc, x_size);
 
@@ -469,9 +450,25 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
       whitePawnLoc = loc;
     }
   }
-  else if(x % 2 == 1 && y % 2 == 1)  // place a fence
+  else if(x % 2 == 1 && y % 2 == 1)  // place a horizontal fence
   {
-    placeFence(loc, isVerticalFence);
+    placeFence(loc, false);
+    if (pla == C_BLACK && blackFences > 0) {
+      pos_hash ^= ZOBRIST_FENCENUM_HASH[blackFences][0];
+      blackFences -= 1;
+      pos_hash ^= ZOBRIST_FENCENUM_HASH[blackFences][0];
+    }
+    if(pla == C_WHITE && whiteFences > 0) {
+      pos_hash ^= ZOBRIST_FENCENUM_HASH[whiteFences][1];
+      whiteFences -= 1;
+      pos_hash ^= ZOBRIST_FENCENUM_HASH[whiteFences][1];
+    }
+  }
+  else if(x % 2 == 1 && y % 2 == 0)  // place a vertical fence
+  {
+    //loc is not the center of the fence
+    Loc loc1 = pla == C_BLACK ? loc + adj_offsets[0] : loc + adj_offsets[3];
+    placeFence(loc1, true);
     if (pla == C_BLACK && blackFences > 0) {
       pos_hash ^= ZOBRIST_FENCENUM_HASH[blackFences][0];
       blackFences -= 1;
@@ -490,17 +487,11 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
 }
 
 Player Board::nextnextPla() const {
-  if(stage == STAGE_NUM_EACH_PLA - 1)
-    return getOpp(nextPla);
-  else
-    return nextPla;
+  return getOpp(nextPla);
 }
 
 Player Board::prevPla() const {
-  if(stage == 0)
-    return getOpp(nextPla);
-  else
-    return nextPla;
+  return getOpp(nextPla);
 }
 
 Hash128 Board::getSitHash(Player pla) const {
@@ -622,13 +613,12 @@ void Board::checkConsistency() const {
   tmp_pos_hash ^= ZOBRIST_MOVENUM_HASH[movenum];
 
   tmp_pos_hash ^= ZOBRIST_NEXTPLA_HASH[nextPla];
-  tmp_pos_hash ^= ZOBRIST_STAGENUM_HASH[stage];
 
   tmp_pos_hash ^= ZOBRIST_FENCENUM_HASH[blackFences][0];
   tmp_pos_hash ^= ZOBRIST_FENCENUM_HASH[whiteFences][1];
 
   if(pos_hash != tmp_pos_hash) {
-    std::cout << "Stage=" << stage << ",NextPla=" << int(nextPla) << std::endl;
+    std::cout << "NextPla=" << int(nextPla) << std::endl;
     throw StringError(errLabel + "Pos hash does not match expected");
   }
 
@@ -879,7 +869,6 @@ void Board::printBoard(ostream& out, const Board& board, Loc markLoc, const vect
   out << "HASH: " << board.pos_hash << "\n";
   out << "Black remain fences: " << board.blackFences << "\n";
   out << "White remain fences: " << board.whiteFences << "\n";
-  out << "Stage: " << board.stage << "\n";
   bool showCoords = board.x_size <= 50 && board.y_size <= 50;
   if(showCoords) {
     const char* xChar = "ABCDEFGHJKLMNOPQRSTUVWXYZ";

@@ -706,7 +706,7 @@ void NNEvaluator::evaluate(
         isLegal[i] = history.isLegal(board, loc, nextPlayer);
       }
 
-      if(debugSkipNeuralNet && board.stage == 0)  // For the first generation(random) of the training, encourage moves towards destination
+      if(debugSkipNeuralNet)  // For the first generation(random) of the training, encourage moves towards destination
       {
         int32_t dist[Board::MAX_ARR_SIZE];
         board.calDistMap(nextPlayer, dist);

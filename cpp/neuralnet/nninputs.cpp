@@ -467,17 +467,6 @@ void NNInputs::fillRowV7(
 
     }
   }
-  // mid state
-  if(board.stage == 0)  
-  {
-    // do nothing
-  } 
-  else if(board.stage == 1)  
-  {
-    rowGlobal[0] = 1.0f;
-  } 
-  else
-    ASSERT_UNREACHABLE;
 
   // Precalculated results as nn input
   // Spatial Features 4 - the only location to play
