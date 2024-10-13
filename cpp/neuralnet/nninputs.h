@@ -129,8 +129,8 @@ namespace SymmetryHelpers {
   int compose(int firstSymmetry, int nextSymmetry, int nextNextSymmetry);
 
   inline bool isTranspose(int symmetry) { return (symmetry & 0x4) != 0; }
-  inline bool isFlipX(int symmetry) { return (symmetry & 0x2) != 0; }
-  inline bool isFlipY(int symmetry) { return (symmetry & 0x1) != 0; }
+  inline bool isFlipX(int symmetry) { return (symmetry & 0x1) != 0; }
+  inline bool isFlipY(int symmetry) { return (symmetry & 0x2) != 0; }
 
   //Fill isSymDupLoc with true on all but one copy of each symmetrically equivalent move, and false everywhere else.
   //isSymDupLocs should be an array of size Board::MAX_ARR_SIZE

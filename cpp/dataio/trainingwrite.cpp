@@ -5,6 +5,25 @@
 
 using namespace std;
 
+template<typename T>
+static void selfTransposeNCHW(T* src, int n, int c, int h, int w) {
+  T* buf = new T[n * c * h * w];
+  for(int i = 0; i < n; i++) {
+    for(int j = 0; j < c; j++) {
+      int bias = i * c * h * w + j * h * w;
+      for(int y = 0; y < h; y++) {
+        for(int x = 0; x < w; x++) {
+          int spos = NNPos::xyToPos(x, y, w);
+          int dpos = NNPos::xyToPos(x, h - y - 1, w);
+          buf[dpos + bias] = src[spos + bias];
+        }
+      }
+    }
+  }
+  std::copy(buf, buf + n * c * h * w, src);
+  delete buf;
+}
+
 ValueTargets::ValueTargets()
   :win(0),
    loss(0),
@@ -314,6 +333,9 @@ void TrainingWriteBuffers::addRow(
     else
       ASSERT_UNREACHABLE;
 
+    if(nextPlayer == C_WHITE)
+      selfTransposeNCHW(rowBin, 1, numBinaryChannels, dataYLen, dataXLen);
+
     //Pack bools bitwise into uint8_t
     uint8_t* rowBinPacked = binaryInputNCHWPacked.data + curRows * numBinaryChannels * packedBoardArea;
     for(int c = 0; c<numBinaryChannels; c++)
@@ -346,6 +368,11 @@ void TrainingWriteBuffers::addRow(
   else {
     uniformPolicyTarget(policySize, rowPolicy + 1 * policySize);
     rowGlobal[28] = 0.0f;
+  }
+
+  if(nextPlayer == C_WHITE) {
+    for(int i = 0; i < POLICY_TARGET_NUM_CHANNELS; i++)
+      selfTransposeNCHW(rowPolicy + i * policySize, 1, 1, dataYLen, dataXLen);
   }
 
   //Fill td-like value targets
@@ -502,10 +529,12 @@ void TrainingWriteBuffers::addRow(
   }
 
 
-    rowGlobal[34] = 0.0f;
-    for(int i = 0; i<posArea; i++) {
-      rowOwnership[i+posArea*4] = 0;
-    }
+  rowGlobal[34] = 0.0f;
+  for(int i = 0; i<posArea; i++) {
+    rowOwnership[i+posArea*4] = 0;
+  }
+  if(nextPlayer == C_WHITE)
+    selfTransposeNCHW(rowOwnership, 1, 5, dataYLen, dataXLen);
 
   curRows++;
 }
