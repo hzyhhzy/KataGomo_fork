@@ -706,7 +706,7 @@ void NNEvaluator::evaluate(
         isLegal[i] = history.isLegal(board, loc, nextPlayer);
       }
 
-      if(debugSkipNeuralNet)  // For the first generation(random) of the training, encourage moves towards destination
+      if(debugSkipNeuralNet || (board.blackFences==0 && board.whiteFences==0))  // For the first generation(random) of the training, encourage moves towards destination. If there is no fences, also encourage it to avoid infinite meaningless loops
       {
         int32_t dist[Board::MAX_ARR_SIZE];
         board.calDistMap(nextPlayer, dist);
@@ -725,7 +725,9 @@ void NNEvaluator::evaluate(
             Loc loc = Location::getLoc(x, y, board.x_size);
             assert(dist[loc] != 0);
             if(dist[loc] < dist[myPawnLoc])
-              policy[pos] += 1.5;
+              policy[pos] += 1.0;
+            if(dist[loc] > dist[myPawnLoc])
+              policy[pos] -= 1.0;
           }
         }
       }

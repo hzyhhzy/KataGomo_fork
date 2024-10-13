@@ -515,6 +515,34 @@ void NNInputs::fillRowV7(
     rowGlobal[12] = exp(-d / 8.0);
   }
 
+  //Odd-even board
+  //After all fences are placed, if two pawns meet, who can jump?
+  //this will never change until one player jumps
+  int oddevensum = 0;
+  {
+    int x = Location::getX(board.blackPawnLoc, board.x_size);
+    x /= 2;
+    int y = Location::getY(board.blackPawnLoc, board.x_size);
+    y /= 2;
+    oddevensum += x;
+    oddevensum += y;
+  }
+  {
+    int x = Location::getX(board.whitePawnLoc, board.x_size);
+    x /= 2;
+    int y = Location::getY(board.whitePawnLoc, board.x_size);
+    y /= 2;
+    oddevensum += x;
+    oddevensum += y;
+  }
+  oddevensum += board.blackFences;
+  oddevensum += board.whiteFences;
+  if(oddevensum % 2 == 0)
+    rowGlobal[13] = 1.0;
+  else
+    rowGlobal[13] = -1.0;
+
+
   // Parameter 15 is used because there's actually a discontinuity in how training behavior works when this is
   // nonzero, no matter how slightly.
   if(nnInputParams.playoutDoublingAdvantage != 0) {
