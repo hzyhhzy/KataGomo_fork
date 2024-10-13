@@ -1259,7 +1259,8 @@ FinishedGameData* Play::runGame(
   vector<ReportedSearchValues> rawNNValues;
 
   ClockTimer timer;
-
+  if(maxMovesPerGame > MAX_MOVE_NUM / 2)
+    maxMovesPerGame = MAX_MOVE_NUM / 2;
   //Main play loop
   for(int i = 0; i<maxMovesPerGame; i++) {
     if(hist.isGameFinished)
@@ -1455,8 +1456,12 @@ FinishedGameData* Play::runGame(
         finalValueTargets.noResult = 1.0f;
 
 
-
-
+    }
+    else //infinite loop
+    {
+      finalValueTargets.win = 0.0f;
+      finalValueTargets.loss = 0.0f;
+      finalValueTargets.noResult = 1.0f;
     }
     gameData->whiteValueTargetsByTurn.push_back(finalValueTargets);
 
