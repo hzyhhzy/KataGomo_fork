@@ -2008,7 +2008,7 @@ int MainCmds::gtp(const vector<string>& args) {
     else if(command == "clear_cache") {
       engine->clearCache();
     }
-    else if(command == "showboard") {
+    else if(command == "showboard" || command == "sb") {
       ostringstream sout;
       engine->bot->getRootHist().printBasicInfo(sout, engine->bot->getRootBoard());
       response = Global::trim(filterDoubleNewlines(sout.str()));

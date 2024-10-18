@@ -430,7 +430,10 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
   movenum++;
   pos_hash ^= ZOBRIST_MOVENUM_HASH[movenum];
 
-  if (loc == PASS_LOC) { //illegal
+  if (loc == PASS_LOC) { //illegal, but sometimes should let the opponent play first
+    nextPla = getOpp(nextPla);
+    pos_hash ^= ZOBRIST_NEXTPLA_HASH[getOpp(nextPla)];
+    pos_hash ^= ZOBRIST_NEXTPLA_HASH[nextPla];
     return;
   }
 
@@ -895,7 +898,21 @@ void Board::printBoard(ostream& out, const Board& board, Loc markLoc, const vect
     for(int x = 0; x < board.x_size; x++)
     {
       Loc loc = Location::getLoc(x,y,board.x_size);
-      char s = PlayerIO::colorToChar(board.colors[loc]);
+      //char s = PlayerIO::colorToChar(board.colors[loc]);
+      Color c = board.colors[loc];
+      char s = PlayerIO::colorToChar(c);
+      if (c == C_EMPTY) {
+        if(x % 2 == 0 && y % 2 == 0)
+          s = '.';
+        else
+          s = ' ';
+        //if(x % 2 == 0 && y % 2)
+        //  s = '-';
+        //if(x % 2 && y % 2 == 0)
+        //  s = '|';
+        //if(x % 2 == 0 && y % 2 == 0)
+        //  s = '.';
+      }
       if(board.colors[loc] == C_EMPTY && markLoc == loc)
         out << '@';
       else

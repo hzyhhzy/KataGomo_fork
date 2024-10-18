@@ -725,9 +725,9 @@ void NNEvaluator::evaluate(
             Loc loc = Location::getLoc(x, y, board.x_size);
             assert(dist[loc] != 0);
             if(dist[loc] < dist[myPawnLoc])
-              policy[pos] += 1.0;
+              policy[pos] += 0.5;
             if(dist[loc] > dist[myPawnLoc])
-              policy[pos] -= 1.0;
+              policy[pos] -= 0.5;
           }
         }
       }
