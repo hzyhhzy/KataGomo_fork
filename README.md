@@ -1,19 +1,22 @@
-# Recent progresses (Latest update: 2024.8.21)
+# Recent progresses (Latest update: 2024.10.20)
 
 | Branch              | Introduction                 | Stage        | Notes                              |
 | :--------------- | :---------------------- | :----------- | :--------------------------------- |
-| Gom2024   | Engine for Gomoku and Renju       | **Training**     | Sponsored by Zhizi, will finish in 2024.11  |
-| Hex2024Maxmove   | Estimate the length of optimal Hex game      | **Training**     | Will finish and release in ~ 10 days  |
-| ConnectSix2024   | Towards solving (proving black win) 19x19 Connect Six  | **Training**     | Will finish and release in ~ 30 days  |
-| -   | 2D Dawson-chess and variants (Reverse Gomoku)  | Todo     | Simple, Start several days later |
-| -   | New ConnectFour: to see the results on every size of boards  | Todo     | Start several months later |
-| -   | New Capture-Go  | Todo     | Start several months later |
-| -   | New Life-death Go  | Todo     | Start several months later |
-| -   | Hex2024  | Finished     | https://github.com/hzyhhzy/KataGo/releases/tag/Hex_20240812 |
-| -   | Caro2024  | Finished     | https://github.com/hzyhhzy/KataGo/releases/tag/Caro_20240804 |
-| -   | ProveSevenInARow  | Finished     | https://mathoverflow.net/questions/471302/can-gomokufive-in-a-row-draw-on-an-infinite-board-what-about-other-m-n-k-game |
-| -   | HexTemplate | Finished     | https://mathoverflow.net/questions/470376/connection-properties-of-a-single-stone-on-an-infinite-hex-board |
-| -   | DotsAndBoxes | Finished     | Not released yet |
+| Gom2024   | Engine for Gomoku and Renju       | **Paused**     | Sponsored by Zhizi, will continue training months later  |
+| ConnectSix2024   | Towards solving (proving black win) 19x19 Connect Six  | **Training**     | Will finish and release in ~ 10 days  |
+| LifeGo2024   | Life-death Go  | **Training**     |   Will finish and release in ~ 5 days |
+| HexGo2024   | Go on Hex board  | **Paused**     | Will finish and release in ~ 5 days |
+| Quoridor2024   | Quoridor  | Finished     | Someone has already trained an AI months ago, and found first player win  |
+| UltimateTictactoe2024   | Ultimate Tic-tac-toe  | Finished     | See the Release page |
+| DawsonChess   | 2D Dawson-chess and variants (Reverse Gomoku)  | Finished     | Chaotic game |
+| ConnectFour2024   | ConnectFour  | Finished     | See the Release page |
+| CaptureGo2024   | Capture-Go  | Finished     | Will release in 2024.12 |
+| Hex2024Maxmove   | Estimate the length of optimal Hex game      | Finished     | See the Release page  |
+| Hex2024   | Hex  | Finished     | https://github.com/hzyhhzy/KataGo/releases/tag/Hex_20240812 |
+| Caro2024   | Caro is a modified Gomoku  | Finished     | https://github.com/hzyhhzy/KataGo/releases/tag/Caro_20240804 |
+| ProveSevenInARow   | See the Readme in the branch  | Finished     | https://mathoverflow.net/questions/471302/can-gomokufive-in-a-row-draw-on-an-infinite-board-what-about-other-m-n-k-game |
+| HexTemplate   | Some special openings for Hex | Finished     | https://mathoverflow.net/questions/470376/connection-properties-of-a-single-stone-on-an-infinite-hex-board |
+| DotsAndBoxes  |  - | Finished     | Not released yet |
 
 
 
