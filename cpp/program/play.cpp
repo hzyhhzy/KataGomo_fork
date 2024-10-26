@@ -1163,11 +1163,19 @@ FinishedGameData* Play::runGame(
   };
 
   if(gameData->mode == FinishedGameData::MODE_NORMAL) {
-    assert(board.numStonesOnBoard() == 0);
-    double predefinedOpeningProb = 0.5;
-    RandomOpening::getOpening(botB, board, pla, predefinedOpeningProb, gameRand);
-    Rules r = hist.rules;
-    hist.clear(board, pla, r);
+    if(playSettings.forSelfPlay) {
+      assert(board.numStonesOnBoard() == 0);
+      double predefinedOpeningProb = 0.5;
+      RandomOpening::getOpening(botB, board, pla, predefinedOpeningProb, gameRand);
+      Rules r = hist.rules;
+      hist.clear(board, pla, r);
+    }
+    else {
+      assert(board.numStonesOnBoard() == 0);
+      double predefinedOpeningProb = 1.0;
+      RandomOpening::getMatchOpening(botB, board, pla, predefinedOpeningProb, gameRand);
+
+    }
   }
 
   if(playSettings.initGamesWithPolicy && otherGameProps.allowPolicyInit) {

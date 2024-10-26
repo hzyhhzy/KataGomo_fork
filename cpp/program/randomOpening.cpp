@@ -497,6 +497,301 @@ bool RandomOpening::getPredefinedOpening(Board& board, Player& pla, Rand& rand) 
   return true;
 }
 
+bool RandomOpening::getPredefinedMatchOpening(Board& board, Player& pla, Rand& rand) {
+  if(board.numStonesOnBoard() > 0)
+    return false;
+  string boardStr = "";
+  if(board.x_size == 19 && board.y_size == 19) {
+    std::string openingStrs[] = {
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . x . . x . . . x . . . x . . x . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . x . . x . . . . . . . . . . x . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . x . . . . . . x . . . . . . x . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . x . . . . . . . . . . x . . x . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . x . . x . . . x . . . x . . x . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . ",
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . x . . . . . . x . . . . . . x . . "
+      ". . . x . . . . . x . . . . . x . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . x . . . . . . . . . "
+      ". . x x . . . . x . x . . . . x x . . "
+      ". . . . . . . . . x . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . x . . . . . x . . . . . x . . . "
+      ". . x . . . . . . x . . . . . . x . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . ",
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . x . . . . . x . . . . . x . . . "
+      ". . x . . . . . . x . . . . . . x . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . x . . . . . . . . . "
+      ". . x x . . . . x . x . . . . x x . . "
+      ". . . . . . . . . x . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . x . . . . . . x . . . . . . x . . "
+      ". . . x . . . . . x . . . . . x . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . ",
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . x . . . . . x . . . . . x . . . "
+      ". . x . x . . . . . . . . . x . x . . "
+      ". . . x . . . . . . . . . . . x . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . x . . . . . . . . . "
+      ". . x . . . . . . . . . . . . . x . . "
+      ". . . . . . . . . x . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . x . . . . . . . . . . . x . . . "
+      ". . x . x . . . . . . . . . x . x . . "
+      ". . . x . . . . . x . . . . . x . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . ",
+      "x x x x x x x x x x x x x x x x x x x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . o . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x . . . . . . . . . . . . . . . . . x "
+      "x x x x x x x x x x x x x x x x x x x ",
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . x . . x . . x . . x . . x . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . x . . x . . x . . x . . x . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . x . . x . . x . . x . . x . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . x . . x . . x . . x . . x . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . x . . x . . x . . x . . x . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . ",
+
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . x . . x . . x . . x . . x . . . "
+      ". . x . . . . . . . . . . . . . x . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . x . . . . . . . . . . . . . x . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . x . . . . . . . . . . . . . x . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . x . . . . . . . . . . . . . x . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . x . . . . . . . . . . . . . x . . "
+      ". . . x . . x . . x . . x . . x . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . ",
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . x . . . . . . x . . . . . . x . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . x . . . . x . . . . x . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . x . . . . . x . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . x . x . . . . . . . . . x . x . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . x . . . . . x . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . x . . . . x . . . . x . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . x . . . . . . x . . . . . . x . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "};
+
+    const int numOpenings = sizeof(openingStrs) / sizeof(string);
+    int openingID = rand.nextUInt(numOpenings);
+    boardStr = openingStrs[openingID];
+
+  } else if(board.x_size == 9 && board.y_size == 9) {
+    std::string openingStrs[] = {
+      ". . . . . . . . . "
+      ". . . . . . . . . "
+      ". . x . . . x . . "
+      ". . . . . . . . . "
+      ". . . . . . . . . "
+      ". . . . . . . . . "
+      ". . x . . . x . . "
+      ". . . . . . . . . "
+      ". . . . . . . . . ",
+      ". x . . . . . x . "
+      "x . . . . . . . x "
+      ". . . . . . . . . "
+      ". . . . . . . . . "
+      ". . . . x . . . . "
+      ". . . . . . . . . "
+      ". . . . . . . . . "
+      "x . . . . . . . x "
+      ". x . . . . . x . ",
+    };
+
+    const int numOpenings = sizeof(openingStrs) / sizeof(string);
+    int openingID = rand.nextUInt(numOpenings);
+    boardStr = openingStrs[openingID];
+  } else if(board.x_size == 7 && board.y_size == 7) {
+    std::string openingStrs[] = {
+      ". x . . . x . "
+      "x . . . . . x "
+      ". . . . . . . "
+      ". . . o . . . "
+      ". . . . . . . "
+      "x . . . . . x "
+      ". x . . . x . ",
+      "x x . . . x x "
+      "x . . . . . x "
+      ". . . . . . . "
+      ". . . . . . . "
+      ". . . . . . . "
+      "x . . . . . x "
+      "x x . . . x x ",
+    };
+
+    const int numOpenings = sizeof(openingStrs) / sizeof(string);
+    int openingID = rand.nextUInt(numOpenings);
+    boardStr = openingStrs[openingID];
+  } else if(board.x_size == 8 && board.y_size == 8) {
+    std::string openingStrs[] = {
+      ". x . . . . x . "
+      "x . . . . . . x "
+      ". . . . . . . . "
+      ". . . . . . . . "
+      ". . . . . . . . "
+      ". . . . . . . . "
+      "x . . . . . . x "
+      ". x . . . . x . ",
+    };
+
+    const int numOpenings = sizeof(openingStrs) / sizeof(string);
+    int openingID = rand.nextUInt(numOpenings);
+    boardStr = openingStrs[openingID];
+  } else if(board.x_size == 13 && board.y_size == 13) {
+    std::string openingStrs[] = {
+      ". . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . "
+      ". . x . . . x . . . x . . "
+      ". . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . "
+      ". . x . . . x . . . x . . "
+      ". . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . "
+      ". . x . . . x . . . x . . "
+      ". . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . ",
+      ". . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . "
+      ". . x . . . . . . . x . . "
+      ". . . x . . . . . x . . . "
+      ". . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . "
+      ". . . . . . x . . . . . . "
+      ". . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . "
+      ". . . x . . . . . x . . . "
+      ". . x . . . . . . . x . . "
+      ". . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . ",
+    };
+
+    const int numOpenings = sizeof(openingStrs) / sizeof(string);
+    int openingID = rand.nextUInt(numOpenings);
+    boardStr = openingStrs[openingID];
+  } 
+  else if(board.x_size == 19 && board.y_size == 7) {
+    if(rand.nextBool(0.5))
+      return false;
+    std::string openingStrs[] = {
+      ". . . . . . . . . . . . . . . . . . . "
+      "x x x x x x x x x x x x x x x x x x x "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . "
+      ". . . . . . . . . . . . . . . . . . . ",
+    };
+
+    const int numOpenings = sizeof(openingStrs) / sizeof(string);
+    int openingID = rand.nextUInt(numOpenings);
+    boardStr = openingStrs[openingID];
+  }
+
+  if(boardStr == "")
+    return false;
+  assert(boardStr.size() == 2 * board.x_size * board.y_size);
+
+  for(int y = 0; y < board.y_size; y++)
+    for(int x = 0; x < board.x_size; x++) {
+      int pos = x + y * board.x_size;
+      char c = boardStr[2 * pos];
+      Color color = c == 'x' ? C_BLACK : c == 'o' ? C_WHITE : C_EMPTY;
+      if(color != C_EMPTY) {
+        Loc loc = Location::getLoc(x, y, board.x_size);
+        assert(board.isLegal(loc, color, false));
+        board.playMoveAssumeLegal(loc, color);
+      }
+    }
+  return true;
+}
+
 void RandomOpening::randomizePredefinedOpening(Search* bot, Board& board, Player& pla, Rand& rand) {
   if(rand.nextBool(0.1))  // not randomize
     return;
@@ -531,6 +826,17 @@ void RandomOpening::getOpening(Search* bot, Board& board, Player& pla, double pr
     getRandomBalanceOpening(bot, board, pla, rand);
 }
 
+void RandomOpening::getMatchOpening(Search* bot, Board& board, Player& pla, double predefinedOpeningProb, Rand& rand) {
+  bool usePredefinedOpening = false;
+  if(rand.nextBool(predefinedOpeningProb))  // try to use predefinedOpening
+  {
+    usePredefinedOpening = getPredefinedMatchOpening(board, pla, rand);
+  }
+  if(!usePredefinedOpening) {
+    cout << "Warning: Failed to get a predefined opening for match, use random opening instead" << endl;
+    getRandomBalanceOpening(bot, board, pla, rand);
+  }
+}
 
 
 

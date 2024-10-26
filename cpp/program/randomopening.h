@@ -19,6 +19,10 @@ namespace RandomOpening {
   //randomly call getRandomBalanceOpening or getPredefinedOpening
   void getOpening(Search* bot, Board& board, Player& pla, double predefinedOpeningProb, Rand& rand);
 
+  //get openings for match
+  void getMatchOpening(Search* bot, Board& board, Player& pla, double predefinedOpeningProb, Rand& rand);
+  bool getPredefinedMatchOpening(Board& board, Player& pla, Rand& rand);
+
   //old
   void getRandomInitialOpeningOld(Board& board, Player& pla, Rand& rand);
 }
