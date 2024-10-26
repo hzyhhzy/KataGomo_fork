@@ -1236,6 +1236,7 @@ FinishedGameData* Play::runGame(
       assert(pla == C_BLACK);
       assert(board.isLegal(loc, pla));
       hist.makeBoardMoveAssumeLegal(board, loc, pla);
+      pla = C_WHITE;
     }
   }
 
