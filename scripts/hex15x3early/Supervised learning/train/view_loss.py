@@ -1,9 +1,9 @@
 baseDir="../data/train/"
-lossItems={"p0loss":(1.9,3.3),"vloss":(0.45,0.9),"loss":(0,0)} #name,ylim,  0 means default
-trainDirs=["b18c384n3"];
+lossItems={"p0loss":(1.9,2.2),"vloss":(0.45,0.65),"loss":(0,0)} #name,ylim,  0 means default
+trainDirs=["b18c384n_lr8","b18c384n_lr3"];
 autoBias=True
 biases=[0,]
-scales=[1,]
+scales=[1,1]
 lossTypes=["train","val"]
 outputFile="../loss.png"
 

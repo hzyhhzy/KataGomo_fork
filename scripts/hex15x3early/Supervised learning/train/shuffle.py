@@ -549,9 +549,9 @@ if __name__ == '__main__':
                     num_rows = results[info[0]]
                     all_files[i] = (info[0], info[1], num_rows)
 
-    num_rows_total = add_to_data_rows #Number of data rows
+    num_rows_total = 0 #Number of data rows
     num_random_rows_capped = 0 #Number of random data rows, capped at min_rows - we never keep more than min_rows many data rows if they're from random.
-    num_postrandom_rows = add_to_data_rows #Number of NON-random rows
+    num_postrandom_rows = 0 #Number of NON-random rows
 
     #How far offset do we start on the power-law window tail? E.g. what number of postrandom rows do we need before the window size grows by a factor
     #of 2^(taper_window_exponent)? For now, we set it equal to the min rows
@@ -566,7 +566,7 @@ if __name__ == '__main__':
         return num_random_rows_capped + num_postrandom_rows
     def num_desired_rows():
         #Every post-random row moves one row beyond window_taper_offset
-        power_law_x = num_usable_rows() - min_rows + window_taper_offset
+        power_law_x = num_usable_rows() - min_rows + window_taper_offset + add_to_data_rows
         #Apply power law and correct for window_taper_offset so we're still anchored at 0
         unscaled_power_law = (power_law_x ** taper_window_exponent) - (window_taper_offset ** taper_window_exponent)
         #Scale so that we have an initial derivative of 1
