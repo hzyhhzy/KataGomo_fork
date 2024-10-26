@@ -1,9 +1,6 @@
 baseDir="../data/train/"
-lossItems={"p0loss":(1.5,2),"vloss":(0,0),"loss":(0,0)} #name,ylim,  0 means default
-trainDirs=["b10c384n"];
-autoBias=True
-biases=[0,]
-scales=[1,]
+lossItems={"p0loss":(1.62,1.72),"vloss":(0.57,0.65),"loss":(0,0)} #name,ylim,  0 means default
+trainDirs=["b28c512n_s623_lowlr"];
 lossTypes=["train","val"]
 outputFile="../loss.png"
 
@@ -32,7 +29,7 @@ def readJsonFile(path,lossKeys):
             continue #bad line
         j=json.loads(line)
         if("p0loss" not in j):
-            continue
+            continue #bad line
         if("nsamp_train" in j):
             nsamp=j["nsamp_train"]
         else:
@@ -48,7 +45,7 @@ def readJsonFile(path,lossKeys):
 #os.makedirs(outputDir,exist_ok=True)
 
 
-fig=plt.figure(figsize=(6,4*nKeys),dpi=200)
+fig=plt.figure(figsize=(12,8*nKeys),dpi=100)
 plt.subplots_adjust(hspace=0.5)
 for i in range(nKeys):
     key=lossKeys[i]
@@ -81,19 +78,11 @@ for i in range(nKeys):
             y_minor_locator=MultipleLocator(0.001)
         ax.yaxis.set_major_locator(y_major_locator)
         ax.yaxis.set_minor_locator(y_minor_locator)
-        
-maxX=0
+
 isSingleDir = len(trainDirs)==1
 if(isSingleDir):
     fig.suptitle(trainDirs[0])
-for trainDirId in range(len(trainDirs)):
-    trainDir=trainDirs[trainDirId]
-    b=0
-    s=1
-    if biases is not None and len(biases)>trainDirId:
-        b=biases[trainDirId]
-    if scales is not None and len(scales)>trainDirId:
-        s=scales[trainDirId]
+for trainDir in trainDirs:
     for lossType in lossTypes:
         jsonPath=os.path.join(baseDir,trainDir,"metrics_"+lossType+".json")
         jsonData=readJsonFile(jsonPath,lossKeys)
@@ -102,14 +91,7 @@ for trainDirId in range(len(trainDirs)):
             key = lossKeys[i]
             ax = plt.subplot(nKeys, 1, i + 1)
             plotLabel=lossType if isSingleDir else trainDir+"."+lossType
-            xdata=jsonData["nsamp"]
-            xdata=[s*x+b for x in xdata]
-            if(trainDirId==0):
-                maxX=max(xdata)
-            if(autoBias):
-                b1=maxX-max(xdata)
-                xdata=[x+b1 for x in xdata]
-            ax.plot(xdata, jsonData[key], label=plotLabel)
+            ax.plot(jsonData["nsamp"], jsonData[key], label=plotLabel)
             ax.legend(loc="upper right")
 
 
