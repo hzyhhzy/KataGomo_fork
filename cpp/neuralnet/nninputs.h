@@ -40,6 +40,7 @@ struct MiscNNInputParams {
   // If no symmetry is specified, it will use default or random based on config, unless node is already cached.
   int symmetry = NNInputs::SYMMETRY_NOTSPECIFIED;
   double policyOptimism = 0.0;
+  bool nninputKomiCompat = false; //compat for old version and official model, komi input=(H*W-6)/20
 
   static const Hash128 ZOBRIST_CONSERVATIVE_PASS;
   static const Hash128 ZOBRIST_FRIENDLY_PASS;
@@ -49,6 +50,7 @@ struct MiscNNInputParams {
   static const Hash128 ZOBRIST_AVOID_MYTDAGGER_HACK;
   static const Hash128 ZOBRIST_POLICY_OPTIMISM;
   static const Hash128 ZOBRIST_ZERO_HISTORY;
+  static const Hash128 ZOBRIST_KOMI_COMPAT;
 };
 
 namespace NNInputs {

@@ -639,10 +639,17 @@ vector<SearchParams> Setup::loadParams(
     else if(cfg.contains("avoidRepeatedPatternUtility"))   params.avoidRepeatedPatternUtility = cfg.getDouble("avoidRepeatedPatternUtility", -3.0, 3.0);
     else                                                   params.avoidRepeatedPatternUtility = 0.0;
 
-    if(cfg.contains("nnPolicyTemperature"+idxStr))
-      params.nnPolicyTemperature = cfg.getFloat("nnPolicyTemperature"+idxStr,0.01f,5.0f);
+    if(cfg.contains("nninputKomiCompat"+idxStr))
+      params.nninputKomiCompat = cfg.getBool("nninputKomiCompat" + idxStr);
+    else if(cfg.contains("nninputKomiCompat"))
+      params.nninputKomiCompat = cfg.getFloat("nninputKomiCompat");
+    else
+      params.nninputKomiCompat = false;
+
+    if(cfg.contains("nnPolicyTemperature" + idxStr))
+      params.nnPolicyTemperature = cfg.getFloat("nnPolicyTemperature" + idxStr, 0.01f, 5.0f);
     else if(cfg.contains("nnPolicyTemperature"))
-      params.nnPolicyTemperature = cfg.getFloat("nnPolicyTemperature",0.01f,5.0f);
+      params.nnPolicyTemperature = cfg.getFloat("nnPolicyTemperature", 0.01f, 5.0f);
     else
       params.nnPolicyTemperature = 1.0f;
 

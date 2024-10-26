@@ -49,6 +49,8 @@ const Hash128 MiscNNInputParams::ZOBRIST_POLICY_OPTIMISM =
   Hash128(0x88415c85c2801955ULL, 0x39bdf76b2aaa5eb1ULL);
 const Hash128 MiscNNInputParams::ZOBRIST_ZERO_HISTORY =
   Hash128(0x78f02afdd1aa4910ULL, 0xda78d550486fe978ULL);
+const Hash128 MiscNNInputParams::ZOBRIST_KOMI_COMPAT =
+  Hash128(0x1e7c525175f19e79ULL, 0x29e51d3a204df1dfULL);
 
 //-----------------------------------------------------------------------------------------------------------
 //-----------------------------------------------------------------------------------------------------------
@@ -852,6 +854,10 @@ Hash128 NNInputs::getHash(
     hash.hash1 = Hash::rrmxmx(hash.hash1 + hash.hash0 + (uint64_t)policyOptimismDiscretized);
   }
 
+  //Fold in komi compat
+  if(nnInputParams.nninputKomiCompat)
+    hash ^= MiscNNInputParams::ZOBRIST_KOMI_COMPAT;
+
   return hash;
 }
 
@@ -1035,6 +1041,13 @@ void NNInputs::fillRowV7(
   //The first 5 of them were set already above to flag which of the past 5 moves were passes.
 
   rowGlobal[5] = pla == C_WHITE ? 1.0 : -1.0;
+  if (nnInputParams.nninputKomiCompat) //old version or normal Go weights
+  {
+    double komi = board.x_size * board.y_size - 6.0;
+    if(pla == C_BLACK)
+      komi = -komi;
+    rowGlobal[5] = komi / 20.0;
+  }
 
   //Ko rule
   if(hist.rules.koRule == Rules::KO_SIMPLE) {}

@@ -69,6 +69,7 @@ SearchParams::SearchParams()
    playoutDoublingAdvantagePla(C_EMPTY),
    avoidRepeatedPatternUtility(0.0),
    nnPolicyTemperature(1.0f),
+   nninputKomiCompat(false),
    antiMirror(false),
    subtreeValueBiasFactor(0.0),
    subtreeValueBiasTableNumShards(65536),
@@ -175,7 +176,7 @@ bool SearchParams::operator==(const SearchParams& other) const {
     playoutDoublingAdvantagePla == other.playoutDoublingAdvantagePla &&
 
     avoidRepeatedPatternUtility == other.avoidRepeatedPatternUtility &&
-
+    nninputKomiCompat == other.nninputKomiCompat &&
     nnPolicyTemperature == other.nnPolicyTemperature &&
     antiMirror == other.antiMirror &&
 
@@ -394,6 +395,8 @@ json SearchParams::changeableParametersToJson() const {
   // ret["avoidRepeatedPatternUtility"] = avoidRepeatedPatternUtility;
 
   ret["nnPolicyTemperature"] = nnPolicyTemperature;
+
+  ret["nninputKomiCompat"] = nninputKomiCompat;
   // Special handling in GTP
   // ret["antiMirror"] = antiMirror;
 
@@ -516,6 +519,7 @@ void SearchParams::printParams(std::ostream& out) const {
   PRINTPARAM(avoidRepeatedPatternUtility);
 
   PRINTPARAM(nnPolicyTemperature);
+  PRINTPARAM(nninputKomiCompat);
   PRINTPARAM(antiMirror);
 
   PRINTPARAM(subtreeValueBiasFactor);

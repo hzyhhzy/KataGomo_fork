@@ -92,6 +92,7 @@ struct SearchParams {
   double avoidRepeatedPatternUtility; //Have the root player avoid repeating similar shapes, penalizing this much utility per instance.
 
   float nnPolicyTemperature; //Scale neural net policy probabilities by this temperature, applies everywhere in the tree
+  bool nninputKomiCompat;
   bool antiMirror; //Enable anti-mirroring logic
 
   double subtreeValueBiasFactor; //Dynamically adjust neural net utilties based on empirical stats about their errors in search

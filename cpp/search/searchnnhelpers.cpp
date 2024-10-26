@@ -15,6 +15,7 @@ void Search::computeRootNNEvaluation(NNResultBuf& nnResultBuf, bool includeOwner
   nnInputParams.drawEquivalentWinsForWhite = searchParams.drawEquivalentWinsForWhite;
   nnInputParams.nnPolicyTemperature = searchParams.nnPolicyTemperature;
   nnInputParams.policyOptimism = searchParams.rootPolicyOptimism;
+  nnInputParams.nninputKomiCompat = searchParams.nninputKomiCompat;
   if(searchParams.playoutDoublingAdvantage != 0) {
     Player playoutDoublingAdvantagePla = getPlayoutDoublingAdvantagePla();
     nnInputParams.playoutDoublingAdvantage = (
@@ -48,6 +49,7 @@ bool Search::initNodeNNOutput(
   nnInputParams.drawEquivalentWinsForWhite = searchParams.drawEquivalentWinsForWhite;
   nnInputParams.nnPolicyTemperature = searchParams.nnPolicyTemperature;
   nnInputParams.policyOptimism = isRoot ? searchParams.rootPolicyOptimism : searchParams.policyOptimism;
+  nnInputParams.nninputKomiCompat = searchParams.nninputKomiCompat;
   if(searchParams.playoutDoublingAdvantage != 0) {
     Player playoutDoublingAdvantagePla = getPlayoutDoublingAdvantagePla();
     nnInputParams.playoutDoublingAdvantage = (
