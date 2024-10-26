@@ -1,22 +1,22 @@
-# Recent progresses (Latest update: 2024.10.20)
+# Recent progresses (Latest update: 2024.10.26)
 
-| Branch              | Introduction                 | Stage        | Notes                              |
-| :--------------- | :---------------------- | :----------- | :--------------------------------- |
-| Gom2024   | Engine for Gomoku and Renju       | **Paused**     | Sponsored by Zhizi, will continue training months later  |
-| ConnectSix2024   | Towards solving (proving black win) 19x19 Connect Six  | **Training**     | Will finish and release in ~ 10 days  |
-| LifeGo2024   | Life-death Go  | **Training**     |   Will finish and release in ~ 5 days |
-| HexGo2024   | Go on Hex board  | **Paused**     | Will finish and release in ~ 5 days |
-| Quoridor2024   | Quoridor  | Finished     | Someone has already trained an AI months ago, and found first player win  |
-| UltimateTictactoe2024   | Ultimate Tic-tac-toe  | Finished     | See the Release page |
-| DawsonChess   | 2D Dawson-chess and variants (Reverse Gomoku)  | Finished     | Chaotic game |
-| ConnectFour2024   | ConnectFour  | Finished     | See the Release page |
-| CaptureGo2024   | Capture-Go  | Finished     | Will release in 2024.12 |
-| Hex2024Maxmove   | Estimate the length of optimal Hex game      | Finished     | See the Release page  |
-| Hex2024   | Hex  | Finished     | https://github.com/hzyhhzy/KataGo/releases/tag/Hex_20240812 |
-| Caro2024   | Caro is a modified Gomoku  | Finished     | https://github.com/hzyhhzy/KataGo/releases/tag/Caro_20240804 |
-| ProveSevenInARow   | See the Readme in the branch  | Finished     | https://mathoverflow.net/questions/471302/can-gomokufive-in-a-row-draw-on-an-infinite-board-what-about-other-m-n-k-game |
-| HexTemplate   | Some special openings for Hex | Finished     | https://mathoverflow.net/questions/470376/connection-properties-of-a-single-stone-on-an-infinite-hex-board |
-| DotsAndBoxes  |  - | Finished     | Not released yet |
+| Branch     | Introduction   | Stage        | Cost (RTX4090 \* Day) | Model size| Notes                  |
+| :--------- | :------------- | :----------- | :--------------------- | :--------------------- |:--------------------- |
+| [Gom2024](https://github.com/hzyhhzy/KataGo/tree/Gom2024)   | Gomoku and Renju       | **Paused** | 1500 | b28c512nbt  | Sponsored by Zhizi, will continue training months later  |
+| [Hex2024](https://github.com/hzyhhzy/KataGo/tree/Hex2024)   | Hex game  | Finished   |  150 | b18c384nbt   | See the Release page  |
+| [ConnectSix2024](https://github.com/hzyhhzy/KataGo/tree/ConnectSix2024)   | Towards solving (proving black win) 19x19 Connect Six  | **Training**   | 100 | b18c384nbt    | Will finish and release in ~ 5 days  |
+| [Caro2024](https://github.com/hzyhhzy/KataGo/tree/Caro2024)   | Caro is a modified Gomoku  | Finished  | 60 | b10c384nbt     | https://github.com/hzyhhzy/KataGo/releases/tag/Caro_20240804 |
+| [LifeGo2024](https://github.com/hzyhhzy/KataGo/tree/LifeGo2024)   | Life-and-death Go  | Finished   | 14  | b18c384nbt b28c512nbt   |   See the Release page |
+| [CaptureGo2024](https://github.com/hzyhhzy/KataGo/tree/CaptureGo2024)   | Capture-Go  | Finished  | 18   | b18c384nbt b28c512nbt   | Will release in 2025.1 |
+| [ConnectFour2024](https://github.com/hzyhhzy/KataGo/tree/ConnectFour2024)   | ConnectFour  | Finished  | 6  | b10c256nbt    | See the Release page |
+| [HexGo2024](https://github.com/hzyhhzy/KataGo/tree/HexGo2024)   | Go on Hex board  | Finished   | 18 | b18c384nbt b28c512nbt    | Will release in ~ 5 days |
+| [Quoridor2024](https://github.com/hzyhhzy/KataGo/tree/Quoridor2024)   | Quoridor  | Finished  | 7  | b10c128    | Someone has already trained an AI months ago, and found first player win  |
+| [UltimateTictactoe2024](https://github.com/hzyhhzy/KataGo/tree/UltimateTictactoe2024)   | Ultimate Tic-tac-toe  | Finished   |  8 | b10c384nbt   | See the Release page |
+| [DawsonChess](https://github.com/hzyhhzy/KataGo/tree/DawsonChess)   | 2D Dawson-chess and variants (Reverse Gomoku)  | Finished  | 1  | b10c384nbt    | Chaotic game |
+| [GoModify1](https://github.com/hzyhhzy/KataGo/tree/GoModify1)   | A modification of Go  | Finished  | 6  | b18c384nbt    |    |
+| [ProveSevenInARow](https://github.com/hzyhhzy/KataGo/tree/ProveSevenInARow)   | See the Readme in the branch  | Finished  |   | b10c256nbt    | https://mathoverflow.net/questions/471302/can-gomokufive-in-a-row-draw-on-an-infinite-board-what-about-other-m-n-k-game |
+| [HexTemplate](https://github.com/hzyhhzy/KataGo/tree/HexTemplate)   | Some special openings for Hex | Finished  |    | b20c256   | https://mathoverflow.net/questions/470376/connection-properties-of-a-single-stone-on-an-infinite-hex-board |
+| [DotsAndBoxes](https://github.com/hzyhhzy/KataGo/tree/DotsAndBoxes)  |  - | Finished  |  | b20c256     | Not released yet |
 
 
 
