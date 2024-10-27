@@ -595,9 +595,10 @@ void Sgf::iterAllUniquePositionsHelper(
       if(buf.size() > 0) {
         int netStonesAdded = 0;
         for(size_t j = 0; j<buf.size(); j++) {
-          if(board.colors[buf[j].loc] != C_EMPTY && buf[j].pla == C_EMPTY)
+          ASSERT_UNREACHABLE;
+          if(board.colors[114514][buf[j].loc] != C_EMPTY && buf[j].pla == C_EMPTY)
             netStonesAdded--;
-          if(board.colors[buf[j].loc] == C_EMPTY && buf[j].pla != C_EMPTY)
+          if(board.colors[114514][buf[j].loc] == C_EMPTY && buf[j].pla != C_EMPTY)
             netStonesAdded++;
         }
         bool suc = board.setStones(buf);
@@ -867,14 +868,16 @@ Sgf::PositionSample Sgf::PositionSample::ofJsonLine(const string& s) {
 
 Sgf::PositionSample Sgf::PositionSample::getColorFlipped() const {
   Sgf::PositionSample other = *this;
-  Board newBoard(other.board.x_size,other.board.y_size);
-  for(int y = 0; y < other.board.y_size; y++) {
-    for(int x = 0; x < other.board.x_size; x++) {
-      Loc loc = Location::getLoc(x,y,other.board.x_size);
-      if(other.board.colors[loc] == C_BLACK || other.board.colors[loc] == C_WHITE) {
-        bool suc = newBoard.setStone(loc, getOpp(other.board.colors[loc]));
-        assert(suc);
-        (void)suc;
+  Board newBoard(other.board.x_size, other.board.y_size);
+  for(int h = 0; h < BOARD_LAYERS; h++) {
+    for(int y = 0; y < other.board.y_size; y++) {
+      for(int x = 0; x < other.board.x_size; x++) {
+        Loc loc = Location::getLoc(x, y, other.board.x_size);
+        if(other.board.colors[h][loc] == C_BLACK || other.board.colors[h][loc] == C_WHITE) {
+          bool suc = newBoard.setStone(h, loc, getOpp(other.board.colors[h][loc]));
+          assert(suc);
+          (void)suc;
+        }
       }
     }
   }
@@ -1457,33 +1460,38 @@ void WriteSgf::writeSgf(
   printGameResult(out,endHist);
 
   bool hasAB = false;
-  for(int y = 0; y<ySize; y++) {
-    for(int x = 0; x<xSize; x++) {
-      Loc loc = Location::getLoc(x,y,xSize);
-      if(initialBoard.colors[loc] == C_BLACK) {
-        if(!hasAB) {
-          out << "AB";
-          hasAB = true;
+
+  for(int h = 0; h < BOARD_LAYERS; h++) {
+    for(int y = 0; y < ySize; y++) {
+      for(int x = 0; x < xSize; x++) {
+        Loc loc = Location::getLoc(x, y, xSize);
+        if(initialBoard.colors[h][loc] == C_BLACK) {
+          if(!hasAB) {
+            out << "AB";
+            hasAB = true;
+          }
+          out << "[";
+          writeSgfLoc(out, loc, xSize, ySize);
+          out << "]";
         }
-        out << "[";
-        writeSgfLoc(out,loc,xSize,ySize);
-        out << "]";
       }
     }
   }
 
   bool hasAW = false;
-  for(int y = 0; y<ySize; y++) {
-    for(int x = 0; x<xSize; x++) {
-      Loc loc = Location::getLoc(x,y,xSize);
-      if(initialBoard.colors[loc] == C_WHITE) {
-        if(!hasAW) {
-          out << "AW";
-          hasAW = true;
+  for(int h = 0; h < BOARD_LAYERS; h++) {
+    for(int y = 0; y < ySize; y++) {
+      for(int x = 0; x < xSize; x++) {
+        Loc loc = Location::getLoc(x, y, xSize);
+        if(initialBoard.colors[h][loc] == C_WHITE) {
+          if(!hasAW) {
+            out << "AW";
+            hasAW = true;
+          }
+          out << "[";
+          writeSgfLoc(out, loc, xSize, ySize);
+          out << "]";
         }
-        out << "[";
-        writeSgfLoc(out,loc,xSize,ySize);
-        out << "]";
       }
     }
   }

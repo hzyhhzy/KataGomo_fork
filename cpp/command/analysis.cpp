@@ -939,7 +939,7 @@ int MainCmds::analysis(const vector<string>& args) {
 
       Board board(boardXSize,boardYSize);
       for(int i = 0; i<placements.size(); i++) {
-        board.setStone(placements[i].loc,placements[i].pla);
+        board.playMoveAssumeLegal(placements[i].loc,placements[i].pla);
       }
 
       if(initialPlayer == C_EMPTY) {

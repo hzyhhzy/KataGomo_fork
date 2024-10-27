@@ -705,7 +705,7 @@ void NNEvaluator::evaluate(
         isLegal[i] = false;
       }
       isLegal[NNPos::locToPos(resultsBeforeNN.myOnlyLoc, xSize, nnXLen, nnYLen)] = true;
-      isLegal[NNPos::locToPos(Board::PASS_LOC, xSize, nnXLen, nnYLen)] = true;
+      //isLegal[NNPos::locToPos(Board::PASS_LOC, xSize, nnXLen, nnYLen)] = true;
     }
 
     for(int i = 0; i<policySize; i++) {

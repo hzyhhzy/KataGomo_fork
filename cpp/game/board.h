@@ -14,11 +14,13 @@
 #ifdef COMPILE_MAX_BOARD_LEN
 static_assert(COMPILE_MAX_BOARD_LEN should not be defined);
 #endif
-#define COMPILE_MAX_BOARD_LEN 8
+#define COMPILE_MAX_BOARD_LEN 4
+
+static const int BOARD_LAYERS = 4;//board height
 
 //how many stages in each move
 //eg: Chess has 2 stages: moving which piece, and where to place.
-static const int STAGE_NUM_EACH_PLA = 2;
+static const int STAGE_NUM_EACH_PLA = 1;
 
 //max moves num of a game
 static const int MAX_MOVE_NUM = 100 * COMPILE_MAX_BOARD_LEN * COMPILE_MAX_BOARD_LEN;
@@ -120,7 +122,7 @@ struct Board
   static bool IS_ZOBRIST_INITALIZED;
   static Hash128 ZOBRIST_SIZE_X_HASH[MAX_LEN+1];
   static Hash128 ZOBRIST_SIZE_Y_HASH[MAX_LEN+1];
-  static Hash128 ZOBRIST_BOARD_HASH[MAX_ARR_SIZE][NUM_BOARD_COLORS];
+  static Hash128 ZOBRIST_BOARD_HASH[BOARD_LAYERS][MAX_ARR_SIZE][NUM_BOARD_COLORS];
   static Hash128 ZOBRIST_STAGENUM_HASH[STAGE_NUM_EACH_PLA];
   static Hash128 ZOBRIST_STAGELOC_HASH[MAX_ARR_SIZE][STAGE_NUM_EACH_PLA];
   static Hash128 ZOBRIST_NEXTPLA_HASH[4];
@@ -152,7 +154,7 @@ struct Board
   //Sets the specified stone if possible, including overwriting existing stones.
   //Resolves any captures and/or suicides that result from setting that stone, including deletions of the stone itself.
   //Returns false if location or color were out of range.
-  bool setStone(Loc loc, Color color);
+  bool setStone(int16_t h, Loc loc, Color color);
 
   // Same, but sets multiple stones, and only requires that the final configuration contain no zero-liberty groups.
   // If it does contain a zero liberty group, fails and returns false and leaves the board in an arbitrarily changed but
@@ -190,7 +192,7 @@ struct Board
 
   int x_size;                  //Horizontal size of board
   int y_size;                  //Vertical size of board
-  Color colors[MAX_ARR_SIZE];  //Color of each location on the board.
+  Color colors[BOARD_LAYERS][MAX_ARR_SIZE];  // Color of each location on the board.
   int movenum; //how many moves
 
   /* PointList empty_list; //List of all empty locations on board */

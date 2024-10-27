@@ -31,48 +31,227 @@ bool GameLogic::isLegal(const Board& board, Player pla, Loc loc) {
   if(!board.isOnBoard(loc))
     return false;
 
-  if(board.stage == 0)  // choose a piece
+  assert(board.stage == 0);  // choose a piece
+
+  return board.colors[BOARD_LAYERS - 1][loc] == C_EMPTY;
+   
+}
+
+static bool isFour(const Board& board, Player pla, Loc loc, bool alreadyPlayed)
+{
+  static_assert(BOARD_LAYERS == 4, "");
+  assert(board.x_size == 4 && board.y_size == 4);
+  int h0 = 0;
+  for (h0 = 0; h0 < BOARD_LAYERS; h0++)
   {
-    return board.colors[loc] == pla;
-  } 
-  else if(board.stage == 1)  // place the piece
-  {
-    Color c = board.colors[loc];
-    Color opp = getOpp(pla);
-    Loc chosenMove = board.midLocs[0];
-    int x0 = Location::getX(chosenMove, board.x_size);
-    int y0 = Location::getY(chosenMove, board.x_size);
-    int x1 = Location::getX(loc, board.x_size);
-    int y1 = Location::getY(loc, board.x_size);
-    int dy = y1 - y0;
-    int dx = x1 - x0;
-    if(!((pla == C_BLACK && dy == -1) || (pla == C_WHITE && dy == 1)))
-      return false;
-    if(dx == 1 || dx == -1)
-      return c == opp || c == C_EMPTY;
-    else if(dx == 0)
-      return c == C_EMPTY;
-    else
-      return false;
+    if(board.colors[h0][loc] == C_EMPTY)
+      break;
   }
-  ASSERT_UNREACHABLE;
+  if(alreadyPlayed)
+    h0 -= 1;
+  assert(h0 >= 0 && h0 < BOARD_LAYERS);
+  int x0 = Location::getX(loc, board.x_size);
+  int y0 = Location::getY(loc, board.x_size);
+
+  bool hasFour = true;
+  //x line
+  hasFour = true;
+  for(int d = 0; d < 4; d++) {
+    int x = d;
+    int y = y0;
+    int h = h0;
+    Loc loc1 = Location::getLoc(x, y, board.x_size);
+    if(x != x0 && board.colors[h][loc1] != pla)
+      hasFour = false;
+  }
+  if(hasFour)
+    return true;
+  
+  //y line
+  hasFour = true;
+  for(int d = 0; d < 4; d++) {
+    int x = x0;
+    int y = d;
+    int h = h0;
+    Loc loc1 = Location::getLoc(x, y, board.x_size);
+    if(y != y0 && board.colors[h][loc1] != pla)
+      hasFour = false;
+  }
+  if(hasFour)
+    return true;
+
+  // h line
+  hasFour = true;
+  for(int d = 0; d < 4; d++) {
+    int x = x0;
+    int y = y0;
+    int h = d;
+    Loc loc1 = Location::getLoc(x, y, board.x_size);
+    if(h != h0 && board.colors[h][loc1] != pla)
+      hasFour = false;
+  }
+  if(hasFour)
+    return true;
+
+
+  // +x+y line
+  if(x0 == y0) {
+    hasFour = true;
+    for(int d = 0; d < 4; d++) {
+      int x = d;
+      int y = d;
+      int h = h0;
+      Loc loc1 = Location::getLoc(x, y, board.x_size);
+      if(x != x0 && board.colors[h][loc1] != pla)
+        hasFour = false;
+    }
+    if(hasFour)
+      return true;
+  }
+
+  // +x-y line
+  if(x0 == 3 - y0) {
+    hasFour = true;
+    for(int d = 0; d < 4; d++) {
+      int x = 3 - d;
+      int y = d;
+      int h = h0;
+      Loc loc1 = Location::getLoc(x, y, board.x_size);
+      if(x != x0 && board.colors[h][loc1] != pla)
+        hasFour = false;
+    }
+    if(hasFour)
+      return true;
+  }
+
+  // +x+h line
+  if(x0 == h0) {
+    hasFour = true;
+    for(int d = 0; d < 4; d++) {
+      int x = d;
+      int y = y0;
+      int h = d;
+      Loc loc1 = Location::getLoc(x, y, board.x_size);
+      if(x != x0 && board.colors[h][loc1] != pla)
+        hasFour = false;
+    }
+    if(hasFour)
+      return true;
+  }
+
+  // +x-h line
+  if(x0 == 3 - h0) {
+    hasFour = true;
+    for(int d = 0; d < 4; d++) {
+      int x = 3 - d;
+      int y = y0;
+      int h = d;
+      Loc loc1 = Location::getLoc(x, y, board.x_size);
+      if(x != x0 && board.colors[h][loc1] != pla)
+        hasFour = false;
+    }
+    if(hasFour)
+      return true;
+  }
+
+  // +y+h line
+  if(y0 == h0) {
+    hasFour = true;
+    for(int d = 0; d < 4; d++) {
+      int x = x0;
+      int y = d;
+      int h = d;
+      Loc loc1 = Location::getLoc(x, y, board.x_size);
+      if(y != y0 && board.colors[h][loc1] != pla)
+        hasFour = false;
+    }
+    if(hasFour)
+      return true;
+  }
+
+  // +y-h line
+  if(y0 == 3 - h0) {
+    hasFour = true;
+    for(int d = 0; d < 4; d++) {
+      int x = x0;
+      int y = 3 - d;
+      int h = d;
+      Loc loc1 = Location::getLoc(x, y, board.x_size);
+      if(y != y0 && board.colors[h][loc1] != pla)
+        hasFour = false;
+    }
+    if(hasFour)
+      return true;
+  }
+
+  // +x+y+h line
+  if(x0 == y0 && y0 == h0) {
+    hasFour = true;
+    for(int d = 0; d < 4; d++) {
+      int x = d;
+      int y = d;
+      int h = d;
+      Loc loc1 = Location::getLoc(x, y, board.x_size);
+      if(x != x0 && board.colors[h][loc1] != pla)
+        hasFour = false;
+    }
+    if(hasFour)
+      return true;
+  }
+  // +x+y-h line
+  if(x0 == y0 && y0 == 3 - h0) {
+    hasFour = true;
+    for(int d = 0; d < 4; d++) {
+      int x = d;
+      int y = d;
+      int h = 3 - d;
+      Loc loc1 = Location::getLoc(x, y, board.x_size);
+      if(x != x0 && board.colors[h][loc1] != pla)
+        hasFour = false;
+    }
+    if(hasFour)
+      return true;
+  }
+
+  // +x-y+h line
+  if(x0 == 3 - y0 && y0 == 3 - h0) {
+    hasFour = true;
+    for(int d = 0; d < 4; d++) {
+      int x = d;
+      int y = 3 - d;
+      int h = d;
+      Loc loc1 = Location::getLoc(x, y, board.x_size);
+      if(x != x0 && board.colors[h][loc1] != pla)
+        hasFour = false;
+    }
+    if(hasFour)
+      return true;
+  }
+
+  // +x-y-h line
+  if(x0 == 3 - y0 && y0 == h0) {
+    hasFour = true;
+    for(int d = 0; d < 4; d++) {
+      int x = d;
+      int y = 3 - d;
+      int h = 3 - d;
+      Loc loc1 = Location::getLoc(x, y, board.x_size);
+      if(x != x0 && board.colors[h][loc1] != pla)
+        hasFour = false;
+    }
+    if(hasFour)
+      return true;
+  }
   return false;
 }
+
 
 GameLogic::MovePriority GameLogic::getMovePriorityAssumeLegal(const Board& board, const BoardHistory& hist, Player pla, Loc loc) {
   if(loc == Board::PASS_LOC)
     return MP_NORMAL;
 
-  int y = Location::getY(loc, board.x_size);
-  if(board.stage == 0) {
-    if((pla == C_BLACK && y == 1) || (pla == C_WHITE && y == board.y_size - 2))
-      return MP_WINNING;
-  }
-  else if(board.stage == 1) {
-    if((pla == C_BLACK && y == 0) || (pla == C_WHITE && y == board.y_size - 1))
-      return MP_SUDDEN_WIN;
-  }
-
+  if(isFour(board, pla, loc, false))
+    return MP_SUDDEN_WIN;
 
   return MP_NORMAL;
 }
@@ -97,14 +276,16 @@ Color GameLogic::checkWinnerAfterPlayed(
   if(loc == Board::PASS_LOC)
     return getOpp(pla);  //pass is not allowed
   
-  
-  int y = Location::getY(loc, board.x_size);
-  if((pla == C_BLACK && y == 0) || (pla == C_WHITE && y == board.y_size - 1))
-      return pla;
+  if(isFour(board, pla, loc, true))
+    return pla;
+
+  if(board.numStonesOnBoard() >= board.x_size * board.y_size * BOARD_LAYERS)
+    return C_EMPTY;
 
 
   return C_WALL;
 }
+
 
 GameLogic::ResultsBeforeNN::ResultsBeforeNN() {
   inited = false;

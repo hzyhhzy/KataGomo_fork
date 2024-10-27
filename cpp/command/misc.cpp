@@ -58,16 +58,19 @@ static void writeLine(
 
   cout << baseHist.moveHistory.size() << " ";
 
-  for(int y = 0; y<board.y_size; y++) {
-    for(int x = 0; x<board.x_size; x++) {
-      Loc loc = Location::getLoc(x,y,board.x_size);
-      if(board.colors[loc] == C_BLACK)
-        cout << "x";
-      else if(board.colors[loc] == C_WHITE)
-        cout << "o";
-      else
-        cout << ".";
+  for(int h = 0; h < BOARD_LAYERS; h++) {
+    for(int y = 0; y < board.y_size; y++) {
+      for(int x = 0; x < board.x_size; x++) {
+        Loc loc = Location::getLoc(x, y, board.x_size);
+        if(board.colors[h][loc] == C_BLACK)
+          cout << "x";
+        else if(board.colors[h][loc] == C_WHITE)
+          cout << "o";
+        else
+          cout << ".";
+      }
     }
+    cout << " ";
   }
   cout << " ";
 
@@ -1150,15 +1153,8 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
 
 
     {
-      int numStonesOnBoard = 0;
-      for(int y = 0; y<board.y_size; y++) {
-        for(int x = 0; x<board.x_size; x++) {
-          Loc loc = Location::getLoc(x,y,board.x_size);
-          if(board.colors[loc] != C_EMPTY)
-            numStonesOnBoard += 1;
-        }
-      }
-      if(numStonesOnBoard < 6)
+      
+      if(board.numStonesOnBoard() < 6)
         return;
     }
 

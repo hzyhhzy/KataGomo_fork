@@ -376,12 +376,7 @@ struct GTPEngine {
       return false;
 
     //Sanity check
-    for(int i = 0; i<initialStones.size(); i++) {
-      if(board.colors[initialStones[i].loc] != initialStones[i].pla) {
-        assert(false);
-        return false;
-      }
-    }
+    
     Player pla = P_BLACK;
     BoardHistory hist(board,pla,currentRules);
     hist.setInitialTurnNumber(board.numStonesOnBoard()); //Heuristic to guess at what turn this is

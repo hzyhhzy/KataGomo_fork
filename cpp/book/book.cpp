@@ -1635,10 +1635,12 @@ void Book::exportToHtmlDir(
       }
     }
     dataVarsStr += "const board = [";
-    for(int y = 0; y<board.y_size; y++) {
-      for(int x = 0; x<board.x_size; x++) {
-        Loc loc = Location::getLoc(x,y,board.x_size);
-        dataVarsStr += Global::intToString(board.colors[loc]) + ",";
+    for(int h = 0; h < BOARD_LAYERS; h++) {
+      for(int y = 0; y < board.y_size; y++) {
+        for(int x = 0; x < board.x_size; x++) {
+          Loc loc = Location::getLoc(x, y, board.x_size);
+          dataVarsStr += Global::intToString(board.colors[h][loc]) + ",";
+        }
       }
     }
     dataVarsStr += "];\n";

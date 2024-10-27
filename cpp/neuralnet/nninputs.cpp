@@ -325,17 +325,19 @@ Board SymmetryHelpers::getSymBoard(const Board& board, int symmetry) {
     transpose ? board.y_size : board.x_size,
     transpose ? board.x_size : board.y_size
   );
-  for(int y = 0; y<board.y_size; y++) {
-    for(int x = 0; x<board.x_size; x++) {
-      Loc loc = Location::getLoc(x,y,board.x_size);
-      int symX = flipX ? board.x_size - x - 1 : x;
-      int symY = flipY ? board.y_size - y - 1 : y;
-      if(transpose)
-        std::swap(symX,symY);
-      Loc symLoc = Location::getLoc(symX,symY,symBoard.x_size);
-      bool suc = symBoard.setStone(symLoc,board.colors[loc]);
-      assert(suc);
-      (void)suc;
+  for(int h = 0; h < BOARD_LAYERS; h++) {
+    for(int y = 0; y < board.y_size; y++) {
+      for(int x = 0; x < board.x_size; x++) {
+        Loc loc = Location::getLoc(x, y, board.x_size);
+        int symX = flipX ? board.x_size - x - 1 : x;
+        int symY = flipY ? board.y_size - y - 1 : y;
+        if(transpose)
+          std::swap(symX, symY);
+        Loc symLoc = Location::getLoc(symX, symY, symBoard.x_size);
+        bool suc = symBoard.setStone(h, symLoc, board.colors[h][loc]);
+        assert(suc);
+        (void)suc;
+      }
     }
   }
   return symBoard;
@@ -374,18 +376,20 @@ void SymmetryHelpers::markDuplicateMoveLocs(
       }
     }
 
-    for(int y = 0; y < board.y_size; y++) {
-      for(int x = 0; x < board.x_size; x++) {
-        Loc loc = Location::getLoc(x, y, board.x_size);
-        Loc symLoc = getSymLoc(x, y, board,symmetry);
-        bool isStoneSym = (board.colors[loc] == board.colors[symLoc]);
-        if(!isStoneSym ) {
-          isBoardSym = false;
-          break;
+    for(int h = 0; h < BOARD_LAYERS; h++) {
+      for(int y = 0; y < board.y_size; y++) {
+        for(int x = 0; x < board.x_size; x++) {
+          Loc loc = Location::getLoc(x, y, board.x_size);
+          Loc symLoc = getSymLoc(x, y, board, symmetry);
+          bool isStoneSym = (board.colors[h][loc] == board.colors[h][symLoc]);
+          if(!isStoneSym) {
+            isBoardSym = false;
+            break;
+          }
         }
+        if(!isBoardSym)
+          break;
       }
-      if(!isBoardSym)
-        break;
     }
     if(isBoardSym)
       validSymmetries.push_back(symmetry);
@@ -520,13 +524,16 @@ void NNInputs::fillRowV7(
       //Feature 0 - on board
       setRowBin(rowBin, pos, 0, 1.0f, posStride, featureStride);
 
-      Color stone = board.colors[loc];
+      for(int h = 0; h < BOARD_LAYERS; h++) {
+        Color stone = board.colors[h][loc];
 
-      //Spatial Features 1,2 - pla,opp stone
-      if (stone == pla)
-        setRowBin(rowBin, pos, 1, 1.0f, posStride, featureStride);
-      else if (stone == opp)
-        setRowBin(rowBin, pos, 2, 1.0f, posStride, featureStride);
+        static_assert(BOARD_LAYERS == 4, "nninput channel is not very enough");
+        // Spatial Features 1,2,3,4,5,6,7,8 - pla,opp stone
+        if(stone == pla)
+          setRowBin(rowBin, pos, 1 + h, 1.0f, posStride, featureStride);
+        else if(stone == opp)
+          setRowBin(rowBin, pos, 1 + BOARD_LAYERS + h, 1.0f, posStride, featureStride);
+      }
 
     }
   }
@@ -535,17 +542,8 @@ void NNInputs::fillRowV7(
   if(board.stage == 0)  // choose
   {
     // do nothing
-  } else if(board.stage == 1)  // place
-  {
-    rowGlobal[0] = 1.0f;
-    Loc chosenMove = board.midLocs[0];
-    if(!board.isOnBoard(chosenMove)) {
-      std::cout << "nninput: chosen move not on board ";
-    } else {
-      int pos = NNPos::locToPos(chosenMove, board.x_size, nnXLen, nnYLen);
-      setRowBin(rowBin, pos, 3, 1.0f, posStride, featureStride);
-    }
-  } else
+  } 
+  else
     ASSERT_UNREACHABLE;
 
   // Precalculated results as nn input
@@ -562,7 +560,7 @@ void NNInputs::fillRowV7(
       setRowBin(
         rowBin,
         NNPos::locToPos(resultsBeforeNN.myOnlyLoc, board.x_size, nnXLen, nnYLen),
-        4,
+        21,
         1.0f,
         posStride,
         featureStride);

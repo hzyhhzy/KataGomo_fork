@@ -493,10 +493,6 @@ void TrainingWriteBuffers::addRow(
       for(int x = 0; x<board.x_size; x++) {
         int pos = NNPos::xyToPos(x,y,dataXLen);
         Loc loc = Location::getLoc(x,y,board.x_size);
-        if(board2.colors[loc] == pla) rowOwnership[pos+posArea*2] = 1;
-        else if(board2.colors[loc] == opp) rowOwnership[pos+posArea*2] = -1;
-        if(board3.colors[loc] == pla) rowOwnership[pos+posArea*3] = 1;
-        else if(board3.colors[loc] == opp) rowOwnership[pos+posArea*3] = -1;
       }
     }
   }
