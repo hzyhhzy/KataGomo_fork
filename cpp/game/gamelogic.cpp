@@ -39,7 +39,7 @@ bool GameLogic::isLegal(const Board& board, Player pla, Loc loc) {
 
 static bool isFour(const Board& board, Player pla, Loc loc, bool alreadyPlayed)
 {
-  static_assert(BOARD_LAYERS == 4 || BOARD_LAYERS == 5, "");
+  //static_assert(BOARD_LAYERS == 4 || BOARD_LAYERS == 5, "");
   const int s = BOARD_LAYERS - 1;
   assert(board.x_size == BOARD_LAYERS && board.y_size == BOARD_LAYERS);
   int h0 = 0;

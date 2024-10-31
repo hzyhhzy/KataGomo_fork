@@ -714,6 +714,7 @@ void Board::printBoard(ostream& out, const Board& board, Loc markLoc, const vect
       }
       out << "\n";
     }
+    out << "\n";
   }
   out << "\n";
 }

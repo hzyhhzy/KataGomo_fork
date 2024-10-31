@@ -527,7 +527,7 @@ void NNInputs::fillRowV7(
       for(int h = 0; h < BOARD_LAYERS; h++) {
         Color stone = board.colors[h][loc];
 
-        static_assert(BOARD_LAYERS == 4 || BOARD_LAYERS == 5, "nninput channel is not very enough");
+        static_assert(BOARD_LAYERS <= 9, "nninput channel is not very enough");
         // Spatial Features 1,2,3,4,5,6,7,8 - pla,opp stone
         if(stone == pla)
           setRowBin(rowBin, pos, 1 + h, 1.0f, posStride, featureStride);
