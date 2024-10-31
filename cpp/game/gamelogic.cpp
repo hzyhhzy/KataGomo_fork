@@ -39,8 +39,9 @@ bool GameLogic::isLegal(const Board& board, Player pla, Loc loc) {
 
 static bool isFour(const Board& board, Player pla, Loc loc, bool alreadyPlayed)
 {
-  static_assert(BOARD_LAYERS == 4, "");
-  assert(board.x_size == 4 && board.y_size == 4);
+  static_assert(BOARD_LAYERS == 4 || BOARD_LAYERS == 5, "");
+  const int s = BOARD_LAYERS - 1;
+  assert(board.x_size == BOARD_LAYERS && board.y_size == BOARD_LAYERS);
   int h0 = 0;
   for (h0 = 0; h0 < BOARD_LAYERS; h0++)
   {
@@ -56,7 +57,7 @@ static bool isFour(const Board& board, Player pla, Loc loc, bool alreadyPlayed)
   bool hasFour = true;
   //x line
   hasFour = true;
-  for(int d = 0; d < 4; d++) {
+  for(int d = 0; d < BOARD_LAYERS; d++) {
     int x = d;
     int y = y0;
     int h = h0;
@@ -69,7 +70,7 @@ static bool isFour(const Board& board, Player pla, Loc loc, bool alreadyPlayed)
   
   //y line
   hasFour = true;
-  for(int d = 0; d < 4; d++) {
+  for(int d = 0; d < BOARD_LAYERS; d++) {
     int x = x0;
     int y = d;
     int h = h0;
@@ -82,7 +83,7 @@ static bool isFour(const Board& board, Player pla, Loc loc, bool alreadyPlayed)
 
   // h line
   hasFour = true;
-  for(int d = 0; d < 4; d++) {
+  for(int d = 0; d < BOARD_LAYERS; d++) {
     int x = x0;
     int y = y0;
     int h = d;
@@ -97,7 +98,7 @@ static bool isFour(const Board& board, Player pla, Loc loc, bool alreadyPlayed)
   // +x+y line
   if(x0 == y0) {
     hasFour = true;
-    for(int d = 0; d < 4; d++) {
+    for(int d = 0; d < BOARD_LAYERS; d++) {
       int x = d;
       int y = d;
       int h = h0;
@@ -110,10 +111,10 @@ static bool isFour(const Board& board, Player pla, Loc loc, bool alreadyPlayed)
   }
 
   // +x-y line
-  if(x0 == 3 - y0) {
+  if(x0 == s - y0) {
     hasFour = true;
-    for(int d = 0; d < 4; d++) {
-      int x = 3 - d;
+    for(int d = 0; d < BOARD_LAYERS; d++) {
+      int x = s - d;
       int y = d;
       int h = h0;
       Loc loc1 = Location::getLoc(x, y, board.x_size);
@@ -127,7 +128,7 @@ static bool isFour(const Board& board, Player pla, Loc loc, bool alreadyPlayed)
   // +x+h line
   if(x0 == h0) {
     hasFour = true;
-    for(int d = 0; d < 4; d++) {
+    for(int d = 0; d < BOARD_LAYERS; d++) {
       int x = d;
       int y = y0;
       int h = d;
@@ -140,10 +141,10 @@ static bool isFour(const Board& board, Player pla, Loc loc, bool alreadyPlayed)
   }
 
   // +x-h line
-  if(x0 == 3 - h0) {
+  if(x0 == s - h0) {
     hasFour = true;
-    for(int d = 0; d < 4; d++) {
-      int x = 3 - d;
+    for(int d = 0; d < BOARD_LAYERS; d++) {
+      int x = s - d;
       int y = y0;
       int h = d;
       Loc loc1 = Location::getLoc(x, y, board.x_size);
@@ -157,7 +158,7 @@ static bool isFour(const Board& board, Player pla, Loc loc, bool alreadyPlayed)
   // +y+h line
   if(y0 == h0) {
     hasFour = true;
-    for(int d = 0; d < 4; d++) {
+    for(int d = 0; d < BOARD_LAYERS; d++) {
       int x = x0;
       int y = d;
       int h = d;
@@ -170,11 +171,11 @@ static bool isFour(const Board& board, Player pla, Loc loc, bool alreadyPlayed)
   }
 
   // +y-h line
-  if(y0 == 3 - h0) {
+  if(y0 == s - h0) {
     hasFour = true;
-    for(int d = 0; d < 4; d++) {
+    for(int d = 0; d < BOARD_LAYERS; d++) {
       int x = x0;
-      int y = 3 - d;
+      int y = s - d;
       int h = d;
       Loc loc1 = Location::getLoc(x, y, board.x_size);
       if(y != y0 && board.colors[h][loc1] != pla)
@@ -187,7 +188,7 @@ static bool isFour(const Board& board, Player pla, Loc loc, bool alreadyPlayed)
   // +x+y+h line
   if(x0 == y0 && y0 == h0) {
     hasFour = true;
-    for(int d = 0; d < 4; d++) {
+    for(int d = 0; d < BOARD_LAYERS; d++) {
       int x = d;
       int y = d;
       int h = d;
@@ -199,12 +200,12 @@ static bool isFour(const Board& board, Player pla, Loc loc, bool alreadyPlayed)
       return true;
   }
   // +x+y-h line
-  if(x0 == y0 && y0 == 3 - h0) {
+  if(x0 == y0 && y0 == s - h0) {
     hasFour = true;
-    for(int d = 0; d < 4; d++) {
+    for(int d = 0; d < BOARD_LAYERS; d++) {
       int x = d;
       int y = d;
-      int h = 3 - d;
+      int h = s - d;
       Loc loc1 = Location::getLoc(x, y, board.x_size);
       if(x != x0 && board.colors[h][loc1] != pla)
         hasFour = false;
@@ -214,11 +215,11 @@ static bool isFour(const Board& board, Player pla, Loc loc, bool alreadyPlayed)
   }
 
   // +x-y+h line
-  if(x0 == 3 - y0 && y0 == 3 - h0) {
+  if(x0 == s - y0 && y0 == s - h0) {
     hasFour = true;
-    for(int d = 0; d < 4; d++) {
+    for(int d = 0; d < BOARD_LAYERS; d++) {
       int x = d;
-      int y = 3 - d;
+      int y = s - d;
       int h = d;
       Loc loc1 = Location::getLoc(x, y, board.x_size);
       if(x != x0 && board.colors[h][loc1] != pla)
@@ -229,12 +230,12 @@ static bool isFour(const Board& board, Player pla, Loc loc, bool alreadyPlayed)
   }
 
   // +x-y-h line
-  if(x0 == 3 - y0 && y0 == h0) {
+  if(x0 == s - y0 && y0 == h0) {
     hasFour = true;
-    for(int d = 0; d < 4; d++) {
+    for(int d = 0; d < BOARD_LAYERS; d++) {
       int x = d;
-      int y = 3 - d;
-      int h = 3 - d;
+      int y = s - d;
+      int h = s - d;
       Loc loc1 = Location::getLoc(x, y, board.x_size);
       if(x != x0 && board.colors[h][loc1] != pla)
         hasFour = false;

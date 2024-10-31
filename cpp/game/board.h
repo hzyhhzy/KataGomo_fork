@@ -14,9 +14,10 @@
 #ifdef COMPILE_MAX_BOARD_LEN
 static_assert(COMPILE_MAX_BOARD_LEN should not be defined);
 #endif
-#define COMPILE_MAX_BOARD_LEN 4
+#define COMPILE_MAX_BOARD_LEN 5
 
-static const int BOARD_LAYERS = 4;//board height
+static const int BOARD_LAYERS = 5;//board height
+static_assert(COMPILE_MAX_BOARD_LEN == BOARD_LAYERS,"");
 
 //how many stages in each move
 //eg: Chess has 2 stages: moving which piece, and where to place.
