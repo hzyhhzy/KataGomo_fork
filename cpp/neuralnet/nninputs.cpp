@@ -546,6 +546,15 @@ void NNInputs::fillRowV7(
   else
     ASSERT_UNREACHABLE;
 
+
+  //old-even feature
+  if(ENABLE_ODDEVEN_NNINPUT) {
+    int remainMoves = board.x_size * board.y_size * BOARD_LAYERS - board.numStonesOnBoard();
+    rowGlobal[0] = remainMoves % 2 == 0 ? 1 : -1;
+  }
+
+
+
   // Precalculated results as nn input
   // Spatial Features 4 - the only location to play
   // Global features 1 - whether use precalculated results
