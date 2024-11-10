@@ -1150,17 +1150,25 @@ static Loc runBotWithLimits(
 
   //HACK - Disable LCB for making the move (it will still affect the policy target gen)
   bool lcb = toMoveBot->searchParams.useLcbForSelection;
+
+  int64_t numAlterVisits = limits.doAlterVisitsPlayouts ?  limits.numAlterVisits: toMoveBot->searchParams.maxVisits;
+  int64_t numAlterPlayouts = limits.doAlterVisitsPlayouts ? limits.numAlterPlayouts : toMoveBot->searchParams.maxPlayouts;
+
+  SearchParams oldParams = toMoveBot->searchParams;
   if(playSettings.forSelfPlay) {
     toMoveBot->searchParams.useLcbForSelection = false;
+    double boardSizeFactor = toMoveBot->getRootBoard().x_size * toMoveBot->getRootBoard().y_size / 361.0;
+    numAlterVisits = numAlterVisits > 0 ? std::max(int64_t(5), int64_t(numAlterVisits * boardSizeFactor) + 1) : numAlterVisits;
+    numAlterPlayouts = numAlterPlayouts > 0 ? std::max(int64_t(5), int64_t(numAlterPlayouts * boardSizeFactor) + 1) : numAlterPlayouts;
+    
   }
+  toMoveBot->searchParams.maxVisits =  numAlterVisits;
+  toMoveBot->searchParams.maxPlayouts = numAlterPlayouts;
 
   if(limits.doAlterVisitsPlayouts) {
     assert(limits.numAlterVisits > 0);
     assert(limits.numAlterPlayouts > 0);
-    SearchParams oldParams = toMoveBot->searchParams;
 
-    toMoveBot->searchParams.maxVisits = limits.numAlterVisits;
-    toMoveBot->searchParams.maxPlayouts = limits.numAlterPlayouts;
     if(limits.removeRootNoise) {
       //Note - this is slightly sketchy to set the params directly. This works because
       //some of the parameters like FPU are basically stateless and will just affect future playouts
@@ -1198,12 +1206,13 @@ static Loc runBotWithLimits(
     if(limits.hintLoc != Board::NULL_LOC)
       toMoveBot->setRootHintLoc(Board::NULL_LOC);
 
-    toMoveBot->searchParams = oldParams;
   }
   else {
     assert(!limits.removeRootNoise);
     loc = toMoveBot->runWholeSearchAndGetMove(pla);
   }
+
+  toMoveBot->searchParams = oldParams;
 
   //HACK - restore LCB so that it affects policy target gen
   if(playSettings.forSelfPlay) {
