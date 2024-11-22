@@ -91,7 +91,8 @@ namespace PlayUtils {
   void printGenmoveLog(std::ostream& out, const AsyncBot* bot, const NNEvaluator* nnEval, Loc moveLoc, double timeTaken, Player perspective);
 
   Rules genRandomRules(Rand& rand);
-
+  
+  std::shared_ptr<NNOutput> getFullSymmetryNNOutput(const Board& board, const BoardHistory& hist, Player pla, NNEvaluator* nnEval);
 
 }
 

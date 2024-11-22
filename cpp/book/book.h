@@ -4,7 +4,9 @@
 
 #include "../core/global.h"
 #include "../core/hash.h"
+#include "../core/rand.h"
 #include "../core/logger.h"
+#include "../core/config_parser.h"
 #include "../game/boardhistory.h"
 
 struct BookHash {
@@ -68,9 +70,14 @@ struct BookValues {
   double winLossError = 0.0;
 
   double maxPolicy = 0.0;
+  double sumPolicy = 0.0;
   double weight = 0.0;
   double visits = 0.0;
 
+  // Computed, not saved
+  double posteriorPolicy = 0.0;
+
+  double getAdjustedWinLossError(const Rules& rules) const;
 };
 struct RecursiveBookValues {
   // Recursively computed via minimax
@@ -81,6 +88,11 @@ struct RecursiveBookValues {
   // Weighted by sum
   double weight = 0.0;
   double visits = 0.0;
+
+  // Count of visits, but downweighting highly nonmonotonic visit counts
+  // such as when an unimportant bad move happens to transpose to a variation
+  // with a lot more visits
+  double adjustedVisits = 0.0;
 };
 
 class SymBookNode;
@@ -98,14 +110,17 @@ class BookNode {
   // -----------------------------------------------------------------------------------------------------------
   BookValues thisValuesNotInBook;  // Based on a search of this node alone, excluding all current book nodes.
   bool canExpand; // Set to false to never attempt to add more children to this node.
+  bool canReExpand; // Set to false to disable reexpansion on this node for this run (not saved for future loads of book).
 
   // -----------------------------------------------------------------------------------------------------------
   // Values maintained by the book
   // -----------------------------------------------------------------------------------------------------------
   std::map<Loc,BookMove> moves;
   std::vector<std::pair<BookHash,Loc>> parents; // Locations are in the parent's alignment space
+  int64_t bestParentIdx; // Lowest cost parent, updated whenever costs are recomputed.
 
   RecursiveBookValues recursiveValues;  // Based on minimaxing over the book nodes
+  int minDepthFromRoot;    // Minimum number of moves to reach this node from root
   double minCostFromRoot;  // Minimum sum of BookMove cost to reach this node from root
   double thisNodeExpansionCost;  // The cost for picking this node to expand further.
   double minCostFromRootWLPV;  // minCostFromRoot of the cheapest node that this node is the winLoss pv of.
@@ -141,6 +156,7 @@ class SymBookNode {
   SymBookNode applySymmetry(int symmetry);
 
   bool isMoveInBook(Loc move);
+  int numUniqueMovesInBook();
   std::vector<BookMove> getUniqueMovesInBook();
 
   Player pla();
@@ -149,7 +165,9 @@ class SymBookNode {
 
   BookValues& thisValuesNotInBook();
   bool& canExpand();
+  bool& canReExpand();
   const RecursiveBookValues& recursiveValues();
+  int minDepthFromRoot();
   double minCostFromRoot();
   double totalExpansionCost();
 
@@ -167,7 +185,8 @@ class SymBookNode {
   // Fills moveHistoryRet with the sequence of moves played. If there is an illegal move, includes the illegal move.
   // This should only happen if a book was loaded from disk that is corrupted, or else only astronomically rarely on hash collisions.
   bool getBoardHistoryReachingHere(BoardHistory& ret, std::vector<Loc>& moveHistoryRet);
-
+  bool getBoardHistoryReachingHere(BoardHistory& ret, std::vector<Loc>& moveHistoryRet, std::vector<double>& winlossRet);
+  
   friend class ConstSymBookNode;
   friend class Book;
 };
@@ -195,11 +214,14 @@ class ConstSymBookNode {
   std::vector<int> getSymmetries();
 
   bool isMoveInBook(Loc move);
+  int numUniqueMovesInBook();
   std::vector<BookMove> getUniqueMovesInBook();
 
   const BookValues& thisValuesNotInBook();
   bool canExpand();
+  bool canReExpand();
   const RecursiveBookValues& recursiveValues();
+  int minDepthFromRoot();
   double minCostFromRoot();
   double totalExpansionCost();
 
@@ -213,8 +235,63 @@ class ConstSymBookNode {
   // Returns false and does not modify ret if playing the moves in the book to reach here hit an illegal move.
   // This should only happen if a book was loaded from disk that is corrupted, or else only astronomically rarely on hash collisions.
   bool getBoardHistoryReachingHere(BoardHistory& ret, std::vector<Loc>& moveHistoryRet);
+  bool getBoardHistoryReachingHere(BoardHistory& ret, std::vector<Loc>& moveHistoryRet, std::vector<double>& winlossRet);
 
   friend class Book;
+};
+
+struct BookParams {
+  double errorFactor = 1.0;
+  // Fixed cost per move
+  double costPerMove = 1.0;
+  // Cost per 1 unit of winloss value that a move's UCB is worse than the best UCB
+  // As well as versions that compare winloss^3 and winloss^7, to emphasize the tails.
+  double costPerUCBWinLossLoss = 0.0;
+  double costPerUCBWinLossLossPow3 = 0.0;
+  double costPerUCBWinLossLossPow7 = 0.0;
+  // Cost per nat of log policy that a move is less likely than 100%.
+  double costPerLogPolicy = 0.0;
+  // For expanding new moves - extra penalty per move or move squared already expanded at a node.
+  double costPerMovesExpanded = 1.0;
+  double costPerSquaredMovesExpanded = 0.0;
+  // Cost when pass is the favorite move (helps truncate lines that are solved to the end of game)
+  double costWhenPassFavored = 0.0;
+  // Bonuses per difference between UCB and LCB
+  double bonusPerWinLossError = 0.0;
+  // Bonus per policy mass that is not expanded at a node, encourage expanding most of the policy mass.
+  double bonusPerExcessUnexpandedPolicy = 0.0;
+  // Bonus per winloss by which the unexpanded node is better than any of the moves that have been explored.
+  double bonusPerUnexpandedBestWinLoss = 0.0;
+  // Bonus if a move is the PV in terms of winloss, if that winloss value is near 0, as a cost reduction factor.
+  double bonusForWLPV1 = 0.0;
+  // Bonus if a move is the PV in terms of winloss, if that winloss value is near -0.5 or +0.5, as a cost reduction factor.
+  double bonusForWLPV2 = 0.0;
+  // Interpolate to applying the bonus for WLPV only to the leaf node at the end that is the final PV node, rather than all moves along the way.
+  double bonusForWLPVFinalProp = 0.5;
+  // Bonus for the biggest single WL cost on a given path, per unit of cost. (helps favor lines with only 1 mistake but not lines with more than one)
+  double bonusForBiggestWLCost = 0.0;
+  // Reduce costs near the start of a book. First move costs are reduced by earlyBookCostReductionFactor
+  // and this gets multiplied by by earlyBookCostReductionLambda per move deeper.
+  double earlyBookCostReductionFactor = 0.0;
+  double earlyBookCostReductionLambda = 0.0;
+  // Affects html rendering - used for integrating score into sorting of moves.
+  double policyBoostSoftUtilityScale = 1.0;
+  double utilityPerPolicyForSorting = 0.0;
+  // The scale of WL difference at which we are averaging for adjusting visit counts.
+  double adjustedVisitsWLScale = 0.05;
+  // Allow re-expanding a node if it has <= this many visits
+  double maxVisitsForReExpansion = 1000.0;
+  // How many visits such that below this many is considered not many? Used to scale some visit-based cost heuristics.
+  double visitsScale = 1000.0;
+
+  BookParams() = default;
+  ~BookParams() = default;
+  BookParams(const BookParams& other) = default;
+  BookParams& operator=(const BookParams& other) = default;
+
+  static BookParams loadFromCfg(ConfigParser& cfg, int64_t maxVisits);
+  
+  void randomizeParams(Rand& rand, double stdevFactor);
 };
 
 // Book object for storing and minimaxing stats based on deep search, supports full tranposing symmetry handling.
@@ -235,23 +312,12 @@ class Book {
   const Player initialPla;
 
  private:
-  double errorFactor;
-  double costPerMove;
-  double costPerUCBWinLossLoss;
-  double costPerUCBWinLossLossPow3;
-  double costPerUCBWinLossLossPow7;
-  double costPerLogPolicy;
-  double costPerMovesExpanded;
-  double costPerSquaredMovesExpanded;
-  double costWhenPassFavored;
-  double bonusPerWinLossError;
-  double bonusPerExcessUnexpandedPolicy;
-  double bonusForWLPV1;
-  double bonusForWLPV2;
-  double bonusForBiggestWLCost;
-  double policyBoostSoftUtilityScale;
-  double utilityPerPolicyForSorting;
+  BookParams params;
+
   std::map<BookHash,double> bonusByHash;
+  std::map<BookHash,double> expandBonusByHash;
+  std::map<BookHash,double> visitsRequiredByHash;
+  std::map<BookHash,int> branchRequiredByHash;
 
   int initialSymmetry; // The symmetry that needs to be applied to initialBoard to align it with rootNode. (initialspace -> rootnodespace)
   BookNode* root;
@@ -263,22 +329,7 @@ class Book {
     const Board& board,
     Rules rules,
     Player initialPla,
-    double errorFactor,
-    double costPerMove,
-    double costPerUCBWinLossLoss,
-    double costPerUCBWinLossLossPow3,
-    double costPerUCBWinLossLossPow7,
-    double costPerLogPolicy,
-    double costPerMovesExpanded,
-    double costPerSquaredMovesExpanded,
-    double costWhenPassFavored,
-    double bonusPerWinLossError,
-    double bonusPerExcessUnexpandedPolicy,
-    double bonusForWLPV1,
-    double bonusForWLPV2,
-    double bonusForBiggestWLCost,
-    double policyBoostSoftUtilityScale,
-    double utilityPerPolicyForSorting
+    BookParams params
   );
   ~Book();
 
@@ -295,40 +346,17 @@ class Book {
 
   size_t size() const;
 
-  double getErrorFactor() const;
-  void setErrorFactor(double d);
-  double getCostPerMove() const;
-  void setCostPerMove(double d);
-  double getCostPerUCBWinLossLoss() const;
-  void setCostPerUCBWinLossLoss(double d);
-  double getCostPerUCBWinLossLossPow3() const;
-  void setCostPerUCBWinLossLossPow3(double d);
-  double getCostPerUCBWinLossLossPow7() const;
-  void setCostPerUCBWinLossLossPow7(double d);
-  double getCostPerLogPolicy() const;
-  void setCostPerLogPolicy(double d);
-  double getCostPerMovesExpanded() const;
-  void setCostPerMovesExpanded(double d);
-  double getCostPerSquaredMovesExpanded() const;
-  void setCostPerSquaredMovesExpanded(double d);
-  double getCostWhenPassFavored() const;
-  void setCostWhenPassFavored(double d);
-  double getBonusPerWinLossError() const;
-  void setBonusPerWinLossError(double d);
-  double getBonusPerExcessUnexpandedPolicy() const;
-  void setBonusPerExcessUnexpandedPolicy(double d);
-  double getBonusForWLPV1() const;
-  void setBonusForWLPV1(double d);
-  double getBonusForWLPV2() const;
-  void setBonusForWLPV2(double d);
-  double getBonusForBiggestWLCost() const;
-  void setBonusForBiggestWLCost(double d);
-  double getPolicyBoostSoftUtilityScale() const;
-  void setPolicyBoostSoftUtilityScale(double d);
-  double getUtilityPerPolicyForSorting() const;
-  void setUtilityPerPolicyForSorting(double d);
+  BookParams getParams() const;
+  void setParams(const BookParams& params);
+
   std::map<BookHash,double> getBonusByHash() const;
   void setBonusByHash(const std::map<BookHash,double>& d);
+  std::map<BookHash,double> getExpandBonusByHash() const;
+  void setExpandBonusByHash(const std::map<BookHash,double>& d);
+  std::map<BookHash,double> getVisitsRequiredByHash() const;
+  void setVisitsRequiredByHash(const std::map<BookHash,double>& d);
+  std::map<BookHash,int> getBranchRequiredByHash() const;
+  void setBranchRequiredByHash(const std::map<BookHash,int>& d);
 
   // Gets the root node, in the orientation of the initial board.
   SymBookNode getRoot();
@@ -348,11 +376,19 @@ class Book {
   std::vector<SymBookNode> getAllLeaves(double minVisits);
   std::vector<SymBookNode> getAllNodes();
 
-  void exportToHtmlDir(
+  double getSortingValue(
+    double plaFactor,
+    double winLossValue,
+    double rawPolicy
+  ) const;
+  
+  // Return the number of files written
+  int64_t exportToHtmlDir(
     const std::string& dirName,
     const std::string& rulesLabel,
     const std::string& rulesLink,
     bool devMode,
+    double htmlMinVisits,
     Logger& logger
   );
 
@@ -373,6 +409,7 @@ class Book {
 
   bool reverseDepthFirstSearchWithMoves(
     const BookNode* initialNode,
+    bool preferLowCostParents,
     const std::function<DFSAction(const std::vector<const BookNode*>&, const std::vector<Loc>&)>& f
   ) const;
 
@@ -390,6 +427,13 @@ class Book {
 
   void iterateEntireBookPreOrder(
     const std::function<void(BookNode*)>& f
+  );
+
+  void recomputeAdjustedVisits(
+    BookNode* node,
+    double notInBookVisits,
+    double notInBookMaxRawPolicy,
+    double notInBookWL
   );
 
   void recomputeNodeValues(BookNode* node);

@@ -68,7 +68,7 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const strin
    rootHistory(),
    rootGraphHash(),
    rootHintLoc(Board::NULL_LOC),
-   avoidMoveUntilByLocBlack(),avoidMoveUntilByLocWhite(),
+   avoidMoveUntilByLocBlack(),avoidMoveUntilByLocWhite(),avoidMoveUntilRescaleRoot(false),
    rootSymmetries(),
    rootPruneOnlySymmetries(),
    searchParams(params),numSearchesBegun(0),searchNodeAge(0),
@@ -181,6 +181,10 @@ void Search::setAvoidMoveUntilByLoc(const std::vector<int>& bVec, const std::vec
   clearSearch();
   avoidMoveUntilByLocBlack = bVec;
   avoidMoveUntilByLocWhite = wVec;
+}
+
+void Search::setAvoidMoveUntilRescaleRoot(bool b) {
+  avoidMoveUntilRescaleRoot = b;
 }
 
 void Search::setRootHintLoc(Loc loc) {

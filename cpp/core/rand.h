@@ -22,6 +22,7 @@
 #include <cassert>
 #include <cmath>
 #include <iostream>
+#include <vector>
 #include <stdint.h>
 
 #include "../core/rand_helpers.h"
@@ -117,6 +118,18 @@ class Rand
   double nextLogistic();
   //Returns a gamma distributed double with shape a and scale 1
   double nextGamma(double a);
+
+  //OTHER------------------------------------------------
+  // Fills buf[0] through buf[n-1] with a random permutation of the integers from 0 to n-1 inclusive.
+  void fillShuffledUIntRange(size_t n, uint32_t* buf);
+
+  template<typename T>
+  void shuffle(std::vector<T>& vec) {
+    for(size_t i = 1; i<vec.size(); i++) {
+      size_t r = (size_t)nextUInt64(i+1);
+      std::swap(vec[i],vec[r]);
+    }
+  }
 
   //TESTING----------------------------------------------
   static void runTests();
