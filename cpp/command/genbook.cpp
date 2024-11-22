@@ -191,7 +191,6 @@ int MainCmds::genbook(const vector<string>& args) {
 
   const int boardSizeX = cfg.getInt("boardSizeX",2,Board::MAX_LEN);
   const int boardSizeY = cfg.getInt("boardSizeY",2,Board::MAX_LEN);
-  const int repBound = cfg.getInt("repBound",3,1000);
 
   BookParams cfgParams = BookParams::loadFromCfg(cfg, params.maxVisits);
 
@@ -220,7 +219,11 @@ int MainCmds::genbook(const vector<string>& args) {
   Board bonusInitialBoard;
   Player bonusInitialPla;
 
-  
+  bonusInitialBoard = Board(boardSizeX, boardSizeY);
+  bonusInitialPla = P_BLACK;
+
+  //bonusInitialBoard.playMoveAssumeLegal(Location::getLoc(3, boardSizeY - 3, bonusInitialBoard.x_size), C_BLACK);
+  //bonusInitialPla = P_WHITE;
 
   const double wideRootNoiseBookExplore = cfg.contains("wideRootNoiseBookExplore") ? cfg.getDouble("wideRootNoiseBookExplore",0.0,5.0) : params.wideRootNoise;
   const double cpuctExplorationLogBookExplore = cfg.contains("cpuctExplorationLogBookExplore") ? cfg.getDouble("cpuctExplorationLogBookExplore",0.0,10.0) : params.cpuctExplorationLog;
@@ -269,18 +272,7 @@ int MainCmds::genbook(const vector<string>& args) {
       throw StringError("Book parameters do not match");
     }
     if(bonusFile != "") {
-      if(!bonusInitialBoard.isEqualForTesting(book->getInitialHist().getRecentBoard(0)))
-        throw StringError(
-          "Book initial board and initial board in bonus sgf file do not match\n" +
-          Board::toStringSimple(book->getInitialHist().getRecentBoard(0),'\n') + "\n" +
-          Board::toStringSimple(bonusInitialBoard,'\n')
-        );
-      if(bonusInitialPla != book->initialPla)
-        throw StringError(
-          "Book initial player and initial player in bonus sgf file do not match\n" +
-          PlayerIO::playerToString(book->initialPla) + " book \n" +
-          PlayerIO::playerToString(bonusInitialPla) + " bonus"
-        );
+      throw StringError("bonus file disabled");
     }
 
     if(!allowChangingBookParams) {
@@ -1278,8 +1270,6 @@ int MainCmds::writebook(const vector<string>& args) {
   std::map<BookHash,double> expandBonusByHash;
   std::map<BookHash,double> visitsRequiredByHash;
   std::map<BookHash,int> branchRequiredByHash;
-  Board bonusInitialBoard;
-  Player bonusInitialPla;
 
 
   // Check for unused config keys

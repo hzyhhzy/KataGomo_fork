@@ -196,8 +196,8 @@ static Rules parseRulesHelper(const string& sOrig) {
       string s;
       for(json::iterator iter = input.begin(); iter != input.end(); ++iter) {
         string key = iter.key();
-        
-        Rules::updateRules(key, iter.value(), rules);
+        string v = iter.value().is_string() ? iter.value() : to_string(iter.value());
+        Rules::updateRules(key, v, rules);
         
       }
     } catch(nlohmann::detail::exception&) {
