@@ -192,6 +192,7 @@ add_executable(katago
   dataio/loadmodel.cpp
   dataio/homedata.cpp
   dataio/files.cpp
+  dataio/poswriter.cpp
   neuralnet/nninputs.cpp
   neuralnet/modelversion.cpp
   neuralnet/nneval.cpp

@@ -244,8 +244,9 @@ const std::string Book::BOOK_JS2 = R"%%(
 
 let svgNS = "http://www.w3.org/2000/svg";
 {
-  const pixelsPerTile = 50.0 * Math.sqrt(Math.sqrt((bSizeX-1)*(bSizeY-1)) / 8);
-  const borderTiles = 0.9;
+  const edgeScaleSize = Math.sqrt((bSizeX+1)*(bSizeY+1));
+  const pixelsPerTile = 50.0 / Math.sqrt(edgeScaleSize / 8);
+  const borderTiles = 1.1;
   const strokeWidth = 0.05;
   const stoneRadius = 0.5;
   const stoneInnerRadius = 0.45;
@@ -253,7 +254,7 @@ let svgNS = "http://www.w3.org/2000/svg";
   const stoneWhiteFill = "#FFF";
   const markerFontSize = 0.7;
   const coordFontSize = 0.4;
-  const coordSpacing = 0.45;
+  const coordSpacing = 0.75;
   const backgroundColor = "#DCB35C";
 
   let boardSvg = document.createElementNS(svgNS, "svg");
@@ -577,10 +578,11 @@ function textCell(text) {
     headerRow.appendChild(textCell("ScoreLCB"));
     headerRow.appendChild(textCell("ScoreUCB"));
     headerRow.appendChild(textCell("Prior%"));
-    // headerRow.appendChild(textCell("Weight"));
+    // headerRow.appendChild(textCell("Wgt"));
     headerRow.appendChild(textCell("Visits"));
+    headerRow.appendChild(textCell("AVisits"));
     headerRow.appendChild(textCell("Cost"));
-    headerRow.appendChild(textCell("TotalCost"));
+    headerRow.appendChild(textCell("TCost"));
     headerRow.appendChild(textCell("CostWLPV"));
     headerRow.appendChild(textCell("BigWLC"));
   }
@@ -590,6 +592,7 @@ function textCell(text) {
     headerRow.appendChild(textCell("Score Uncertainty"));
     headerRow.appendChild(textCell("Prior%"));
     headerRow.appendChild(textCell("Visits"));
+    headerRow.appendChild(textCell("AVisits"));
   }
   table.appendChild(headerRow);
 
@@ -665,6 +668,7 @@ function textCell(text) {
       dataRow.appendChild(textCell((100.0 * moveData["p"]).toFixed(2)+"%"));
       // dataRow.appendChild(textCell(Math.round(moveData["w"]).toLocaleString()));
       dataRow.appendChild(textCell(Math.round(moveData["v"]).toLocaleString()));
+      dataRow.appendChild(textCell(Math.round(moveData["av"]).toLocaleString()));
       dataRow.appendChild(textCell(moveData["cost"].toFixed(3)));
       dataRow.appendChild(textCell(moveData["costRoot"].toFixed(3)));
       dataRow.appendChild(textCell(moveData["costWLPV"].toFixed(3)));
@@ -672,10 +676,17 @@ function textCell(text) {
     }
     else {
       dataRow.appendChild(textCell((-moveData["ssM"]).toFixed(2)));
-      dataRow.appendChild(textCell((100.0 * 0.5 * moveData["wlRad"]).toFixed(1)+"%"));
-      dataRow.appendChild(textCell((moveData["sRad"]).toFixed(2)));
+      if(moveData["wlRad"] <= 0)
+        dataRow.appendChild(textCell("-"));
+      else
+        dataRow.appendChild(textCell((100.0 * 0.5 * moveData["wlRad"]).toFixed(1)+"%"));
+      if(moveData["sRad"] <= 0)
+        dataRow.appendChild(textCell("-"));
+      else
+        dataRow.appendChild(textCell((moveData["sRad"]).toFixed(2)));
       dataRow.appendChild(textCell((100.0 * moveData["p"]).toFixed(2)+"%"));
       dataRow.appendChild(textCell(Math.round(moveData["v"]).toLocaleString()));
+      dataRow.appendChild(textCell(Math.round(moveData["av"]).toLocaleString()));
     }
 
     dataRow.style.background = getBadnessColorOfMoveIdx(i,0.35);
@@ -712,6 +723,7 @@ function textItem(label,text) {
   legendList.appendChild(textItem("Score Uncertainty","Measure of uncertainty in Score. Does NOT correspond to any standard well-defined statistical metric, this is purely a heuristic indicator. Browse the book to get a feel for its scaling and what it means."));
   legendList.appendChild(textItem("Prior%","Raw policy prior of neural net"));
   legendList.appendChild(textItem("Visits","Total number of visits, multi-counting transpositions (i.e., number of visits to produce this book if there were no transposition handling)."));
+  legendList.appendChild(textItem("AVisits","Adjusted number of visits, still multi-counting transpositions, but downweighting visits on a less-preferred move that got vastly more visits than the top move."));
   legend.appendChild(legendList);
   body.appendChild(legend);
 }
