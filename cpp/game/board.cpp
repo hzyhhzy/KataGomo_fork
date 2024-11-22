@@ -757,14 +757,29 @@ nlohmann::json Board::toJson(const Board& board) {
   nlohmann::json data;
   data["xSize"] = board.x_size;
   data["ySize"] = board.y_size;
+  data["movenum"] = board.movenum;
+  data["blackPassNum"] = board.blackPassNum;
+  data["whitePassNum"] = board.whitePassNum;
   data["stones"] = Board::toStringSimple(board,'|');
   return data;
 }
 
 Board Board::ofJson(const nlohmann::json& data) {
-  int xSize = data["xSize"].get<int>();
+  int xSize = data["xSize"];
   int ySize = data["ySize"].get<int>();
   Board board = Board::parseBoard(xSize,ySize,data["stones"].get<string>(),'|');
+
+  board.movenum = data["movenum"].get<int>();
+  board.blackPassNum = data["blackPassNum"].get<int>();
+  board.whitePassNum = data["whitePassNum"].get<int>();
+
+  board.pos_hash ^= ZOBRIST_BPASSNUM_HASH[0];
+  board.pos_hash ^= ZOBRIST_BPASSNUM_HASH[board.blackPassNum];
+  board.pos_hash ^= ZOBRIST_WPASSNUM_HASH[0];
+  board.pos_hash ^= ZOBRIST_WPASSNUM_HASH[board.whitePassNum];
+  board.pos_hash ^= ZOBRIST_MOVENUM_HASH[0];
+  board.pos_hash ^= ZOBRIST_MOVENUM_HASH[board.movenum];
+
   return board;
 }
 

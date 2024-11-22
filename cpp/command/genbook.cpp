@@ -108,6 +108,13 @@ static void optimizeSymmetriesInplace(std::vector<SymBookNode>& nodes, Rand* ran
   }
 }
 
+static Player parsePlayer(const string& s) {
+  Player pla = C_EMPTY;
+  bool suc = PlayerIO::tryParsePlayer(s, pla);
+  if(!suc)
+    throw StringError("Could not parse player , should be BLACK or WHITE");
+  return pla;
+}
 
 int MainCmds::genbook(const vector<string>& args) {
   Board::initHash();
@@ -210,7 +217,10 @@ int MainCmds::genbook(const vector<string>& args) {
     cfg.contains("maxVisitsForLeaves") ? cfg.getInt64("maxVisitsForLeaves", (int64_t)1, (int64_t)1 << 50) : (params.maxVisits+1) / 2;
 
   const int numGameThreads = cfg.getInt("numGameThreads",1,1000);
-  const int numToExpandPerIteration = cfg.getInt("numToExpandPerIteration",1,10000000);
+  const int numToExpandPerIteration = cfg.getInt("numToExpandPerIteration", 1, 10000000);
+
+  const string initialBoardType = cfg.contains("initialBoardType") ? cfg.getString("initialBoardType") : "";
+  const Player initialPlayer = cfg.contains("initialPlayer") ? parsePlayer(cfg.getString("initialPlayer")): C_BLACK;
 
   std::map<BookHash,double> bonusByHash;
   std::map<BookHash,double> expandBonusByHash;
@@ -220,7 +230,14 @@ int MainCmds::genbook(const vector<string>& args) {
   Player bonusInitialPla;
 
   bonusInitialBoard = Board(boardSizeX, boardSizeY);
-  bonusInitialPla = P_BLACK;
+  if(initialBoardType != "") {
+    if(initialBoardType == "d3")
+      bonusInitialBoard.playMoveAssumeLegal(Location::getLoc(boardSizeX - 4, 2, bonusInitialBoard.x_size), C_BLACK);
+    else
+      throw StringError("Unknown opening type");
+    //bonusInitialBoard = Board::parseBoard(boardSizeX, boardSizeY, initialBoardJson);
+  }
+  bonusInitialPla = initialPlayer;
 
   //bonusInitialBoard.playMoveAssumeLegal(Location::getLoc(3, boardSizeY - 3, bonusInitialBoard.x_size), C_BLACK);
   //bonusInitialPla = P_WHITE;
@@ -422,15 +439,12 @@ int MainCmds::genbook(const vector<string>& args) {
     }
     else {
       if(hist.winner == P_WHITE) {
-        assert(hist.finalWhiteMinusBlackScore > 0.0);
         nodeValues.winLossValue = 1.0;
       }
       else if(hist.winner == P_BLACK) {
-        assert(hist.finalWhiteMinusBlackScore < 0.0);
         nodeValues.winLossValue = -1.0;
       }
       else {
-        assert(hist.finalWhiteMinusBlackScore == 0.0);
         nodeValues.winLossValue = 0.0;
       }
     }

@@ -721,6 +721,22 @@ Rules Setup::loadSingleRules(
     } else {
       rules.basicRule = Rules::BASICRULE_FREESTYLE;
     }
+    if(cfg.contains("VCNRule")) {
+      string VCNRule = cfg.getString("VCNRule", Rules::VCNRuleStrings());
+      rules.VCNRule = Rules::parseVCNRule(VCNRule);
+    } else {
+      rules.VCNRule = Rules::VCNRULE_NOVC;
+    }
+    if(cfg.contains("firstPassWin") && cfg.getBool("firstPassWin")) {
+      rules.firstPassWin = true;
+    } else {
+      rules.firstPassWin = false;
+    }
+    if(cfg.contains("maxMoves")) {
+      rules.maxMoves = cfg.getInt("maxMoves");
+    } else {
+      rules.maxMoves = 0;
+    }
   }
 
 
