@@ -1337,13 +1337,25 @@ void Book::recomputeNodeValues(BookNode* node) {
   double visits = 0.0;
 
   {
-    BookValues& values = node->thisValuesNotInBook;
-    double winLossError = values.getAdjustedWinLossError(node->book->initialRules);
-    winLossValue = values.winLossValue;
-    winLossLCB = values.winLossValue - params.errorFactor * winLossError;
-    winLossUCB = values.winLossValue + params.errorFactor * winLossError;
-    weight += values.weight;
-    visits += values.visits;
+    if (!node->canExpand && node->moves.size() > 0)//non-terminal but no other moves, use first child's value instead
+    {
+      const BookNode* firstChild = get(node->moves.begin()->second.hash);
+      const RecursiveBookValues& values = firstChild->recursiveValues;
+      winLossValue = values.winLossValue;
+      winLossLCB = values.winLossLCB;
+      winLossUCB = values.winLossUCB;
+      weight += values.weight;
+      visits += values.visits;
+    } 
+    else {
+      BookValues& values = node->thisValuesNotInBook;
+      double winLossError = values.getAdjustedWinLossError(node->book->initialRules);
+      winLossValue = values.winLossValue;
+      winLossLCB = values.winLossValue - params.errorFactor * winLossError;
+      winLossUCB = values.winLossValue + params.errorFactor * winLossError;
+      weight += values.weight;
+      visits += values.visits;
+    }
 
   }
 
@@ -1471,14 +1483,19 @@ void Book::recomputeNodeCost(BookNode* node) {
     }
     {
       node->expansionIsWLPV = false;
-      double winLossThisPerspective = (node->pla == P_WHITE ? node->thisValuesNotInBook.winLossValue : -node->thisValuesNotInBook.winLossValue);
-      if(winLossThisPerspective > bestWinLossThisPerspective) {
-        bestWinLossThisPerspective = winLossThisPerspective;
-        bestWinLossMove = Board::NULL_LOC;
+      if(node->canExpand) {
+        double winLossThisPerspective =
+          (node->pla == P_WHITE ? node->thisValuesNotInBook.winLossValue : -node->thisValuesNotInBook.winLossValue);
+        if(winLossThisPerspective > bestWinLossThisPerspective) {
+          bestWinLossThisPerspective = winLossThisPerspective;
+          bestWinLossMove = Board::NULL_LOC;
+        }
       }
     }
-    if(bestWinLossMove == Board::NULL_LOC)
+    if(bestWinLossMove == Board::NULL_LOC) {
       node->expansionIsWLPV = true;
+      assert(node->canExpand);
+    }
     else
       node->moves[bestWinLossMove].isWLPV = true;
   }
