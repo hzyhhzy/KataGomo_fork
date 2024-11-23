@@ -168,17 +168,24 @@ Rules Rules::updateRules(const string& k, const string& v, Rules oldRules) {
   if(key == "basicrule")
     rules.basicRule = Rules::parseBasicRule(value);
   else if(key == "vcnrule") {
-    rules.firstPassWin = false;
-    rules.maxMoves = 0;
     rules.VCNRule = Rules::parseVCNRule(value);
+    if(rules.VCNRule!=VCNRULE_NOVC) {
+      rules.firstPassWin = false;
+      rules.maxMoves = 0;
+    }
   } else if(key == "firstpasswin") {
-    rules.VCNRule = VCNRULE_NOVC;
-    rules.maxMoves = 0;
     rules.firstPassWin = Global::stringToBool(value);
+    if (rules.firstPassWin)
+    {
+      rules.VCNRule = VCNRULE_NOVC;
+      rules.maxMoves = 0;
+    }
   } else if(key == "maxmoves") {
-    rules.firstPassWin = false;
-    rules.VCNRule = VCNRULE_NOVC;
     rules.maxMoves = Global::stringToInt(value);
+    if(rules.maxMoves > 0) {
+      rules.firstPassWin = false;
+      rules.VCNRule = VCNRULE_NOVC;
+    }
   } else
     throw IOError("Unknown rules option: " + key);
   return rules;
@@ -197,7 +204,7 @@ static Rules parseRulesHelper(const string& sOrig) {
       for(json::iterator iter = input.begin(); iter != input.end(); ++iter) {
         string key = iter.key();
         string v = iter.value().is_string() ? iter.value().get<string>() : to_string(iter.value());
-        Rules::updateRules(key, v, rules);
+        rules = Rules::updateRules(key, v, rules);
         
       }
     } catch(nlohmann::detail::exception&) {

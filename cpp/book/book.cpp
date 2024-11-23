@@ -2088,6 +2088,18 @@ int64_t Book::exportToHtmlDir(
         dataVarsStr += "const pSym = " + Global::intToString(parent.symmetryOfNode) + ";\n";
       }
     }
+
+    dataVarsStr += "const firstLoc = [";
+    if(board.isOnBoard(board.firstLoc)) {
+      dataVarsStr += Global::intToString(Location::getX(board.firstLoc, board.x_size)) + ",";
+      dataVarsStr += Global::intToString(Location::getY(board.firstLoc, board.x_size)) + ",";
+    }
+    else
+    {
+      dataVarsStr += "-1,-1,";
+    }
+    dataVarsStr += "];\n";
+
     dataVarsStr += "const board = [";
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {

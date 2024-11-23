@@ -118,6 +118,7 @@ static Player parsePlayer(const string& s) {
 
 static void playMoveLocSequence(Board& board, Player& nextPlayer, vector<Loc> locs)
 {
+  nextPlayer = board.nextPla;
   for (int i = 0; i < locs.size(); i++)
   {
     Loc loc = locs[i];
@@ -125,7 +126,7 @@ static void playMoveLocSequence(Board& board, Player& nextPlayer, vector<Loc> lo
       throw StringError("Illegal moves in maybeParseInitialMoveBonus");
     if(loc != Board::NULL_LOC)
       board.playMoveAssumeLegal(loc, nextPlayer);
-    nextPlayer = getOpp(nextPlayer);
+    nextPlayer = board.nextPla;
   }
 }
 
@@ -140,6 +141,7 @@ static void maybeParseInitialMoveBonus(
   if(initialMoveStr != "") {
     Board board = bonusInitialBoard;
     Player pla = bonusInitialPla;
+    pla = board.nextPla;
     vector<Loc> moveSeq = Location::parseSequenceGom(initialMoveStr, board);
     BoardHistory hist(board, pla, rules);
     for(int i = 0; i < moveSeq.size(); i++) {
@@ -163,7 +165,7 @@ static void maybeParseInitialMoveBonus(
             "Adding bonus " + Global::doubleToString(ret * bonusScale) + " to hash " + hashRet.toString());
         }
       }
-      pla = getOpp(pla);
+      pla = board.nextPla;
     }
   }
 }
@@ -540,7 +542,7 @@ int MainCmds::genbook(const vector<string>& args) {
     std::shared_ptr<NNOutput> fullSymNNOutput = PlayUtils::getFullSymmetryNNOutput(board, hist, node.pla(), search->nnEvaluator);
     float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
     for(int i = 0; i < NNPos::MAX_NN_POLICY_SIZE; i++)
-      policyProbs[i] = fullSymNNOutput->getPolicyProb(i);
+      policyProbs[i] = fullSymNNOutput->policyProbs[i];
     // cout << "Done full nn " << timer.getSeconds() << endl;
 
     // Zero out all the policies for moves we already have, we want the max *remaining* policy
@@ -690,7 +692,7 @@ int MainCmds::genbook(const vector<string>& args) {
         // Average all 8 symmetries
         std::shared_ptr<NNOutput> result = PlayUtils::getFullSymmetryNNOutput(board, hist, pla, nnEval);
         float* policyProbs = result->policyProbs;
-        float moveLocPolicy = result->getPolicyProb(search->getPos(moveLoc));
+        float moveLocPolicy = result->policyProbs[search->getPos(moveLoc)];
         assert(moveLocPolicy >= 0);
         vector<std::pair<Loc,float>> extraMoveLocsToExpand;
         for(int pos = 0; pos<NNPos::MAX_NN_POLICY_SIZE; pos++) {
@@ -808,7 +810,7 @@ int MainCmds::genbook(const vector<string>& args) {
       if(childSearchNode == NULL)
         break;
       Loc moveLoc = children[i].getMoveLoc();
-      double rawPolicy = fullSymNNOutput->getPolicyProb(search->getPos(moveLoc));
+      double rawPolicy = fullSymNNOutput->policyProbs[search->getPos(moveLoc)];
       int64_t childSearchVisits = childSearchNode->stats.visits.load(std::memory_order_acquire);
 
       // Add any child nodes that have enough visits or are the best move, if present.
@@ -1349,7 +1351,6 @@ int MainCmds::writebook(const vector<string>& args) {
   Rules rules = Setup::loadSingleRules(cfg);
   const int boardSizeX = cfg.getInt("boardSizeX",2,Board::MAX_LEN);
   const int boardSizeY = cfg.getInt("boardSizeY",2,Board::MAX_LEN);
-  const int repBound = cfg.getInt("repBound",3,1000);
 
   std::map<BookHash,double> bonusByHash;
   std::map<BookHash,double> expandBonusByHash;
@@ -1723,7 +1724,7 @@ int MainCmds::booktoposes(const vector<string>& args) {
 
         if(policySurpriseWeight > 0) {
           if(bestMove != Board::NULL_LOC) {
-            double policyProb = buf.result->getPolicyProb(NNPos::locToPos(bestMove,board.x_size,nnEval->getNNXLen(),nnEval->getNNYLen()));
+            double policyProb = buf.result->policyProbs[NNPos::locToPos(bestMove,board.x_size,nnEval->getNNXLen(),nnEval->getNNYLen())];
             assert(policyProb >= 0.0 && policyProb <= 1.0);
             policySurprise += -1.0 / (double)SymmetryHelpers::NUM_SYMMETRIES * log(policyProb + 1e-30);
           }

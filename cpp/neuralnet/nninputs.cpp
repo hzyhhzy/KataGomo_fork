@@ -382,6 +382,41 @@ Board SymmetryHelpers::getSymBoard(const Board& board, int symmetry) {
       (void)suc;
     }
   }
+  symBoard.pos_hash ^= Board::ZOBRIST_NEXTPLA_HASH[symBoard.nextPla];
+  symBoard.nextPla = board.nextPla;
+  symBoard.pos_hash ^= Board::ZOBRIST_NEXTPLA_HASH[symBoard.nextPla];
+
+  if(symBoard.stage > 0)
+    symBoard.pos_hash ^= Board::ZOBRIST_SECONDMOVE_HASH;
+  symBoard.stage = board.stage;
+  if(symBoard.stage > 0)
+    symBoard.pos_hash ^= Board::ZOBRIST_SECONDMOVE_HASH;
+
+  symBoard.pos_hash ^= Board::ZOBRIST_FIRSTMOVE_LOC_HASH[symBoard.firstLoc];
+  symBoard.firstLoc = getSymLoc(board.firstLoc, board, symmetry);
+  symBoard.pos_hash ^= Board::ZOBRIST_FIRSTMOVE_LOC_HASH[symBoard.firstLoc];
+
+  symBoard.pos_hash ^= Board::ZOBRIST_MOVENUM_HASH[symBoard.movenum];
+  symBoard.movenum = board.movenum;
+  symBoard.pos_hash ^= Board::ZOBRIST_MOVENUM_HASH[symBoard.movenum];
+
+  symBoard.pos_hash ^= Board::ZOBRIST_BPASSNUM_HASH[symBoard.blackPassNum];
+  symBoard.blackPassNum = board.blackPassNum;
+  symBoard.pos_hash ^= Board::ZOBRIST_BPASSNUM_HASH[symBoard.blackPassNum];
+
+  symBoard.pos_hash ^= Board::ZOBRIST_WPASSNUM_HASH[symBoard.whitePassNum];
+  symBoard.whitePassNum = board.whitePassNum;
+  symBoard.pos_hash ^= Board::ZOBRIST_WPASSNUM_HASH[symBoard.whitePassNum];
+
+  if(symBoard.isOnBoard(symBoard.firstLoc))
+    symBoard.firstLocPriority = symBoard.getLocationPriority(symBoard.firstLoc);
+  else
+    symBoard.firstLocPriority = 0;
+
+  symBoard.checkConsistency();
+
+
+
   return symBoard;
 }
 

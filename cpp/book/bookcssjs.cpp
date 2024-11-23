@@ -371,6 +371,50 @@ let svgNS = "http://www.w3.org/2000/svg";
     }
   }
 
+  // Draw first-stone
+  if(firstLoc[0]>=0 && firstLoc[1]>=0)
+  {
+    let x=firstLoc[0]
+    let y=firstLoc[1]
+    let pos = y * bSizeX + x;
+    // We need to draw the stones with the given symmetry applied, so for looking up
+    // the stone of a position we need to use the inverse symmetry.
+    let symPos = getSymPos(pos);
+    let symX = symPos % bSizeX;
+    let symY = Math.floor(symPos / bSizeX);
+    
+
+    let stone = document.createElementNS(svgNS, "circle");
+    let stoneBorder = document.createElementNS(svgNS, "circle");
+    let stoneCenter = document.createElementNS(svgNS, "circle");
+    stone.setAttribute("cx",symX);
+    stone.setAttribute("cy",symY);
+    stone.setAttribute("r",stoneInnerRadius);
+    stoneBorder.setAttribute("cx",symX);
+    stoneBorder.setAttribute("cy",symY);
+    stoneBorder.setAttribute("r",stoneRadius);
+    stoneCenter.setAttribute("cx",symX);
+    stoneCenter.setAttribute("cy",symY);
+    stoneCenter.setAttribute("r",stoneRadius/2.5);
+    stone.setAttribute("stroke","none");
+    stoneBorder.setAttribute("stroke","none");
+    stoneCenter.setAttribute("stroke","none");
+    if(nextPla == 1)
+    {
+      stone.setAttribute("fill",stoneBlackFill);
+      stoneCenter.setAttribute("fill","white");
+    }
+    else
+    {
+      stone.setAttribute("fill",stoneWhiteFill);
+      stoneCenter.setAttribute("fill","black");
+    }
+    boardSvg.appendChild(stoneBorder);
+    boardSvg.appendChild(stone);
+    boardSvg.appendChild(stoneCenter);
+
+  }
+
   // Draw move labels on board
   for(let i = 0; i<moves.length; i++) {
     let moveData = moves[i];
