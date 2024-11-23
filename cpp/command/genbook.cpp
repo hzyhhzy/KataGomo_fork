@@ -955,6 +955,19 @@ int MainCmds::genbook(const vector<string>& args) {
     setParamsAndAvoidMoves(search,thisParams,avoidMoveUntilByLoc);
     search->runWholeSearch(search->rootPla);
 
+    // check whether it has new legal moves
+    if (search->getRootVisits() == 0 || search->getChosenMoveLoc() == Board::NULL_LOC)
+    {
+      std::lock_guard<std::mutex> lock(bookMutex);
+      logger.write("WARNING: search->getRootVisits() == 0, probably some legal moves are pruned");
+      logger.write("BookHash of node unable to expand: " + constNode.hash().toString());
+      ostringstream debugOut;
+      hist.printDebugInfo(debugOut,board);
+      logger.write(debugOut.str());
+      node.canExpand() = false;
+      return;
+    }
+
 
     if(shouldStop.load(std::memory_order_acquire))
       return;
