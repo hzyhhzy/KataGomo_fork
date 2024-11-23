@@ -75,6 +75,7 @@ namespace Location
   Loc ofStringAllowNull(const std::string& str, const Board& b);
 
   std::vector<Loc> parseSequence(const std::string& str, const Board& b);
+  std::vector<Loc> parseSequenceGom(std::string str, const Board& b);
 }
 
 //Simple structure for storing moves. Not used below, but this is a convenient place to define it.

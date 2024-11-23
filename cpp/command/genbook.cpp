@@ -116,6 +116,58 @@ static Player parsePlayer(const string& s) {
   return pla;
 }
 
+static void playMoveLocSequence(Board& board, Player& nextPlayer, vector<Loc> locs)
+{
+  for (int i = 0; i < locs.size(); i++)
+  {
+    Loc loc = locs[i];
+    if(!board.isLegal(loc, nextPlayer))
+      throw StringError("Illegal moves in maybeParseInitialMoveBonus");
+    if(loc != Board::NULL_LOC)
+      board.playMoveAssumeLegal(loc, nextPlayer);
+    nextPlayer = getOpp(nextPlayer);
+  }
+}
+
+static void maybeParseInitialMoveBonus(
+  const std::string& initialMoveStr,
+  Rules rules,
+  double bonusScale,
+  Logger& logger,
+  std::map<BookHash, double>& bonusByHash,
+  const Board& bonusInitialBoard,
+  Player bonusInitialPla) {
+  if(initialMoveStr != "") {
+    Board board = bonusInitialBoard;
+    Player pla = bonusInitialPla;
+    vector<Loc> moveSeq = Location::parseSequenceGom(initialMoveStr, board);
+    BoardHistory hist(board, pla, rules);
+    for(int i = 0; i < moveSeq.size(); i++) {
+      Loc loc = moveSeq[i];
+      if(loc != Board::NULL_LOC) {
+        if(!board.isLegal(loc, pla))
+          throw StringError("Illegal moves in maybeParseInitialMoveBonus");
+        hist.makeBoardMoveAssumeLegal(board, loc, pla);
+
+        double ret = 1.0;
+        BookHash hashRet;
+        int symmetryToAlignRet;
+        vector<int> symmetriesRet;
+        for(int bookVersion = 1; bookVersion <= Book::LATEST_BOOK_VERSION; bookVersion++) {
+          BookHash::getHashAndSymmetry(hist, hashRet, symmetryToAlignRet, symmetriesRet, bookVersion);
+          if(bonusByHash.find(hashRet) != bonusByHash.end())
+            bonusByHash[hashRet] = std::max(bonusByHash[hashRet], ret * bonusScale);
+          else
+            bonusByHash[hashRet] = ret * bonusScale;
+          logger.write(
+            "Adding bonus " + Global::doubleToString(ret * bonusScale) + " to hash " + hashRet.toString());
+        }
+      }
+      pla = getOpp(pla);
+    }
+  }
+}
+
 int MainCmds::genbook(const vector<string>& args) {
   Board::initHash();
 
@@ -219,8 +271,10 @@ int MainCmds::genbook(const vector<string>& args) {
   const int numGameThreads = cfg.getInt("numGameThreads",1,1000);
   const int numToExpandPerIteration = cfg.getInt("numToExpandPerIteration", 1, 10000000);
 
-  const string initialBoardType = cfg.contains("initialBoardType") ? cfg.getString("initialBoardType") : "";
-  const Player initialPlayer = cfg.contains("initialPlayer") ? parsePlayer(cfg.getString("initialPlayer")): C_BLACK;
+  const string rootBoardSequence = cfg.contains("rootBoardSequence") ? cfg.getString("rootBoardSequence") : "";
+  const string initialMoveSequence = cfg.contains("initialMoveSequence") ? cfg.getString("initialMoveSequence") : "";
+  const double initialMoveBonus = cfg.contains("initialMoveBonus") ? cfg.getDouble("initialMoveBonus") : 5.0;
+  //const Player initialPlayer = cfg.contains("initialPlayer") ? parsePlayer(cfg.getString("initialPlayer")): C_BLACK;
 
   std::map<BookHash,double> bonusByHash;
   std::map<BookHash,double> expandBonusByHash;
@@ -230,15 +284,19 @@ int MainCmds::genbook(const vector<string>& args) {
   Player bonusInitialPla;
 
   bonusInitialBoard = Board(boardSizeX, boardSizeY);
-  if(initialBoardType != "") {
-    if(initialBoardType == "d3")
-      bonusInitialBoard.playMoveAssumeLegal(Location::getLoc(boardSizeX - 4, 2, bonusInitialBoard.x_size), C_BLACK);
-    else
-      throw StringError("Unknown opening type");
-    //bonusInitialBoard = Board::parseBoard(boardSizeX, boardSizeY, initialBoardJson);
+  bonusInitialPla = P_BLACK; 
+  if(rootBoardSequence != "") {
+    vector<Loc> rootBoardLocSeq = Location::parseSequenceGom(rootBoardSequence, bonusInitialBoard);
+    playMoveLocSequence(bonusInitialBoard, bonusInitialPla, rootBoardLocSeq);
   }
-  bonusInitialPla = initialPlayer;
-
+  maybeParseInitialMoveBonus(
+    initialMoveSequence,
+    rules,
+    initialMoveBonus,
+    logger,
+    bonusByHash,
+    bonusInitialBoard,
+    bonusInitialPla);
   //bonusInitialBoard.playMoveAssumeLegal(Location::getLoc(3, boardSizeY - 3, bonusInitialBoard.x_size), C_BLACK);
   //bonusInitialPla = P_WHITE;
 
