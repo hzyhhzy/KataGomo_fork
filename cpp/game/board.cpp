@@ -624,6 +624,56 @@ vector<Loc> Location::parseSequence(const string& str, const Board& board) {
   }
   return locs;
 }
+vector<Loc> Location::parseSequenceGom(string str, const Board& b) {
+  str = Global::toLower(Global::trim(str));
+  vector<Loc> result;
+  int i = 0;
+  int n = str.length();
+  while(i < n) {
+    // Check for "pass"
+    if(n - i >= 4 && str.substr(i, 4) == "pass") {
+      result.push_back(Board::PASS_LOC);
+      i += 4;
+    }
+    // Check for "null"
+    else if(n - i >= 4 && str.substr(i, 4) == "null") {
+      result.push_back(Board::NULL_LOC);
+      i += 4;
+    }
+    // Check for letter(s) followed by digits
+    else if(isalpha(str[i])) {
+      int x = 0;
+      // Check if next character is also a letter
+      if(i + 1 < n && isalpha(str[i + 1])) {
+        // Two letters for x
+        x = (str[i] - 'a') * 26 + (str[i + 1] - 'a');
+        i += 2;
+      } else {
+        // One letter for x
+        x = str[i] - 'a';
+        i += 1;
+      }
+      // Now read digits for y
+      int y = 0;
+      while(i < n && isdigit(str[i])) {
+        y = y * 10 + (str[i] - '0');
+        i += 1;
+      }
+      if(y == 0) {
+        // No digits found for y
+        throw StringError("Failed to parse loc sequence");
+      }
+      // Create Loc object
+      y = b.y_size - y;
+      Loc loc = getLoc(x, y, b.x_size);
+      result.push_back(loc);
+    } else {
+      // Invalid character encountered
+      throw StringError("Failed to parse loc sequence");
+    }
+  }
+  return result;
+}
 
 void Board::printBoard(ostream& out, const Board& board, Loc markLoc, const vector<Move>* hist) {
   if(hist != NULL)
