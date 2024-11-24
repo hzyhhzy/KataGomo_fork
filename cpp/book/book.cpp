@@ -736,6 +736,7 @@ BookParams BookParams::loadFromCfg(ConfigParser& cfg, int64_t maxVisits) {
   BookParams cfgParams;
   cfgParams.errorFactor = cfg.getDouble("errorFactor",0.01,100.0);
   cfgParams.costPerMove = cfg.getDouble("costPerMove", 0.0, 1000000.0);
+  cfgParams.costFromUCBPow = cfg.contains("costFromUCBPow") ? cfg.getDouble("costFromUCBPow", 0.0, 1.0) : 0.2;
   cfgParams.costSoftmaxScale = cfg.contains("costSoftmaxScale") ? cfg.getDouble("costSoftmaxScale", 0.01, 100.0) : 1.0;
   cfgParams.costSoftmaxFactor = cfg.contains("costSoftmaxFactor") ? cfg.getDouble("costSoftmaxFactor", 0.0, 1.0) : 1.0;
   cfgParams.costPerUCBWinLossLoss = cfg.getDouble("costPerUCBWinLossLoss",0.0,1000000.0);
@@ -1397,6 +1398,11 @@ void Book::recomputeNodeValues(BookNode* node) {
 double Book::getUtility(const RecursiveBookValues& values) const {
   return values.winLossValue;
 }
+static double calculateWinlossLoss(double v, const BookParams& params) {
+  return v * params.costPerUCBWinLossLoss + 
+    pow3(v) * params.costPerUCBWinLossLossPow3 +
+    pow7(v) * params.costPerUCBWinLossLossPow7;
+}
 
 void Book::recomputeNodeCost(BookNode* node) {
   // Update this node's minCostFromRoot based on cost for moves from parents.
@@ -1532,18 +1538,6 @@ void Book::recomputeNodeCost(BookNode* node) {
   double smallestCostFromUCB = 1e100;
   for(auto& locAndBookMove: node->moves) {
     const BookNode* child = get(locAndBookMove.second.hash);
-    double ucbWinLossLoss =
-      (node->pla == P_WHITE) ?
-      node->recursiveValues.winLossUCB - child->recursiveValues.winLossUCB :
-      child->recursiveValues.winLossLCB - node->recursiveValues.winLossLCB;
-    double ucbWinLossLossPow3 =
-      (node->pla == P_WHITE) ?
-      pow3(node->recursiveValues.winLossUCB) - pow3(child->recursiveValues.winLossUCB) :
-      pow3(child->recursiveValues.winLossLCB) - pow3(node->recursiveValues.winLossLCB);
-    double ucbWinLossLossPow7 =
-      (node->pla == P_WHITE) ?
-      pow7(node->recursiveValues.winLossUCB) - pow7(child->recursiveValues.winLossUCB) :
-      pow7(child->recursiveValues.winLossLCB) - pow7(node->recursiveValues.winLossLCB);
     double rawPolicy = locAndBookMove.second.rawPolicy;
     double logRawPolicy = log(rawPolicy + 1e-100);
     double childUtility = getUtility(child->recursiveValues);
@@ -1553,14 +1547,20 @@ void Book::recomputeNodeCost(BookNode* node) {
       (node->pla == P_BLACK && passUtility < childUtility + 0.02)
     );
 
-    double costFromWL =
-      ucbWinLossLoss * params.costPerUCBWinLossLoss
-      + ucbWinLossLossPow3 * params.costPerUCBWinLossLossPow3
-      + ucbWinLossLossPow7 * params.costPerUCBWinLossLossPow7;
-    if(costFromWL > node->biggestWLCostFromRoot)
-      costFromWL -= params.bonusForBiggestWLCost * (costFromWL - node->biggestWLCostFromRoot);
-    double costFromUCB =
-      costFromWL;
+    double costFromWL = calculateWinlossLoss(node->recursiveValues.winLossValue, params) -
+                        calculateWinlossLoss(child->recursiveValues.winLossValue, params);
+    if(node->pla == P_BLACK)
+      costFromWL = -costFromWL;
+    assert(costFromWL > -1e-10);//minimax ensures this
+
+    if(params.bonusForBiggestWLCost > 0)
+      throw StringError("params.bonusForBiggestWLCost disabled");
+    //if(costFromWL > node->biggestWLCostFromRoot)
+    //  costFromWL -= params.bonusForBiggestWLCost * (costFromWL - node->biggestWLCostFromRoot);
+    double costFromUCB = costFromWL;
+
+    double costFromUCBScale = pow(node->recursiveValues.visits / params.visitsScale + 1, params.costFromUCBPow);
+    costFromUCB = log(costFromUCBScale * costFromUCB + 1);
 
     double cost =
       node->minCostFromRoot
@@ -1595,18 +1595,6 @@ void Book::recomputeNodeCost(BookNode* node) {
   }
   else {
     double winLossError = node->thisValuesNotInBook.getAdjustedWinLossError(node->book->initialRules);
-    double ucbWinLossLoss =
-      (node->pla == P_WHITE) ?
-      (node->recursiveValues.winLossUCB - (node->thisValuesNotInBook.winLossValue + params.errorFactor * winLossError)) :
-      ((node->thisValuesNotInBook.winLossValue - params.errorFactor * winLossError) - node->recursiveValues.winLossLCB);
-    double ucbWinLossLossPow3 =
-      (node->pla == P_WHITE) ?
-      (pow3(node->recursiveValues.winLossUCB) - pow3(node->thisValuesNotInBook.winLossValue + params.errorFactor * winLossError)) :
-      (pow3(node->thisValuesNotInBook.winLossValue - params.errorFactor * winLossError) - pow3(node->recursiveValues.winLossLCB));
-    double ucbWinLossLossPow7 =
-      (node->pla == P_WHITE) ?
-      (pow7(node->recursiveValues.winLossUCB) - pow7(node->thisValuesNotInBook.winLossValue + params.errorFactor * winLossError)) :
-      (pow7(node->thisValuesNotInBook.winLossValue - params.errorFactor * winLossError) - pow7(node->recursiveValues.winLossLCB));
     double rawPolicy = node->thisValuesNotInBook.maxPolicy;
     double logRawPolicy = log(rawPolicy + 1e-100);
     double notInBookUtility = node->thisValuesNotInBook.winLossValue;
@@ -1640,14 +1628,22 @@ void Book::recomputeNodeCost(BookNode* node) {
     //   node->recursiveValues.scoreUCB << endl;
     // cout << "Expansion stats " << ucbWinLossLoss << " " << ucbScoreLoss << " " << rawPolicy << endl;
 
-    double costFromWL =
-      ucbWinLossLoss * params.costPerUCBWinLossLoss
-      + ucbWinLossLossPow3 * params.costPerUCBWinLossLossPow3
-      + ucbWinLossLossPow7 * params.costPerUCBWinLossLossPow7;
-    if(costFromWL > node->biggestWLCostFromRoot)
-      costFromWL -= params.bonusForBiggestWLCost * (costFromWL - node->biggestWLCostFromRoot);
-    double costFromUCB =
-      costFromWL;
+    double costFromWL = calculateWinlossLoss(node->recursiveValues.winLossValue, params) -
+                        calculateWinlossLoss(node->thisValuesNotInBook.winLossValue, params);
+    if(node->pla == P_BLACK)
+      costFromWL = -costFromWL;
+    assert(costFromWL > -1e-10);  // minimax ensures this
+
+    if(params.bonusForBiggestWLCost > 0)
+      throw StringError("params.bonusForBiggestWLCost disabled");
+    // if(costFromWL > node->biggestWLCostFromRoot)
+    //   costFromWL -= params.bonusForBiggestWLCost * (costFromWL - node->biggestWLCostFromRoot);
+    double costFromUCB = costFromWL;
+
+    double costFromUCBScale = pow(node->recursiveValues.visits / params.visitsScale + 1, params.costFromUCBPow);
+    costFromUCB = log(costFromUCBScale * costFromUCB + 1);
+
+
 
     node->thisNodeExpansionCost =
       params.costPerMove
@@ -2329,6 +2325,7 @@ void Book::saveToFile(const string& fileName) const {
     paramsDump["initialPla"] = PlayerIO::playerToString(initialPla);
     paramsDump["errorFactor"] = params.errorFactor;
     paramsDump["costPerMove"] = params.costPerMove;
+    paramsDump["costFromUCBPow"] = params.costFromUCBPow;
     paramsDump["costSoftmaxScale"] = params.costSoftmaxScale;
     paramsDump["costSoftmaxFactor"] = params.costSoftmaxFactor;
     paramsDump["costPerUCBWinLossLoss"] = params.costPerUCBWinLossLoss;
@@ -2487,6 +2484,7 @@ Book* Book::loadFromFile(const std::string& fileName) {
       BookParams bookParams;
       bookParams.errorFactor = params["errorFactor"].get<double>();
       bookParams.costPerMove = params["costPerMove"].get<double>();
+      bookParams.costFromUCBPow = params["costFromUCBPow"].get<double>();
       bookParams.costSoftmaxScale = params["costSoftmaxScale"].get<double>();
       bookParams.costSoftmaxFactor = params["costSoftmaxFactor"].get<double>();
       bookParams.costPerUCBWinLossLoss = params["costPerUCBWinLossLoss"].get<double>();
