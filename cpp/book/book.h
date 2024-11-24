@@ -244,6 +244,8 @@ struct BookParams {
   double errorFactor = 1.0;
   // Fixed cost per move
   double costPerMove = 1.0;
+  double costSoftmaxScale = 1.0;
+  double costSoftmaxFactor = 1.0;
   // Cost per 1 unit of winloss value that a move's UCB is worse than the best UCB
   // As well as versions that compare winloss^3 and winloss^7, to emphasize the tails.
   double costPerUCBWinLossLoss = 0.0;

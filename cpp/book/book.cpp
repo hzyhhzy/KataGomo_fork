@@ -742,7 +742,9 @@ static double sigmoid(double x) {
 BookParams BookParams::loadFromCfg(ConfigParser& cfg, int64_t maxVisits) {
   BookParams cfgParams;
   cfgParams.errorFactor = cfg.getDouble("errorFactor",0.01,100.0);
-  cfgParams.costPerMove = cfg.getDouble("costPerMove",0.0,1000000.0);
+  cfgParams.costPerMove = cfg.getDouble("costPerMove", 0.0, 1000000.0);
+  cfgParams.costSoftmaxScale = cfg.contains("costSoftmaxScale") ? cfg.getDouble("costSoftmaxScale", 0.01, 100.0) : 1.0;
+  cfgParams.costSoftmaxFactor = cfg.contains("costSoftmaxFactor") ? cfg.getDouble("costSoftmaxFactor", 0.0, 1.0) : 1.0;
   cfgParams.costPerUCBWinLossLoss = cfg.getDouble("costPerUCBWinLossLoss",0.0,1000000.0);
   cfgParams.costPerUCBWinLossLossPow3 = cfg.getDouble("costPerUCBWinLossLossPow3",0.0,1000000.0);
   cfgParams.costPerUCBWinLossLossPow7 = cfg.getDouble("costPerUCBWinLossLossPow7",0.0,1000000.0);
@@ -1677,17 +1679,39 @@ void Book::recomputeNodeCost(BookNode* node) {
 
   // Partly replenish moves based on ucb cost conficting, since cost conflicting probably means actually the node is
   // interesting for further expansion.
-  if(smallestCostFromUCB > 1e-100) {
+  //if(smallestCostFromUCB > 1e-100) {
     // cout << "Replenishing due to smallest cost from UCB " << smallestCostFromUCB << endl;
-    for(auto& locAndBookMove: node->moves) {
+  //  for(auto& locAndBookMove: node->moves) {
       // cout << "Child " << (int)locAndBookMove.first
       //      << " cost " << locAndBookMove.second.costFromRoot
       //      << " becomes " <<  (locAndBookMove.second.costFromRoot - 0.8 * smallestCostFromUCB) << endl;
-      locAndBookMove.second.costFromRoot -= 0.8 * smallestCostFromUCB;
-    }
+  //    locAndBookMove.second.costFromRoot -= 0.8 * smallestCostFromUCB;
+  //  }
     // cout << "This node expansion cost " << node->thisNodeExpansionCost
     //      << " becomes " <<  (node->thisNodeExpansionCost - 0.8 * smallestCostFromUCB) << endl;
-    node->thisNodeExpansionCost -= 0.8 * smallestCostFromUCB;
+  //  node->thisNodeExpansionCost -= 0.8 * smallestCostFromUCB;
+  //}
+
+  //softmax
+  double logsum = 0;
+
+  {
+    for(auto& locAndBookMove: node->moves) {
+      double costdif = smallestCostFromUCB - locAndBookMove.second.costFromRoot;
+      assert(costdif < 1e-10);
+      logsum += exp(costdif * params.costSoftmaxScale);
+    }
+    double costdif = smallestCostFromUCB - node->thisNodeExpansionCost;
+    assert(costdif < 1e-10);
+    logsum += exp(costdif * params.costSoftmaxScale);
+  }
+  double costBias = log(logsum) / params.costSoftmaxScale - smallestCostFromUCB + node->minCostFromRoot;
+  costBias *= params.costSoftmaxScale;
+  {
+    for(auto& locAndBookMove: node->moves) {
+      locAndBookMove.second.costFromRoot += costBias;
+    }
+    node->thisNodeExpansionCost += costBias;
   }
 
   // For each move, in order, if its plain winrate is a lot better than the winrate of other moves, then its cost can't be too much worse.
@@ -2290,6 +2314,8 @@ void Book::saveToFile(const string& fileName) const {
     paramsDump["initialPla"] = PlayerIO::playerToString(initialPla);
     paramsDump["errorFactor"] = params.errorFactor;
     paramsDump["costPerMove"] = params.costPerMove;
+    paramsDump["costSoftmaxScale"] = params.costSoftmaxScale;
+    paramsDump["costSoftmaxFactor"] = params.costSoftmaxFactor;
     paramsDump["costPerUCBWinLossLoss"] = params.costPerUCBWinLossLoss;
     paramsDump["costPerUCBWinLossLossPow3"] = params.costPerUCBWinLossLossPow3;
     paramsDump["costPerUCBWinLossLossPow7"] = params.costPerUCBWinLossLossPow7;
@@ -2446,6 +2472,8 @@ Book* Book::loadFromFile(const std::string& fileName) {
       BookParams bookParams;
       bookParams.errorFactor = params["errorFactor"].get<double>();
       bookParams.costPerMove = params["costPerMove"].get<double>();
+      bookParams.costSoftmaxScale = params["costSoftmaxScale"].get<double>();
+      bookParams.costSoftmaxFactor = params["costSoftmaxFactor"].get<double>();
       bookParams.costPerUCBWinLossLoss = params["costPerUCBWinLossLoss"].get<double>();
       bookParams.costPerUCBWinLossLossPow3 = params.contains("costPerUCBWinLossLossPow3") ? params["costPerUCBWinLossLossPow3"].get<double>() : 0.0;
       bookParams.costPerUCBWinLossLossPow7 = params.contains("costPerUCBWinLossLossPow7") ? params["costPerUCBWinLossLossPow7"].get<double>() : 0.0;
