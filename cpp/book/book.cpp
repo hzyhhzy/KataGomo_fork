@@ -1686,20 +1686,30 @@ void Book::recomputeNodeCost(BookNode* node) {
   //}
 
   //softmax
-  double logsum = 0;
-
+  double smallestCost = 1e110;
   {
     for(auto& locAndBookMove: node->moves) {
-      double costdif = smallestCostFromUCB - locAndBookMove.second.costFromRoot;
+      double cost = locAndBookMove.second.costFromRoot;
+      if(cost < smallestCost)
+        smallestCost = cost;
+    }
+    double cost = node->thisNodeExpansionCost + node->minCostFromRoot;
+    if(cost < smallestCost)
+      smallestCost = cost;
+  }
+  double logsum = 0;
+  {
+    for(auto& locAndBookMove: node->moves) {
+      double costdif = smallestCost - locAndBookMove.second.costFromRoot;
       assert(costdif < 1e-10);
       logsum += exp(costdif * params.costSoftmaxScale);
     }
-    double costdif = smallestCostFromUCB - node->thisNodeExpansionCost;
+    double costdif = smallestCost - node->thisNodeExpansionCost - node->minCostFromRoot;
     assert(costdif < 1e-10);
     logsum += exp(costdif * params.costSoftmaxScale);
   }
-  double costBias = log(logsum) / params.costSoftmaxScale - smallestCostFromUCB + node->minCostFromRoot;
-  costBias *= params.costSoftmaxScale;
+  double costBias = log(logsum) / params.costSoftmaxScale - smallestCost + node->minCostFromRoot;
+  costBias *= params.costSoftmaxFactor;
   {
     for(auto& locAndBookMove: node->moves) {
       locAndBookMove.second.costFromRoot += costBias;
