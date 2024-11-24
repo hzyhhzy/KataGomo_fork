@@ -355,6 +355,7 @@ int MainCmds::genbook(const vector<string>& args) {
       if(
         cfgParams.errorFactor != existingBookParams.errorFactor ||
         cfgParams.costPerMove != existingBookParams.costPerMove ||
+        cfgParams.costFromUCBPow != existingBookParams.costFromUCBPow ||
         cfgParams.costSoftmaxScale != existingBookParams.costSoftmaxScale ||
         cfgParams.costSoftmaxFactor != existingBookParams.costSoftmaxFactor ||
         cfgParams.costPerUCBWinLossLoss != existingBookParams.costPerUCBWinLossLoss ||
