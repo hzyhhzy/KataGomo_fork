@@ -1333,15 +1333,22 @@ void Book::recomputeNodeValues(BookNode* node) {
   double visits = 0.0;
 
   {
-    if (!node->canExpand && node->moves.size() > 0)//non-terminal but no other moves, use first child's value instead
+    if (!node->canExpand)
     {
-      const BookNode* firstChild = get(node->moves.begin()->second.hash);
-      const RecursiveBookValues& values = firstChild->recursiveValues;
-      winLossValue = values.winLossValue;
-      winLossLCB = values.winLossLCB;
-      winLossUCB = values.winLossUCB;
-      weight += values.weight;
-      visits += values.visits;
+      if(node->moves.size() > 0)  // non-terminal but no other moves, use first child's value instead
+      {
+        const BookNode* firstChild = get(node->moves.begin()->second.hash);
+        const RecursiveBookValues& values = firstChild->recursiveValues;
+        winLossValue = values.winLossValue;
+        winLossLCB = values.winLossLCB;
+        winLossUCB = values.winLossUCB;
+        weight += values.weight;
+        visits += values.visits;
+      }
+      else
+      {
+        return; //terminal
+      }
     } 
     else {
       BookValues& values = node->thisValuesNotInBook;
@@ -1445,7 +1452,13 @@ void Book::recomputeNodeCost(BookNode* node) {
     node->biggestWLCostFromRoot = bestBiggestWLCostFromRoot;
     node->bestParentIdx = (int64_t)bestParentIdx;
   }
-
+  if (!node->canExpand && node->moves.size() == 0)//terminal node
+  {
+    node->minCostFromRoot = 1e100;
+    node->minCostFromRootWLPV = 1e100;
+    //node->biggestWLCostFromRoot = 1e100;
+    return;
+  }
   // cout << "-----------------------------------------------------------------------" << endl;
   // cout << "Initial min cost from root " << node->minCostFromRoot << endl;
 
@@ -1495,7 +1508,21 @@ void Book::recomputeNodeCost(BookNode* node) {
     }
     if(bestWinLossMove == Board::NULL_LOC) {
       node->expansionIsWLPV = true;
-      assert(node->canExpand);
+      if(!node->canExpand) {
+        
+        cout << "hash " << node->hash << endl;
+        cout << "move size " << node->moves.size() << endl;
+        for(auto& locAndBookMove: node->moves) {
+          locAndBookMove.second.isWLPV = false;
+          const BookNode* child = get(locAndBookMove.second.hash);
+          double winLossThisPerspective =
+            (node->pla == P_WHITE ? child->recursiveValues.winLossValue : -child->recursiveValues.winLossValue);
+          
+          cout << Location::toString(locAndBookMove.first, initialBoard) << " " << winLossThisPerspective << endl;
+
+        }
+        throw StringError("bestWinLossMove = Board::NULL_LOC but !node->canExpand");
+      }
     }
     else
       node->moves[bestWinLossMove].isWLPV = true;
