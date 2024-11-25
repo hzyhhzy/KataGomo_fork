@@ -565,7 +565,8 @@ int MainCmds::genbook(const vector<string>& args) {
 
     // Record those values to the book
     BookValues& nodeValues = node.thisValuesNotInBook();
-    nodeValues.winLossValue = remainingSearchValues.winLossValue;
+    nodeValues.winLossValue =
+      remainingSearchValues.winLossValue + params.noResultUtilityForWhite * remainingSearchValues.noResultValue;
     nodeValues.winLossError = search->getAverageShorttermWLError(searchNode);
 
     nodeValues.maxPolicy = maxPolicy;
