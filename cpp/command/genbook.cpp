@@ -544,6 +544,7 @@ int MainCmds::genbook(const vector<string>& args) {
     // cout << "Calling full nn " << timer.getSeconds() << endl;
     std::shared_ptr<NNOutput> fullSymNNOutput = PlayUtils::getFullSymmetryNNOutput(board, hist, node.pla(), search->nnEvaluator);
     float policyProbs[NNPos::MAX_NN_POLICY_SIZE];
+    bool anyLegal = false;
     for(int i = 0; i < NNPos::MAX_NN_POLICY_SIZE; i++)
       policyProbs[i] = fullSymNNOutput->policyProbs[i];
     // cout << "Done full nn " << timer.getSeconds() << endl;
@@ -552,11 +553,13 @@ int MainCmds::genbook(const vector<string>& args) {
     if(avoidMoveUntilByLoc.size() > 0) {
       assert(avoidMoveUntilByLoc.size() == Board::MAX_ARR_SIZE);
       for(Loc loc = 0; loc<Board::MAX_ARR_SIZE; loc++) {
+        int pos = search->getPos(loc);
         if(avoidMoveUntilByLoc[loc] > 0) {
-          int pos = search->getPos(loc);
           assert(pos >= 0 && pos < NNPos::MAX_NN_POLICY_SIZE);
           policyProbs[pos] = -1;
         }
+        if(policyProbs[pos] >= 0)
+          anyLegal = true;
       }
     }
     double maxPolicy = getMaxPolicy(policyProbs);
@@ -574,6 +577,8 @@ int MainCmds::genbook(const vector<string>& args) {
     nodeValues.maxPolicy = maxPolicy;
     nodeValues.weight = remainingSearchValues.weight;
     nodeValues.visits = (double)remainingSearchValues.visits;
+    if(!anyLegal)
+      setNodeThisValuesNoMoves(node);
   };
 
 
