@@ -1352,8 +1352,14 @@ void Book::recomputeNodeValues(BookNode* node) {
         weight += values.weight;
         visits += values.visits;
       }
-      else
-      {
+      else {
+        node->recursiveValues.visits = node->thisValuesNotInBook.visits;
+        node->recursiveValues.adjustedVisits = node->thisValuesNotInBook.visits;
+        node->recursiveValues.weight = node->thisValuesNotInBook.weight;
+        node->recursiveValues.winLossValue = node->thisValuesNotInBook.winLossValue;
+        node->recursiveValues.winLossUCB = node->thisValuesNotInBook.winLossValue;
+        node->recursiveValues.winLossLCB = node->thisValuesNotInBook.winLossValue;
+        //cout << node->recursiveValues.visits << node->recursiveValues.adjustedVisits;
         return; //terminal
       }
     } 
@@ -2208,7 +2214,7 @@ int64_t Book::exportToHtmlDir(
     dataVarsStr += "};\n";
     linkSymmetriesStr += "};\n";
     dataVarsStr += linkSymmetriesStr;
-
+    
     vector<BookMove> uniqueMovesInBook = symNode.getUniqueMovesInBook();
     vector<RecursiveBookValues> uniqueChildValues;
     vector<double> uniqueChildCosts;
