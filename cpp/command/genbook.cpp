@@ -647,8 +647,19 @@ int MainCmds::genbook(const vector<string>& args) {
         logger.write(out.str());
       }
 
+      // check whether it has new legal moves
+      if(search->getRootVisits() == 0 || search->getChosenMoveLoc() == Board::NULL_LOC) {
+        std::lock_guard<std::mutex> lock(bookMutex);
+        logger.write("searchAndUpdateNodeThisValues search->getRootVisits() == 0");
+        logger.write("BookHash of node unable to expand: " + constNode.hash().toString() + ", maybe four attack");
+        ostringstream debugOut;
+        hist.printDebugInfo(debugOut, board);
+        logger.write(debugOut.str());
+        setNodeThisValuesNoMovesNoLock(node);
+      }
       // Stick all the new values into the book node
-      setNodeThisValuesFromFinishedSearch(node, search, search->getRootNode(), search->getRootBoard(), search->getRootHist(), avoidMoveUntilByLoc);
+      else
+        setNodeThisValuesFromFinishedSearch(node, search, search->getRootNode(), search->getRootBoard(), search->getRootHist(), avoidMoveUntilByLoc);
     }
   };
 
