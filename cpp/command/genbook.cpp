@@ -563,7 +563,9 @@ int MainCmds::genbook(const vector<string>& args) {
         if(policyProbs[pos] >= 0)
           anyLegal = true;
       }
-    }
+    } 
+    else
+      anyLegal = true;
     double maxPolicy = getMaxPolicy(policyProbs);
     assert(maxPolicy >= 0.0);
 
