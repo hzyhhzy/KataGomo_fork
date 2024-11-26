@@ -473,8 +473,7 @@ int MainCmds::genbook(const vector<string>& args) {
     search->setAvoidMoveUntilRescaleRoot(true);
   };
 
-  auto setNodeThisValuesNoMoves = [&](SymBookNode node) {
-    std::lock_guard<std::mutex> lock(bookMutex);
+  auto setNodeThisValuesNoMovesNoLock = [&](SymBookNode node) {
     BookValues& nodeValues = node.thisValuesNotInBook();
     if(node.pla() == P_WHITE) {
       nodeValues.winLossValue = -1e20;
@@ -488,6 +487,11 @@ int MainCmds::genbook(const vector<string>& args) {
     nodeValues.visits = 0.0;
 
     node.canExpand() = false;
+  };
+
+  auto setNodeThisValuesNoMoves = [&](SymBookNode node) {
+    std::lock_guard<std::mutex> lock(bookMutex);
+    setNodeThisValuesNoMovesNoLock(node);
   };
 
   auto setNodeThisValuesTerminal = [&](SymBookNode node, const BoardHistory& hist) {
@@ -576,7 +580,7 @@ int MainCmds::genbook(const vector<string>& args) {
     nodeValues.weight = remainingSearchValues.weight;
     nodeValues.visits = (double)remainingSearchValues.visits;
     if(!anyLegal)
-      setNodeThisValuesNoMoves(node);
+      setNodeThisValuesNoMovesNoLock(node);
   };
 
 
