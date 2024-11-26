@@ -1418,8 +1418,8 @@ static double calculateWinlossLoss(double v, const BookParams& params) {
   if(v < -1)
     v = -1;
   double value = v + 
-    params.costPerUCBWinLossLossPow3 * (log(1 + v * 0.9) - log(1 - v * 0.9)) / (2 * 0.9) +
-    params.costPerUCBWinLossLossPow7 * (log(1 + v * 0.99) - log(1 - v * 0.99)) / (2 * 0.99);
+    params.costPerUCBWinLossLossPow3 * (log(1 + v * 0.97) - log(1 - v * 0.97)) / (2 * 0.97) +
+    params.costPerUCBWinLossLossPow7 * (log(1 + v * 0.999) - log(1 - v * 0.999)) / (2 * 0.999);
   value /= slope;
   return value * params.costPerUCBWinLossLoss;
 
@@ -1427,6 +1427,42 @@ static double calculateWinlossLoss(double v, const BookParams& params) {
   //  pow3(v) * params.costPerUCBWinLossLossPow3 +
   //  pow7(v) * params.costPerUCBWinLossLossPow7;
 }
+
+
+void Book::nodeCostSoftmax(BookNode* node) {
+  // softmax
+  double smallestCost = 1e110;
+  {
+    for(auto& locAndBookMove: node->moves) {
+      double cost = locAndBookMove.second.costFromRoot;
+      if(cost < smallestCost)
+        smallestCost = cost;
+    }
+    double cost = node->thisNodeExpansionCost + node->minCostFromRoot;
+    if(cost < smallestCost)
+      smallestCost = cost;
+  }
+  double logsum = 0;
+  {
+    for(auto& locAndBookMove: node->moves) {
+      double costdif = smallestCost - locAndBookMove.second.costFromRoot;
+      assert(costdif < 1e-10);
+      logsum += exp(costdif * params.costSoftmaxScale);
+    }
+    double costdif = smallestCost - node->thisNodeExpansionCost - node->minCostFromRoot;
+    assert(costdif < 1e-10);
+    logsum += exp(costdif * params.costSoftmaxScale);
+  }
+  double costBias = log(logsum) / params.costSoftmaxScale - smallestCost + node->minCostFromRoot;
+  costBias *= params.costSoftmaxFactor;
+  {
+    for(auto& locAndBookMove: node->moves) {
+      locAndBookMove.second.costFromRoot += costBias;
+    }
+    node->thisNodeExpansionCost += costBias;
+  }
+}
+
 
 void Book::recomputeNodeCost(BookNode* node) {
   // Update this node's minCostFromRoot based on cost for moves from parents.
@@ -1606,6 +1642,7 @@ void Book::recomputeNodeCost(BookNode* node) {
     double costFromUCBScale = pow(node->recursiveValues.visits / params.visitsScale + 1, params.costFromUCBPow);
     costFromUCB = log(costFromUCBScale * costFromUCB + 1);
 
+
     double cost =
       node->minCostFromRoot
       + params.costPerMove
@@ -1724,38 +1761,31 @@ void Book::recomputeNodeCost(BookNode* node) {
     //      << " becomes " <<  (node->thisNodeExpansionCost - 0.8 * smallestCostFromUCB) << endl;
   //  node->thisNodeExpansionCost -= 0.8 * smallestCostFromUCB;
   //}
+  
+  nodeCostSoftmax(node);
 
-  //softmax
-  double smallestCost = 1e110;
-  {
-    for(auto& locAndBookMove: node->moves) {
-      double cost = locAndBookMove.second.costFromRoot;
-      if(cost < smallestCost)
-        smallestCost = cost;
-    }
-    double cost = node->thisNodeExpansionCost + node->minCostFromRoot;
-    if(cost < smallestCost)
-      smallestCost = cost;
+  //calculate over-visit cost
+  if(params.costSoftmaxFactor != 1.0 || params.costSoftmaxScale != 1.0)
+    throw StringError("params.costSoftmaxFactor and params.costSoftmaxScale should be 1.0");
+  const double costExceedVisitsPow = 2.5;//
+  for(auto& locAndBookMove: node->moves) {
+    const BookNode* child = get(locAndBookMove.second.hash);
+    double visits = child->recursiveValues.visits;
+    double expectedVisitsLog =
+      log(node->recursiveValues.visits + 1) - (locAndBookMove.second.costFromRoot - node->minCostFromRoot);
+    if(expectedVisitsLog < log(params.visitsScale))
+      expectedVisitsLog = log(params.visitsScale);
+    assert(expectedVisitsLog < 300);
+    double expectedVisits = exp(expectedVisitsLog);
+    double costFromVisitNum = log(visits/expectedVisits + 1);
+    costFromVisitNum = pow(costFromVisitNum, costExceedVisitsPow);
+    locAndBookMove.second.costFromRoot += costFromVisitNum;
   }
-  double logsum = 0;
+  if (node->canExpand)
   {
-    for(auto& locAndBookMove: node->moves) {
-      double costdif = smallestCost - locAndBookMove.second.costFromRoot;
-      assert(costdif < 1e-10);
-      logsum += exp(costdif * params.costSoftmaxScale);
-    }
-    double costdif = smallestCost - node->thisNodeExpansionCost - node->minCostFromRoot;
-    assert(costdif < 1e-10);
-    logsum += exp(costdif * params.costSoftmaxScale);
+    node->thisNodeExpansionCost += pow(log(2), costExceedVisitsPow);
   }
-  double costBias = log(logsum) / params.costSoftmaxScale - smallestCost + node->minCostFromRoot;
-  costBias *= params.costSoftmaxFactor;
-  {
-    for(auto& locAndBookMove: node->moves) {
-      locAndBookMove.second.costFromRoot += costBias;
-    }
-    node->thisNodeExpansionCost += costBias;
-  }
+  nodeCostSoftmax(node);
 
   // For each move, in order, if its plain winrate is a lot better than the winrate of other moves, then its cost can't be too much worse.
   for(auto& locAndBookMove: node->moves) {

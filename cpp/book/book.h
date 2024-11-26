@@ -441,6 +441,7 @@ class Book {
 
   void recomputeNodeValues(BookNode* node);
   void recomputeNodeCost(BookNode* node);
+  void nodeCostSoftmax(BookNode* node);
 
   double getUtility(const RecursiveBookValues& values) const;
 
