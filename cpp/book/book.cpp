@@ -1413,9 +1413,20 @@ double Book::getUtility(const RecursiveBookValues& values) const {
   return values.winLossValue;
 }
 static double calculateWinlossLoss(double v, const BookParams& params) {
-  return v * params.costPerUCBWinLossLoss + 
-    pow3(v) * params.costPerUCBWinLossLossPow3 +
-    pow7(v) * params.costPerUCBWinLossLossPow7;
+  double slope = 1 + params.costPerUCBWinLossLossPow3 + params.costPerUCBWinLossLossPow7;
+  if(v > 1)
+    v = 1;
+  if(v < -1)
+    v = -1;
+  double value = v + 
+    params.costPerUCBWinLossLossPow3 * (log(1 + v * 0.9) - log(1 - v * 0.9)) / (2 * 0.9) +
+    params.costPerUCBWinLossLossPow7 * (log(1 + v * 0.99) - log(1 - v * 0.99)) / (2 * 0.99);
+  value /= slope;
+  return value * params.costPerUCBWinLossLoss;
+
+  //return v * params.costPerUCBWinLossLoss + 
+  //  pow3(v) * params.costPerUCBWinLossLossPow3 +
+  //  pow7(v) * params.costPerUCBWinLossLossPow7;
 }
 
 void Book::recomputeNodeCost(BookNode* node) {
