@@ -1349,8 +1349,8 @@ void Book::recomputeNodeValues(BookNode* node) {
         winLossValue = values.winLossValue;
         winLossLCB = values.winLossLCB;
         winLossUCB = values.winLossUCB;
-        weight += values.weight;
-        visits += values.visits;
+        //weight += values.weight;
+        //visits += values.visits;
       }
       else {
         node->recursiveValues.visits = node->thisValuesNotInBook.visits;
