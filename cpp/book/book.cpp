@@ -1774,12 +1774,22 @@ void Book::recomputeNodeCost(BookNode* node) {
   //calculate over-visit cost
   if(params.costSoftmaxFactor != 1.0 || params.costSoftmaxScale != 1.0)
     throw StringError("params.costSoftmaxFactor and params.costSoftmaxScale should be 1.0");
-  const double costExceedVisitsPow = 2.5;//
+
+  double totalAdjustedVisits = 0;
   for(auto& locAndBookMove: node->moves) {
     const BookNode* child = get(locAndBookMove.second.hash);
-    double visits = child->recursiveValues.visits;
+    totalAdjustedVisits += child->recursiveValues.adjustedVisits;
+  }
+  if(node->canExpand) {
+    totalAdjustedVisits += node->thisValuesNotInBook.visits;
+  }
+
+  const double costExceedVisitsPow = 2.5;
+  for(auto& locAndBookMove: node->moves) {
+    const BookNode* child = get(locAndBookMove.second.hash);
+    double visits = child->recursiveValues.adjustedVisits;
     double expectedVisitsLog =
-      log(node->recursiveValues.visits + 1) - (locAndBookMove.second.costFromRoot - node->minCostFromRoot);
+      log(totalAdjustedVisits + 1) - (locAndBookMove.second.costFromRoot - node->minCostFromRoot);
     if(expectedVisitsLog < log(params.visitsScale))
       expectedVisitsLog = log(params.visitsScale);
     assert(expectedVisitsLog < 300);
