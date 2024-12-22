@@ -9,16 +9,18 @@
 #include <string>
 #include <vector>
 
-typedef int8_t         Color;
-static constexpr Color C_EMPTY = 0;
-static constexpr Color C_BLACK = 1;
-static constexpr Color C_WHITE = 2;
-static constexpr Color C_WALL = 3;
+#include "../game/board.h"
 
-static inline Color getOpp(Color c) { return c ^ 3; }
+//typedef int8_t         Color;
+//static constexpr Color C_EMPTY = 0;
+//static constexpr Color C_BLACK = 1;
+//static constexpr Color C_WHITE = 2;
+//static constexpr Color C_WALL = 3;
+
+//static inline Color getOpp(Color c) { return c ^ 3; }
 
 typedef int16_t NU_Loc;
-const int MaxBS = 19; // = Board::MAX_LEN when in KataGo
+const int MaxBS = Board::MAX_LEN; // = Board::MAX_LEN when in KataGo
 
 namespace NNUE
 {
@@ -118,12 +120,4 @@ namespace NNUE
   const int32_t pow3[] =
   { 1, 3, 9, 27, 81, 243, 729, 2187, 6561, 19683, 59049, 177147, 531441, 1594323, 4782969 };
 
-  namespace strOp {
-    using namespace std;
-    string trim(const string& s);
-
-    vector<string> split(const string& s);
-    vector<string> split(const string& s, char delim);
-    bool           tryStringToInt(const string& str, int& x);
-  }  // namespace strOp
 }

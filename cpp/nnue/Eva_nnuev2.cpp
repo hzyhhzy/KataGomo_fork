@@ -1,7 +1,7 @@
 #include "Eva_nnuev2.h"
 
-#include "external/simde_avx2.h"
-#include "external/simde_fma.h"
+#include "../external/simde/simde_avx2.h"
+#include "../external/simde/simde_fma.h"
 
 #include <filesystem>
 using namespace NNUE;
