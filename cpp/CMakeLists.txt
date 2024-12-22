@@ -243,6 +243,8 @@ add_executable(katago
   command/sandbox.cpp
   command/selfplay.cpp
   command/tune.cpp
+  nnue/Eva_nnuev2.cpp
+  nnue/NNUEglobal.cpp
   main.cpp
   )
 
