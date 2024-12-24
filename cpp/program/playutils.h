@@ -87,6 +87,7 @@ namespace PlayUtils {
     double secondsPerGameMove,
     bool printElo
   );
+  void playMoveLocSequence(Board& board, Player& nextPlayer, std::vector<Loc> locs); 
 
   void printGenmoveLog(std::ostream& out, const AsyncBot* bot, const NNEvaluator* nnEval, Loc moveLoc, double timeTaken, Player perspective);
 

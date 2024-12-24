@@ -381,6 +381,17 @@ PlayUtils::BenchmarkResults PlayUtils::benchmarkSearchOnPositionsAndPrint(
   return results;
 }
 
+void PlayUtils::playMoveLocSequence(Board& board, Player& nextPlayer, vector<Loc> locs) {
+  nextPlayer = board.nextPla;
+  for(int i = 0; i < locs.size(); i++) {
+    Loc loc = locs[i];
+    if(!board.isLegal(loc, nextPlayer))
+      throw StringError("Illegal moves in maybeParseInitialMoveBonus");
+    if(loc != Board::NULL_LOC)
+      board.playMoveAssumeLegal(loc, nextPlayer);
+    nextPlayer = board.nextPla;
+  }
+}
 
 void PlayUtils::printGenmoveLog(ostream& out, const AsyncBot* bot, const NNEvaluator* nnEval, Loc moveLoc, double timeTaken, Player perspective) {
   const Search* search = bot->getSearch();

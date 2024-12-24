@@ -116,19 +116,6 @@ static Player parsePlayer(const string& s) {
   return pla;
 }
 
-static void playMoveLocSequence(Board& board, Player& nextPlayer, vector<Loc> locs)
-{
-  nextPlayer = board.nextPla;
-  for (int i = 0; i < locs.size(); i++)
-  {
-    Loc loc = locs[i];
-    if(!board.isLegal(loc, nextPlayer))
-      throw StringError("Illegal moves in maybeParseInitialMoveBonus");
-    if(loc != Board::NULL_LOC)
-      board.playMoveAssumeLegal(loc, nextPlayer);
-    nextPlayer = board.nextPla;
-  }
-}
 
 static void maybeParseInitialMoveBonus(
   const std::string& initialMoveStr,
@@ -289,7 +276,7 @@ int MainCmds::genbook(const vector<string>& args) {
   bonusInitialPla = P_BLACK; 
   if(rootBoardSequence != "") {
     vector<Loc> rootBoardLocSeq = Location::parseSequenceGom(rootBoardSequence, bonusInitialBoard);
-    playMoveLocSequence(bonusInitialBoard, bonusInitialPla, rootBoardLocSeq);
+    PlayUtils::playMoveLocSequence(bonusInitialBoard, bonusInitialPla, rootBoardLocSeq);
   }
   maybeParseInitialMoveBonus(
     initialMoveSequence,
