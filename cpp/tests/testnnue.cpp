@@ -15,7 +15,7 @@
 using namespace std;
 using namespace NNUE;
 
-int MainCmds::testnnue(const vector<string>& args) {
+int MainCmds::testnnue() {
   Board::initHash();
   Rand seedRand;
 
@@ -53,7 +53,7 @@ int MainCmds::testnnue(const vector<string>& args) {
   eva->loadParam(modelpath);
 
   Board board(19, 19);
-  string rootBoardSequence = "j10,i8,l10";
+  string rootBoardSequence = "j10i8l10";
   vector<Loc> rootBoardLocSeq = Location::parseSequenceGom(rootBoardSequence, board);
   PlayUtils::playMoveLocSequence(board, board.nextPla, rootBoardLocSeq);
   eva->debug_print();

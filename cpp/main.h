@@ -15,7 +15,7 @@ namespace MainCmds {
 
   int testgpuerror(const std::vector<std::string>& args);
 
-  int testnnue(const std::vector<std::string>& args);
+  int testnnue();
 
   int samplesgfs(const std::vector<std::string>& args);
   int dataminesgfs(const std::vector<std::string>& args);
