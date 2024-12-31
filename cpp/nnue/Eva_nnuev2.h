@@ -118,7 +118,8 @@ namespace NNUEV2 {
 
 
 
-
+      
+      bool loadParamTxt(std::string filename);
       bool loadParam(std::string filename);
     };
     struct OnePointChange
@@ -154,23 +155,23 @@ namespace NNUEV2 {
       float mlp_layer4[mlpChannel];
       float mlp_value[8];//前3个依次是胜负和，第4个是pass的policy，最后4个仅为保留内存
 
-      void update(Color oldcolor, Color newcolor, NU_Loc loc, const ModelWeight &weights);
+      void update(Color oldcolor, Color newcolor, NU_Loc loc, const ModelWeight* weights);
 
-      void emptyboard(const ModelWeight &weights);  // init
+      void emptyboard(const ModelWeight* weights);  // init
     };
 
 }  // namespace NNUEV2
 class Eva_nnuev2
 {
 public:
-  Color mySide;  //这个估值器是哪边的。无论上一手是谁走的，都返回下一手为mySide的估值
   Color board[MaxBS * MaxBS];
 
   uint64_t         TotalEvalNum;
-  NNUEV2::ModelWeight weights;
+  const NNUEV2::ModelWeight* weights;
   NNUEV2::ModelBuf buf;
 
-  bool loadParam(std::string filepath);
+  //bool loadParam(std::string filepath);
+  Eva_nnuev2(const NNUEV2::ModelWeight* w);
   void clear();
   void recalculate();  //根据board完全重新计算棋形表
 

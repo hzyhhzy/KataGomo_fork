@@ -49,14 +49,17 @@ int MainCmds::testnnue() {
 
   string modelpath = "J:/gomtrain2024/connectsix/export/v2_64_highwd2.txt";
 
-  Eva_nnuev2* eva = new Eva_nnuev2();
-  eva->loadParam(modelpath);
+  NNUEV2::ModelWeight* nnueWeight = new NNUEV2::ModelWeight();
+  nnueWeight->loadParam(modelpath);
+
+  Eva_nnuev2* eva = new Eva_nnuev2(nnueWeight);
 
   Board board(19, 19);
   string rootBoardSequence = "j10i8l10";
   vector<Loc> rootBoardLocSeq = Location::parseSequenceGom(rootBoardSequence, board);
   PlayUtils::playMoveLocSequence(board, board.nextPla, rootBoardLocSeq);
   eva->debug_print();
+  delete nnueWeight;
   return 0;
 
 

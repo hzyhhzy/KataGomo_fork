@@ -7,7 +7,7 @@
 using namespace NNUE;
 using namespace NNUEV2;
 
-void ModelBuf::update(Color oldcolor, Color newcolor, NU_Loc loc, const ModelWeight& weights)
+void ModelBuf::update(Color oldcolor, Color newcolor, NU_Loc loc, const ModelWeight* weights)
 {
   if (loc < 0 || loc >= MaxBS * MaxBS)return;
   trunkUpToDate = false;
@@ -48,12 +48,12 @@ void ModelBuf::update(Color oldcolor, Color newcolor, NU_Loc loc, const ModelWei
     for (int i = 0; i < groupBatch; i++) {
 
       // g2 update
-      auto neww = simde_mm256_loadu_si256(weights.mapping[c.newshape] + i * 16 + groupSize);
+      auto neww = simde_mm256_loadu_si256(weights->mapping[c.newshape] + i * 16 + groupSize);
       simde_mm256_storeu_si256(g2[c.loc][c.dir] + i * 16, neww);
 
       // g1 update
-      auto  oldw = simde_mm256_loadu_si256(weights.mapping[c.oldshape] + i * 16);
-      neww = simde_mm256_loadu_si256(weights.mapping[c.newshape] + i * 16);
+      auto  oldw = simde_mm256_loadu_si256(weights->mapping[c.oldshape] + i * 16);
+      neww = simde_mm256_loadu_si256(weights->mapping[c.newshape] + i * 16);
       void* wp = g1sum[c.loc] + i * 16;
       auto  sumw = simde_mm256_loadu_si256(wp);
       sumw = simde_mm256_sub_epi16(sumw, oldw);
@@ -76,10 +76,10 @@ void Eva_nnuev2::calculateTrunk(const float* gf, const bool* illegalMap)
 
     // linear
     for (int i = 0; i < groupBatch32; i++) {
-      auto sum = simde_mm256_loadu_ps(weights.gfmlp_b + i * 8);
+      auto sum = simde_mm256_loadu_ps(weights->gfmlp_b + i * 8);
       for (int j = 0; j < globalFeatureNum; j++) {
         auto x = simde_mm256_set1_ps(gf[j]);
-        auto w = simde_mm256_loadu_ps(weights.gfmlp_w[j] + i * 8);
+        auto w = simde_mm256_loadu_ps(weights->gfmlp_w[j] + i * 8);
         sum    = simde_mm256_fmadd_ps(w, x, sum);
       }
       auto      sum_int = simde_mm256_cvtps_epi32(sum);
@@ -102,7 +102,7 @@ void Eva_nnuev2::calculateTrunk(const float* gf, const bool* illegalMap)
 
 
     auto rv_batch = simde_mm256_loadu_si256(rv + addrBias);//gfVector
-    auto iv1_batch = simde_mm256_loadu_si256(weights.illegalVector + addrBias);//illegalVector
+    auto iv1_batch = simde_mm256_loadu_si256(weights->illegalVector + addrBias);//illegalVector
 
     //这个数组太大，就不直接int16_t[(MaxBS + 10) * (MaxBS + 10)][6][16]了
     //int16_t *h1m = new int16_t[(MaxBS + 10) * (MaxBS + 10)*6*16];  //完整的卷积是先乘再相加，此处是相乘但还没相加。h1m沿一条线相加得到h1c。加了5层padding方便后续处理
@@ -111,14 +111,14 @@ void Eva_nnuev2::calculateTrunk(const float* gf, const bool* illegalMap)
 
     //-------------------------------------------------------------------------------------------------------------------------------------------------------------------
     // g1 prelu和h1conv的乘法部分
-    auto g1lr_w   = simde_mm256_loadu_si256(weights.g1lr_w + addrBias);
-    auto h1conv_w0 = simde_mm256_loadu_si256(weights.h1conv_w[0] + addrBias);
-    auto h1conv_w1 = simde_mm256_loadu_si256(weights.h1conv_w[1] + addrBias);
-    auto h1conv_w2 = simde_mm256_loadu_si256(weights.h1conv_w[2] + addrBias);
-    auto h1conv_w3 = simde_mm256_loadu_si256(weights.h1conv_w[3] + addrBias);
-    auto h1conv_w4 = simde_mm256_loadu_si256(weights.h1conv_w[4] + addrBias);
-    auto h1conv_w5 = simde_mm256_loadu_si256(weights.h1conv_w[5] + addrBias);
-    auto h1conv_w6 = simde_mm256_loadu_si256(weights.h1conv_w[6] + addrBias);
+    auto g1lr_w   = simde_mm256_loadu_si256(weights->g1lr_w + addrBias);
+    auto h1conv_w0 = simde_mm256_loadu_si256(weights->h1conv_w[0] + addrBias);
+    auto h1conv_w1 = simde_mm256_loadu_si256(weights->h1conv_w[1] + addrBias);
+    auto h1conv_w2 = simde_mm256_loadu_si256(weights->h1conv_w[2] + addrBias);
+    auto h1conv_w3 = simde_mm256_loadu_si256(weights->h1conv_w[3] + addrBias);
+    auto h1conv_w4 = simde_mm256_loadu_si256(weights->h1conv_w[4] + addrBias);
+    auto h1conv_w5 = simde_mm256_loadu_si256(weights->h1conv_w[5] + addrBias);
+    auto h1conv_w6 = simde_mm256_loadu_si256(weights->h1conv_w[6] + addrBias);
     static_assert(featureHalfLen == 6, "h1conv group = featureHalfLen + 1");
     for (NU_Loc locY = 0; locY < MaxBS; locY++) {
       for (NU_Loc locX = 0; locX < MaxBS; locX++) {
@@ -153,11 +153,11 @@ void Eva_nnuev2::calculateTrunk(const float* gf, const bool* illegalMap)
     //-------------------------------------------------------------------------------------------------------------------------------------------------------------------
     int16_t h3[MaxBS*MaxBS][16]; //已经加上h3lr_b
 
-    auto h1lr1_w = simde_mm256_loadu_si256(weights.h1lr1_w + addrBias);
-    auto h1lr2_w = simde_mm256_loadu_si256(weights.h1lr2_w + addrBias);
-    auto h1conv_b = simde_mm256_loadu_si256(weights.h1conv_b + addrBias);
-    auto h3lr_b    = simde_mm256_loadu_si256(weights.h3lr_b + addrBias);
-    auto iv2_batch = simde_mm256_loadu_si256(weights.illegalVector + groupSize + addrBias);//illegalVector
+    auto h1lr1_w = simde_mm256_loadu_si256(weights->h1lr1_w + addrBias);
+    auto h1lr2_w = simde_mm256_loadu_si256(weights->h1lr2_w + addrBias);
+    auto h1conv_b = simde_mm256_loadu_si256(weights->h1conv_b + addrBias);
+    auto h3lr_b    = simde_mm256_loadu_si256(weights->h3lr_b + addrBias);
+    auto iv2_batch = simde_mm256_loadu_si256(weights->illegalVector + groupSize + addrBias);//illegalVector
 
     for (NU_Loc locY = 0; locY < MaxBS; locY++) {
       for (NU_Loc locX = 0; locX < MaxBS; locX++) {
@@ -230,15 +230,15 @@ void Eva_nnuev2::calculateTrunk(const float* gf, const bool* illegalMap)
     int16_t trunk1[(MaxBS+2) * (MaxBS+2)][16];//trunkconv2前的trunk，padding=1
     memset(trunk1, 0, sizeof(int16_t) * (MaxBS + 2) * (MaxBS + 2) * 16);
     //需要用到的权重
-    auto h3lr_w  = simde_mm256_loadu_si256(weights.h3lr_w + addrBias);
+    auto h3lr_w  = simde_mm256_loadu_si256(weights->h3lr_w + addrBias);
     static_assert(trunkconv1GroupSize == 4, "现在的代码只支持trunkconv1GroupSize == 4");
-    auto trunkconv1_b = simde_mm256_loadu_si256(weights.trunkconv1_b + addrBias);
-    auto trunkconv1_w0 = simde_mm256_loadu_si256(weights.trunkconv1_w[0] + addrBias);
-    auto trunkconv1_w1 = simde_mm256_loadu_si256(weights.trunkconv1_w[1] + addrBias);
-    auto trunkconv1_w2 = simde_mm256_loadu_si256(weights.trunkconv1_w[2] + addrBias);
-    auto trunkconv1_w3 = simde_mm256_loadu_si256(weights.trunkconv1_w[3] + addrBias);
-    auto trunklr1_w = simde_mm256_loadu_si256(weights.trunklr1_w + addrBias);
-    h3lr_b   = simde_mm256_loadu_si256(weights.h3lr_b + addrBias);
+    auto trunkconv1_b = simde_mm256_loadu_si256(weights->trunkconv1_b + addrBias);
+    auto trunkconv1_w0 = simde_mm256_loadu_si256(weights->trunkconv1_w[0] + addrBias);
+    auto trunkconv1_w1 = simde_mm256_loadu_si256(weights->trunkconv1_w[1] + addrBias);
+    auto trunkconv1_w2 = simde_mm256_loadu_si256(weights->trunkconv1_w[2] + addrBias);
+    auto trunkconv1_w3 = simde_mm256_loadu_si256(weights->trunkconv1_w[3] + addrBias);
+    auto trunklr1_w = simde_mm256_loadu_si256(weights->trunklr1_w + addrBias);
+    h3lr_b   = simde_mm256_loadu_si256(weights->h3lr_b + addrBias);
 
     for (NU_Loc locY = 0; locY < MaxBS; locY++) {
       for (NU_Loc locX = 0; locX < MaxBS; locX++) {
@@ -277,11 +277,11 @@ void Eva_nnuev2::calculateTrunk(const float* gf, const bool* illegalMap)
     //-------------------------------------------------------------------------------------------------------------------------------------------------------------------
     
     //需要用到的权重
-    auto trunkconv2_w0 = simde_mm256_loadu_si256(weights.trunkconv2_w[0] + addrBias);
-    auto trunkconv2_w1 = simde_mm256_loadu_si256(weights.trunkconv2_w[1] + addrBias);
-    auto trunkconv2_w2 = simde_mm256_loadu_si256(weights.trunkconv2_w[2] + addrBias);
-    auto trunklr2_b = simde_mm256_loadu_si256(weights.trunklr2_b + batch * 16);
-    auto trunklr2_w = simde_mm256_loadu_si256(weights.trunklr2_w + batch * 16);
+    auto trunkconv2_w0 = simde_mm256_loadu_si256(weights->trunkconv2_w[0] + addrBias);
+    auto trunkconv2_w1 = simde_mm256_loadu_si256(weights->trunkconv2_w[1] + addrBias);
+    auto trunkconv2_w2 = simde_mm256_loadu_si256(weights->trunkconv2_w[2] + addrBias);
+    auto trunklr2_b = simde_mm256_loadu_si256(weights->trunklr2_b + batch * 16);
+    auto trunklr2_w = simde_mm256_loadu_si256(weights->trunklr2_w + batch * 16);
 
     auto vsum0 = simde_mm256_setzero_si256();
     auto vsum1 = simde_mm256_setzero_si256();
@@ -326,10 +326,10 @@ void Eva_nnuev2::calculateTrunk(const float* gf, const bool* illegalMap)
 
 
   //scale, valuelr
-  auto scale = simde_mm256_set1_ps(weights.scale_beforemlpInv / (MaxBS * MaxBS));
+  auto scale = simde_mm256_set1_ps(weights->scale_beforemlpInv / (MaxBS * MaxBS));
   for (int batch32 = 0; batch32 < groupBatch * 2; batch32++) {
-    auto valuelr_b = simde_mm256_loadu_ps(weights.valuelr_b + batch32 * 8);
-    auto valuelr_w = simde_mm256_loadu_ps(weights.valuelr_w + batch32 * 8);
+    auto valuelr_b = simde_mm256_loadu_ps(weights->valuelr_b + batch32 * 8);
+    auto valuelr_w = simde_mm256_loadu_ps(weights->valuelr_w + batch32 * 8);
     auto v = simde_mm256_loadu_ps(vsum + batch32 * 8);
     v = simde_mm256_mul_ps(v, scale);
     v = simde_mm256_add_ps(v, valuelr_b);
@@ -341,10 +341,10 @@ void Eva_nnuev2::calculateTrunk(const float* gf, const bool* illegalMap)
   // linear 1
   float layer1[mlpChannel];
   for (int i = 0; i < mlpBatch32; i++) {
-    auto sum = simde_mm256_loadu_ps(weights.mlp_b1 + i * 8);
+    auto sum = simde_mm256_loadu_ps(weights->mlp_b1 + i * 8);
     for (int j = 0; j < groupSize; j++) {
       auto x = simde_mm256_set1_ps(vsum[j]);
-      auto w = simde_mm256_loadu_ps(weights.mlp_w1[j] + i * 8);
+      auto w = simde_mm256_loadu_ps(weights->mlp_w1[j] + i * 8);
       sum = simde_mm256_fmadd_ps(w, x, sum);
     }
     sum = simde_mm256_max_ps(simde_mm256_setzero_ps(), sum);  // relu
@@ -354,10 +354,10 @@ void Eva_nnuev2::calculateTrunk(const float* gf, const bool* illegalMap)
   // linear 2
   float layer2[mlpChannel];
   for (int i = 0; i < mlpBatch32; i++) {
-    auto sum = simde_mm256_loadu_ps(weights.mlp_b2 + i * 8);
+    auto sum = simde_mm256_loadu_ps(weights->mlp_b2 + i * 8);
     for (int j = 0; j < mlpChannel; j++) {
       auto x = simde_mm256_set1_ps(layer1[j]);
-      auto w = simde_mm256_loadu_ps(weights.mlp_w2[j] + i * 8);
+      auto w = simde_mm256_loadu_ps(weights->mlp_w2[j] + i * 8);
       sum = simde_mm256_fmadd_ps(w, x, sum);
     }
     sum = simde_mm256_max_ps(simde_mm256_setzero_ps(), sum);  // relu
@@ -367,10 +367,10 @@ void Eva_nnuev2::calculateTrunk(const float* gf, const bool* illegalMap)
   // linear 3
   float layer3[mlpChannel];
   for (int i = 0; i < mlpBatch32; i++) {
-    auto sum = simde_mm256_loadu_ps(weights.mlp_b3 + i * 8);
+    auto sum = simde_mm256_loadu_ps(weights->mlp_b3 + i * 8);
     for (int j = 0; j < mlpChannel; j++) {
       auto x = simde_mm256_set1_ps(layer2[j]);
-      auto w = simde_mm256_loadu_ps(weights.mlp_w3[j] + i * 8);
+      auto w = simde_mm256_loadu_ps(weights->mlp_w3[j] + i * 8);
       sum = simde_mm256_fmadd_ps(w, x, sum);
     }
     sum = simde_mm256_max_ps(simde_mm256_setzero_ps(), sum);  // relu
@@ -380,10 +380,10 @@ void Eva_nnuev2::calculateTrunk(const float* gf, const bool* illegalMap)
 
   // linear 4
   for (int i = 0; i < mlpBatch32; i++) {
-    auto sum = simde_mm256_loadu_ps(weights.mlp_b4 + i * 8);
+    auto sum = simde_mm256_loadu_ps(weights->mlp_b4 + i * 8);
     for (int j = 0; j < mlpChannel; j++) {
       auto x = simde_mm256_set1_ps(layer3[j]);
-      auto w = simde_mm256_loadu_ps(weights.mlp_w4[j] + i * 8);
+      auto w = simde_mm256_loadu_ps(weights->mlp_w4[j] + i * 8);
       sum = simde_mm256_fmadd_ps(w, x, sum);
     }
     sum = simde_mm256_max_ps(simde_mm256_setzero_ps(), sum);  // relu
@@ -391,10 +391,10 @@ void Eva_nnuev2::calculateTrunk(const float* gf, const bool* illegalMap)
   }
 
   // final linear(value head)
-  auto v = simde_mm256_loadu_ps(weights.mlpfinal_b);
+  auto v = simde_mm256_loadu_ps(weights->mlpfinal_b);
   for (int inc = 0; inc < mlpChannel; inc++) {
     auto x = simde_mm256_set1_ps(buf.mlp_layer4[inc]);
-    auto w = simde_mm256_loadu_ps(weights.mlpfinal_w[inc]);
+    auto w = simde_mm256_loadu_ps(weights->mlpfinal_w[inc]);
     v = simde_mm256_fmadd_ps(w, x, v);
   }
   simde_mm256_storeu_ps(buf.mlp_value, v);
@@ -405,7 +405,7 @@ void Eva_nnuev2::calculateTrunk(const float* gf, const bool* illegalMap)
 }
 
 
-void ModelBuf::emptyboard(const ModelWeight &weights)
+void ModelBuf::emptyboard(const ModelWeight* weights)
 {
   trunkUpToDate = false;
 
@@ -475,10 +475,10 @@ void ModelBuf::emptyboard(const ModelWeight &weights)
       auto g1sum_ = simde_mm256_setzero_si256();
       for (int dir = 0; dir < 4; dir++) {
         // g2 update
-        auto neww = simde_mm256_loadu_si256(weights.mapping[shapeTable[loc][dir]] + i * 16 + groupSize);
+        auto neww = simde_mm256_loadu_si256(weights->mapping[shapeTable[loc][dir]] + i * 16 + groupSize);
         simde_mm256_storeu_si256(g2[loc][dir] + i * 16, neww);
         // g1 update
-        auto g1 = simde_mm256_loadu_si256(weights.mapping[shapeTable[loc][dir]] + i * 16);
+        auto g1 = simde_mm256_loadu_si256(weights->mapping[shapeTable[loc][dir]] + i * 16);
         g1sum_  = simde_mm256_add_epi16(g1sum_, g1);
       }
 
@@ -487,44 +487,11 @@ void ModelBuf::emptyboard(const ModelWeight &weights)
   }
 }
 
-bool Eva_nnuev2::loadParam(std::string filepath)
-{
-  using namespace std::filesystem;
-  path ext = path(filepath).extension();
-  if (ext.string() == ".bin") {
-    std::ifstream cacheStream(path(filepath), std::ios::binary);
-    cacheStream.read(reinterpret_cast<char *>(&weights), sizeof(weights));
-    if (cacheStream.good()) {
-      buf.emptyboard(weights);
-      return true;
-    }
-    else
-      return false;
-  }
-
-  path cachePath = path(filepath).replace_extension("bin");
-  // Read parameter cache if exists
-  if (exists(cachePath)) {
-    std::ifstream cacheStream(cachePath, std::ios::binary);
-    cacheStream.read(reinterpret_cast<char *>(&weights), sizeof(weights));
-    if (cacheStream.good()) {
-      buf.emptyboard(weights);
-      return true;
-    }
-  }
-
-  bool suc = weights.loadParam(filepath);
-  if (suc) {
-    buf.emptyboard(weights);
-    // Save parameters cache
-    std::ofstream cacheStream(cachePath, std::ios::binary);
-    cacheStream.write(reinterpret_cast<char *>(&weights), sizeof(weights));
-  }
-  return suc;
+Eva_nnuev2::Eva_nnuev2(const NNUEV2::ModelWeight* w) :weights(w){
+  clear();
 }
 
-void Eva_nnuev2::clear()
-{
+void Eva_nnuev2::clear() {
   for (int i = 0; i < MaxBS * MaxBS; i++)
     board[i] = C_EMPTY;
   buf.emptyboard(weights);
@@ -567,13 +534,13 @@ void Eva_nnuev2::evaluatePolicy(const float *gf, const bool* illegalMap, PolicyT
   float p_w_float[groupSize];
   int16_t p_w[groupSize];
   for (int i = 0; i < groupBatch32; i++) {
-    auto sum = simde_mm256_loadu_ps(weights.mlp_p_b + i * 8);
+    auto sum = simde_mm256_loadu_ps(weights->mlp_p_b + i * 8);
     for (int j = 0; j < mlpChannel; j++) {
       auto x = simde_mm256_set1_ps(buf.mlp_layer4[j]);
-      auto w = simde_mm256_loadu_ps(weights.mlp_p_w[j] + i * 8);
+      auto w = simde_mm256_loadu_ps(weights->mlp_p_w[j] + i * 8);
       sum = simde_mm256_fmadd_ps(w, x, sum);
     }
-    auto prelu_w = simde_mm256_loadu_ps(weights.mlp_plr_w + i * 8);
+    auto prelu_w = simde_mm256_loadu_ps(weights->mlp_plr_w + i * 8);
     sum = simde_mm256_max_ps(simde_mm256_mul_ps(sum, prelu_w), sum);  // prelu
     simde_mm256_storeu_ps(p_w_float + i * 8, sum);
   }
@@ -607,7 +574,7 @@ void Eva_nnuev2::evaluatePolicy(const float *gf, const bool* illegalMap, PolicyT
     psum = simde_mm256_hadd_epi32(psum, psum);
 
     auto  p = simde_mm256_extract_epi32(psum, 0) + simde_mm256_extract_epi32(psum, 4);
-    policy[loc] = p * weights.scale_beforemlpInv * policyQuantFactor / 32768;
+    policy[loc] = p * weights->scale_beforemlpInv * policyQuantFactor / 32768;
     if (illegalMap[loc])
       policy[loc] -= 100.0 * policyQuantFactor;
   }
@@ -670,7 +637,46 @@ void Eva_nnuev2::debug_print()
   cout << endl;*/
 }
 
-bool ModelWeight::loadParam(std::string filename)
+bool ModelWeight::loadParam(std::string filepath) {
+  using namespace std::filesystem;
+  path ext = path(filepath).extension();
+  if(ext.string() == ".bin") {
+    std::ifstream cacheStream(path(filepath), std::ios::binary);
+    cacheStream.read(reinterpret_cast<char*>(this), sizeof(ModelWeight));
+    if(cacheStream.good()) {
+      return true;
+    } else
+      return false;
+  }
+
+  path cachePath = path(filepath).replace_extension("bin");
+  // Read parameter cache if exists
+  if(exists(cachePath)) {
+    std::ifstream cacheStream(cachePath, std::ios::binary);
+    cacheStream.read(reinterpret_cast<char*>(this), sizeof(ModelWeight));
+    if(cacheStream.good()) {
+      return true;
+    }
+    else
+    {
+      std::cout << "Bad NNUE bin file: " << cachePath << std::endl;
+      return false;
+    }
+  }
+
+  bool suc = loadParamTxt(filepath);
+  if(suc) {
+    std::ofstream cacheStream(cachePath, std::ios::binary);
+    cacheStream.write(reinterpret_cast<char*>(this), sizeof(ModelWeight));
+  }
+  else {
+    std::cout << "Bad NNUE txt file: " << cachePath << std::endl;
+    return false;
+  }
+  return suc;
+}
+
+bool ModelWeight::loadParamTxt(std::string filename)
 {
   using namespace std;
   ifstream fs(filename);

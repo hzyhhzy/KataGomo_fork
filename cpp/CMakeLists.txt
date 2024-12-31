@@ -246,6 +246,7 @@ add_executable(katago
   command/tune.cpp
   nnue/Eva_nnuev2.cpp
   nnue/NNUEglobal.cpp
+  nnue/NNUEBoard.cpp
   main.cpp
   )
 
