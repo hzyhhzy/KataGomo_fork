@@ -1,3 +1,7 @@
+# To make it easier to search. new repo: https://github.com/hzyhhzy/KataGomo
+# This repo is a fork of Katago, so it cannot be searched
+
+
 # Recent progresses (Latest update: 2024.10.26)
 
 | Branch     | Introduction   | Stage        | Cost (RTX4090 \* Day) | Model size| Notes                  |
