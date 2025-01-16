@@ -131,6 +131,7 @@ if __name__ == '__main__':
             }
 
     dirs_to_handle = []
+    print(dirs)
     with TimeStuff("Finding files"):
         for d in dirs:
             for (path,dirnames,filenames) in os.walk(d, followlinks=True):

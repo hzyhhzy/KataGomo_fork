@@ -68,7 +68,6 @@ if __name__ == "__main__":
     optional_args.add_argument('-model-kind', help='String name for what model config to use', required=False)
     optional_args.add_argument('-lr-scale', help='LR multiplier on the hardcoded schedule', type=float, required=False)
     optional_args.add_argument('-lr-scale-auto', help='LR auto scaling', required=False, action='store_true')
-    optional_args.add_argument('-wd-scale', help='Weight decay scale', type=float, required=False)
     optional_args.add_argument('-gnorm-clip-scale', help='Multiplier on gradient clipping threshold', type=float, required=False)
     optional_args.add_argument('-sub-epochs', help='Reload training data up to this many times per epoch', type=int, default=1, required=False)
     optional_args.add_argument('-swa-period-samples', help='How frequently to average an SWA sample, in samples', type=float, required=False)
@@ -155,7 +154,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     samples_per_epoch = args["samples_per_epoch"]
     model_kind = args["model_kind"]
     lr_scale = args["lr_scale"]
-    wdscale = args["wd_scale"]
     lr_scale_auto = args["lr_scale_auto"]
     gnorm_clip_scale = args["gnorm_clip_scale"]
     sub_epochs = args["sub_epochs"]
@@ -205,9 +203,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     if lr_scale_auto:
         assert lr_scale == 1.0, "Cannot specify both lr_scale and lr_scale_auto"
 
-    if wdscale is None:
-        wdscale = 1.0
-        
     if samples_per_epoch is None:
         samples_per_epoch = 1000000
     if max_train_bucket_size is None:
@@ -330,15 +325,15 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 torch.save(state_dict, get_checkpoint_path() + ".tmp")
                 os.replace(get_checkpoint_path() + ".tmp", get_checkpoint_path())
 
-    def get_weight_decay(raw_model, lr_scale, warmup_scale, train_state, running_metrics, group_name, wdscale):
+    def get_weight_decay(raw_model, lr_scale, warmup_scale, train_state, running_metrics, group_name):
         lr_scale_with_auto = lr_scale * lr_scale_auto_factor(train_state)
         if raw_model.get_norm_kind() == "fixup" or raw_model.get_norm_kind() == "fixscale":
             if group_name == "normal" or group_name == "normal_gamma" or group_name == "output":
-                return 0.000001 * world_size * batch_size / 256.0 * wdscale
+                return 0.000001 * world_size * batch_size / 256.0
             elif group_name == "noreg":
-                return 0.00000001 * world_size * batch_size / 256.0 * wdscale
+                return 0.00000001 * world_size * batch_size / 256.0
             elif group_name == "output_noreg":
-                return 0.00000001 * world_size * batch_size / 256.0 * wdscale
+                return 0.00000001 * world_size * batch_size / 256.0
             else:
                 assert False
         elif (
@@ -368,13 +363,13 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 # than expected.
                 # So we scale sublinearly with lr_scale so as to slightly preadjust to this effect.
                 # Adaptive scale should then help keep us there thereafter.
-                return 0.00125 * world_size * batch_size / 256.0 * math.pow(lr_scale_with_auto * warmup_scale,0.75) * adaptive_scale * gamma_scale * wdscale
+                return 0.00125 * world_size * batch_size / 256.0 * math.pow(lr_scale_with_auto * warmup_scale,0.75) * adaptive_scale * gamma_scale
             elif group_name == "output":
-                return 0.000001 * world_size * batch_size / 256.0 * wdscale
+                return 0.000001 * world_size * batch_size / 256.0
             elif group_name == "noreg":
-                return 0.000001 * world_size * batch_size / 256.0 * math.pow(lr_scale_with_auto * warmup_scale,0.75) * wdscale
+                return 0.000001 * world_size * batch_size / 256.0 * math.pow(lr_scale_with_auto * warmup_scale,0.75)
             elif group_name == "output_noreg":
-                return 0.00000001 * world_size * batch_size / 256.0 * wdscale
+                return 0.00000001 * world_size * batch_size / 256.0
             else:
                 assert False
         else:
@@ -386,28 +381,28 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         param_groups = []
         param_groups.append({
             "params": reg_dict["normal"],
-            "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="normal", wdscale=wdscale),
+            "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="normal"),
             "group_name": "normal",
         })
         if len(reg_dict["normal_gamma"]) > 0:
             param_groups.append({
                 "params": reg_dict["normal_gamma"],
-                "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="normal_gamma", wdscale=wdscale),
+                "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="normal_gamma"),
                 "group_name": "normal_gamma",
             })
         param_groups.append({
             "params": reg_dict["output"],
-            "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="output", wdscale=wdscale),
+            "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="output"),
             "group_name": "output",
         })
         param_groups.append({
             "params": reg_dict["noreg"],
-            "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="noreg", wdscale=wdscale),
+            "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="noreg"),
             "group_name": "noreg",
         })
         param_groups.append({
             "params": reg_dict["output_noreg"],
-            "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="output_noreg", wdscale=wdscale),
+            "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="output_noreg"),
             "group_name": "output_noreg",
         })
         num_params = len(list(raw_model.parameters()))
@@ -688,7 +683,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 train_state=train_state,
                 running_metrics=running_metrics,
                 group_name=group_name,
-                wdscale=wdscale
             )
             if param_group["weight_decay"] != new_weight_decay_this_group:
                 param_group["weight_decay"] = new_weight_decay_this_group
@@ -989,212 +983,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd()
         maybe_update_brenorm_params()
 
-        # SUB EPOCH LOOP -----------
-        batch_count_this_epoch = 0
-        last_train_stats_time = time.perf_counter()
-        for i in range(sub_epochs):
-
-            if rank == 0:
-                if i != 0:
-                    maybe_reload_training_data()
-                train_files_to_use = get_files_for_subepoch()
-                while train_files_to_use is None or len(train_files_to_use) <= 0:
-                    if quit_if_no_data:
-                        logging.info("Not enough data files to fill a subepoch! Quitting.")
-                        sys.exit(0)
-                    logging.info("Not enough data files to fill a subepoch! Waiting 5m before retrying.")
-                    time.sleep(300)
-                    maybe_reload_training_data()
-                    train_files_to_use = get_files_for_subepoch()
-
-                if barrier is not None:
-                    barrier.wait()
-                for wpipe in writepipes:
-                    wpipe.send(train_files_to_use)
-                # Wait briefly just in case to reduce chance of races with filesystem or anything else
-                time.sleep(5)
-            else:
-                if barrier is not None:
-                    barrier.wait()
-                train_files_to_use = readpipes[rank-1].recv()
-
-            # DDP need to wait on the main process after reloading data and sending files to train with
-            if barrier is not None:
-                barrier.wait()
-
-            logging.info("Beginning training subepoch!")
-            logging.info("This subepoch, using files: " + str(train_files_to_use))
-            logging.info("Currently up to data row " + str(train_state["total_num_data_rows"]))
-            lookahead_counter = 0
-            for batch in data_processing_pytorch.read_npz_training_data(
-                train_files_to_use,
-                batch_size,
-                world_size,
-                rank,
-                pos_len=pos_len,
-                device=device,
-                randomize_symmetries=True,
-                include_meta=raw_model.get_has_metadata_encoder(),
-                model_config=model_config
-            ):
-                optimizer.zero_grad(set_to_none=True)
-                extra_outputs = None
-                # if raw_model.get_has_metadata_encoder():
-                #     extra_outputs = ExtraOutputs([MetadataEncoder.OUTMEAN_KEY,MetadataEncoder.OUTLOGVAR_KEY])
-
-                if use_fp16:
-                    with autocast():
-                        model_outputs = ddp_model(
-                            batch["binaryInputNCHW"],
-                            batch["globalInputNC"],
-                            input_meta=(batch["metadataInputNC"] if raw_model.get_has_metadata_encoder() else None),
-                            extra_outputs=extra_outputs,
-                        )
-                    model_outputs = raw_model.float32ify_output(model_outputs)
-                else:
-                    model_outputs = ddp_model(
-                        batch["binaryInputNCHW"],
-                        batch["globalInputNC"],
-                        input_meta=(batch["metadataInputNC"] if raw_model.get_has_metadata_encoder() else None),
-                        extra_outputs=extra_outputs,
-                    )
-
-                postprocessed = raw_model.postprocess_output(model_outputs)
-                metrics = metrics_obj.metrics_dict_batchwise(
-                    raw_model,
-                    postprocessed,
-                    extra_outputs,
-                    batch,
-                    is_training=True,
-                    soft_policy_weight_scale=soft_policy_weight_scale,
-                    disable_optimistic_policy=disable_optimistic_policy,
-                    meta_kata_only_soft_policy=meta_kata_only_soft_policy,
-                    value_loss_scale=value_loss_scale,
-                    td_value_loss_scales=td_value_loss_scales,
-                    seki_loss_scale=seki_loss_scale,
-                    variance_time_loss_scale=variance_time_loss_scale,
-                    main_loss_scale=main_loss_scale,
-                    intermediate_loss_scale=intermediate_loss_scale,
-                )
-
-                # DDP averages loss across instances, so to preserve LR as per-sample lr, we scale by world size.
-                loss = metrics["loss_sum"] * world_size
-
-                # Reduce gradients across DDP
-                if use_fp16:
-                    scaler.scale(loss).backward()
-                    scaler.unscale_(optimizer)
-                else:
-                    loss.backward()
-
-                if model_config["norm_kind"] == "fixup" or model_config["norm_kind"] == "fixscale" or model_config["norm_kind"] == "fixscaleonenorm":
-                    gnorm_cap = 2500.0 * (1.0 if gnorm_clip_scale is None else gnorm_clip_scale)
-                elif model_config["norm_kind"] == "bnorm" or model_config["norm_kind"] == "brenorm" or model_config["norm_kind"] == "fixbrenorm":
-                    gnorm_cap = 5500.0 * (1.0 if gnorm_clip_scale is None else gnorm_clip_scale)
-                else:
-                    assert False
-
-                if gnorm_stats_debug:
-                    stats = metrics_obj.get_specific_norms_and_gradient_stats(raw_model)
-                    for stat, value in stats.items():
-                        metrics[stat] = value
-
-                if "use_repvgg_learning_rate" in model_config and model_config["use_repvgg_learning_rate"]:
-                    gradscale_constant = torch.tensor([[1.0,1.0,1.0],[1.0,2.0,1.0],[1.0,1.0,1.0]],dtype=torch.float32,device=device,requires_grad=False).view(1,1,3,3)
-                    for name, param in ddp_model.named_parameters():
-                        if "normactconv" in name and ".conv.weight" in name and len(param.shape) == 4 and param.shape[2] == 3 and param.shape[3] == 3:
-                            param.grad *= gradscale_constant
-
-                # Loosen gradient clipping as we shift to smaller learning rates
-                gnorm_cap = gnorm_cap / math.sqrt(max(0.0000001,lr_scale * lr_scale_auto_factor(train_state)))
-
-                gnorm = torch.nn.utils.clip_grad_norm_(ddp_model.parameters(), gnorm_cap).detach().cpu().item()
-
-                if math.isfinite(gnorm) and abs(gnorm < 1e30):
-                    metrics["gnorm_batch"] = gnorm
-                    exgnorm = max(0.0, gnorm - gnorm_cap)
-                    metrics["exgnorm_sum"] = exgnorm * batch_size
-
-                metrics["pslr_batch"] = lr_right_now
-                metrics["wdnormal_batch"] = normal_weight_decay_right_now
-                metrics["gnorm_cap_batch"] = gnorm_cap
-
-                if use_fp16:
-                    scaler.step(optimizer)
-                    scaler.update()
-                else:
-                    optimizer.step()
-
-                batch_count_this_epoch += 1
-                train_state["train_steps_since_last_reload"] += batch_size * world_size
-                train_state["global_step_samples"] += batch_size * world_size
-
-                metrics = detensorify_metrics(metrics)
-
-                if lookahead_k is not None and lookahead_print:
-                    # Only accumulate metrics when lookahead is synced if lookahead_print is True
-                    if lookahead_counter == 0:
-                        accumulate_metrics(running_metrics["sums"], running_metrics["weights"], metrics, batch_size, decay=math.exp(-0.01 * lookahead_k), new_weight=1.0)
-                    else:
-                        accumulate_metrics(running_metrics["sums"], running_metrics["weights"], metrics, batch_size, decay=1.0, new_weight=0.0)
-                else:
-                    accumulate_metrics(running_metrics["sums"], running_metrics["weights"], metrics, batch_size, decay=0.99, new_weight=1.0)
-
-
-                if batch_count_this_epoch % print_train_loss_every_batches == 0:
-
-                    if model_config["norm_kind"] == "brenorm" or model_config["norm_kind"] == "fixbrenorm":
-                        metrics["brn_rmax"] = train_state["brenorm_rmax"]
-                        metrics["brn_dmax"] = train_state["brenorm_dmax"]
-                        metrics["brn_mmnt"] = brenorm_avg_momentum
-                        upper_rclippage = []
-                        lower_rclippage = []
-                        dclippage = []
-                        raw_model.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
-                        metrics["brn_ruclip"] = sum(upper_rclippage) / max(len(upper_rclippage),1.0)
-                        metrics["brn_rlclip"] = sum(lower_rclippage) / max(len(lower_rclippage),1.0)
-                        metrics["brn_dclip"] = sum(dclippage) / max(len(dclippage),1.0)
-
-                    t1 = time.perf_counter()
-                    timediff = t1 - last_train_stats_time
-                    last_train_stats_time = t1
-                    metrics["time_since_last_print"] = timediff
-                    log_metrics(running_metrics["sums"], running_metrics["weights"], metrics, train_metrics_out, exportprefix)
-
-                # Update LR more frequently at the start for smoother warmup ramp and wd adjustment
-                if train_state["global_step_samples"] <= 50000000 and batch_count_this_epoch % 50 == 0:
-                    lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd()
-
-                # Update batch renorm parameters
-                if batch_count_this_epoch % 500 == 0:
-                    maybe_update_brenorm_params()
-
-                # Perform lookahead
-                in_between_lookaheads = False
-                if lookahead_k is not None:
-                    lookahead_counter += 1
-                    if lookahead_counter >= lookahead_k:
-                        for param_group in optimizer.param_groups:
-                            for param in param_group["params"]:
-                                slow_param_data = lookahead_cache[param]
-                                slow_param_data.add_(param.data.detach() - slow_param_data, alpha=lookahead_alpha)
-                                param.data.copy_(slow_param_data)
-                        lookahead_counter = 0
-                        in_between_lookaheads = False
-                    else:
-                        in_between_lookaheads = True
-
-                # Perform SWA
-                if swa_model is not None and swa_scale is not None:
-                    train_state["swa_sample_accum"] += batch_size * world_size
-                    # Only snap SWA when lookahead slow params are in sync.
-                    if train_state["swa_sample_accum"] >= swa_period_samples and not in_between_lookaheads:
-                        train_state["swa_sample_accum"] = 0
-                        logging.info("Accumulating SWA")
-                        swa_model.update_parameters(raw_model)
-
-            logging.info("Finished training subepoch!")
-
         # END SUB EPOCH LOOP ------------
 
         # Discard the gradient updates from the leftover batches in the sub epoch from lookahead.
@@ -1209,126 +997,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             train_state["export_cycle_counter"] += 1
 
         save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics)
-
-        num_epochs_this_instance += 1
-
-        # Validate
-        if rank == 0:
-            logging.info("Beginning validation after epoch!")
-            val_files = []
-            if os.path.exists(vdatadir):
-                val_files = [os.path.join(vdatadir,fname) for fname in os.listdir(vdatadir) if fname.endswith(".npz")]
-            if randomize_val:
-                random.shuffle(val_files)
-            else:
-                # Sort to ensure deterministic order to validation files in case we use only a subset
-                val_files = sorted(val_files)
-            if len(val_files) == 0:
-                logging.info("No validation files, skipping validation step")
-            else:
-                with torch.no_grad():
-                    ddp_model.eval()
-                    val_metric_sums = defaultdict(float)
-                    val_metric_weights = defaultdict(float)
-                    val_samples = 0
-                    t0 = time.perf_counter()
-                    for batch in data_processing_pytorch.read_npz_training_data(
-                        val_files,
-                        batch_size,
-                        world_size=1,  # Only the main process validates
-                        rank=0,        # Only the main process validates
-                        pos_len=pos_len,
-                        device=device,
-                        randomize_symmetries=True,
-                        include_meta=raw_model.get_has_metadata_encoder(),
-                        model_config=model_config
-                    ):
-                        model_outputs = ddp_model(
-                            batch["binaryInputNCHW"],
-                            batch["globalInputNC"],
-                            input_meta=(batch["metadataInputNC"] if raw_model.get_has_metadata_encoder() else None),
-                        )
-                        postprocessed = raw_model.postprocess_output(model_outputs)
-                        extra_outputs = None
-                        metrics = metrics_obj.metrics_dict_batchwise(
-                            raw_model,
-                            postprocessed,
-                            extra_outputs,
-                            batch,
-                            is_training=False,
-                            soft_policy_weight_scale=soft_policy_weight_scale,
-                            disable_optimistic_policy=disable_optimistic_policy,
-                            meta_kata_only_soft_policy=meta_kata_only_soft_policy,
-                            value_loss_scale=value_loss_scale,
-                            td_value_loss_scales=td_value_loss_scales,
-                            seki_loss_scale=seki_loss_scale,
-                            variance_time_loss_scale=variance_time_loss_scale,
-                            main_loss_scale=main_loss_scale,
-                            intermediate_loss_scale=intermediate_loss_scale,
-                        )
-                        metrics = detensorify_metrics(metrics)
-                        accumulate_metrics(val_metric_sums, val_metric_weights, metrics, batch_size, decay=1.0, new_weight=1.0)
-                        val_samples += batch_size
-                        if max_val_samples is not None and val_samples > max_val_samples:
-                            break
-                        val_metric_sums["nsamp_train"] = running_metrics["sums"]["nsamp"]
-                        val_metric_weights["nsamp_train"] = running_metrics["weights"]["nsamp"]
-                        val_metric_sums["wsum_train"] = running_metrics["sums"]["wsum"]
-                        val_metric_weights["wsum_train"] = running_metrics["weights"]["wsum"]
-                    last_val_metrics["sums"] = val_metric_sums
-                    last_val_metrics["weights"] = val_metric_weights
-                    log_metrics(val_metric_sums, val_metric_weights, metrics, val_metrics_out, exportprefix)
-                    t1 = time.perf_counter()
-                    logging.info(f"Validation took {t1-t0} seconds")
-                    ddp_model.train()
-
-        if rank == 0:
-            logging.info("Export cycle counter = " + str(train_state["export_cycle_counter"]))
-
-            is_time_to_export = False
-            if train_state["export_cycle_counter"] >= epochs_per_export:
-                if no_export:
-                    train_state["export_cycle_counter"] = epochs_per_export
-                else:
-                    train_state["export_cycle_counter"] = 0
-                    is_time_to_export = True
-
-            skip_export_this_time = False
-            if export_prob is not None:
-                if random.random() > export_prob:
-                    skip_export_this_time = True
-                    logging.info("Skipping export model this time")
-
-            if not no_export and is_time_to_export and not skip_export_this_time and exportdir is not None and not gnorm_stats_debug:
-                # Export a model for testing, unless somehow it already exists
-                modelname = "%s-s%d-d%d" % (
-                    exportprefix,
-                    train_state["global_step_samples"],
-                    train_state["total_num_data_rows"],
-                )
-                savepath = os.path.join(exportdir,modelname)
-                savepathtmp = os.path.join(exportdir,modelname+".tmp")
-                if os.path.exists(savepath):
-                    logging.info("NOT saving model, already exists at: " + savepath)
-                else:
-                    os.mkdir(savepathtmp)
-                    logging.info("SAVING MODEL FOR EXPORT TO: " + savepath)
-                    save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics, path=os.path.join(savepathtmp,"model.ckpt"))
-                    time.sleep(2)
-                    os.rename(savepathtmp,savepath)
-
-
-        if sleep_seconds_per_epoch is None:
-            time.sleep(1)
-        else:
-            time.sleep(sleep_seconds_per_epoch)
-
-        if rank == 0:
-            now = datetime.datetime.now()
-            if now - last_longterm_checkpoint_save_time >= datetime.timedelta(hours=12):
-                last_longterm_checkpoint_save_time = now
-                dated_name = datetime.datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-                save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics, path=os.path.join(longterm_checkpoints_dir,f"{dated_name}.ckpt"))
+        break
 
     train_metrics_out.close()
     val_metrics_out.close()

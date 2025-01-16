@@ -66,6 +66,8 @@ class Metrics:
     def loss_value_samplewise(self, pred_logits, target_probs, weight, global_weight):
         assert pred_logits.shape == (self.n, self.value_len)
         assert target_probs.shape == (self.n, self.value_len)
+        #target_probs = torch.pow(target_probs, 0.3)
+        #target_probs = target_probs / (torch.sum(target_probs, dim=1, keepdim=True) + 1e-10)
         assert weight.shape == (self.n,)
         loss = cross_entropy(pred_logits, target_probs, dim=1)
         return 1.20 * global_weight * weight * loss
@@ -73,6 +75,8 @@ class Metrics:
     def loss_td_value_samplewise(self, pred_logits, target_probs, weight, global_weight):
         assert pred_logits.shape == (self.n, self.num_td_values, self.value_len)
         assert target_probs.shape == (self.n, self.num_td_values, self.value_len)
+        #target_probs = torch.pow(target_probs, 0.3)
+        #target_probs = target_probs / (torch.sum(target_probs, dim=2, keepdim=True) + 1e-10)
         assert weight.shape == (self.n,)
         assert global_weight.shape == (self.n,)
         loss = cross_entropy(pred_logits, target_probs, dim=2) - cross_entropy(torch.log(target_probs + 1.0e-30), target_probs, dim=2)

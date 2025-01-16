@@ -68,7 +68,6 @@ if __name__ == "__main__":
     optional_args.add_argument('-model-kind', help='String name for what model config to use', required=False)
     optional_args.add_argument('-lr-scale', help='LR multiplier on the hardcoded schedule', type=float, required=False)
     optional_args.add_argument('-lr-scale-auto', help='LR auto scaling', required=False, action='store_true')
-    optional_args.add_argument('-wd-scale', help='Weight decay scale', type=float, required=False)
     optional_args.add_argument('-gnorm-clip-scale', help='Multiplier on gradient clipping threshold', type=float, required=False)
     optional_args.add_argument('-sub-epochs', help='Reload training data up to this many times per epoch', type=int, default=1, required=False)
     optional_args.add_argument('-swa-period-samples', help='How frequently to average an SWA sample, in samples', type=float, required=False)
@@ -155,7 +154,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     samples_per_epoch = args["samples_per_epoch"]
     model_kind = args["model_kind"]
     lr_scale = args["lr_scale"]
-    wdscale = args["wd_scale"]
     lr_scale_auto = args["lr_scale_auto"]
     gnorm_clip_scale = args["gnorm_clip_scale"]
     sub_epochs = args["sub_epochs"]
@@ -205,9 +203,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     if lr_scale_auto:
         assert lr_scale == 1.0, "Cannot specify both lr_scale and lr_scale_auto"
 
-    if wdscale is None:
-        wdscale = 1.0
-        
     if samples_per_epoch is None:
         samples_per_epoch = 1000000
     if max_train_bucket_size is None:
@@ -330,15 +325,15 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 torch.save(state_dict, get_checkpoint_path() + ".tmp")
                 os.replace(get_checkpoint_path() + ".tmp", get_checkpoint_path())
 
-    def get_weight_decay(raw_model, lr_scale, warmup_scale, train_state, running_metrics, group_name, wdscale):
+    def get_weight_decay(raw_model, lr_scale, warmup_scale, train_state, running_metrics, group_name):
         lr_scale_with_auto = lr_scale * lr_scale_auto_factor(train_state)
         if raw_model.get_norm_kind() == "fixup" or raw_model.get_norm_kind() == "fixscale":
             if group_name == "normal" or group_name == "normal_gamma" or group_name == "output":
-                return 0.000001 * world_size * batch_size / 256.0 * wdscale
+                return 0.00000001 * world_size * batch_size / 256.0
             elif group_name == "noreg":
-                return 0.00000001 * world_size * batch_size / 256.0 * wdscale
+                return 0.0000000001 * world_size * batch_size / 256.0
             elif group_name == "output_noreg":
-                return 0.00000001 * world_size * batch_size / 256.0 * wdscale
+                return 0.0000000001 * world_size * batch_size / 256.0
             else:
                 assert False
         elif (
@@ -368,13 +363,13 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 # than expected.
                 # So we scale sublinearly with lr_scale so as to slightly preadjust to this effect.
                 # Adaptive scale should then help keep us there thereafter.
-                return 0.00125 * world_size * batch_size / 256.0 * math.pow(lr_scale_with_auto * warmup_scale,0.75) * adaptive_scale * gamma_scale * wdscale
+                return 0.0001 * world_size * batch_size / 256.0 * math.pow(lr_scale_with_auto * warmup_scale,1) * adaptive_scale * gamma_scale
             elif group_name == "output":
-                return 0.000001 * world_size * batch_size / 256.0 * wdscale
+                return 0.0000001 * world_size * batch_size / 256.0
             elif group_name == "noreg":
-                return 0.000001 * world_size * batch_size / 256.0 * math.pow(lr_scale_with_auto * warmup_scale,0.75) * wdscale
+                return 0.0000001 * world_size * batch_size / 256.0 * math.pow(lr_scale_with_auto * warmup_scale,1)
             elif group_name == "output_noreg":
-                return 0.00000001 * world_size * batch_size / 256.0 * wdscale
+                return 0.000000001 * world_size * batch_size / 256.0
             else:
                 assert False
         else:
@@ -386,28 +381,28 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         param_groups = []
         param_groups.append({
             "params": reg_dict["normal"],
-            "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="normal", wdscale=wdscale),
+            "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="normal"),
             "group_name": "normal",
         })
         if len(reg_dict["normal_gamma"]) > 0:
             param_groups.append({
                 "params": reg_dict["normal_gamma"],
-                "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="normal_gamma", wdscale=wdscale),
+                "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="normal_gamma"),
                 "group_name": "normal_gamma",
             })
         param_groups.append({
             "params": reg_dict["output"],
-            "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="output", wdscale=wdscale),
+            "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="output"),
             "group_name": "output",
         })
         param_groups.append({
             "params": reg_dict["noreg"],
-            "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="noreg", wdscale=wdscale),
+            "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="noreg"),
             "group_name": "noreg",
         })
         param_groups.append({
             "params": reg_dict["output_noreg"],
-            "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="output_noreg", wdscale=wdscale),
+            "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="output_noreg"),
             "group_name": "output_noreg",
         })
         num_params = len(list(raw_model.parameters()))
@@ -466,7 +461,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 train_state["modelnorm_normal_baseline"] = modelnorm_normal_baseline
                 logging.info(f"Model norm normal baseline computed: {modelnorm_normal_baseline}")
 
-            optimizer = torch.optim.SGD(get_param_groups(raw_model,train_state,running_metrics), lr=1.0, momentum=0.9)
+            optimizer = torch.optim.AdamW(get_param_groups(raw_model,train_state,running_metrics), lr=0.01)
 
             return (model_config, ddp_model, raw_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics)
         else:
@@ -528,8 +523,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             else:
                 logging.info("WARNING: Running metrics not found in state dict, using fresh last val metrics")
 
-            optimizer = torch.optim.SGD(get_param_groups(raw_model,train_state,running_metrics), lr=1.0, momentum=0.9)
+            optimizer = torch.optim.AdamW(get_param_groups(raw_model,train_state,running_metrics), lr=0.01)
             if "optimizer" in state_dict:
+                #pass
                 optimizer.load_state_dict(state_dict["optimizer"])
             else:
                 logging.info("WARNING: Optimizer not found in state dict, using fresh optimizer")
@@ -615,7 +611,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     # EPOCHS AND LR ---------------------------------------------------------------------
 
     def update_and_return_lr_and_wd():
-        per_sample_lr = 0.00003 * lr_scale * lr_scale_auto_factor(train_state)
+        per_sample_lr = 0.0005 * lr_scale * lr_scale_auto_factor(train_state)
 
         # Warmup for initial training
         warmup_scale = 1.0
@@ -688,17 +684,16 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 train_state=train_state,
                 running_metrics=running_metrics,
                 group_name=group_name,
-                wdscale=wdscale
             )
             if param_group["weight_decay"] != new_weight_decay_this_group:
                 param_group["weight_decay"] = new_weight_decay_this_group
-                changed = True
+                #changed = True
 
             if group_name == "normal":
                 normal_weight_decay = param_group["weight_decay"]
 
-            #if changed:
-            #    logging.info(f"Param group {param_group['group_name']} lr {param_group['lr']} weight_decay {param_group['weight_decay']}")
+            if changed:
+                logging.info(f"Param group {param_group['group_name']} lr {param_group['lr']} weight_decay {param_group['weight_decay']}")
 
         return per_sample_lr * warmup_scale, normal_weight_decay
 
@@ -926,7 +921,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
     if use_fp16:
         logging.info("Training in FP16! Creating scaler")
-        scaler = GradScaler()
+        scaler = GradScaler(init_scale=2.0, growth_factor=1.25, backoff_factor=0.8, growth_interval=5000)
     else:
         logging.info("Training in FP32.")
 
@@ -1088,9 +1083,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     loss.backward()
 
                 if model_config["norm_kind"] == "fixup" or model_config["norm_kind"] == "fixscale" or model_config["norm_kind"] == "fixscaleonenorm":
-                    gnorm_cap = 2500.0 * (1.0 if gnorm_clip_scale is None else gnorm_clip_scale)
+                    gnorm_cap = 12000.0 * (1.0 if gnorm_clip_scale is None else gnorm_clip_scale)
                 elif model_config["norm_kind"] == "bnorm" or model_config["norm_kind"] == "brenorm" or model_config["norm_kind"] == "fixbrenorm":
-                    gnorm_cap = 5500.0 * (1.0 if gnorm_clip_scale is None else gnorm_clip_scale)
+                    gnorm_cap = 24000.0 * (1.0 if gnorm_clip_scale is None else gnorm_clip_scale)
                 else:
                     assert False
 

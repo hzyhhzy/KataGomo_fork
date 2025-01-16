@@ -402,6 +402,8 @@ def main(args):
         write_activation(name+".act2", valuehead.act2)
         write_matmul(name+".linear_valuehead", valuehead.linear_valuehead.weight)
         write_matbias(name+".bias_valuehead", valuehead.linear_valuehead.bias)
+        #write_matmul(name+".linear_valuehead", 2*valuehead.linear_moremiscvaluehead.weight[2:5])
+        #write_matbias(name+".bias_valuehead", 2*valuehead.linear_moremiscvaluehead.bias[2:5])
 
         # For now, only output the scoremean and scorestdev and lead and vtime channels
         w = valuehead.linear_miscvaluehead.weight[0:4]

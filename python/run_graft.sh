@@ -1,0 +1,1 @@
+python migrate_graft_28b_to_40b.py -target ../data/train/b40graft1/b40.ckpt -source ../data/train/b40graft1/b28.ckpt -output ../data/train/b40graft1/checkpoint1.ckpt

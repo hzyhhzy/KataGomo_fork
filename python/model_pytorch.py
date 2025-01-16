@@ -771,6 +771,89 @@ class ResBlock(torch.nn.Module):
         return result
 
 
+# 模仿ResBlock，实现transformer的block
+class TransformerBlock(torch.nn.Module):
+    def __init__(
+        self,
+        name: str,
+        c_main: int,
+        config: modelconfigs.ModelConfig,
+        activation: str,
+    ):
+        super(TransformerBlock, self).__init__()
+        self.name = name
+        self.norm_kind = config["norm_kind"]
+        self.ffn_dim = config["transformer_ffn_channels"] if "transformer_ffn_channels" in config else c_main*2
+        
+
+
+        # Multi-head attention
+        self.attention = torch.nn.MultiheadAttention(
+            embed_dim=c_main,
+            num_heads=config["transformer_heads"] if "transformer_heads" in config else 4,
+            kdim=config["transformer_kdim"] if "transformer_kdim" in config else c_main,
+            vdim=c_main,
+            dropout=0.0
+        )
+        
+        # Feed forward network
+        self.ffn = torch.nn.Sequential(
+            torch.nn.Linear(c_main, self.ffn_dim),
+            act(activation),
+            torch.nn.Linear(self.ffn_dim, c_main)
+            
+        )
+        
+        
+        # Layer normalization
+        self.norm1 = torch.nn.LayerNorm(c_main)
+        self.norm2 = torch.nn.LayerNorm(c_main)
+
+        
+    def initialize(self, fixup_scale):
+        # Initialize weights
+        for p in self.parameters():
+            if p.dim() > 1:
+                torch.nn.init.xavier_uniform_(p)
+                
+                
+    def add_reg_dict(self, reg_dict: Dict[str, List]):
+        # Add parameters to regularization dictionary
+        for name, param in self.named_parameters():
+            if "weight" in name and "norm" not in name:
+                reg_dict["normal"].append(param)
+            elif "bias" in name:
+                reg_dict["noreg"].append(param)
+            else:
+                reg_dict["noreg"].append(param)
+                #print(f"Warning: {name} not added to reg_dict")
+                
+    def forward(self, x, mask, mask_sum_hw, mask_sum: float, extra_outputs: Optional[ExtraOutputs]):
+        # 将NCHW转换为NLC格式，因为transformer需要序列输入
+        batch_size, channels, height, width = x.shape
+        x = x.view(batch_size, channels, -1).permute(2, 0, 1)  # (H*W, N, C)
+        
+        # 将mask从N1HW转换为N(H*W)格式
+        mask = mask.view(batch_size, -1)  # (N, H*W)
+        # Self-attention
+        attn_output, _ = self.attention(
+            x, x, x,
+            key_padding_mask=mask.squeeze(1)
+        )
+        x = x + attn_output
+        x = self.norm1(x)
+        
+        # Feed forward
+        ffn_output = self.ffn(x)
+        x = x + ffn_output
+        x = self.norm2(x)
+        
+        # 将NLC格式转换回NCHW格式
+        x = x.permute(1, 2, 0).view(batch_size, channels, height, width)
+
+        return x
+
+
 class BottleneckResBlock(torch.nn.Module):
     def __init__(
         self,
@@ -1517,6 +1600,19 @@ class Model(torch.nn.Module):
                     config=self.config,
                     activation=self.activation,
                 ))
+            elif block_kind == "regularrc": #reservior computing
+                block=ResBlock(
+                    name=block_name,
+                    c_main=self.c_trunk,
+                    c_mid=self.c_mid,
+                    c_gpool=(self.c_gpool if use_gpool_this_block else None),
+                    config=self.config,
+                    activation=self.activation,
+                )
+                #make the block not trainable
+                for param in block.parameters():
+                    param.requires_grad = False
+                self.blocks.append(block)
             elif block_kind == "bottle1" or block_kind == "bottle":
                 self.blocks.append(BottleneckResBlock(
                     name=block_name,
@@ -1541,6 +1637,16 @@ class Model(torch.nn.Module):
                 self.blocks.append(BottleneckResBlock(
                     name=block_name,
                     internal_length=3,
+                    c_main=self.c_trunk,
+                    c_mid=self.c_mid,
+                    c_gpool=(self.c_gpool if use_gpool_this_block else None),
+                    config=self.config,
+                    activation=self.activation,
+                ))
+            elif block_kind == "bottlenest1":
+                self.blocks.append(NestedBottleneckResBlock(
+                    name=block_name,
+                    internal_length=1,
                     c_main=self.c_trunk,
                     c_mid=self.c_mid,
                     c_gpool=(self.c_gpool if use_gpool_this_block else None),
@@ -1576,6 +1682,13 @@ class Model(torch.nn.Module):
                     c_outermid=self.c_outermid,
                     c_mid=self.c_mid,
                     c_gpool=(self.c_gpool if use_gpool_this_block else None),
+                    config=self.config,
+                    activation=self.activation,
+                ))
+            elif block_kind == "transformer":
+                self.blocks.append(TransformerBlock(
+                    name=block_name,
+                    c_main=self.c_trunk,
                     config=self.config,
                     activation=self.activation,
                 ))
@@ -1641,7 +1754,10 @@ class Model(torch.nn.Module):
                 self.metadata_encoder.initialize()
 
             if self.norm_kind == "fixup":
-                fixup_scale = 1.0 / math.sqrt(self.num_total_blocks)
+                if(self.num_total_blocks<1):
+                    fixup_scale=1.0
+                else:
+                    fixup_scale = 1.0 / math.sqrt(self.num_total_blocks)
                 for block in self.blocks:
                     block.initialize(fixup_scale=fixup_scale)
             elif self.norm_kind == "fixscale" or self.norm_kind == "fixbrenorm" or self.norm_kind == "fixscaleonenorm":
