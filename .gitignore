@@ -34,6 +34,9 @@ cpp/data/
 versions/
 cpp/build
 cpp/out
+/build*
+!/build.sh
+!/build_pgo.sh
 
 export_model_cuda.sh
 mixmodels.sh
@@ -80,6 +83,10 @@ watchgame.txt
 models/
 python/startposesupload.txt
 for_release/
+
+# Local machine config (copy from env_sample.sh)
+env.sh
+benchmark/
 
 tests/results/matchsgfs/
 tests/results/matchsgfs2/
