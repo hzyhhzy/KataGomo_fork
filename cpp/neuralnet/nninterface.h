@@ -33,10 +33,21 @@ enum class CudaSyncMode {
   Blocking
 };
 
+enum class TrtTilingOptimizationLevel {
+  None,
+  Fast,
+  Moderate,
+  Full
+};
+
 // TensorRT-specific knobs threaded through generic NN interfaces.
 struct TRTConfigs {
   bool trtUseCudaGraph = false;
   CudaSyncMode trtCudaSyncMode = CudaSyncMode::Blocking;
+  int trtBuilderOptimizationLevel = -1;
+  int trtMaxAuxStreams = -1;
+  int trtAvgTimingIterations = -1;
+  TrtTilingOptimizationLevel trtTilingOptimizationLevel = TrtTilingOptimizationLevel::None;
 };
 
 // Generic interface to neural net inference.

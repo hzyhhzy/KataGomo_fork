@@ -12,6 +12,10 @@ DEFAULT_TRT_CUDA_STREAMS=2
 DEFAULT_TRT_DEVICE_ID=0
 DEFAULT_TRT_USE_CUDA_GRAPH=true
 DEFAULT_TRT_CUDA_SYNC_MODE=blocking
+DEFAULT_TRT_BUILDER_OPTIMIZATION_LEVEL=-1
+DEFAULT_TRT_MAX_AUX_STREAMS=-1
+DEFAULT_TRT_AVG_TIMING_ITERATIONS=-1
+DEFAULT_TRT_TILING_OPTIMIZATION_LEVEL=none
 # Benchmark params defaults
 DEFAULT_BENCH_VISITS=10000
 
@@ -33,6 +37,10 @@ TRT_CUDA_STREAMS="${DEFAULT_TRT_CUDA_STREAMS}"
 BENCH_VISITS="${DEFAULT_BENCH_VISITS}"
 TRT_USE_CUDA_GRAPH="${DEFAULT_TRT_USE_CUDA_GRAPH}"
 TRT_CUDA_SYNC_MODE="${DEFAULT_TRT_CUDA_SYNC_MODE}"
+TRT_BUILDER_OPTIMIZATION_LEVEL="${DEFAULT_TRT_BUILDER_OPTIMIZATION_LEVEL}"
+TRT_MAX_AUX_STREAMS="${DEFAULT_TRT_MAX_AUX_STREAMS}"
+TRT_AVG_TIMING_ITERATIONS="${DEFAULT_TRT_AVG_TIMING_ITERATIONS}"
+TRT_TILING_OPTIMIZATION_LEVEL="${DEFAULT_TRT_TILING_OPTIMIZATION_LEVEL}"
 
 TRT_DEVICE_ID_RAW="${TRT_DEVICE_ID:-${DEFAULT_TRT_DEVICE_ID}}"
 KATAGO_BIN="${KATAGO_BIN_PATH}"
@@ -55,9 +63,16 @@ Options:
   --batch-size N               NN max/fixed batch size (default depends on mode)
   --cuda-streams N             NN server threads per GPU (default depends on mode)
   --trt-device-id VAL          Device id list, e.g. "0" or "0,1" (default: ${TRT_DEVICE_ID_RAW})
-  --trt-use-cuda-graph             Set trtUseCudaGraph=true
-  --no-trt-use-cuda-graph          Set trtUseCudaGraph=false
+  --trt-use-cuda-graph         Set trtUseCudaGraph=true
+  --no-trt-use-cuda-graph      Set trtUseCudaGraph=false
   --trt-cuda-sync-mode MODE    Set trtCudaSyncMode=spin|blocking|yield|auto
+  --trt-builder-optimization-level N
+                               Set trtBuilderOptimizationLevel=-1..5
+  --trt-max-aux-streams N      Set trtMaxAuxStreams=-1..1024
+  --trt-avg-timing-iterations N
+                               Set trtAvgTimingIterations=-1..1000000
+  --trt-tiling-optimization-level MODE
+                               Set trtTilingOptimizationLevel=none|fast|moderate|full
   --visits N                   Benchmark visits (benchmark mode only)
   -h, --help                   Show this help message
 
@@ -136,6 +151,26 @@ parse_args() {
         TRT_CUDA_SYNC_MODE="$2"
         shift 2
         ;;
+      --trt-builder-optimization-level)
+        require_value "$1" "${2:-}"
+        TRT_BUILDER_OPTIMIZATION_LEVEL="$2"
+        shift 2
+        ;;
+      --trt-max-aux-streams)
+        require_value "$1" "${2:-}"
+        TRT_MAX_AUX_STREAMS="$2"
+        shift 2
+        ;;
+      --trt-avg-timing-iterations)
+        require_value "$1" "${2:-}"
+        TRT_AVG_TIMING_ITERATIONS="$2"
+        shift 2
+        ;;
+      --trt-tiling-optimization-level)
+        require_value "$1" "${2:-}"
+        TRT_TILING_OPTIMIZATION_LEVEL="$2"
+        shift 2
+        ;;
       --visits)
         require_value "$1" "${2:-}"
         BENCH_VISITS="$2"
@@ -212,6 +247,30 @@ case "${TRT_CUDA_SYNC_MODE}" in
     ;;
 esac
 
+if ! [[ "${TRT_BUILDER_OPTIMIZATION_LEVEL}" =~ ^-?[0-9]+$ ]] || (( TRT_BUILDER_OPTIMIZATION_LEVEL < -1 || TRT_BUILDER_OPTIMIZATION_LEVEL > 5 )); then
+  echo "TRT_BUILDER_OPTIMIZATION_LEVEL must be an integer in [-1,5], got: ${TRT_BUILDER_OPTIMIZATION_LEVEL}" >&2
+  exit 1
+fi
+
+if ! [[ "${TRT_MAX_AUX_STREAMS}" =~ ^-?[0-9]+$ ]] || (( TRT_MAX_AUX_STREAMS < -1 || TRT_MAX_AUX_STREAMS > 1024 )); then
+  echo "TRT_MAX_AUX_STREAMS must be an integer in [-1,1024], got: ${TRT_MAX_AUX_STREAMS}" >&2
+  exit 1
+fi
+
+if ! [[ "${TRT_AVG_TIMING_ITERATIONS}" =~ ^-?[0-9]+$ ]] || (( TRT_AVG_TIMING_ITERATIONS < -1 || TRT_AVG_TIMING_ITERATIONS > 1000000 || TRT_AVG_TIMING_ITERATIONS == 0 )); then
+  echo "TRT_AVG_TIMING_ITERATIONS must be -1 or a positive integer <= 1000000, got: ${TRT_AVG_TIMING_ITERATIONS}" >&2
+  exit 1
+fi
+
+case "${TRT_TILING_OPTIMIZATION_LEVEL}" in
+  none|fast|moderate|full)
+    ;;
+  *)
+    echo "TRT_TILING_OPTIMIZATION_LEVEL must be one of: none, fast, moderate, full; got: ${TRT_TILING_OPTIMIZATION_LEVEL}" >&2
+    exit 1
+    ;;
+esac
+
 NUM_NN_SERVER_THREADS=$(( TRT_CUDA_STREAMS * ${#TRT_DEVICE_ID_LIST[@]} ))
 OVERRIDE_CONFIG="numNNServerThreadsPerModel=${NUM_NN_SERVER_THREADS}"
 for ((thread_idx=0; thread_idx<NUM_NN_SERVER_THREADS; thread_idx++)); do
@@ -223,6 +282,10 @@ done
 OVERRIDE_CONFIG+=",numSearchThreads=${NUM_SEARCH_THREADS}"
 OVERRIDE_CONFIG+=",trtUseCudaGraph=${TRT_USE_CUDA_GRAPH}"
 OVERRIDE_CONFIG+=",trtCudaSyncMode=${TRT_CUDA_SYNC_MODE}"
+OVERRIDE_CONFIG+=",trtBuilderOptimizationLevel=${TRT_BUILDER_OPTIMIZATION_LEVEL}"
+OVERRIDE_CONFIG+=",trtMaxAuxStreams=${TRT_MAX_AUX_STREAMS}"
+OVERRIDE_CONFIG+=",trtAvgTimingIterations=${TRT_AVG_TIMING_ITERATIONS}"
+OVERRIDE_CONFIG+=",trtTilingOptimizationLevel=${TRT_TILING_OPTIMIZATION_LEVEL}"
 
 if [[ "${MODE}" == "benchmark" ]]; then
   OVERRIDE_CONFIG+=",globalPerfProfile=true"

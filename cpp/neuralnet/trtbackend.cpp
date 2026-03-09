@@ -41,6 +41,26 @@ namespace {
     ASSERT_UNREACHABLE;
   }
 
+  static TilingOptimizationLevel trtTilingOptimizationLevelToNv(TrtTilingOptimizationLevel level) {
+    switch(level) {
+    case TrtTilingOptimizationLevel::None: return TilingOptimizationLevel::kNONE;
+    case TrtTilingOptimizationLevel::Fast: return TilingOptimizationLevel::kFAST;
+    case TrtTilingOptimizationLevel::Moderate: return TilingOptimizationLevel::kMODERATE;
+    case TrtTilingOptimizationLevel::Full: return TilingOptimizationLevel::kFULL;
+    }
+    ASSERT_UNREACHABLE;
+  }
+
+  static string trtTilingOptimizationLevelToString(TrtTilingOptimizationLevel level) {
+    switch(level) {
+    case TrtTilingOptimizationLevel::None: return "none";
+    case TrtTilingOptimizationLevel::Fast: return "fast";
+    case TrtTilingOptimizationLevel::Moderate: return "moderate";
+    case TrtTilingOptimizationLevel::Full: return "full";
+    }
+    ASSERT_UNREACHABLE;
+  }
+
   struct LaunchIntervalGpuState {
     std::mutex mutex;
     bool hasLastLaunchNanos = false;
@@ -66,8 +86,6 @@ namespace {
 
 #define CACHE_TENSORRT_PLAN
 
-const int TensorRT_BuilderOptimizationLevel = 3; //0 for fast init, 2 is default, 5 is max
-
 static void checkCudaError(const cudaError_t status, const char* opName, const char* file, const char* func, int line) {
   if(status != cudaSuccess)
     throw StringError(
@@ -91,6 +109,10 @@ struct ComputeContext {
   enabled_t useFP16Mode;
   bool trtUseCudaGraph;
   CudaSyncMode trtCudaSyncMode;
+  int trtBuilderOptimizationLevel;
+  int trtMaxAuxStreams;
+  int trtAvgTimingIterations;
+  TrtTilingOptimizationLevel trtTilingOptimizationLevel;
   string homeDataDirOverride;
   string onnxModelPath;
   bool isOnnx;
@@ -158,6 +180,10 @@ ComputeContext* NeuralNet::createComputeContext(
   context->useFP16Mode = useFP16Mode;
   context->trtUseCudaGraph = trtConfigs.trtUseCudaGraph;
   context->trtCudaSyncMode = trtConfigs.trtCudaSyncMode;
+  context->trtBuilderOptimizationLevel = trtConfigs.trtBuilderOptimizationLevel;
+  context->trtMaxAuxStreams = trtConfigs.trtMaxAuxStreams;
+  context->trtAvgTimingIterations = trtConfigs.trtAvgTimingIterations;
+  context->trtTilingOptimizationLevel = trtConfigs.trtTilingOptimizationLevel;
   context->homeDataDirOverride = homeDataDirOverride;
   context->isOnnx = loadedModel->isOnnx;
   context->onnxModelPath = loadedModel->fileName;
@@ -1322,7 +1348,15 @@ struct ComputeHandle {
       config->setTacticSources(1U << static_cast<uint32_t>(TacticSource::kJIT_CONVOLUTIONS));
     }
 #endif
-    config->setBuilderOptimizationLevel(TensorRT_BuilderOptimizationLevel);
+    if(ctx->trtBuilderOptimizationLevel >= 0)
+      config->setBuilderOptimizationLevel(ctx->trtBuilderOptimizationLevel);
+    if(ctx->trtMaxAuxStreams >= 0)
+      config->setMaxAuxStreams(ctx->trtMaxAuxStreams);
+    if(ctx->trtAvgTimingIterations >= 0)
+      config->setAvgTimingIterations(ctx->trtAvgTimingIterations);
+    if(!config->setTilingOptimizationLevel(trtTilingOptimizationLevelToNv(ctx->trtTilingOptimizationLevel))) {
+      throw StringError("TensorRT backend: failed to set tiling optimization level");
+    }
 
     // So that there are no concurrent kernel executions probably from other parts of code while profiling
     // See CUDA Runtime API document for more details related to NULL stream and synchronization behaviors
@@ -1366,11 +1400,12 @@ struct ComputeHandle {
       if(ctx->isOnnx) {
 
 
+        string olvStr = ctx->trtBuilderOptimizationLevel < 0 ? "def" : Global::intToString(ctx->trtBuilderOptimizationLevel);
         planCacheFile = Global::strprintf(
-          "%s/trt-onnx-%d_olv-%d_gpu-%s_net-%s_%d_%s%dx%d_batch%d_fp%d",
+          "%s/trt-onnx-%d_olv-%s_gpu-%s_net-%s_%d_%s%dx%d_batch%d_fp%d",
           cacheDir.c_str(),
           getInferLibVersion(),
-          TensorRT_BuilderOptimizationLevel,
+          olvStr.c_str(),
           deviceIdent,
           modelHashStr.substr(0, 12).c_str(),
           ModelParser::tuneSalt,
@@ -1391,11 +1426,12 @@ struct ComputeHandle {
           usingFP16 ? 16 : 32);
       }
       else {
+        string olvStr = ctx->trtBuilderOptimizationLevel < 0 ? "def" : Global::intToString(ctx->trtBuilderOptimizationLevel);
         planCacheFile = Global::strprintf(
-          "%s/trt-%d_olv-%d_gpu-%s_net-%s_%d_%s%dx%d_batch%d_fp%d",
+          "%s/trt-%d_olv-%s_gpu-%s_net-%s_%d_%s%dx%d_batch%d_fp%d",
           cacheDir.c_str(),
           getInferLibVersion(),
-          TensorRT_BuilderOptimizationLevel,
+          olvStr.c_str(),
           deviceIdent,
           loadedModel->modelDesc.name.c_str(),
           ModelParser::tuneSalt,
