@@ -19,6 +19,7 @@ class ThreadSafeContainer
   bool readOnly;
   std::mutex mutex;
   std::condition_variable notEmptyCondVar;
+  std::condition_variable sizeChangedCondVar;
   std::condition_variable notFullCondVar;
 
   // Abstract methods to be implemented in derived classes
@@ -30,10 +31,10 @@ class ThreadSafeContainer
 
  public:
   inline ThreadSafeContainer()
-    :maxSize(0x7FFFFFFF),closed(false),readOnly(false),mutex(),notEmptyCondVar(),notFullCondVar()
+    :maxSize(0x7FFFFFFF),closed(false),readOnly(false),mutex(),notEmptyCondVar(),sizeChangedCondVar(),notFullCondVar()
   {}
   inline ThreadSafeContainer(size_t maxSz)
-    :maxSize(maxSz),closed(false),readOnly(false),mutex(),notEmptyCondVar(),notFullCondVar()
+    :maxSize(maxSz),closed(false),readOnly(false),mutex(),notEmptyCondVar(),sizeChangedCondVar(),notFullCondVar()
   {}
   inline ~ThreadSafeContainer()
   {}
@@ -70,6 +71,7 @@ class ThreadSafeContainer
     clearUnsynchronized();
     notFullCondVar.notify_all();
     notEmptyCondVar.notify_all();
+    sizeChangedCondVar.notify_all();
   }
 
   // Set the queue to be read only.
@@ -80,6 +82,7 @@ class ThreadSafeContainer
     readOnly = true;
     notFullCondVar.notify_all();
     notEmptyCondVar.notify_all();
+    sizeChangedCondVar.notify_all();
   }
 
   // Make the queue writable again.
@@ -97,9 +100,11 @@ class ThreadSafeContainer
       notFullCondVar.wait(lock);
     if(closed || readOnly)
       return false;
+    size_t oldSize = sizeUnsynchronized();
     pushUnsynchronized(std::forward<T>(elt));
-    if(sizeUnsynchronized() == 1)
-      notEmptyCondVar.notify_all();
+    if(oldSize == 0)
+      notEmptyCondVar.notify_one();
+    sizeChangedCondVar.notify_one();
     return true;
   }
 
@@ -118,9 +123,11 @@ class ThreadSafeContainer
     std::unique_lock<std::mutex> lock(mutex);
     if(closed || readOnly)
       return false;
+    size_t oldSize = sizeUnsynchronized();
     pushUnsynchronized(std::forward<T>(elt));
-    if(sizeUnsynchronized() == 1)
-      notEmptyCondVar.notify_all();
+    if(oldSize == 0)
+      notEmptyCondVar.notify_one();
+    sizeChangedCondVar.notify_one();
     return true;
   }
 
@@ -185,6 +192,36 @@ class ThreadSafeContainer
     if(size >= maxSize && size < maxSize + n)
       notFullCondVar.notify_all();
     return true;
+  }
+
+  // Wait until at least n elements are available, or queue becomes readonly/closed.
+  // If readonly with fewer than n elements remaining, pop whatever remains so shutdown can drain cleanly.
+  inline bool waitPopExactN(std::vector<T>& buf, size_t n)
+  {
+    std::unique_lock<std::mutex> lock(mutex);
+    while(!closed && !readOnly && sizeUnsynchronized() < n) {
+      sizeChangedCondVar.wait(lock);
+    }
+    if(closed)
+      return false;
+    size_t size = sizeUnsynchronized();
+    if(size >= n) {
+      for(size_t i = 0; i<n; i++)
+        buf.push_back(popUnsynchronized());
+      if(size - n >= n)
+        sizeChangedCondVar.notify_one();
+      if(size >= maxSize && size < maxSize + n)
+        notFullCondVar.notify_all();
+      return true;
+    }
+    if(readOnly && size > 0) {
+      for(size_t i = 0; i<size; i++)
+        buf.push_back(popUnsynchronized());
+      if(size >= maxSize)
+        notFullCondVar.notify_all();
+      return true;
+    }
+    return false;
   }
 
 };

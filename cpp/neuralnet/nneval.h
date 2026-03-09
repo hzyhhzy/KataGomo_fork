@@ -1,6 +1,7 @@
 #ifndef NEURALNET_NNEVAL_H_
 #define NEURALNET_NNEVAL_H_
 
+#include <map>
 #include <memory>
 
 #include "../core/global.h"
@@ -256,6 +257,7 @@ class NNEvaluator {
   std::condition_variable mainThreadWaitingForSpawn; //Condvar for waiting until server threads are spawned
 
   std::vector<int> serverThreadsIsUsingFP16;
+  std::map<int,int> numGpuBusyClaims;
 
   int numOngoingEvals; //Current number of ongoing evals.
   int numWaitingEvals; //Current number of things waiting for finish.

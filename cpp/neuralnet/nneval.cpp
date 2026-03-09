@@ -4,6 +4,12 @@
 
 using namespace std;
 
+namespace {
+static int canonicalGpuIdxForScheduling(int gpuIdx) {
+  return gpuIdx == -1 ? 0 : gpuIdx;
+}
+}
+
 //-------------------------------------------------------------------------------------
 
 NNResultBuf::NNResultBuf()
@@ -104,6 +110,7 @@ NNEvaluator::NNEvaluator(
    isKilled(false),
    numServerThreadsStartingUp(0),
    mainThreadWaitingForSpawn(),
+   numGpuBusyClaims(),
    numOngoingEvals(0),
    numWaitingEvals(0),
    numEvalsToAwaken(0),
@@ -169,6 +176,9 @@ NNEvaluator::NNEvaluator(
   queryQueue.reserve(maxBatchSize * 4 * gpuIdxByServerThread.size());
   //Starts readonly. Becomes writable once we spawn server threads
   queryQueue.setReadOnly();
+
+  for(int gpuIdx: gpuIdxByServerThread)
+    numGpuBusyClaims[canonicalGpuIdxForScheduling(gpuIdx)] = 0;
 }
 
 NNEvaluator::~NNEvaluator() {
@@ -384,6 +394,9 @@ void NNEvaluator::setNumThreads(const vector<int>& gpuIdxByServerThr) {
     throw StringError("NNEvaluator::setNumThreads called when threads were already running!");
   numThreads = (int)gpuIdxByServerThr.size();
   gpuIdxByServerThread = gpuIdxByServerThr;
+  numGpuBusyClaims.clear();
+  for(int gpuIdx: gpuIdxByServerThread)
+    numGpuBusyClaims[canonicalGpuIdxForScheduling(gpuIdx)] = 0;
 }
 
 void NNEvaluator::spawnServerThreads() {
@@ -490,10 +503,37 @@ void NNEvaluator::serve(
   while(true) {
     resultBufs.clear();
     int desiredBatchSize = std::min(maxBatchSize, currentBatchSize.load(std::memory_order_acquire));
-    bool gotAnything = queryQueue.waitPopUpToN(resultBufs,desiredBatchSize);
-    //Queue being closed is a signal that we're done.
-    if(!gotAnything)
-      break;
+    const int schedulerGpuIdx = canonicalGpuIdxForScheduling(gpuIdxForThisThread);
+    bool claimedIdleGpu = false;
+    {
+      lock.lock();
+      int& busyClaimCount = numGpuBusyClaims[schedulerGpuIdx];
+      if(busyClaimCount <= 0) {
+        busyClaimCount += 1;
+        claimedIdleGpu = true;
+      }
+      lock.unlock();
+    }
+
+    if(claimedIdleGpu) {
+      bool gotAnything = queryQueue.waitPopUpToN(resultBufs,desiredBatchSize);
+      //Queue being closed is a signal that we're done.
+      if(!gotAnything) {
+        lock.lock();
+        numGpuBusyClaims[schedulerGpuIdx] -= 1;
+        lock.unlock();
+        break;
+      }
+    }
+    else {
+      bool gotAnything = queryQueue.waitPopExactN(resultBufs, desiredBatchSize);
+      if(!gotAnything)
+        break;
+      lock.lock();
+      numGpuBusyClaims[schedulerGpuIdx] += 1;
+      lock.unlock();
+    }
+
     if(GlobalPerfProfile::isEnabled())
       GlobalPerfProfile::noteQueueLength((int)queryQueue.size());
 
@@ -621,6 +661,7 @@ void NNEvaluator::serve(
 
     //Lock and update stats before looping again
     lock.lock();
+    numGpuBusyClaims[schedulerGpuIdx] -= 1;
     numOngoingEvals -= numRows;
 
     if(numWaitingEvals > 0) {
