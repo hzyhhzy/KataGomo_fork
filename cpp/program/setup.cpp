@@ -9,6 +9,34 @@
 
 using namespace std;
 
+namespace {
+static CudaSyncMode parseCudaSyncMode(const string& rawValue, const string& keyName) {
+  string value = Global::toLower(Global::trim(rawValue));
+  if(value == "auto")
+    return CudaSyncMode::Auto;
+  if(value == "spin")
+    return CudaSyncMode::Spin;
+  if(value == "yield")
+    return CudaSyncMode::Yield;
+  if(value == "blocking")
+    return CudaSyncMode::Blocking;
+  throw StringError(
+    "Invalid value for " + keyName + ": " + rawValue +
+    " (expected one of: auto, spin, yield, blocking)"
+  );
+}
+
+static string cudaSyncModeToString(CudaSyncMode mode) {
+  switch(mode) {
+  case CudaSyncMode::Auto: return "auto";
+  case CudaSyncMode::Spin: return "spin";
+  case CudaSyncMode::Yield: return "yield";
+  case CudaSyncMode::Blocking: return "blocking";
+  }
+  ASSERT_UNREACHABLE;
+}
+}
+
 void Setup::initializeSession(ConfigParser& cfg) {
   bool globalPerfProfile =
     cfg.contains("globalPerfProfile") ? cfg.getBool("globalPerfProfile") :
@@ -268,6 +296,15 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     else if(cfg.contains("trtUseCudaGraph"))
       trtConfigs.trtUseCudaGraph = cfg.getBool("trtUseCudaGraph");
 
+    if(cfg.contains(backendPrefix+"CudaSyncMode-"+idxStr))
+      trtConfigs.trtCudaSyncMode = parseCudaSyncMode(cfg.getString(backendPrefix+"CudaSyncMode-"+idxStr), backendPrefix+"CudaSyncMode-"+idxStr);
+    else if(cfg.contains("trtCudaSyncMode-"+idxStr))
+      trtConfigs.trtCudaSyncMode = parseCudaSyncMode(cfg.getString("trtCudaSyncMode-"+idxStr), "trtCudaSyncMode-"+idxStr);
+    else if(cfg.contains(backendPrefix+"CudaSyncMode"))
+      trtConfigs.trtCudaSyncMode = parseCudaSyncMode(cfg.getString(backendPrefix+"CudaSyncMode"), backendPrefix+"CudaSyncMode");
+    else if(cfg.contains("trtCudaSyncMode"))
+      trtConfigs.trtCudaSyncMode = parseCudaSyncMode(cfg.getString("trtCudaSyncMode"), "trtCudaSyncMode");
+
     int forcedSymmetry = -1;
     if(setupFor != SETUP_FOR_DISTRIBUTED && cfg.contains("nnForcedSymmetry"))
       forcedSymmetry = cfg.getInt("nnForcedSymmetry",0,SymmetryHelpers::NUM_SYMMETRIES-1);
@@ -276,6 +313,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       "After dedups: nnModelFile" + idxStr + " = " + nnModelFile
       + " useFP16 " + useFP16Mode.toString()
       + " useNHWC " + useNHWCMode.toString()
+      + " trtCudaSyncMode " + cudaSyncModeToString(trtConfigs.trtCudaSyncMode)
     );
 
     int nnCacheSizePowerOfTwo =

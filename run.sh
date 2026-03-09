@@ -11,6 +11,7 @@ DEFAULT_NN_MAX_BATCHSIZE=7
 DEFAULT_TRT_CUDA_STREAMS=2
 DEFAULT_TRT_DEVICE_ID=0
 DEFAULT_TRT_USE_CUDA_GRAPH=true
+DEFAULT_TRT_CUDA_SYNC_MODE=blocking
 # Benchmark params defaults
 DEFAULT_BENCH_VISITS=10000
 
@@ -31,6 +32,7 @@ NUM_SEARCH_THREADS="${DEFAULT_NUM_SEARCH_THREADS}"
 TRT_CUDA_STREAMS="${DEFAULT_TRT_CUDA_STREAMS}"
 BENCH_VISITS="${DEFAULT_BENCH_VISITS}"
 TRT_USE_CUDA_GRAPH="${DEFAULT_TRT_USE_CUDA_GRAPH}"
+TRT_CUDA_SYNC_MODE="${DEFAULT_TRT_CUDA_SYNC_MODE}"
 
 TRT_DEVICE_ID_RAW="${TRT_DEVICE_ID:-${DEFAULT_TRT_DEVICE_ID}}"
 KATAGO_BIN="${KATAGO_BIN_PATH}"
@@ -55,6 +57,7 @@ Options:
   --trt-device-id VAL          Device id list, e.g. "0" or "0,1" (default: ${TRT_DEVICE_ID_RAW})
   --trt-use-cuda-graph             Set trtUseCudaGraph=true
   --no-trt-use-cuda-graph          Set trtUseCudaGraph=false
+  --trt-cuda-sync-mode MODE    Set trtCudaSyncMode=spin|blocking|yield|auto
   --visits N                   Benchmark visits (benchmark mode only)
   -h, --help                   Show this help message
 
@@ -128,6 +131,11 @@ parse_args() {
         TRT_USE_CUDA_GRAPH=false
         shift
         ;;
+      --trt-cuda-sync-mode)
+        require_value "$1" "${2:-}"
+        TRT_CUDA_SYNC_MODE="$2"
+        shift 2
+        ;;
       --visits)
         require_value "$1" "${2:-}"
         BENCH_VISITS="$2"
@@ -195,6 +203,15 @@ if [[ "${TRT_USE_CUDA_GRAPH}" != "true" && "${TRT_USE_CUDA_GRAPH}" != "false" ]]
   exit 1
 fi
 
+case "${TRT_CUDA_SYNC_MODE}" in
+  spin|blocking|yield|auto)
+    ;;
+  *)
+    echo "TRT_CUDA_SYNC_MODE must be one of: spin, blocking, yield, auto; got: ${TRT_CUDA_SYNC_MODE}" >&2
+    exit 1
+    ;;
+esac
+
 NUM_NN_SERVER_THREADS=$(( TRT_CUDA_STREAMS * ${#TRT_DEVICE_ID_LIST[@]} ))
 OVERRIDE_CONFIG="numNNServerThreadsPerModel=${NUM_NN_SERVER_THREADS}"
 for ((thread_idx=0; thread_idx<NUM_NN_SERVER_THREADS; thread_idx++)); do
@@ -205,6 +222,7 @@ done
 
 OVERRIDE_CONFIG+=",numSearchThreads=${NUM_SEARCH_THREADS}"
 OVERRIDE_CONFIG+=",trtUseCudaGraph=${TRT_USE_CUDA_GRAPH}"
+OVERRIDE_CONFIG+=",trtCudaSyncMode=${TRT_CUDA_SYNC_MODE}"
 
 if [[ "${MODE}" == "benchmark" ]]; then
   OVERRIDE_CONFIG+=",globalPerfProfile=true"

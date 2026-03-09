@@ -31,6 +31,16 @@ namespace {
     return std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now() - start).count();
   }
 
+  static unsigned int cudaSyncModeToDeviceFlags(CudaSyncMode mode) {
+    switch(mode) {
+    case CudaSyncMode::Auto: return cudaDeviceScheduleAuto;
+    case CudaSyncMode::Spin: return cudaDeviceScheduleSpin;
+    case CudaSyncMode::Yield: return cudaDeviceScheduleYield;
+    case CudaSyncMode::Blocking: return cudaDeviceScheduleBlockingSync;
+    }
+    ASSERT_UNREACHABLE;
+  }
+
   struct LaunchIntervalGpuState {
     std::mutex mutex;
     bool hasLastLaunchNanos = false;
@@ -80,6 +90,7 @@ struct ComputeContext {
   int nnYLen;
   enabled_t useFP16Mode;
   bool trtUseCudaGraph;
+  CudaSyncMode trtCudaSyncMode;
   string homeDataDirOverride;
   string onnxModelPath;
   bool isOnnx;
@@ -146,6 +157,7 @@ ComputeContext* NeuralNet::createComputeContext(
   context->nnYLen = nnYLen;
   context->useFP16Mode = useFP16Mode;
   context->trtUseCudaGraph = trtConfigs.trtUseCudaGraph;
+  context->trtCudaSyncMode = trtConfigs.trtCudaSyncMode;
   context->homeDataDirOverride = homeDataDirOverride;
   context->isOnnx = loadedModel->isOnnx;
   context->onnxModelPath = loadedModel->fileName;
@@ -1852,6 +1864,9 @@ ComputeHandle* NeuralNet::createComputeHandle(
   if(gpuIdxForThisThread == -1)
     gpuIdxForThisThread = 0;
   CUDA_ERR("createComputeHandle", cudaSetDevice(gpuIdxForThisThread));
+  // cudaSetDeviceFlags applies to the current device. Set the thread's target GPU first so
+  // multi-GPU runs don't accidentally leave nonzero devices on the default scheduling mode.
+  CUDA_ERR("createComputeHandle", cudaSetDeviceFlags(cudaSyncModeToDeviceFlags(context->trtCudaSyncMode)));
 
   cudaDeviceProp prop;
   CUDA_ERR("createComputeHandle", cudaGetDeviceProperties(&prop, gpuIdxForThisThread));

@@ -26,9 +26,17 @@ struct InputBuffers;
 // A handle to the loaded neural network model.
 struct LoadedModel;
 
+enum class CudaSyncMode {
+  Auto,
+  Spin,
+  Yield,
+  Blocking
+};
+
 // TensorRT-specific knobs threaded through generic NN interfaces.
 struct TRTConfigs {
   bool trtUseCudaGraph = false;
+  CudaSyncMode trtCudaSyncMode = CudaSyncMode::Blocking;
 };
 
 // Generic interface to neural net inference.
