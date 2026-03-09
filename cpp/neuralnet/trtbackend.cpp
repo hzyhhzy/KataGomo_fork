@@ -1813,6 +1813,45 @@ void NeuralNet::printDevices() {
 }
 
 struct InputBuffers {
+  struct PinnedFloatBuffer {
+    float* ptr;
+
+    PinnedFloatBuffer() : ptr(nullptr) {}
+    explicit PinnedFloatBuffer(size_t numElts) : ptr(nullptr) {
+      if(numElts > 0)
+        CUDA_ERR("PinnedFloatBuffer", cudaMallocHost((void**)&ptr, numElts * sizeof(float)));
+    }
+    ~PinnedFloatBuffer() {
+      if(ptr != nullptr) {
+        cudaError_t status = cudaFreeHost(ptr);
+        (void)status;
+        ptr = nullptr;
+      }
+    }
+
+    PinnedFloatBuffer(const PinnedFloatBuffer&) = delete;
+    PinnedFloatBuffer& operator=(const PinnedFloatBuffer&) = delete;
+    PinnedFloatBuffer(PinnedFloatBuffer&& other) noexcept : ptr(other.ptr) {
+      other.ptr = nullptr;
+    }
+    PinnedFloatBuffer& operator=(PinnedFloatBuffer&& other) noexcept {
+      if(this != &other) {
+        if(ptr != nullptr) {
+          cudaError_t status = cudaFreeHost(ptr);
+          (void)status;
+        }
+        ptr = other.ptr;
+        other.ptr = nullptr;
+      }
+      return *this;
+    }
+
+    float* get() { return ptr; }
+    const float* get() const { return ptr; }
+    float& operator[](size_t idx) { return ptr[idx]; }
+    const float& operator[](size_t idx) const { return ptr[idx]; }
+  };
+
   int maxBatchSize;
   bool isOnnx;
 
@@ -1863,21 +1902,21 @@ struct InputBuffers {
   size_t out_moremiscvalueBufferBytes;
   size_t out_ownershipBufferBytes;
 
-  unique_ptr<float[]> maskInputs;           // Host pointer
-  unique_ptr<float[]> spatialInputs;        // Host pointer
-  unique_ptr<float[]> globalInputs;  // Host pointer
-  unique_ptr<float[]> metaInputs;  // Host pointer
-  unique_ptr<float[]> policyPassResults;    // Host pointer
-  unique_ptr<float[]> policyResults;        // Host pointer
-  unique_ptr<float[]> valueResults;         // Host pointer
-  unique_ptr<float[]> scoreValueResults;    // Host pointer
-  unique_ptr<float[]> ownershipResults;     // Host pointer
+  PinnedFloatBuffer maskInputs;           // Host pointer
+  PinnedFloatBuffer spatialInputs;        // Host pointer
+  PinnedFloatBuffer globalInputs;         // Host pointer
+  PinnedFloatBuffer metaInputs;           // Host pointer
+  PinnedFloatBuffer policyPassResults;    // Host pointer
+  PinnedFloatBuffer policyResults;        // Host pointer
+  PinnedFloatBuffer valueResults;         // Host pointer
+  PinnedFloatBuffer scoreValueResults;    // Host pointer
+  PinnedFloatBuffer ownershipResults;     // Host pointer
 
-  unique_ptr<float[]> out_policyResults;
-  unique_ptr<float[]> out_valueResults;
-  unique_ptr<float[]> out_miscvalueResults;
-  unique_ptr<float[]> out_moremiscvalueResults;
-  unique_ptr<float[]> out_ownershipResults;
+  PinnedFloatBuffer out_policyResults;
+  PinnedFloatBuffer out_valueResults;
+  PinnedFloatBuffer out_miscvalueResults;
+  PinnedFloatBuffer out_moremiscvalueResults;
+  PinnedFloatBuffer out_ownershipResults;
 
   InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int nnXLen, int nnYLen) {
     const ModelDesc& m = loadedModel->modelDesc;
@@ -1935,11 +1974,11 @@ struct InputBuffers {
         out_moremiscvalueBufferBytes = maxBatchSize * singleout_moremiscvalueBytes;
         out_ownershipBufferBytes = maxBatchSize * singleout_ownershipBytes;
         
-        out_policyResults = std::make_unique<float[]>(maxBatchSize * singleout_policyElts);
-        out_valueResults = std::make_unique<float[]>(maxBatchSize * singleout_valueElts);
-        out_miscvalueResults = std::make_unique<float[]>(maxBatchSize * singleout_miscvalueElts);
-        out_moremiscvalueResults = std::make_unique<float[]>(maxBatchSize * singleout_moremiscvalueElts);
-        out_ownershipResults = std::make_unique<float[]>(maxBatchSize * singleout_ownershipElts);
+        out_policyResults = PinnedFloatBuffer(maxBatchSize * singleout_policyElts);
+        out_valueResults = PinnedFloatBuffer(maxBatchSize * singleout_valueElts);
+        out_miscvalueResults = PinnedFloatBuffer(maxBatchSize * singleout_miscvalueElts);
+        out_moremiscvalueResults = PinnedFloatBuffer(maxBatchSize * singleout_moremiscvalueElts);
+        out_ownershipResults = PinnedFloatBuffer(maxBatchSize * singleout_ownershipElts);
     }
 
     assert(NNModelVersion::getNumSpatialFeatures(m.modelVersion) == m.numInputChannels);
@@ -1958,15 +1997,15 @@ struct InputBuffers {
     scoreValueResultBufferBytes = maxBatchSize * singleScoreValueResultBytes;
     ownershipResultBufferBytes = maxBatchSize * singleOwnershipResultBytes;
 
-    maskInputs = make_unique<float[]>(maxBatchSize * singleMaskElts);
-    spatialInputs = make_unique<float[]>(maxBatchSize * singleInputElts);
-    globalInputs = make_unique<float[]>(maxBatchSize * singleInputGlobalElts);
-    metaInputs = make_unique<float[]>(maxBatchSize * singleInputMetaElts);
-    policyPassResults = make_unique<float[]>(maxBatchSize * singlePolicyPassResultElts);
-    policyResults = make_unique<float[]>(maxBatchSize * singlePolicyResultElts);
-    valueResults = make_unique<float[]>(maxBatchSize * singleValueResultElts);
-    scoreValueResults = make_unique<float[]>(maxBatchSize * singleScoreValueResultElts);
-    ownershipResults = make_unique<float[]>(maxBatchSize * singleOwnershipResultElts);
+    maskInputs = PinnedFloatBuffer(maxBatchSize * singleMaskElts);
+    spatialInputs = PinnedFloatBuffer(maxBatchSize * singleInputElts);
+    globalInputs = PinnedFloatBuffer(maxBatchSize * singleInputGlobalElts);
+    metaInputs = PinnedFloatBuffer(maxBatchSize * singleInputMetaElts);
+    policyPassResults = PinnedFloatBuffer(maxBatchSize * singlePolicyPassResultElts);
+    policyResults = PinnedFloatBuffer(maxBatchSize * singlePolicyResultElts);
+    valueResults = PinnedFloatBuffer(maxBatchSize * singleValueResultElts);
+    scoreValueResults = PinnedFloatBuffer(maxBatchSize * singleScoreValueResultElts);
+    ownershipResults = PinnedFloatBuffer(maxBatchSize * singleOwnershipResultElts);
   }
 
   InputBuffers() = delete;
@@ -2000,6 +2039,7 @@ void NeuralNet::getOutput(
   const int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(modelVersion);
   const int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(modelVersion);
   const int numMetaFeatures = inputBuffers->singleInputMetaElts;
+  cudaStream_t stream = cudaStreamPerThread;
   assert(numSpatialFeatures * nnXLen * nnYLen == inputBuffers->singleInputElts);
   assert(numGlobalFeatures == inputBuffers->singleInputGlobalElts);
 
@@ -2033,8 +2073,8 @@ void NeuralNet::getOutput(
       assert(inputBuffers->singleInputElts == gpuHandle->getBufferRowElts("input_spatial"));
       assert(inputBuffers->singleInputGlobalElts == gpuHandle->getBufferRowElts("input_global"));
       
-      CUDA_ERR("getOutput", cudaMemcpyAsync(gpuHandle->getBuffer("input_spatial"), inputBuffers->spatialInputs.get(), inputBuffers->singleInputBytes * batchSize, cudaMemcpyHostToDevice));
-      CUDA_ERR("getOutput", cudaMemcpyAsync(gpuHandle->getBuffer("input_global"), inputBuffers->globalInputs.get(), inputBuffers->singleInputGlobalBytes * batchSize, cudaMemcpyHostToDevice));
+      CUDA_ERR("getOutput", cudaMemcpyAsync(gpuHandle->getBuffer("input_spatial"), inputBuffers->spatialInputs.get(), inputBuffers->singleInputBytes * batchSize, cudaMemcpyHostToDevice, stream));
+      CUDA_ERR("getOutput", cudaMemcpyAsync(gpuHandle->getBuffer("input_global"), inputBuffers->globalInputs.get(), inputBuffers->singleInputGlobalBytes * batchSize, cudaMemcpyHostToDevice, stream));
       
       auto spatialInputDims = gpuHandle->getBufferDynamicShape("input_spatial", batchSize);
       auto globalInputDims = gpuHandle->getBufferDynamicShape("input_global", batchSize);
@@ -2047,11 +2087,11 @@ void NeuralNet::getOutput(
       if(numMetaFeatures > 0)
         assert(inputBuffers->singleInputMetaElts == gpuHandle->getBufferRowElts("InputMeta"));
 
-      CUDA_ERR("getOutput", cudaMemcpyAsync(gpuHandle->getBuffer("InputMask"), inputBuffers->maskInputs.get(), inputBuffers->singleMaskBytes * batchSize, cudaMemcpyHostToDevice));
-      CUDA_ERR("getOutput", cudaMemcpyAsync(gpuHandle->getBuffer("InputSpatial"), inputBuffers->spatialInputs.get(), inputBuffers->singleInputBytes * batchSize, cudaMemcpyHostToDevice));
-      CUDA_ERR("getOutput", cudaMemcpyAsync(gpuHandle->getBuffer("InputGlobal"), inputBuffers->globalInputs.get(), inputBuffers->singleInputGlobalBytes * batchSize, cudaMemcpyHostToDevice));
+      CUDA_ERR("getOutput", cudaMemcpyAsync(gpuHandle->getBuffer("InputMask"), inputBuffers->maskInputs.get(), inputBuffers->singleMaskBytes * batchSize, cudaMemcpyHostToDevice, stream));
+      CUDA_ERR("getOutput", cudaMemcpyAsync(gpuHandle->getBuffer("InputSpatial"), inputBuffers->spatialInputs.get(), inputBuffers->singleInputBytes * batchSize, cudaMemcpyHostToDevice, stream));
+      CUDA_ERR("getOutput", cudaMemcpyAsync(gpuHandle->getBuffer("InputGlobal"), inputBuffers->globalInputs.get(), inputBuffers->singleInputGlobalBytes * batchSize, cudaMemcpyHostToDevice, stream));
       if(numMetaFeatures > 0) {
-        CUDA_ERR("getOutput", cudaMemcpyAsync(gpuHandle->getBuffer("InputMeta"), inputBuffers->metaInputs.get(), inputBuffers->singleInputMetaBytes * batchSize, cudaMemcpyHostToDevice));
+        CUDA_ERR("getOutput", cudaMemcpyAsync(gpuHandle->getBuffer("InputMeta"), inputBuffers->metaInputs.get(), inputBuffers->singleInputMetaBytes * batchSize, cudaMemcpyHostToDevice, stream));
       }
 
       auto maskInputDims = gpuHandle->getBufferDynamicShape("InputMask", batchSize);
@@ -2072,18 +2112,19 @@ void NeuralNet::getOutput(
 
   // Get outputs
   if (isOnnx) {
-      CUDA_ERR("getOutput", cudaMemcpy(inputBuffers->out_policyResults.get(), gpuHandle->getBuffer("out_policy"), inputBuffers->singleout_policyBytes * batchSize, cudaMemcpyDeviceToHost));
-      CUDA_ERR("getOutput", cudaMemcpy(inputBuffers->out_valueResults.get(), gpuHandle->getBuffer("out_value"), inputBuffers->singleout_valueBytes * batchSize, cudaMemcpyDeviceToHost));
-      CUDA_ERR("getOutput", cudaMemcpy(inputBuffers->out_miscvalueResults.get(), gpuHandle->getBuffer("out_miscvalue"), inputBuffers->singleout_miscvalueBytes * batchSize, cudaMemcpyDeviceToHost));
-      CUDA_ERR("getOutput", cudaMemcpy(inputBuffers->out_moremiscvalueResults.get(), gpuHandle->getBuffer("out_moremiscvalue"), inputBuffers->singleout_moremiscvalueBytes * batchSize, cudaMemcpyDeviceToHost));
-      CUDA_ERR("getOutput", cudaMemcpy(inputBuffers->out_ownershipResults.get(), gpuHandle->getBuffer("out_ownership"), inputBuffers->singleout_ownershipBytes * batchSize, cudaMemcpyDeviceToHost));
+      CUDA_ERR("getOutput", cudaMemcpyAsync(inputBuffers->out_policyResults.get(), gpuHandle->getBuffer("out_policy"), inputBuffers->singleout_policyBytes * batchSize, cudaMemcpyDeviceToHost, stream));
+      CUDA_ERR("getOutput", cudaMemcpyAsync(inputBuffers->out_valueResults.get(), gpuHandle->getBuffer("out_value"), inputBuffers->singleout_valueBytes * batchSize, cudaMemcpyDeviceToHost, stream));
+      CUDA_ERR("getOutput", cudaMemcpyAsync(inputBuffers->out_miscvalueResults.get(), gpuHandle->getBuffer("out_miscvalue"), inputBuffers->singleout_miscvalueBytes * batchSize, cudaMemcpyDeviceToHost, stream));
+      CUDA_ERR("getOutput", cudaMemcpyAsync(inputBuffers->out_moremiscvalueResults.get(), gpuHandle->getBuffer("out_moremiscvalue"), inputBuffers->singleout_moremiscvalueBytes * batchSize, cudaMemcpyDeviceToHost, stream));
+      CUDA_ERR("getOutput", cudaMemcpyAsync(inputBuffers->out_ownershipResults.get(), gpuHandle->getBuffer("out_ownership"), inputBuffers->singleout_ownershipBytes * batchSize, cudaMemcpyDeviceToHost, stream));
   } else {
-      CUDA_ERR("getOutput", cudaMemcpy(inputBuffers->policyPassResults.get(), gpuHandle->getBuffer("OutputPolicyPass"), inputBuffers->singlePolicyPassResultBytes * batchSize, cudaMemcpyDeviceToHost));
-      CUDA_ERR("getOutput", cudaMemcpy(inputBuffers->policyResults.get(), gpuHandle->getBuffer("OutputPolicy"), inputBuffers->singlePolicyResultBytes * batchSize, cudaMemcpyDeviceToHost));
-      CUDA_ERR("getOutput", cudaMemcpy(inputBuffers->valueResults.get(), gpuHandle->getBuffer("OutputValue"), inputBuffers->singleValueResultBytes * batchSize, cudaMemcpyDeviceToHost));
-      CUDA_ERR("getOutput", cudaMemcpy(inputBuffers->scoreValueResults.get(), gpuHandle->getBuffer("OutputScoreValue"), inputBuffers->singleScoreValueResultBytes * batchSize, cudaMemcpyDeviceToHost));
-      CUDA_ERR("getOutput", cudaMemcpy(inputBuffers->ownershipResults.get(), gpuHandle->getBuffer("OutputOwnership"), inputBuffers->singleOwnershipResultBytes * batchSize, cudaMemcpyDeviceToHost));
+      CUDA_ERR("getOutput", cudaMemcpyAsync(inputBuffers->policyPassResults.get(), gpuHandle->getBuffer("OutputPolicyPass"), inputBuffers->singlePolicyPassResultBytes * batchSize, cudaMemcpyDeviceToHost, stream));
+      CUDA_ERR("getOutput", cudaMemcpyAsync(inputBuffers->policyResults.get(), gpuHandle->getBuffer("OutputPolicy"), inputBuffers->singlePolicyResultBytes * batchSize, cudaMemcpyDeviceToHost, stream));
+      CUDA_ERR("getOutput", cudaMemcpyAsync(inputBuffers->valueResults.get(), gpuHandle->getBuffer("OutputValue"), inputBuffers->singleValueResultBytes * batchSize, cudaMemcpyDeviceToHost, stream));
+      CUDA_ERR("getOutput", cudaMemcpyAsync(inputBuffers->scoreValueResults.get(), gpuHandle->getBuffer("OutputScoreValue"), inputBuffers->singleScoreValueResultBytes * batchSize, cudaMemcpyDeviceToHost, stream));
+      CUDA_ERR("getOutput", cudaMemcpyAsync(inputBuffers->ownershipResults.get(), gpuHandle->getBuffer("OutputOwnership"), inputBuffers->singleOwnershipResultBytes * batchSize, cudaMemcpyDeviceToHost, stream));
   }
+  CUDA_ERR("getOutput", cudaStreamSynchronize(stream));
 
   gpuHandle->printDebugOutput(batchSize);
   gpuHandle->trtErrorRecorder.clear();
