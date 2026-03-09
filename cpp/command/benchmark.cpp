@@ -324,7 +324,9 @@ static void warmStartNNEval(const CompactSgf& sgf, Logger& logger, const SearchP
 
 static NNEvaluator* createNNEval(int maxNumThreads, const CompactSgf& sgf, const string& modelFile, Logger& logger, ConfigParser& cfg, const SearchParams& params) {
   int expectedConcurrentEvals = maxNumThreads;
-  const int defaultMaxBatchSize = std::max(8,((maxNumThreads+3)/4)*4);
+  // Allow benchmark to honor exact requested batch sizes (e.g. fixed-batch-size=9),
+  // rather than forcing round-up to multiples of 4 and min 8.
+  const int defaultMaxBatchSize = std::max(1,maxNumThreads);
 
   Rand seedRand;
 
