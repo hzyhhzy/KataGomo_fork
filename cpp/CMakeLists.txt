@@ -226,6 +226,7 @@ add_executable(katago
   core/elo.cpp
   core/fancymath.cpp
   core/fileutils.cpp
+  core/globalperf.cpp
   core/hash.cpp
   core/logger.cpp
   core/mainargs.cpp
@@ -630,4 +631,3 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "C
 endif()
 
 target_include_directories(katago PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
-

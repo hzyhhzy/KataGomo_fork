@@ -2,6 +2,7 @@
 
 #include <sstream>
 
+#include "../core/globalperf.h"
 #include "../core/timer.h"
 #include "../core/test.h"
 
@@ -944,6 +945,8 @@ PlayUtils::BenchmarkResults PlayUtils::benchmarkSearchOnPositionsAndPrint(
 
   nnEval->clearCache();
   nnEval->clearStats();
+  if(GlobalPerfProfile::isEnabled())
+    GlobalPerfProfile::clear();
 
   Rand seedRand;
   Search* bot = new Search(params,nnEval,nnEval->getLogger(),Global::uint64ToString(seedRand.nextUInt64()));
@@ -980,9 +983,13 @@ PlayUtils::BenchmarkResults PlayUtils::benchmarkSearchOnPositionsAndPrint(
     bot->setPosition(nextPla,board,hist);
     nnEval->clearCache();
 
+    if(GlobalPerfProfile::isEnabled())
+      GlobalPerfProfile::beginBenchmarkSample();
     ClockTimer timer;
     bot->runWholeSearch(nextPla);
     double seconds = timer.getSeconds();
+    if(GlobalPerfProfile::isEnabled())
+      GlobalPerfProfile::endBenchmarkSample();
 
     results.totalPositionsSearched += 1;
     results.totalSeconds += seconds;
@@ -992,6 +999,8 @@ PlayUtils::BenchmarkResults PlayUtils::benchmarkSearchOnPositionsAndPrint(
   results.numNNEvals = nnEval->numRowsProcessed();
   results.numNNBatches = nnEval->numBatchesProcessed();
   results.avgBatchSize = nnEval->averageProcessedBatchSize();
+  if(GlobalPerfProfile::isEnabled())
+    results.globalPerfProfileReport = GlobalPerfProfile::makeReport();
 
   if(printElo)
     cout << "\r" << results.toStringWithElo(baseline,secondsPerGameMove) << std::endl;

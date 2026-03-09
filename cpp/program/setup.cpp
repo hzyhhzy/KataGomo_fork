@@ -3,13 +3,18 @@
 #include "../core/datetime.h"
 #include "../core/makedir.h"
 #include "../core/fileutils.h"
+#include "../core/globalperf.h"
 #include "../neuralnet/nninterface.h"
 #include "../search/patternbonustable.h"
 
 using namespace std;
 
 void Setup::initializeSession(ConfigParser& cfg) {
-  (void)cfg;
+  bool globalPerfProfile =
+    cfg.contains("globalPerfProfile") ? cfg.getBool("globalPerfProfile") :
+    cfg.contains("GLOBAL_PERF_PROFILE") ? cfg.getBool("GLOBAL_PERF_PROFILE") :
+    false;
+  GlobalPerfProfile::setEnabled(globalPerfProfile);
   NeuralNet::globalInitialize();
 }
 

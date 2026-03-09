@@ -6,7 +6,13 @@
 #include "NvOnnxConfig.h"
 #include "NvOnnxParser.h"
 
+#include <chrono>
+#include <map>
+#include <memory>
+#include <mutex>
+
 #include "../core/fileutils.h"
+#include "../core/globalperf.h"
 #include "../core/makedir.h"
 #include "../core/sha2.h"
 #include "../core/test.h"
@@ -19,6 +25,31 @@
 
 using namespace std;
 using namespace nvinfer1;
+
+namespace {
+  static double elapsedMilliseconds(std::chrono::steady_clock::time_point start) {
+    return std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now() - start).count();
+  }
+
+  struct LaunchIntervalGpuState {
+    std::mutex mutex;
+    bool hasLastLaunchNanos = false;
+    int64_t lastLaunchNanos = 0;
+  };
+
+  std::mutex launchIntervalGpuStateMapMutex;
+  std::map<int,std::shared_ptr<LaunchIntervalGpuState>> launchIntervalGpuStateByGpuIdx;
+
+  static std::shared_ptr<LaunchIntervalGpuState> getLaunchIntervalGpuStateForGpu(int gpuIdx) {
+    std::lock_guard<std::mutex> lock(launchIntervalGpuStateMapMutex);
+    auto it = launchIntervalGpuStateByGpuIdx.find(gpuIdx);
+    if(it != launchIntervalGpuStateByGpuIdx.end())
+      return it->second;
+    std::shared_ptr<LaunchIntervalGpuState> state = std::make_shared<LaunchIntervalGpuState>();
+    launchIntervalGpuStateByGpuIdx[gpuIdx] = state;
+    return state;
+  }
+}
 
 // Define this to print out some of the intermediate values of the neural net
 //#define DEBUG_INTERMEDIATE_VALUES
@@ -1107,6 +1138,8 @@ struct TRTErrorRecorder : IErrorRecorder {
 
 struct ComputeHandle {
   ComputeContext* ctx;
+  int gpuIdxForHandle;
+  std::shared_ptr<LaunchIntervalGpuState> launchIntervalGpuState;
 
   bool usingFP16;
   int maxBatchSize;
@@ -1120,12 +1153,17 @@ struct ComputeHandle {
   unique_ptr<ICudaEngine> engine;
   unique_ptr<IExecutionContext> exec;
   bool trtUseCudaGraph;
+  bool perfProfileEnabled;
   struct BatchGraphState {
     cudaGraph_t graph;
     cudaGraphExec_t graphExec;
     BatchGraphState() : graph(nullptr), graphExec(nullptr) {}
   };
   vector<BatchGraphState> batchGraphStates;
+  cudaEvent_t perfH2DStartEvent;
+  cudaEvent_t perfH2DEndEvent;
+  cudaEvent_t perfInferenceDoneEvent;
+  cudaEvent_t perfD2HEndEvent;
 
   ComputeHandle(
     Logger* logger,
@@ -1133,13 +1171,29 @@ struct ComputeHandle {
     ComputeContext* context,
     const LoadedModel* loadedModel,
     int maxBatchSz,
-    bool requireExactNNLen) {
+    bool requireExactNNLen,
+    int gpuIdx) {
     ctx = context;
+    gpuIdxForHandle = gpuIdx;
+    launchIntervalGpuState = nullptr;
 
     maxBatchSize = maxBatchSz;
     modelVersion = loadedModel->modelDesc.modelVersion;
     trtUseCudaGraph = context->trtUseCudaGraph;
+    perfProfileEnabled = GlobalPerfProfile::isEnabled();
+    if(perfProfileEnabled)
+      launchIntervalGpuState = getLaunchIntervalGpuStateForGpu(gpuIdxForHandle);
     batchGraphStates.resize(maxBatchSize + 1);
+    perfH2DStartEvent = nullptr;
+    perfH2DEndEvent = nullptr;
+    perfInferenceDoneEvent = nullptr;
+    perfD2HEndEvent = nullptr;
+    if(perfProfileEnabled) {
+      CUDA_ERR("ComputeHandle", cudaEventCreate(&perfH2DStartEvent));
+      CUDA_ERR("ComputeHandle", cudaEventCreate(&perfH2DEndEvent));
+      CUDA_ERR("ComputeHandle", cudaEventCreate(&perfInferenceDoneEvent));
+      CUDA_ERR("ComputeHandle", cudaEventCreate(&perfD2HEndEvent));
+    }
 
     // Certain minor versions of TensorRT uses a global logger, which is bad.
     // Since TensorRT maintains ABI compatibility between minor versions, a dynamic library mismatch
@@ -1538,6 +1592,14 @@ struct ComputeHandle {
 
   ~ComputeHandle() {
     destroyAllBatchGraphs();
+    if(perfD2HEndEvent != nullptr)
+      CUDA_ERR("~ComputeHandle", cudaEventDestroy(perfD2HEndEvent));
+    if(perfInferenceDoneEvent != nullptr)
+      CUDA_ERR("~ComputeHandle", cudaEventDestroy(perfInferenceDoneEvent));
+    if(perfH2DEndEvent != nullptr)
+      CUDA_ERR("~ComputeHandle", cudaEventDestroy(perfH2DEndEvent));
+    if(perfH2DStartEvent != nullptr)
+      CUDA_ERR("~ComputeHandle", cudaEventDestroy(perfH2DStartEvent));
     for(auto ptr: buffers) {
       CUDA_ERR("~ComputeHandle", cudaFree(ptr.second));
     }
@@ -1546,6 +1608,30 @@ struct ComputeHandle {
   ComputeHandle() = delete;
   ComputeHandle(const ComputeHandle&) = delete;
   ComputeHandle& operator=(const ComputeHandle&) = delete;
+
+  void maybeRecordLaunchInterval() {
+    if(!perfProfileEnabled || launchIntervalGpuState == nullptr)
+      return;
+
+    int64_t launchGapNanos = 0;
+    bool hasLaunchGap = false;
+    int64_t nowNanos = std::chrono::duration_cast<std::chrono::nanoseconds>(
+      std::chrono::steady_clock::now().time_since_epoch()
+    ).count();
+
+    {
+      std::lock_guard<std::mutex> lock(launchIntervalGpuState->mutex);
+      if(launchIntervalGpuState->hasLastLaunchNanos) {
+        launchGapNanos = nowNanos - launchIntervalGpuState->lastLaunchNanos;
+        hasLaunchGap = true;
+      }
+      launchIntervalGpuState->lastLaunchNanos = nowNanos;
+      launchIntervalGpuState->hasLastLaunchNanos = true;
+    }
+
+    if(hasLaunchGap)
+      GlobalPerfProfile::recordInferenceLaunchInterval((double)launchGapNanos / 1e6);
+  }
 
   void* getBuffer(const char* name) {
     auto search = buffers.find(name);
@@ -1779,7 +1865,7 @@ ComputeHandle* NeuralNet::createComputeHandle(
       "TensorRT backend thread " + Global::intToString(serverThreadIdx) + ": Initializing (may take a long time)");
   }
 
-  auto handle = new ComputeHandle(logger, &prop, context, loadedModel, maxBatchSize, requireExactNNLen);
+  auto handle = new ComputeHandle(logger, &prop, context, loadedModel, maxBatchSize, requireExactNNLen, gpuIdxForThisThread);
 
   if(logger != NULL) {
     logger->write(
@@ -2040,6 +2126,12 @@ void NeuralNet::getOutput(
   const int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(modelVersion);
   const int numMetaFeatures = inputBuffers->singleInputMetaElts;
   cudaStream_t stream = cudaStreamPerThread;
+  const bool perfEnabled = gpuHandle->perfProfileEnabled;
+  double preprocessMs = 0.0;
+  double d2hMs = 0.0;
+  float h2dMs = 0.0f;
+  float waitGpuMs = 0.0f;
+  auto preprocessStart = std::chrono::steady_clock::now();
   assert(numSpatialFeatures * nnXLen * nnYLen == inputBuffers->singleInputElts);
   assert(numGlobalFeatures == inputBuffers->singleInputGlobalElts);
 
@@ -2066,6 +2158,10 @@ void NeuralNet::getOutput(
     SymmetryHelpers::copyInputsWithSymmetry(
       rowSpatial, rowSpatialInput, 1, nnYLen, nnXLen, numSpatialFeatures, false, inputBufs[nIdx]->symmetry);
     copy(rowSpatialInput, rowSpatialInput + inputBuffers->singleMaskElts, rowMaskInput);
+  }
+  if(perfEnabled) {
+    preprocessMs = elapsedMilliseconds(preprocessStart);
+    CUDA_ERR("getOutput", cudaEventRecord(gpuHandle->perfH2DStartEvent, stream));
   }
 
   // Set inputs
@@ -2107,8 +2203,13 @@ void NeuralNet::getOutput(
         gpuHandle->exec->setInputShape("InputMeta", metaInputDims);
       }
   }
+  if(perfEnabled)
+    CUDA_ERR("getOutput", cudaEventRecord(gpuHandle->perfH2DEndEvent, stream));
 
+  gpuHandle->maybeRecordLaunchInterval();
   gpuHandle->enqueueWithOptionalCudaGraph(batchSize);
+  if(perfEnabled)
+    CUDA_ERR("getOutput", cudaEventRecord(gpuHandle->perfInferenceDoneEvent, stream));
 
   // Get outputs
   if (isOnnx) {
@@ -2124,7 +2225,16 @@ void NeuralNet::getOutput(
       CUDA_ERR("getOutput", cudaMemcpyAsync(inputBuffers->scoreValueResults.get(), gpuHandle->getBuffer("OutputScoreValue"), inputBuffers->singleScoreValueResultBytes * batchSize, cudaMemcpyDeviceToHost, stream));
       CUDA_ERR("getOutput", cudaMemcpyAsync(inputBuffers->ownershipResults.get(), gpuHandle->getBuffer("OutputOwnership"), inputBuffers->singleOwnershipResultBytes * batchSize, cudaMemcpyDeviceToHost, stream));
   }
+  if(perfEnabled)
+    CUDA_ERR("getOutput", cudaEventRecord(gpuHandle->perfD2HEndEvent, stream));
   CUDA_ERR("getOutput", cudaStreamSynchronize(stream));
+  if(perfEnabled) {
+    float d2hMsF = 0.0f;
+    CUDA_ERR("getOutput", cudaEventElapsedTime(&h2dMs, gpuHandle->perfH2DStartEvent, gpuHandle->perfH2DEndEvent));
+    CUDA_ERR("getOutput", cudaEventElapsedTime(&waitGpuMs, gpuHandle->perfH2DEndEvent, gpuHandle->perfInferenceDoneEvent));
+    CUDA_ERR("getOutput", cudaEventElapsedTime(&d2hMsF, gpuHandle->perfInferenceDoneEvent, gpuHandle->perfD2HEndEvent));
+    d2hMs = (double)d2hMsF;
+  }
 
   gpuHandle->printDebugOutput(batchSize);
   gpuHandle->trtErrorRecorder.clear();
@@ -2133,6 +2243,7 @@ void NeuralNet::getOutput(
 
   float policyProbsTmp[NNPos::MAX_NN_POLICY_SIZE];
   const int numPolicyChannels = inputBuffers->singlePolicyPassResultElts;
+  auto postprocessStart = std::chrono::steady_clock::now();
 
   for(int row = 0; row < batchSize; row++) {
     NNOutput* output = outputs[row];
@@ -2286,6 +2397,17 @@ void NeuralNet::getOutput(
         ASSERT_UNREACHABLE;
       }
     }
+  }
+  if(perfEnabled) {
+    double postprocessMs = elapsedMilliseconds(postprocessStart);
+    GlobalPerfProfile::recordInferencePhases(
+      preprocessMs,
+      (double)h2dMs,
+      (double)waitGpuMs,
+      d2hMs,
+      postprocessMs,
+      batchSize
+    );
   }
 }
 

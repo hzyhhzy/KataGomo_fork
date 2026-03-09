@@ -6,9 +6,11 @@
 #include "../search/search.h"
 
 #include <algorithm>
+#include <chrono>
 #include <numeric>
 
 #include "../core/fancymath.h"
+#include "../core/globalperf.h"
 #include "../core/timer.h"
 #include "../game/graphhash.h"
 #include "../search/distributiontable.h"
@@ -20,6 +22,12 @@
 using namespace std;
 
 //-----------------------------------------------------------------------------------------
+
+namespace {
+  static double elapsedMilliseconds(std::chrono::steady_clock::time_point start) {
+    return std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now() - start).count();
+  }
+}
 
 static string makeSeed(const Search& search, int threadIdx) {
   stringstream ss;
@@ -46,6 +54,7 @@ SearchThread::SearchThread(int tIdx, const Search& search)
    nnResultBuf(),
    statsBuf(),
    upperBoundVisitsLeft(1e30),
+   waitNNEvalTimeThisPlayoutMs(0.0),
    oldNNOutputsToCleanUp(),
    illegalMoveHashes()
 {
@@ -524,8 +533,13 @@ void Search::runWholeSearch(
     &shouldStopNow,&shouldStopEarly,maxVisits,maxPlayouts,maxTime,pondering,searchFactor
   ](int threadIdx) {
     SearchThread* stbuf = new SearchThread(threadIdx,*this);
+    const bool perfEnabled = GlobalPerfProfile::isEnabled();
 
     int64_t numPlayouts = numPlayoutsShared.load(std::memory_order_relaxed);
+    auto finishThread = [&]() {
+      transferOldNNOutputs(*stbuf);
+      delete stbuf;
+    };
     try {
       double lastTimeUsedRecomputingTcLimit = 0.0;
       while(true) {
@@ -574,7 +588,13 @@ void Search::runWholeSearch(
         upperBoundVisitsLeft = std::min(upperBoundVisitsLeft, (double)maxPlayouts - numPlayouts);
         upperBoundVisitsLeft = std::min(upperBoundVisitsLeft, (double)maxVisits - numPlayouts - numNonPlayoutVisits);
 
+        auto playoutStart = perfEnabled ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point();
         bool finishedPlayout = runSinglePlayout(*stbuf, upperBoundVisitsLeft);
+        if(perfEnabled) {
+          double totalMs = elapsedMilliseconds(playoutStart);
+          double waitMs = stbuf->waitNNEvalTimeThisPlayoutMs;
+          GlobalPerfProfile::recordSearchLoop(std::max(0.0, totalMs - waitMs), waitMs);
+        }
         if(finishedPlayout) {
           numPlayouts = numPlayoutsShared.fetch_add((int64_t)1, std::memory_order_relaxed);
           numPlayouts += 1;
@@ -587,13 +607,11 @@ void Search::runWholeSearch(
       }
     }
     catch(...) {
-      transferOldNNOutputs(*stbuf);
-      delete stbuf;
+      finishThread();
       throw;
     }
 
-    transferOldNNOutputs(*stbuf);
-    delete stbuf;
+    finishThread();
   };
 
   double actualSearchStartTime = timer.getSeconds();
@@ -1133,6 +1151,7 @@ void Search::computeRootValues() {
 bool Search::runSinglePlayout(SearchThread& thread, double upperBoundVisitsLeft) {
   //Store this value, used for futile-visit pruning this thread's root children selections.
   thread.upperBoundVisitsLeft = upperBoundVisitsLeft;
+  thread.waitNNEvalTimeThisPlayoutMs = 0.0;
 
   //Prep this value, playoutDescend will set it to false if the playout shouldn't count
   thread.shouldCountPlayout = true;
@@ -1164,7 +1183,14 @@ bool Search::playoutDescend(
   if(thread.history.isGameFinished && !node.forceNonTerminal) {
     //Avoid running "too fast", by making sure that a leaf evaluation takes roughly the same time as a genuine nn eval
     //This stops a thread from building a silly number of visits to distort MCTS statistics while other threads are stuck on the GPU.
-    nnEvaluator->waitForNextNNEvalIfAny();
+    if(GlobalPerfProfile::isEnabled()) {
+      auto start = std::chrono::steady_clock::now();
+      nnEvaluator->waitForNextNNEvalIfAny();
+      thread.waitNNEvalTimeThisPlayoutMs += elapsedMilliseconds(start);
+    }
+    else {
+      nnEvaluator->waitForNextNNEvalIfAny();
+    }
     if(thread.history.isNoResult) {
       double winLossValue = 0.0;
       double noResultValue = 1.0;

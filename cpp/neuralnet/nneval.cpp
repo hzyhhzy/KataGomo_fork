@@ -1,5 +1,6 @@
 #include "../neuralnet/nneval.h"
 #include "../neuralnet/modelversion.h"
+#include "../core/globalperf.h"
 
 using namespace std;
 
@@ -440,6 +441,20 @@ void NNEvaluator::serve(
   int gpuIdxForThisThread,
   int serverThreadIdx
 ) {
+  struct InferenceThreadActiveGuard {
+    bool enabled;
+    explicit InferenceThreadActiveGuard(bool enabled_)
+      : enabled(enabled_)
+    {
+      if(enabled)
+        GlobalPerfProfile::changeInferenceThreadActiveCount(1);
+    }
+    ~InferenceThreadActiveGuard() {
+      if(enabled)
+        GlobalPerfProfile::changeInferenceThreadActiveCount(-1);
+    }
+  };
+
   int64_t numBatchesHandledThisThread = 0;
   int64_t numRowsHandledThisThread = 0;
 
@@ -479,9 +494,12 @@ void NNEvaluator::serve(
     //Queue being closed is a signal that we're done.
     if(!gotAnything)
       break;
+    if(GlobalPerfProfile::isEnabled())
+      GlobalPerfProfile::noteQueueLength((int)queryQueue.size());
 
     int numRows = (int)resultBufs.size();
     assert(numRows > 0);
+    InferenceThreadActiveGuard inferenceThreadActiveGuard(GlobalPerfProfile::isEnabled());
 
     bool doRandomize = currentDoRandomize.load(std::memory_order_acquire);
     int defaultSymmetry = currentDefaultSymmetry.load(std::memory_order_acquire);
@@ -840,6 +858,8 @@ void NNEvaluator::evaluate(
 
   bool suc = queryQueue.forcePush(&buf);
   assert(suc);
+  if(GlobalPerfProfile::isEnabled())
+    GlobalPerfProfile::noteQueueLength((int)queryQueue.size());
 
   unique_lock<std::mutex> resultLock(buf.resultMutex);
   while(!buf.hasResult)

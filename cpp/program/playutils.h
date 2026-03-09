@@ -137,6 +137,7 @@ namespace PlayUtils {
     int64_t numNNEvals = 0;
     int64_t numNNBatches = 0;
     double avgBatchSize = 0;
+    std::string globalPerfProfileReport;
 
     std::string toStringNotDone() const;
     std::string toString() const;

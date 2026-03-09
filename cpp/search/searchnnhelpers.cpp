@@ -1,10 +1,19 @@
 #include "../search/search.h"
 
+#include <chrono>
+
+#include "../core/globalperf.h"
 #include "../search/searchnode.h"
 
 //------------------------
 #include "../core/using.h"
 //------------------------
+
+namespace {
+  static double elapsedMilliseconds(std::chrono::steady_clock::time_point start) {
+    return std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now() - start).count();
+  }
+}
 
 void Search::computeRootNNEvaluation(NNResultBuf& nnResultBuf, bool includeOwnerMap) {
   Board board = rootBoard;
@@ -84,34 +93,80 @@ bool Search::initNodeNNOutput(
   std::shared_ptr<NNOutput>* result = NULL;
   std::shared_ptr<NNOutput>* humanResult = NULL;
   if(isRoot && searchParams.rootNumSymmetriesToSample > 1) {
-    result = nnEvaluator->averageMultipleSymmetries(
-      thread.board, thread.history, thread.pla, &searchParams.humanSLProfile,
-      nnInputParams,
-      thread.nnResultBuf, includeOwnerMap,
-      thread.rand, searchParams.rootNumSymmetriesToSample
-    );
-    if(needsHumanOutputInTree() || (isRoot && needsHumanOutputAtRoot())) {
-      humanResult = humanEvaluator->averageMultipleSymmetries(
+    if(GlobalPerfProfile::isEnabled()) {
+      auto start = std::chrono::steady_clock::now();
+      result = nnEvaluator->averageMultipleSymmetries(
+        thread.board, thread.history, thread.pla, &searchParams.humanSLProfile,
+        nnInputParams,
+        thread.nnResultBuf, includeOwnerMap,
+        thread.rand, searchParams.rootNumSymmetriesToSample
+      );
+      thread.waitNNEvalTimeThisPlayoutMs += elapsedMilliseconds(start);
+    }
+    else {
+      result = nnEvaluator->averageMultipleSymmetries(
         thread.board, thread.history, thread.pla, &searchParams.humanSLProfile,
         nnInputParams,
         thread.nnResultBuf, includeOwnerMap,
         thread.rand, searchParams.rootNumSymmetriesToSample
       );
     }
+    if(needsHumanOutputInTree() || (isRoot && needsHumanOutputAtRoot())) {
+      if(GlobalPerfProfile::isEnabled()) {
+        auto start = std::chrono::steady_clock::now();
+        humanResult = humanEvaluator->averageMultipleSymmetries(
+          thread.board, thread.history, thread.pla, &searchParams.humanSLProfile,
+          nnInputParams,
+          thread.nnResultBuf, includeOwnerMap,
+          thread.rand, searchParams.rootNumSymmetriesToSample
+        );
+        thread.waitNNEvalTimeThisPlayoutMs += elapsedMilliseconds(start);
+      }
+      else {
+        humanResult = humanEvaluator->averageMultipleSymmetries(
+          thread.board, thread.history, thread.pla, &searchParams.humanSLProfile,
+          nnInputParams,
+          thread.nnResultBuf, includeOwnerMap,
+          thread.rand, searchParams.rootNumSymmetriesToSample
+        );
+      }
+    }
   }
   else {
-    nnEvaluator->evaluate(
-      thread.board, thread.history, thread.pla, &searchParams.humanSLProfile,
-      nnInputParams,
-      thread.nnResultBuf, skipCache, includeOwnerMap
-    );
-    result = new std::shared_ptr<NNOutput>(std::move(thread.nnResultBuf.result));
-    if(needsHumanOutputInTree() || (isRoot && needsHumanOutputAtRoot())) {
-      humanEvaluator->evaluate(
+    if(GlobalPerfProfile::isEnabled()) {
+      auto start = std::chrono::steady_clock::now();
+      nnEvaluator->evaluate(
         thread.board, thread.history, thread.pla, &searchParams.humanSLProfile,
         nnInputParams,
         thread.nnResultBuf, skipCache, includeOwnerMap
       );
+      thread.waitNNEvalTimeThisPlayoutMs += elapsedMilliseconds(start);
+    }
+    else {
+      nnEvaluator->evaluate(
+        thread.board, thread.history, thread.pla, &searchParams.humanSLProfile,
+        nnInputParams,
+        thread.nnResultBuf, skipCache, includeOwnerMap
+      );
+    }
+    result = new std::shared_ptr<NNOutput>(std::move(thread.nnResultBuf.result));
+    if(needsHumanOutputInTree() || (isRoot && needsHumanOutputAtRoot())) {
+      if(GlobalPerfProfile::isEnabled()) {
+        auto start = std::chrono::steady_clock::now();
+        humanEvaluator->evaluate(
+          thread.board, thread.history, thread.pla, &searchParams.humanSLProfile,
+          nnInputParams,
+          thread.nnResultBuf, skipCache, includeOwnerMap
+        );
+        thread.waitNNEvalTimeThisPlayoutMs += elapsedMilliseconds(start);
+      }
+      else {
+        humanEvaluator->evaluate(
+          thread.board, thread.history, thread.pla, &searchParams.humanSLProfile,
+          nnInputParams,
+          thread.nnResultBuf, skipCache, includeOwnerMap
+        );
+      }
       humanResult = new std::shared_ptr<NNOutput>(std::move(thread.nnResultBuf.result));
     }
   }

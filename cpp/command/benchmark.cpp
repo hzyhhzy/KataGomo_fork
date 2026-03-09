@@ -301,6 +301,15 @@ int MainCmds::benchmark(const vector<string>& args) {
   }
 
   delete nnEval;
+  for(const PlayUtils::BenchmarkResults& result: results) {
+    if(result.globalPerfProfileReport.empty())
+      continue;
+    cout << "numSearchThreads = " << result.numThreads << " perf profile:" << endl;
+    cout << result.globalPerfProfileReport;
+    if(result.globalPerfProfileReport.back() != '\n')
+      cout << endl;
+    cout << endl;
+  }
   NeuralNet::globalCleanup();
   ScoreValue::freeTables();
 
