@@ -205,6 +205,7 @@ NNEvaluator* TestSearchCommon::startNNEval(
   const string homeDataDirOverride = "";
   int numNNServerThreadsPerModel = 1;
   bool nnRandomize = false;
+  TRTConfigs trtConfigs;
   string nnRandSeed = "runSearchTestsRandSeed"+seed;
 
   if(defaultSymmetry == -1) {
@@ -231,6 +232,7 @@ NNEvaluator* TestSearchCommon::startNNEval(
     openCLReTunePerBoardSize,
     useFP16 ? enabled_t::True : enabled_t::False,
     useNHWC ? enabled_t::True : enabled_t::False,
+    trtConfigs,
     numNNServerThreadsPerModel,
     gpuIdxByServerThread,
     nnRandSeed,

@@ -253,6 +253,16 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     else if(cfg.contains("useNHWC"))
       useNHWCMode = cfg.getEnabled("useNHWC");
 
+    TRTConfigs trtConfigs;
+    if(cfg.contains(backendPrefix+"UseCudaGraph-"+idxStr))
+      trtConfigs.trtUseCudaGraph = cfg.getBool(backendPrefix+"UseCudaGraph-"+idxStr);
+    else if(cfg.contains("trtUseCudaGraph-"+idxStr))
+      trtConfigs.trtUseCudaGraph = cfg.getBool("trtUseCudaGraph-"+idxStr);
+    else if(cfg.contains(backendPrefix+"UseCudaGraph"))
+      trtConfigs.trtUseCudaGraph = cfg.getBool(backendPrefix+"UseCudaGraph");
+    else if(cfg.contains("trtUseCudaGraph"))
+      trtConfigs.trtUseCudaGraph = cfg.getBool("trtUseCudaGraph");
+
     int forcedSymmetry = -1;
     if(setupFor != SETUP_FOR_DISTRIBUTED && cfg.contains("nnForcedSymmetry"))
       forcedSymmetry = cfg.getInt("nnForcedSymmetry",0,SymmetryHelpers::NUM_SYMMETRIES-1);
@@ -343,6 +353,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       openCLReTunePerBoardSize,
       useFP16Mode,
       useNHWCMode,
+      trtConfigs,
       numNNServerThreadsPerModel,
       gpuIdxByServerThread,
       nnRandSeed,

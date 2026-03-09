@@ -26,6 +26,11 @@ struct InputBuffers;
 // A handle to the loaded neural network model.
 struct LoadedModel;
 
+// TensorRT-specific knobs threaded through generic NN interfaces.
+struct TRTConfigs {
+  bool trtUseCudaGraph = false;
+};
+
 // Generic interface to neural net inference.
 // There is a single CUDA backend.
 namespace NeuralNet {
@@ -58,7 +63,8 @@ namespace NeuralNet {
     bool openCLReTunePerBoardSize,
     enabled_t useFP16Mode,
     enabled_t useNHWCMode,
-    const LoadedModel* loadedModel
+    const LoadedModel* loadedModel,
+    const TRTConfigs& trtConfigs
   );
   //A ComputeContext should NOT be freed until all ComputeHandles created using it have also been freed.
   void freeComputeContext(ComputeContext* computeContext);

@@ -23,7 +23,8 @@ ComputeContext* NeuralNet::createComputeContext(
   bool openCLReTunePerBoardSize,
   enabled_t useFP16Mode,
   enabled_t useNHWCMode,
-  const LoadedModel* loadedModel
+  const LoadedModel* loadedModel,
+  const TRTConfigs& trtConfigs
 ) {
   (void)gpuIdxs;
   (void)logger;
@@ -35,6 +36,7 @@ ComputeContext* NeuralNet::createComputeContext(
   (void)useFP16Mode;
   (void)useNHWCMode;
   (void)loadedModel;
+  (void)trtConfigs;
   throw StringError("Dummy neural net backend: NeuralNet::createComputeContext unimplemented");
 }
 void NeuralNet::freeComputeContext(ComputeContext* computeContext) {

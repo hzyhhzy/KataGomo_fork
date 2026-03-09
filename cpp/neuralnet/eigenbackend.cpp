@@ -1697,7 +1697,8 @@ ComputeContext* NeuralNet::createComputeContext(
   bool openCLReTunePerBoardSize,
   enabled_t useFP16Mode,
   enabled_t useNHWCMode,
-  const LoadedModel* loadedModel
+  const LoadedModel* loadedModel,
+  const TRTConfigs& trtConfigs
 ) {
   (void)gpuIdxs;
   (void)logger;
@@ -1705,6 +1706,7 @@ ComputeContext* NeuralNet::createComputeContext(
   (void)homeDataDirOverride;
   (void)openCLReTunePerBoardSize;
   (void)loadedModel;
+  (void)trtConfigs;
 
   bool useFP16 = useFP16Mode == enabled_t::True ? true : false;
   bool useNHWC = useNHWCMode == enabled_t::False ? false : true;

@@ -48,6 +48,7 @@ struct ComputeContext {
   int nnXLen;
   int nnYLen;
   enabled_t useFP16Mode;
+  bool trtUseCudaGraph;
   string homeDataDirOverride;
   string onnxModelPath;
   bool isOnnx;
@@ -98,7 +99,8 @@ ComputeContext* NeuralNet::createComputeContext(
   bool openCLReTunePerBoardSize,
   enabled_t useFP16Mode,
   enabled_t useNHWCMode,
-  const LoadedModel* loadedModel) {
+  const LoadedModel* loadedModel,
+  const TRTConfigs& trtConfigs) {
   (void)gpuIdxs;
   (void)logger;
   (void)openCLTunerFile;
@@ -112,6 +114,7 @@ ComputeContext* NeuralNet::createComputeContext(
   context->nnXLen = nnXLen;
   context->nnYLen = nnYLen;
   context->useFP16Mode = useFP16Mode;
+  context->trtUseCudaGraph = trtConfigs.trtUseCudaGraph;
   context->homeDataDirOverride = homeDataDirOverride;
   context->isOnnx = loadedModel->isOnnx;
   context->onnxModelPath = loadedModel->fileName;
@@ -1116,6 +1119,13 @@ struct ComputeHandle {
   unique_ptr<IRuntime> runtime;
   unique_ptr<ICudaEngine> engine;
   unique_ptr<IExecutionContext> exec;
+  bool trtUseCudaGraph;
+  struct BatchGraphState {
+    cudaGraph_t graph;
+    cudaGraphExec_t graphExec;
+    BatchGraphState() : graph(nullptr), graphExec(nullptr) {}
+  };
+  vector<BatchGraphState> batchGraphStates;
 
   ComputeHandle(
     Logger* logger,
@@ -1128,6 +1138,8 @@ struct ComputeHandle {
 
     maxBatchSize = maxBatchSz;
     modelVersion = loadedModel->modelDesc.modelVersion;
+    trtUseCudaGraph = context->trtUseCudaGraph;
+    batchGraphStates.resize(maxBatchSize + 1);
 
     // Certain minor versions of TensorRT uses a global logger, which is bad.
     // Since TensorRT maintains ABI compatibility between minor versions, a dynamic library mismatch
@@ -1518,9 +1530,14 @@ struct ComputeHandle {
     exec->setOptimizationProfileAsync(0, cudaStreamPerThread);
     cudaStreamSynchronize(cudaStreamPerThread);
     trtErrorRecorder.clear();
+
+    if(trtUseCudaGraph) {
+      preCaptureAllBatchGraphs();
+    }
   }
 
   ~ComputeHandle() {
+    destroyAllBatchGraphs();
     for(auto ptr: buffers) {
       CUDA_ERR("~ComputeHandle", cudaFree(ptr.second));
     }
@@ -1606,6 +1623,125 @@ struct ComputeHandle {
       }
       cout << "=========================================================" << endl;
     }
+  }
+
+  bool hasTensor(const char* name) const {
+    return buffers.find(name) != buffers.end();
+  }
+
+  void setInputShapesForBatch(int batchSize) {
+    if(ctx->isOnnx) {
+      exec->setInputShape("input_spatial", getBufferDynamicShape("input_spatial", batchSize));
+      exec->setInputShape("input_global", getBufferDynamicShape("input_global", batchSize));
+    } else {
+      exec->setInputShape("InputMask", getBufferDynamicShape("InputMask", batchSize));
+      exec->setInputShape("InputSpatial", getBufferDynamicShape("InputSpatial", batchSize));
+      exec->setInputShape("InputGlobal", getBufferDynamicShape("InputGlobal", batchSize));
+      if(hasTensor("InputMeta")) {
+        exec->setInputShape("InputMeta", getBufferDynamicShape("InputMeta", batchSize));
+      }
+    }
+  }
+
+  void destroyBatchGraph(BatchGraphState& state) {
+    if(state.graphExec != nullptr) {
+      CUDA_ERR("destroyBatchGraph", cudaGraphExecDestroy(state.graphExec));
+      state.graphExec = nullptr;
+    }
+    if(state.graph != nullptr) {
+      CUDA_ERR("destroyBatchGraph", cudaGraphDestroy(state.graph));
+      state.graph = nullptr;
+    }
+  }
+
+  void destroyAllBatchGraphs() {
+    for(size_t i = 1; i < batchGraphStates.size(); i++) {
+      destroyBatchGraph(batchGraphStates[i]);
+    }
+  }
+
+  void captureBatchGraph(int batchSize, BatchGraphState& state) {
+    cudaGraph_t graph = nullptr;
+    cudaGraphExec_t graphExec = nullptr;
+
+    cudaError_t beginStatus = cudaStreamBeginCapture(cudaStreamPerThread, cudaStreamCaptureModeThreadLocal);
+    if(beginStatus != cudaSuccess) {
+      throw StringError(
+        string("TensorRT backend: cudaStreamBeginCapture failed: ") + cudaGetErrorString(beginStatus)
+      );
+    }
+
+    if(!exec->enqueueV3(cudaStreamPerThread)) {
+      cudaGraph_t ignoredGraph = nullptr;
+      (void)cudaStreamEndCapture(cudaStreamPerThread, &ignoredGraph);
+      if(ignoredGraph != nullptr) {
+        (void)cudaGraphDestroy(ignoredGraph);
+      }
+      throw StringError(
+        "TensorRT backend: enqueueV3 failed during cudaGraph capture for batch " + Global::intToString(batchSize)
+      );
+    }
+
+    cudaError_t endStatus = cudaStreamEndCapture(cudaStreamPerThread, &graph);
+    if(endStatus != cudaSuccess || graph == nullptr) {
+      if(graph != nullptr) {
+        (void)cudaGraphDestroy(graph);
+      }
+      throw StringError(
+        string("TensorRT backend: cudaStreamEndCapture failed: ") + cudaGetErrorString(endStatus)
+      );
+    }
+
+    cudaError_t instStatus = cudaGraphInstantiate(&graphExec, graph, 0);
+    if(instStatus != cudaSuccess || graphExec == nullptr) {
+      (void)cudaGraphDestroy(graph);
+      throw StringError(
+        string("TensorRT backend: cudaGraphInstantiate failed: ") + cudaGetErrorString(instStatus)
+      );
+    }
+
+    destroyBatchGraph(state);
+    state.graph = graph;
+    state.graphExec = graphExec;
+  }
+
+  void preCaptureAllBatchGraphs() {
+    static std::mutex captureMutex;
+    std::lock_guard<std::mutex> lock(captureMutex);
+
+    for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
+      BatchGraphState& state = batchGraphStates[batchSize];
+
+      setInputShapesForBatch(batchSize);
+
+      if(!exec->enqueueV3(cudaStreamPerThread)) {
+        throw StringError(
+          "TensorRT backend: enqueueV3 warmup failed before cudaGraph capture for batch " + Global::intToString(batchSize)
+        );
+      }
+      CUDA_ERR("preCaptureAllBatchGraphs", cudaStreamSynchronize(cudaStreamPerThread));
+      captureBatchGraph(batchSize, state);
+    }
+  }
+
+  void enqueueWithOptionalCudaGraph(int batchSize) {
+    if(!trtUseCudaGraph) {
+      if(!exec->enqueueV3(cudaStreamPerThread)) {
+        throw StringError("TensorRT backend: enqueueV3 failed");
+      }
+      return;
+    }
+
+    if(batchSize <= 0 || batchSize > maxBatchSize) {
+      throw StringError("TensorRT backend: invalid batch size " + Global::intToString(batchSize));
+    }
+    BatchGraphState& state = batchGraphStates[batchSize];
+    if(state.graphExec == nullptr) {
+      throw StringError(
+        "TensorRT backend: missing pre-captured cudaGraph for batch size " + Global::intToString(batchSize)
+      );
+    }
+    CUDA_ERR("enqueueWithOptionalCudaGraph", cudaGraphLaunch(state.graphExec, cudaStreamPerThread));
   }
 };
 
@@ -1932,7 +2068,7 @@ void NeuralNet::getOutput(
       }
   }
 
-  gpuHandle->exec->enqueueV3(cudaStreamPerThread);
+  gpuHandle->enqueueWithOptionalCudaGraph(batchSize);
 
   // Get outputs
   if (isOnnx) {

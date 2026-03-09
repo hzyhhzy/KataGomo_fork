@@ -10,6 +10,7 @@ DEFAULT_NUM_SEARCH_THREADS=21
 DEFAULT_NN_MAX_BATCHSIZE=7
 DEFAULT_TRT_CUDA_STREAMS=2
 DEFAULT_TRT_DEVICE_ID=0
+DEFAULT_TRT_USE_CUDA_GRAPH=true
 # Benchmark params defaults
 DEFAULT_BENCH_VISITS=10000
 
@@ -29,6 +30,7 @@ NN_MAX_BATCHSIZE="${DEFAULT_NN_MAX_BATCHSIZE}"
 NUM_SEARCH_THREADS="${DEFAULT_NUM_SEARCH_THREADS}"
 TRT_CUDA_STREAMS="${DEFAULT_TRT_CUDA_STREAMS}"
 BENCH_VISITS="${DEFAULT_BENCH_VISITS}"
+TRT_USE_CUDA_GRAPH="${DEFAULT_TRT_USE_CUDA_GRAPH}"
 
 TRT_DEVICE_ID_RAW="${TRT_DEVICE_ID:-${DEFAULT_TRT_DEVICE_ID}}"
 KATAGO_BIN="${KATAGO_BIN_PATH}"
@@ -51,6 +53,8 @@ Options:
   --batch-size N               NN max/fixed batch size (default depends on mode)
   --cuda-streams N             NN server threads per GPU (default depends on mode)
   --trt-device-id VAL          Device id list, e.g. "0" or "0,1" (default: ${TRT_DEVICE_ID_RAW})
+  --trt-use-cuda-graph             Set trtUseCudaGraph=true
+  --no-trt-use-cuda-graph          Set trtUseCudaGraph=false
   --visits N                   Benchmark visits (benchmark mode only)
   -h, --help                   Show this help message
 
@@ -116,6 +120,14 @@ parse_args() {
         TRT_DEVICE_ID_RAW="$2"
         shift 2
         ;;
+      --trt-use-cuda-graph)
+        TRT_USE_CUDA_GRAPH=true
+        shift
+        ;;
+      --no-trt-use-cuda-graph)
+        TRT_USE_CUDA_GRAPH=false
+        shift
+        ;;
       --visits)
         require_value "$1" "${2:-}"
         BENCH_VISITS="$2"
@@ -178,6 +190,11 @@ if [[ "${#TRT_DEVICE_ID_LIST[@]}" -le 0 ]]; then
   exit 1
 fi
 
+if [[ "${TRT_USE_CUDA_GRAPH}" != "true" && "${TRT_USE_CUDA_GRAPH}" != "false" ]]; then
+  echo "TRT_USE_CUDA_GRAPH must be true/false, got: ${TRT_USE_CUDA_GRAPH}" >&2
+  exit 1
+fi
+
 NUM_NN_SERVER_THREADS=$(( TRT_CUDA_STREAMS * ${#TRT_DEVICE_ID_LIST[@]} ))
 OVERRIDE_CONFIG="numNNServerThreadsPerModel=${NUM_NN_SERVER_THREADS}"
 for ((thread_idx=0; thread_idx<NUM_NN_SERVER_THREADS; thread_idx++)); do
@@ -187,6 +204,7 @@ for ((thread_idx=0; thread_idx<NUM_NN_SERVER_THREADS; thread_idx++)); do
 done
 
 OVERRIDE_CONFIG+=",numSearchThreads=${NUM_SEARCH_THREADS}"
+OVERRIDE_CONFIG+=",trtUseCudaGraph=${TRT_USE_CUDA_GRAPH}"
 
 if [[ "${MODE}" == "benchmark" ]]; then
   OVERRIDE_CONFIG+=",useEvalCache=true"

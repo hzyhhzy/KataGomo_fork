@@ -96,6 +96,7 @@ class NNEvaluator {
     bool openCLReTunePerBoardSize,
     enabled_t useFP16Mode,
     enabled_t useNHWCMode,
+    const TRTConfigs& trtConfigs,
     int numThreads,
     const std::vector<int>& gpuIdxByServerThread,
     const std::string& randSeed,
@@ -218,6 +219,7 @@ class NNEvaluator {
   const bool inputsUseNHWC;
   const enabled_t usingFP16Mode;
   const enabled_t usingNHWCMode;
+  const TRTConfigs trtConfigs;
   int numThreads;
   int backendNumThreads;
   std::vector<int> gpuIdxByServerThread;

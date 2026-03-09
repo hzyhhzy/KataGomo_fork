@@ -62,6 +62,7 @@ NNEvaluator::NNEvaluator(
   bool openCLReTunePerBoardSize,
   enabled_t useFP16Mode,
   enabled_t useNHWCMode,
+  const TRTConfigs& trtCfgs,
   int numThr,
   const vector<int>& gpuIdxByServerThr,
   const string& rSeed,
@@ -78,6 +79,7 @@ NNEvaluator::NNEvaluator(
    inputsUseNHWC(iUseNHWC),
    usingFP16Mode(useFP16Mode),
    usingNHWCMode(useNHWCMode),
+   trtConfigs(trtCfgs),
    numThreads(numThr),
    backendNumThreads(backendNumThr),
    gpuIdxByServerThread(gpuIdxByServerThr),
@@ -153,7 +155,7 @@ NNEvaluator::NNEvaluator(
     computeContext = NeuralNet::createComputeContext(
       gpuIdxs,logger,nnXLen,nnYLen,
       openCLTunerFile,homeDataDirOverride,openCLReTunePerBoardSize,
-      usingFP16Mode,usingNHWCMode,loadedModel
+      usingFP16Mode,usingNHWCMode,loadedModel,trtConfigs
     );
   }
   else {
