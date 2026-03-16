@@ -1,29 +1,33 @@
 #ifndef CORE_GLOBALPERF_H_
 #define CORE_GLOBALPERF_H_
 
+#include <cstdint>
 #include <string>
 
 namespace GlobalPerfProfile {
+  enum class CudaStreamType {
+    H2D,
+    Infer,
+    D2H
+  };
+
   void setEnabled(bool enabled);
   bool isEnabled();
 
   void clear();
+  void configureInferenceResources(bool singleSchedulerMode, int numInferenceSlots);
 
   void beginBenchmarkSample();
   void endBenchmarkSample();
 
   void recordSearchLoop(double processMilliseconds, double waitMilliseconds);
-  void noteQueueLength(int queueLength);
-  void changeInferenceThreadActiveCount(int delta);
-  void recordInferencePhases(
-    double preprocessMs,
-    double h2dMs,
-    double waitGpuMs,
-    double d2hMs,
-    double postprocessMs,
-    int batchSize
+  void recordSchedulerBusySpan(int64_t startNs, int64_t endNs);
+  void recordCudaStreamTask(
+    CudaStreamType type,
+    int streamIdx,
+    int64_t cpuSubmitEndNs,
+    double taskDurationMs
   );
-  void recordInferenceLaunchInterval(double launchIntervalMs);
 
   std::string makeReport();
 }

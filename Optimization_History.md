@@ -328,22 +328,47 @@ Conclusions:
 - The best sample is about `98.69 nnEval/s` above the overall mean, or roughly `+2.28%`.
 - This is enough to justify simple sampling by itself. In many cases, repeatedly rebuilding and selecting the best engine is already useful without introducing a more complicated search algorithm.
 
-### 9.3 Re-running the same engine
-- The best raw engine from simple sampling was then re-tested with `trtexec` `10` times.
-- Results are stored in `benchmark/simple_sampling_best_engine_repeat10_gpu-NVIDIA_GeForce_RTX_5080.json`
-- Summary:
-  - `mean = 4473.94 nnEval/s`
-  - `min/max = 4455.24 / 4502.48`
-  - `std = 15.15`
-
-Compared with the 128 raw samples:
-- Across different engines, the distribution spans `4189.35 -> 4427.51`, a total spread of about `238.15`
-- Re-running the same engine spans `4455.24 -> 4502.48`, a total spread of about `47.24`
-
-Conclusion:
-- Runtime measurement noise does exist, but it is much smaller than the difference introduced by rebuilding different engines.
-- Therefore the observed distribution is still primarily a compile-time tactic-selection effect, not a `trtexec` runtime-noise artifact.
-
-### 9.4 Additional note
+### 9.3 Additional note
 - A separate comparison also showed that building under locked GPU clocks and then running later under unlocked clocks can hurt performance.
 - Therefore later simple-sampling runs no longer rely on locked-clock builds. Engines are now built directly under the intended runtime conditions.
+
+## 10. TRT I/O Overlapping Scheduler
+
+### 10.1 Changes
+- The core target in this section is stable I/O overlapping, so `H2D copy`, `GPU inference`, and `D2H copy` can progress in an interleaved steady-state pipeline.
+- The TensorRT path in `NNEvaluator` now includes an execution-model-level breaking change.
+- The old model used multiple server threads, each pulling requests and running a full inference chain independently.
+- The new TensorRT model is scheduler-driven through `serveTrtScheduler`; `spawnServerThreads()` starts a single scheduler thread for this path.
+- The scheduler centrally manages GPU slots, batch lifecycles, and request dispatch, so the TensorRT execution entrypoint shifts away from per-thread `serve()`.
+- To support this model, the TensorRT backend and `NeuralNet::getOutput()` both move to staged async submission with explicit `h2dStream`, `inferStream`, and `d2hStream`.
+- This section keeps focus on execution model and scheduling semantics. Internal details such as shared-buffer internals and state-machine transitions are intentionally kept brief.
+
+### 10.2 Profiling semantics changed
+- `globalPerfProfile` now follows the scheduler-plus-three-stream model.
+- Older fields such as `queue_length_time_share`, `inference_thread_time_share`, `gpu_batch_time_share`, and `inference_*_ms` are no longer the primary observation surface for this section.
+- The primary fields are now:
+  - `scheduler_busy_time_share`
+  - `scheduler_idle_time_share`
+  - `h2d_stream_occupancy`
+  - `infer_stream_occupancy`
+  - `d2h_stream_occupancy`
+  - `h2d_submit_wait_ms`
+  - `infer_submit_wait_ms`
+  - `d2h_submit_wait_ms`
+- Future benchmark analysis should be based on these fields when judging overlap formation. Section 5/6 legacy fields do not map directly.
+
+### 10.3 Standard-flow comparison against previous commit
+- Test date: `2026-03-16`
+- Test flow: for both versions, run `./build.sh`, then run `./run.sh --benchmark` `3` times.
+- Previous commit `b11256e4` `nnEvals/s`:
+  - `4318.43`
+  - `4300.27`
+  - `4289.34`
+  - mean `4302.68`, stddev `12.00`
+- Current commit `41fa5b5d` `nnEvals/s`:
+  - `4396.67`
+  - `4356.49`
+  - `4369.00`
+  - mean `4374.05`, stddev `16.79`
+- Mean delta: `+71.37 nnEvals/s`, about `+1.66%`.
+- Under the current test environment and default benchmark parameters, the I/O-overlapping scheduler path shows a stable throughput gain.

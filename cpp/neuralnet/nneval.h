@@ -77,6 +77,7 @@ struct NNServerBuf {
   NNServerBuf& operator=(const NNServerBuf& other) = delete;
 };
 class ONNXModelHeader;
+struct SchedulerState;
 class NNEvaluator {
  public:
   NNEvaluator(
@@ -238,6 +239,7 @@ class NNEvaluator {
   int numInputMetaChannels;
 
   ModelPostProcessParams postProcessParams;
+  SchedulerState* schedulerState;
 
   int numServerThreadsEverSpawned;
   std::vector<std::thread*> serverThreads;
@@ -278,6 +280,9 @@ class NNEvaluator {
  public:
   //Helper, for internal use only
   void serve(NNServerBuf& buf, Rand& rand, int gpuIdxForThisThread, int serverThreadIdx);
+#ifdef USE_TENSORRT_BACKEND
+  void serveTrtScheduler(const std::string& randSeedThisThread);
+#endif
 };
 
 #endif  // NEURALNET_NNEVAL_H_

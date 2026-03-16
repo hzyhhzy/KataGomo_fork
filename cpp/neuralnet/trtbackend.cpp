@@ -27,8 +27,14 @@ using namespace std;
 using namespace nvinfer1;
 
 namespace {
-  static double elapsedMilliseconds(std::chrono::steady_clock::time_point start) {
-    return std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now() - start).count();
+  static int64_t nowSteadyNs() {
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(
+      std::chrono::steady_clock::now().time_since_epoch()
+    ).count();
+  }
+
+  static int canonicalGpuIdx(int gpuIdx) {
+    return gpuIdx == -1 ? 0 : gpuIdx;
   }
 
   static unsigned int cudaSyncModeToDeviceFlags(CudaSyncMode mode) {
@@ -60,25 +66,6 @@ namespace {
     }
     ASSERT_UNREACHABLE;
   }
-
-  struct LaunchIntervalGpuState {
-    std::mutex mutex;
-    bool hasLastLaunchNanos = false;
-    int64_t lastLaunchNanos = 0;
-  };
-
-  std::mutex launchIntervalGpuStateMapMutex;
-  std::map<int,std::shared_ptr<LaunchIntervalGpuState>> launchIntervalGpuStateByGpuIdx;
-
-  static std::shared_ptr<LaunchIntervalGpuState> getLaunchIntervalGpuStateForGpu(int gpuIdx) {
-    std::lock_guard<std::mutex> lock(launchIntervalGpuStateMapMutex);
-    auto it = launchIntervalGpuStateByGpuIdx.find(gpuIdx);
-    if(it != launchIntervalGpuStateByGpuIdx.end())
-      return it->second;
-    std::shared_ptr<LaunchIntervalGpuState> state = std::make_shared<LaunchIntervalGpuState>();
-    launchIntervalGpuStateByGpuIdx[gpuIdx] = state;
-    return state;
-  }
 }
 
 // Define this to print out some of the intermediate values of the neural net
@@ -104,6 +91,8 @@ void NeuralNet::globalCleanup() {
 }
 
 struct ComputeContext {
+  struct DeviceTrtState;
+
   int nnXLen;
   int nnYLen;
   enabled_t useFP16Mode;
@@ -116,13 +105,12 @@ struct ComputeContext {
   string homeDataDirOverride;
   string onnxModelPath;
   bool isOnnx;
+  std::mutex deviceTrtStateMutex;
+  map<int, unique_ptr<DeviceTrtState>> deviceTrtStates;
+
+  ComputeContext() = default;
+  ~ComputeContext();
 };
-
-
-
-void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
-  delete computeContext;
-}
 
 
 
@@ -131,19 +119,19 @@ struct LoadedModel {
   string fileName;
   bool isOnnx;
 
-  LoadedModel(const string& fileName, const string& expectedSha256) {
-    this->fileName = fileName;
-    if (Global::isSuffix(fileName, ".onnx")) {
+  LoadedModel(const string& modelFileName, const string& expectedSha256) {
+    fileName = modelFileName;
+    if (Global::isSuffix(modelFileName, ".onnx")) {
       isOnnx = true;
       try {
-        ModelDesc::loadFromONNX(fileName, modelDesc);
+        ModelDesc::loadFromONNX(modelFileName, modelDesc);
 
       } catch (const StringError& e) {
-        throw StringError("Failed to load ONNX model config: " + fileName + "\n" + e.what());
+        throw StringError("Failed to load ONNX model config: " + modelFileName + "\n" + e.what());
       }
     } else {
       isOnnx = false;
-      ModelDesc::loadFromFileMaybeGZipped(fileName, modelDesc, expectedSha256);
+      ModelDesc::loadFromFileMaybeGZipped(modelFileName, modelDesc, expectedSha256);
       modelDesc.applyScale8ToReduceActivations();
     }
   }
@@ -1174,11 +1162,8 @@ struct TRTErrorRecorder : IErrorRecorder {
 };
 
 
-struct ComputeHandle {
-  ComputeContext* ctx;
-  int gpuIdxForHandle;
-  std::shared_ptr<LaunchIntervalGpuState> launchIntervalGpuState;
-
+struct ComputeContext::DeviceTrtState {
+  int gpuIdx;
   bool usingFP16;
   int maxBatchSize;
   int modelVersion;
@@ -1186,52 +1171,22 @@ struct ComputeHandle {
 
   TRTLogger trtLogger;
   TRTErrorRecorder trtErrorRecorder;
-  map<string, void*> buffers;
   unique_ptr<IRuntime> runtime;
   unique_ptr<ICudaEngine> engine;
-  unique_ptr<IExecutionContext> exec;
-  bool trtUseCudaGraph;
-  bool perfProfileEnabled;
-  struct BatchGraphState {
-    cudaGraph_t graph;
-    cudaGraphExec_t graphExec;
-    BatchGraphState() : graph(nullptr), graphExec(nullptr) {}
-  };
-  vector<BatchGraphState> batchGraphStates;
-  cudaEvent_t perfH2DStartEvent;
-  cudaEvent_t perfH2DEndEvent;
-  cudaEvent_t perfInferenceDoneEvent;
-  cudaEvent_t perfD2HEndEvent;
 
-  ComputeHandle(
+  DeviceTrtState(
     Logger* logger,
     const cudaDeviceProp* prop,
     ComputeContext* context,
     const LoadedModel* loadedModel,
     int maxBatchSz,
     bool requireExactNNLen,
-    int gpuIdx) {
-    ctx = context;
-    gpuIdxForHandle = gpuIdx;
-    launchIntervalGpuState = nullptr;
-
+    int gpuIdxForState
+  ) {
+    gpuIdx = gpuIdxForState;
+    usingFP16 = false;
     maxBatchSize = maxBatchSz;
     modelVersion = loadedModel->modelDesc.modelVersion;
-    trtUseCudaGraph = context->trtUseCudaGraph;
-    perfProfileEnabled = GlobalPerfProfile::isEnabled();
-    if(perfProfileEnabled)
-      launchIntervalGpuState = getLaunchIntervalGpuStateForGpu(gpuIdxForHandle);
-    batchGraphStates.resize(maxBatchSize + 1);
-    perfH2DStartEvent = nullptr;
-    perfH2DEndEvent = nullptr;
-    perfInferenceDoneEvent = nullptr;
-    perfD2HEndEvent = nullptr;
-    if(perfProfileEnabled) {
-      CUDA_ERR("ComputeHandle", cudaEventCreate(&perfH2DStartEvent));
-      CUDA_ERR("ComputeHandle", cudaEventCreate(&perfH2DEndEvent));
-      CUDA_ERR("ComputeHandle", cudaEventCreate(&perfInferenceDoneEvent));
-      CUDA_ERR("ComputeHandle", cudaEventCreate(&perfD2HEndEvent));
-    }
 
     // Certain minor versions of TensorRT uses a global logger, which is bad.
     // Since TensorRT maintains ABI compatibility between minor versions, a dynamic library mismatch
@@ -1251,26 +1206,26 @@ struct ComputeHandle {
       throw StringError("TensorRT backend: failed to create builder config");
     }
 
-    usingFP16 = false;
     if(builder->platformHasFastFp16()) {
-      if(ctx->useFP16Mode == enabled_t::True || ctx->useFP16Mode == enabled_t::Auto) {
+      if(context->useFP16Mode == enabled_t::True || context->useFP16Mode == enabled_t::Auto) {
         config->setFlag(BuilderFlag::kFP16);
         usingFP16 = true;
       }
-    } else if(ctx->useFP16Mode == enabled_t::True) {
+    }
+    else if(context->useFP16Mode == enabled_t::True) {
       throw StringError("CUDA device does not support useFP16=true");
     }
 
-    bool is_qat_onnx = ctx->isOnnx ? loadedModel->modelDesc.onnxHeader.is_int8 : false;
-
-    if(!is_qat_onnx) {
+    bool isQatOnnx = context->isOnnx ? loadedModel->modelDesc.onnxHeader.is_int8 : false;
+    if(!isQatOnnx) {
       config->setFlag(BuilderFlag::kPREFER_PRECISION_CONSTRAINTS);
     }
     else {
-      logger->write("Detected QAT int8 model, use int8");
+      if(logger != NULL)
+        logger->write("Detected QAT int8 model, use int8");
       if(builder->platformHasFastInt8()) {
         config->setFlag(BuilderFlag::kINT8);
-      } 
+      }
       else {
         throw StringError("CUDA device does not support int8 onnx model");
       }
@@ -1287,39 +1242,36 @@ struct ComputeHandle {
     }
 
     unique_ptr<TRTModel> model;
-    if (ctx->isOnnx) {
-      //check whether the pos_len matches
-      {
-        if(
-          loadedModel->modelDesc.onnxHeader.pos_len_y != ctx->nnYLen ||
-          loadedModel->modelDesc.onnxHeader.pos_len_x != ctx->nnXLen) {
-          throw StringError(
-            "TensorRT backend: pos_len in model desc does not match nnYLen or nnXLen, "
-            "pos_len_y from model = " +
-            Global::intToString(loadedModel->modelDesc.onnxHeader.pos_len_y) +
-            "pos_len_x from model = " + Global::intToString(loadedModel->modelDesc.onnxHeader.pos_len_x) +
-            ", nnYLen=" + Global::intToString(ctx->nnYLen) + ", nnXLen=" + Global::intToString(ctx->nnXLen));
-        }
-        
-        if((!requireExactNNLen) && (!loadedModel->modelDesc.onnxHeader.has_mask)) {
-          throw StringError("TensorRT backend: model does not have mask, but requireExactNNLen is false");
-        }
-
+    if(context->isOnnx) {
+      if(
+        loadedModel->modelDesc.onnxHeader.pos_len_y != context->nnYLen ||
+        loadedModel->modelDesc.onnxHeader.pos_len_x != context->nnXLen
+      ) {
+        throw StringError(
+          "TensorRT backend: pos_len in model desc does not match nnYLen or nnXLen, "
+          "pos_len_y from model = " +
+          Global::intToString(loadedModel->modelDesc.onnxHeader.pos_len_y) +
+          "pos_len_x from model = " + Global::intToString(loadedModel->modelDesc.onnxHeader.pos_len_x) +
+          ", nnYLen=" + Global::intToString(context->nnYLen) + ", nnXLen=" + Global::intToString(context->nnXLen)
+        );
+      }
+      if((!requireExactNNLen) && (!loadedModel->modelDesc.onnxHeader.has_mask)) {
+        throw StringError("TensorRT backend: model does not have mask, but requireExactNNLen is false");
       }
 
       auto parser = nvonnxparser::createParser(*network, trtLogger);
       if(!parser) {
         throw StringError("TensorRT backend: failed to create ONNX parser");
       }
-      if(!parser->parseFromFile(ctx->onnxModelPath.c_str(), static_cast<int>(ILogger::Severity::kERROR))) {
+      if(!parser->parseFromFile(context->onnxModelPath.c_str(), static_cast<int>(ILogger::Severity::kERROR))) {
         throw StringError("TensorRT backend: failed to parse ONNX model");
       }
-      
+
       int64_t spatialC = NNModelVersion::getNumSpatialFeatures(modelVersion);
       int64_t globalC = NNModelVersion::getNumGlobalFeatures(modelVersion);
-      profile->setDimensions("input_spatial", OptProfileSelector::kMIN, Dims4(1, spatialC, ctx->nnYLen, ctx->nnXLen));
-      profile->setDimensions("input_spatial", OptProfileSelector::kOPT, Dims4(maxBatchSize, spatialC, ctx->nnYLen, ctx->nnXLen));
-      profile->setDimensions("input_spatial", OptProfileSelector::kMAX, Dims4(maxBatchSize, spatialC, ctx->nnYLen, ctx->nnXLen));
+      profile->setDimensions("input_spatial", OptProfileSelector::kMIN, Dims4(1, spatialC, context->nnYLen, context->nnXLen));
+      profile->setDimensions("input_spatial", OptProfileSelector::kOPT, Dims4(maxBatchSize, spatialC, context->nnYLen, context->nnXLen));
+      profile->setDimensions("input_spatial", OptProfileSelector::kMAX, Dims4(maxBatchSize, spatialC, context->nnYLen, context->nnXLen));
       profile->setDimensions("input_global", OptProfileSelector::kMIN, Dims2(1, globalC));
       profile->setDimensions("input_global", OptProfileSelector::kOPT, Dims2(maxBatchSize, globalC));
       profile->setDimensions("input_global", OptProfileSelector::kMAX, Dims2(maxBatchSize, globalC));
@@ -1328,57 +1280,51 @@ struct ComputeHandle {
     else {
       auto modelParser = make_unique<ModelParser>();
       model = modelParser->build(
-        move(network), profile, loadedModel, ctx->nnXLen, ctx->nnYLen, maxBatchSize, requireExactNNLen);
+        move(network), profile, loadedModel, context->nnXLen, context->nnYLen, maxBatchSize, requireExactNNLen
+      );
       debugOutputs = model->debugOutputs;
       config->addOptimizationProfile(profile);
     }
 
 #if NV_TENSORRT_MAJOR == 8 && NV_TENSORRT_MINOR == 5
-    // This is to avoid external tactic sources and tactics that have shape switching overhead
     if(prop->major < 8) {
       config->setTacticSources(
         1U << static_cast<uint32_t>(TacticSource::kJIT_CONVOLUTIONS) |
-        1U << static_cast<uint32_t>(TacticSource::kEDGE_MASK_CONVOLUTIONS));
-    } else {
+        1U << static_cast<uint32_t>(TacticSource::kEDGE_MASK_CONVOLUTIONS)
+      );
+    }
+    else {
       config->setTacticSources(1U << static_cast<uint32_t>(TacticSource::kJIT_CONVOLUTIONS));
     }
 #else
     if(prop->major >= 8) {
-      // This is to avoid tactics that have shape switching overhead
       config->setTacticSources(1U << static_cast<uint32_t>(TacticSource::kJIT_CONVOLUTIONS));
     }
 #endif
-    if(ctx->trtBuilderOptimizationLevel >= 0)
-      config->setBuilderOptimizationLevel(ctx->trtBuilderOptimizationLevel);
-    if(ctx->trtMaxAuxStreams >= 0)
-      config->setMaxAuxStreams(ctx->trtMaxAuxStreams);
-    if(ctx->trtAvgTimingIterations >= 0)
-      config->setAvgTimingIterations(ctx->trtAvgTimingIterations);
-    if(!config->setTilingOptimizationLevel(trtTilingOptimizationLevelToNv(ctx->trtTilingOptimizationLevel))) {
+    if(context->trtBuilderOptimizationLevel >= 0)
+      config->setBuilderOptimizationLevel(context->trtBuilderOptimizationLevel);
+    if(context->trtMaxAuxStreams >= 0)
+      config->setMaxAuxStreams(context->trtMaxAuxStreams);
+    if(context->trtAvgTimingIterations >= 0)
+      config->setAvgTimingIterations(context->trtAvgTimingIterations);
+    if(!config->setTilingOptimizationLevel(trtTilingOptimizationLevelToNv(context->trtTilingOptimizationLevel))) {
       throw StringError("TensorRT backend: failed to set tiling optimization level");
     }
 
-    // So that there are no concurrent kernel executions probably from other parts of code while profiling
-    // See CUDA Runtime API document for more details related to NULL stream and synchronization behaviors
     config->setProfileStream(cudaStreamLegacy);
-    
-    // Typical runtime allocation is much less than the 4 GiB specified below
     config->setMemoryPoolLimit(MemoryPoolType::kWORKSPACE, 1ULL << 32);
-    //config->setProfilingVerbosity(nvinfer1::ProfilingVerbosity::kDETAILED); // to check whether the QDQ nodes are merged into conv layers
-    //config->setFlag(BuilderFlag::kREJECT_EMPTY_ALGORITHMS);
+
     string plan;
     {
       static mutex tuneMutex;
       tuneMutex.lock();
 
-      auto cacheDir = HomeData::getHomeDataDir(true, ctx->homeDataDirOverride);
+      auto cacheDir = HomeData::getHomeDataDir(true, context->homeDataDirOverride);
       cacheDir += "/trtcache";
       MakeDir::make(cacheDir);
 
       uint8_t deviceHash[32];
       SHA2::get256(prop->name, deviceHash);
-
-      // Truncated to 4 bytes
       char deviceIdent[4 * 2 + 1];
       for(int i = 0; i < 4; i++) {
         sprintf(deviceIdent + i * 2, "%02x", static_cast<unsigned char>(deviceHash[i]));
@@ -1387,20 +1333,18 @@ struct ComputeHandle {
 
 #ifdef CACHE_TENSORRT_PLAN
       string modelHashStr;
-      if (ctx->isOnnx) {
-         string tmp;
-         FileUtils::loadFileIntoString(ctx->onnxModelPath, "", tmp, &modelHashStr);
-      } else {
-         modelHashStr = loadedModel->modelDesc.sha256;
+      if(context->isOnnx) {
+        string tmp;
+        FileUtils::loadFileIntoString(context->onnxModelPath, "", tmp, &modelHashStr);
+      }
+      else {
+        modelHashStr = loadedModel->modelDesc.sha256;
       }
 
       string planCacheFile = "";
       string paramStr = "";
-
-      if(ctx->isOnnx) {
-
-
-        string olvStr = ctx->trtBuilderOptimizationLevel < 0 ? "def" : Global::intToString(ctx->trtBuilderOptimizationLevel);
+      if(context->isOnnx) {
+        string olvStr = context->trtBuilderOptimizationLevel < 0 ? "def" : Global::intToString(context->trtBuilderOptimizationLevel);
         planCacheFile = Global::strprintf(
           "%s/trt-onnx-%d_olv-%s_gpu-%s_net-%s_%d_%s%dx%d_batch%d_fp%d",
           cacheDir.c_str(),
@@ -1410,23 +1354,25 @@ struct ComputeHandle {
           modelHashStr.substr(0, 12).c_str(),
           ModelParser::tuneSalt,
           (!loadedModel->modelDesc.onnxHeader.has_mask) ? "exact" : "max",
-          ctx->nnYLen,
-          ctx->nnXLen,
+          context->nnYLen,
+          context->nnXLen,
           maxBatchSize,
-          usingFP16 ? 16 : 32);
+          usingFP16 ? 16 : 32
+        );
         string paramStr = Global::strprintf(
           "_%d_%s_%d_%s_%d_%d_%d_%d",
           getInferLibVersion(),
           deviceIdent,
           ModelParser::tuneSalt,
           (!loadedModel->modelDesc.onnxHeader.has_mask) ? "exact" : "max",
-          ctx->nnYLen,
-          ctx->nnXLen,
+          context->nnYLen,
+          context->nnXLen,
           maxBatchSize,
-          usingFP16 ? 16 : 32);
+          usingFP16 ? 16 : 32
+        );
       }
       else {
-        string olvStr = ctx->trtBuilderOptimizationLevel < 0 ? "def" : Global::intToString(ctx->trtBuilderOptimizationLevel);
+        string olvStr = context->trtBuilderOptimizationLevel < 0 ? "def" : Global::intToString(context->trtBuilderOptimizationLevel);
         planCacheFile = Global::strprintf(
           "%s/trt-%d_olv-%s_gpu-%s_net-%s_%d_%s%dx%d_batch%d_fp%d",
           cacheDir.c_str(),
@@ -1436,51 +1382,60 @@ struct ComputeHandle {
           loadedModel->modelDesc.name.c_str(),
           ModelParser::tuneSalt,
           requireExactNNLen ? "exact" : "max",
-          ctx->nnYLen,
-          ctx->nnXLen,
+          context->nnYLen,
+          context->nnXLen,
           maxBatchSize,
-          usingFP16 ? 16 : 32);
+          usingFP16 ? 16 : 32
+        );
         string paramStr = Global::strprintf(
           "_%d_%s_%d_%s_%d_%d_%d_%d",
           getInferLibVersion(),
           deviceIdent,
           ModelParser::tuneSalt,
           requireExactNNLen ? "exact" : "max",
-          ctx->nnYLen,
-          ctx->nnXLen,
+          context->nnYLen,
+          context->nnXLen,
           maxBatchSize,
-          usingFP16 ? 16 : 32);
+          usingFP16 ? 16 : 32
+        );
       }
 
       try {
         plan = FileUtils::readFileBinary(planCacheFile);
-      } catch(const StringError& e) {
+      }
+      catch(const StringError& e) {
         (void)e;
-      };
+      }
 
       if(plan.size() > 0) {
         if(plan.size() < 64 + paramStr.size()) {
-          logger->write("Could not parse plan, unexpected size in " + planCacheFile);
+          if(logger != NULL)
+            logger->write("Could not parse plan, unexpected size in " + planCacheFile);
           plan.clear();
-        } else {
+        }
+        else {
           string cachedParamStr = plan.substr(plan.size() - paramStr.size());
           string modelHash = plan.substr(plan.size() - 64 - paramStr.size(), 64);
           if(modelHash != modelHashStr) {
-            logger->write("Plan cache is corrupted or is for the wrong model in " + planCacheFile);
+            if(logger != NULL)
+              logger->write("Plan cache is corrupted or is for the wrong model in " + planCacheFile);
             plan.clear();
-          } else if(cachedParamStr != paramStr) {
-            logger->write("Plan cache is corrupted or is for the wrong parameters in " + planCacheFile);
+          }
+          else if(cachedParamStr != paramStr) {
+            if(logger != NULL)
+              logger->write("Plan cache is corrupted or is for the wrong parameters in " + planCacheFile);
             plan.clear();
-          } else {
+          }
+          else {
             plan.erase(plan.size() - 64 - paramStr.size());
           }
         }
       }
 
       if(plan.size() <= 0) {
-        logger->write("Creating new plan cache");
-        // network is moved into model if !isOnnx, but for isOnnx network is still valid (not moved)
-        INetworkDefinition* netPtr = ctx->isOnnx ? network.get() : model->network.get();
+        if(logger != NULL)
+          logger->write("Creating new plan cache");
+        INetworkDefinition* netPtr = context->isOnnx ? network.get() : model->network.get();
         auto planBuffer = unique_ptr<IHostMemory>(builder->buildSerializedNetwork(*netPtr, *config));
         if(!planBuffer) {
           throw StringError("TensorRT backend: failed to create plan");
@@ -1488,33 +1443,30 @@ struct ComputeHandle {
         plan.insert(
           plan.end(),
           static_cast<char*>(planBuffer->data()),
-          static_cast<char*>(planBuffer->data()) + planBuffer->size());
+          static_cast<char*>(planBuffer->data()) + planBuffer->size()
+        );
         if(modelHashStr.size() != 64) {
           throw StringError("Unexpected model hash size");
         }
-        //Save a pure tensorrt plan cache file for debug
-        //ofstream ofs2;
-        //FileUtils::open(ofs2, planCacheFile + ".pure", ios::out | ios::binary);
-        //ofs2.write(plan.data(), plan.size());
-        //ofs2.close();
         plan.insert(plan.end(), modelHashStr.begin(), modelHashStr.end());
         plan.insert(plan.end(), paramStr.begin(), paramStr.end());
         ofstream ofs;
         FileUtils::open(ofs, planCacheFile, ios::out | ios::binary);
         ofs.write(plan.data(), plan.size());
         ofs.close();
-        logger->write("Saved new plan cache to " + planCacheFile);
+        if(logger != NULL)
+          logger->write("Saved new plan cache to " + planCacheFile);
         plan.erase(plan.size() - 64 - paramStr.size());
         tuneMutex.unlock();
-      } else {
+      }
+      else {
         tuneMutex.unlock();
-        logger->write("Using existing plan cache at " + planCacheFile);
+        if(logger != NULL)
+          logger->write("Using existing plan cache at " + planCacheFile);
       }
 #else
       string timingCacheFile = "";
-
-      if (ctx->isOnnx) {
-        
+      if(context->isOnnx) {
         timingCacheFile = Global::strprintf(
           "%s/trt-onnx-%d_gpu-%s_mc-%s_ts-%d_%s%dx%d_batch%d_fp%d_%d%d%d",
           cacheDir.c_str(),
@@ -1523,18 +1475,16 @@ struct ComputeHandle {
           loadedModel->modelDesc.onnxHeader.model_config_sha256.substr(0, 12).c_str(),
           ModelParser::tuneSalt,
           (!loadedModel->modelDesc.onnxHeader.has_mask) ? "exact" : "max",
-          ctx->nnYLen,
-          ctx->nnXLen,
+          context->nnYLen,
+          context->nnXLen,
           maxBatchSize,
           usingFP16 ? 16 : 32,
           loadedModel->modelDesc.onnxHeader.is_qat ? 1 : 0,
           loadedModel->modelDesc.onnxHeader.is_simplified ? 1 : 0,
           loadedModel->modelDesc.onnxHeader.is_int8 ? 1 : 0
-            );
-          
-      } else {
-        
-        // Truncated to 6 bytes
+        );
+      }
+      else {
         char tuneIdent[6 * 2 + 1];
         for(int i = 0; i < 6; i++) {
           sprintf(tuneIdent + i * 2, "%02x", static_cast<unsigned char>(model->tuneHash[i]));
@@ -1547,36 +1497,43 @@ struct ComputeHandle {
           deviceIdent,
           tuneIdent,
           requireExactNNLen ? "exact" : "max",
-          ctx->nnYLen,
-          ctx->nnXLen,
+          context->nnYLen,
+          context->nnXLen,
           maxBatchSize,
-          usingFP16 ? 16 : 32);
+          usingFP16 ? 16 : 32
+        );
       }
-
 
       string timingCacheBlob;
       try {
         timingCacheBlob = FileUtils::readFileBinary(timingCacheFile);
-      } catch(const StringError& e) {
+      }
+      catch(const StringError& e) {
         (void)e;
-      };
-      if(timingCacheBlob.size() > 0)
-        logger->write("Using existing timing cache at " + timingCacheFile);
-      else
-        logger->write("Creating new timing cache (usingFP16=" + Global::boolToString(usingFP16) + " " + Global::intToString(ctx->nnXLen) + "x" + Global::intToString(ctx->nnYLen) + " maxBatchSizeLimit=" + Global::intToString(maxBatchSize) + ")");
+      }
+      if(logger != NULL) {
+        if(timingCacheBlob.size() > 0)
+          logger->write("Using existing timing cache at " + timingCacheFile);
+        else
+          logger->write(
+            "Creating new timing cache (usingFP16=" + Global::boolToString(usingFP16) + " " +
+            Global::intToString(context->nnXLen) + "x" + Global::intToString(context->nnYLen) +
+            " maxBatchSizeLimit=" + Global::intToString(maxBatchSize) + ")"
+          );
+      }
 
-      auto timingCache =
-        unique_ptr<ITimingCache>(config->createTimingCache(timingCacheBlob.data(), timingCacheBlob.size()));
+      auto timingCache = unique_ptr<ITimingCache>(config->createTimingCache(timingCacheBlob.data(), timingCacheBlob.size()));
       auto invalidTimingCache = !config->setTimingCache(*timingCache, false);
       if(invalidTimingCache) {
-        logger->write("Invalid timing cache, using new one instead");
+        if(logger != NULL)
+          logger->write("Invalid timing cache, using new one instead");
         timingCache.reset(config->createTimingCache(nullptr, 0));
         config->setTimingCache(*timingCache, false);
       }
 
       unique_ptr<IHostMemory> planBuffer;
       if(invalidTimingCache || !timingCacheBlob.size()) {
-        INetworkDefinition* netPtr = ctx->isOnnx ? network.get() : model->network.get();
+        INetworkDefinition* netPtr = context->isOnnx ? network.get() : model->network.get();
         planBuffer.reset(builder->buildSerializedNetwork(*netPtr, *config));
         if(!planBuffer) {
           throw StringError("TensorRT backend: failed to create plan");
@@ -1586,11 +1543,13 @@ struct ComputeHandle {
         FileUtils::open(ofs, timingCacheFile, ios::out | ios::binary);
         ofs.write(static_cast<char*>(serializedTimingCache->data()), serializedTimingCache->size());
         ofs.close();
-        logger->write("Saved new timing cache to " + timingCacheFile);
+        if(logger != NULL)
+          logger->write("Saved new timing cache to " + timingCacheFile);
         tuneMutex.unlock();
-      } else {
+      }
+      else {
         tuneMutex.unlock();
-        INetworkDefinition* netPtr = ctx->isOnnx ? network.get() : model->network.get();
+        INetworkDefinition* netPtr = context->isOnnx ? network.get() : model->network.get();
         planBuffer.reset(builder->buildSerializedNetwork(*netPtr, *config));
         if(!planBuffer) {
           throw StringError("TensorRT backend: failed to create plan");
@@ -1599,7 +1558,8 @@ struct ComputeHandle {
       plan.insert(
         plan.end(),
         static_cast<char*>(planBuffer->data()),
-        static_cast<char*>(planBuffer->data()) + planBuffer->size());
+        static_cast<char*>(planBuffer->data()) + planBuffer->size()
+      );
 #endif
     }
 
@@ -1614,24 +1574,122 @@ struct ComputeHandle {
     if(!engine) {
       throw StringError("TensorRT backend: failed to create cuda engine");
     }
-    exec.reset(engine->createExecutionContext());
+  }
+};
+
+ComputeContext::~ComputeContext() = default;
+
+void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
+  delete computeContext;
+}
+
+struct ComputeHandle {
+  ComputeContext* ctx;
+  ComputeContext::DeviceTrtState* deviceState;
+  int gpuIdxForHandle;
+  int serverThreadIdxForHandle;
+
+  bool usingFP16;
+  int maxBatchSize;
+  int modelVersion;
+  vector<pair<string, string>> debugOutputs;
+
+  map<string, void*> buffers;
+  unique_ptr<IExecutionContext> exec;
+  cudaStream_t h2dStream;
+  cudaStream_t inferStream;
+  cudaStream_t d2hStream;
+  bool trtUseCudaGraph;
+  bool perfProfileEnabled;
+  struct BatchGraphState {
+    cudaGraph_t graph;
+    cudaGraphExec_t graphExec;
+    BatchGraphState() : graph(nullptr), graphExec(nullptr) {}
+  };
+  struct RegisteredBufferState {
+    const InputBuffers* inputBuffers;
+    unique_ptr<IExecutionContext> exec;
+    vector<BatchGraphState> batchGraphStates;
+    RegisteredBufferState(const InputBuffers* inputBuffers_, int maxBatchSize_)
+      : inputBuffers(inputBuffers_),
+        exec(),
+        batchGraphStates((size_t)maxBatchSize_ + 1)
+    {}
+  };
+  vector<BatchGraphState> batchGraphStates;
+  vector<unique_ptr<RegisteredBufferState>> registeredBuffers;
+  cudaEvent_t h2dDoneEvent;
+  cudaEvent_t inferDoneEvent;
+  cudaEvent_t d2hDoneEvent;
+  bool inferPending;
+  bool d2hPending;
+  cudaEvent_t perfH2DStartEvent;
+  cudaEvent_t perfH2DEndEvent;
+  cudaEvent_t perfInferenceDoneEvent;
+  cudaEvent_t perfD2HEndEvent;
+
+  ComputeHandle(
+    ComputeContext* context,
+    ComputeContext::DeviceTrtState* sharedDeviceState,
+    int maxBatchSz
+  ) {
+    ctx = context;
+    deviceState = sharedDeviceState;
+    gpuIdxForHandle = sharedDeviceState->gpuIdx;
+    serverThreadIdxForHandle = -1;
+    usingFP16 = sharedDeviceState->usingFP16;
+    maxBatchSize = maxBatchSz;
+    modelVersion = sharedDeviceState->modelVersion;
+    debugOutputs = sharedDeviceState->debugOutputs;
+
+    h2dStream = nullptr;
+    inferStream = nullptr;
+    d2hStream = nullptr;
+    trtUseCudaGraph = context->trtUseCudaGraph;
+    perfProfileEnabled = GlobalPerfProfile::isEnabled();
+    batchGraphStates.resize(maxBatchSize + 1);
+    registeredBuffers.clear();
+    h2dDoneEvent = nullptr;
+    inferDoneEvent = nullptr;
+    d2hDoneEvent = nullptr;
+    inferPending = false;
+    d2hPending = false;
+    perfH2DStartEvent = nullptr;
+    perfH2DEndEvent = nullptr;
+    perfInferenceDoneEvent = nullptr;
+    perfD2HEndEvent = nullptr;
+
+    setDevice("ComputeHandle");
+    CUDA_ERR("ComputeHandle", cudaEventCreateWithFlags(&h2dDoneEvent, cudaEventDisableTiming));
+    CUDA_ERR("ComputeHandle", cudaEventCreateWithFlags(&inferDoneEvent, cudaEventDisableTiming));
+    CUDA_ERR("ComputeHandle", cudaEventCreateWithFlags(&d2hDoneEvent, cudaEventDisableTiming));
+    if(perfProfileEnabled) {
+      CUDA_ERR("ComputeHandle", cudaEventCreate(&perfH2DStartEvent));
+      CUDA_ERR("ComputeHandle", cudaEventCreate(&perfH2DEndEvent));
+      CUDA_ERR("ComputeHandle", cudaEventCreate(&perfInferenceDoneEvent));
+      CUDA_ERR("ComputeHandle", cudaEventCreate(&perfD2HEndEvent));
+    }
+    CUDA_ERR("ComputeHandle", cudaStreamCreateWithFlags(&h2dStream, cudaStreamNonBlocking));
+    CUDA_ERR("ComputeHandle", cudaStreamCreateWithFlags(&inferStream, cudaStreamNonBlocking));
+    CUDA_ERR("ComputeHandle", cudaStreamCreateWithFlags(&d2hStream, cudaStreamNonBlocking));
+
+    exec.reset(getEngine()->createExecutionContext());
     if(!exec) {
       throw StringError("TensorRT backend: failed to create execution context");
     }
-
-    for(int i = 0; i < engine->getNbIOTensors(); i++) {
+    for(int i = 0; i < getEngine()->getNbIOTensors(); i++) {
       void* buffer = nullptr;
-      auto name = engine->getIOTensorName(i);
-      auto dims = engine->getTensorShape(name);
+      auto name = getEngine()->getIOTensorName(i);
+      auto dims = getEngine()->getTensorShape(name);
       size_t bytes = accumulate(dims.d + 1, dims.d + dims.nbDims, maxBatchSize * sizeof(float), multiplies<size_t>());
       CUDA_ERR("ComputeHandle", cudaMalloc(&buffer, bytes));
       buffers.emplace(make_pair(name, buffer));
       exec->setTensorAddress(name, buffer);
     }
 
-    exec->setOptimizationProfileAsync(0, cudaStreamPerThread);
-    cudaStreamSynchronize(cudaStreamPerThread);
-    trtErrorRecorder.clear();
+    exec->setOptimizationProfileAsync(0, inferStream);
+    CUDA_ERR("ComputeHandle", cudaStreamSynchronize(inferStream));
+    clearErrorRecorder();
 
     if(trtUseCudaGraph) {
       preCaptureAllBatchGraphs();
@@ -1639,7 +1697,28 @@ struct ComputeHandle {
   }
 
   ~ComputeHandle() {
+    setDevice("~ComputeHandle");
     destroyAllBatchGraphs();
+    for(const auto& registeredBuffer: registeredBuffers) {
+      for(size_t i = 1; i < registeredBuffer->batchGraphStates.size(); i++) {
+        BatchGraphState& state = registeredBuffer->batchGraphStates[i];
+        if(state.graphExec != nullptr) {
+          CUDA_ERR("~ComputeHandle", cudaGraphExecDestroy(state.graphExec));
+          state.graphExec = nullptr;
+        }
+        if(state.graph != nullptr) {
+          CUDA_ERR("~ComputeHandle", cudaGraphDestroy(state.graph));
+          state.graph = nullptr;
+        }
+      }
+    }
+    registeredBuffers.clear();
+    if(d2hStream != nullptr)
+      CUDA_ERR("~ComputeHandle", cudaStreamDestroy(d2hStream));
+    if(inferStream != nullptr)
+      CUDA_ERR("~ComputeHandle", cudaStreamDestroy(inferStream));
+    if(h2dStream != nullptr)
+      CUDA_ERR("~ComputeHandle", cudaStreamDestroy(h2dStream));
     if(perfD2HEndEvent != nullptr)
       CUDA_ERR("~ComputeHandle", cudaEventDestroy(perfD2HEndEvent));
     if(perfInferenceDoneEvent != nullptr)
@@ -1648,6 +1727,12 @@ struct ComputeHandle {
       CUDA_ERR("~ComputeHandle", cudaEventDestroy(perfH2DEndEvent));
     if(perfH2DStartEvent != nullptr)
       CUDA_ERR("~ComputeHandle", cudaEventDestroy(perfH2DStartEvent));
+    if(d2hDoneEvent != nullptr)
+      CUDA_ERR("~ComputeHandle", cudaEventDestroy(d2hDoneEvent));
+    if(inferDoneEvent != nullptr)
+      CUDA_ERR("~ComputeHandle", cudaEventDestroy(inferDoneEvent));
+    if(h2dDoneEvent != nullptr)
+      CUDA_ERR("~ComputeHandle", cudaEventDestroy(h2dDoneEvent));
     for(auto ptr: buffers) {
       CUDA_ERR("~ComputeHandle", cudaFree(ptr.second));
     }
@@ -1657,68 +1742,57 @@ struct ComputeHandle {
   ComputeHandle(const ComputeHandle&) = delete;
   ComputeHandle& operator=(const ComputeHandle&) = delete;
 
-  void maybeRecordLaunchInterval() {
-    if(!perfProfileEnabled || launchIntervalGpuState == nullptr)
-      return;
+  void setDevice(const char* opName) const {
+    CUDA_ERR(opName, cudaSetDevice(gpuIdxForHandle));
+  }
 
-    int64_t launchGapNanos = 0;
-    bool hasLaunchGap = false;
-    int64_t nowNanos = std::chrono::duration_cast<std::chrono::nanoseconds>(
-      std::chrono::steady_clock::now().time_since_epoch()
-    ).count();
+  ICudaEngine* getEngine() const {
+    return deviceState->engine.get();
+  }
 
-    {
-      std::lock_guard<std::mutex> lock(launchIntervalGpuState->mutex);
-      if(launchIntervalGpuState->hasLastLaunchNanos) {
-        launchGapNanos = nowNanos - launchIntervalGpuState->lastLaunchNanos;
-        hasLaunchGap = true;
-      }
-      launchIntervalGpuState->lastLaunchNanos = nowNanos;
-      launchIntervalGpuState->hasLastLaunchNanos = true;
-    }
-
-    if(hasLaunchGap)
-      GlobalPerfProfile::recordInferenceLaunchInterval((double)launchGapNanos / 1e6);
+  void clearErrorRecorder() const {
+    deviceState->trtErrorRecorder.clear();
   }
 
   void* getBuffer(const char* name) {
     auto search = buffers.find(name);
     if(search != buffers.end()) {
       return search->second;
-    } else {
-      throw StringError(Global::strprintf("ComputeHandle: unknown tensor name %s", name));
     }
+    throw StringError(Global::strprintf("ComputeHandle: unknown tensor name %s", name));
   }
 
   size_t getBufferBytes(const char* name) {
-    auto dims = engine->getTensorShape(name);
+    auto dims = getEngine()->getTensorShape(name);
     if(dims.nbDims != -1) {
       return accumulate(dims.d + 1, dims.d + dims.nbDims, maxBatchSize * sizeof(float), multiplies<size_t>());
-    } else {
-      throw StringError(Global::strprintf("ComputeHandle: unknown tensor name %s", name));
     }
+    throw StringError(Global::strprintf("ComputeHandle: unknown tensor name %s", name));
   }
 
   size_t getBufferRowElts(const char* name) {
-    auto dims = engine->getTensorShape(name);
+    auto dims = getEngine()->getTensorShape(name);
     if(dims.nbDims != -1) {
       return accumulate(dims.d + 1, dims.d + dims.nbDims, 1, multiplies<size_t>());
-    } else {
-      throw StringError(Global::strprintf("ComputeHandle: unknown tensor name %s", name));
     }
+    throw StringError(Global::strprintf("ComputeHandle: unknown tensor name %s", name));
+  }
+
+  size_t getBufferRowBytes(const char* name) {
+    return getBufferRowElts(name) * sizeof(float);
   }
 
   Dims getBufferDynamicShape(const char* name, int batchSize) {
-    auto dims = engine->getTensorShape(name);
+    auto dims = getEngine()->getTensorShape(name);
     if(dims.nbDims != -1) {
       dims.d[0] = batchSize;
       return dims;
-    } else {
-      throw StringError(Global::strprintf("ComputeHandle: unknown tensor name %s", name));
     }
+    throw StringError(Global::strprintf("ComputeHandle: unknown tensor name %s", name));
   }
 
   void printDebugOutput(int batchSize) {
+    setDevice("printDebugOutput");
     for(auto& debugOutput: debugOutputs) {
       auto name = debugOutput.first;
       auto desc = debugOutput.second;
@@ -1727,7 +1801,8 @@ struct ComputeHandle {
       vector<float> values(accumulate(dims.d, dims.d + dims.nbDims, 1, multiplies<size_t>()));
       CUDA_ERR(
         "printDebugOutput",
-        cudaMemcpy(values.data(), getBuffer(name.c_str()), values.size() * sizeof(float), cudaMemcpyDeviceToHost));
+        cudaMemcpy(values.data(), getBuffer(name.c_str()), values.size() * sizeof(float), cudaMemcpyDeviceToHost)
+      );
 
       cout << "=========================================================" << endl;
       cout << desc << endl;
@@ -1741,7 +1816,8 @@ struct ComputeHandle {
           cout << endl;
         }
         cout << endl;
-      } else if(dims.nbDims == 4) {
+      }
+      else if(dims.nbDims == 4) {
         for(int n = 0; n < dims.d[0]; n++) {
           cout << "-(n=" << n << ")--------------------" << endl;
           for(int c = 0; c < dims.d[1]; c++) {
@@ -1767,7 +1843,8 @@ struct ComputeHandle {
     if(ctx->isOnnx) {
       exec->setInputShape("input_spatial", getBufferDynamicShape("input_spatial", batchSize));
       exec->setInputShape("input_global", getBufferDynamicShape("input_global", batchSize));
-    } else {
+    }
+    else {
       exec->setInputShape("InputMask", getBufferDynamicShape("InputMask", batchSize));
       exec->setInputShape("InputSpatial", getBufferDynamicShape("InputSpatial", batchSize));
       exec->setInputShape("InputGlobal", getBufferDynamicShape("InputGlobal", batchSize));
@@ -1778,6 +1855,7 @@ struct ComputeHandle {
   }
 
   void destroyBatchGraph(BatchGraphState& state) {
+    setDevice("destroyBatchGraph");
     if(state.graphExec != nullptr) {
       CUDA_ERR("destroyBatchGraph", cudaGraphExecDestroy(state.graphExec));
       state.graphExec = nullptr;
@@ -1795,19 +1873,20 @@ struct ComputeHandle {
   }
 
   void captureBatchGraph(int batchSize, BatchGraphState& state) {
+    setDevice("captureBatchGraph");
     cudaGraph_t graph = nullptr;
     cudaGraphExec_t graphExec = nullptr;
 
-    cudaError_t beginStatus = cudaStreamBeginCapture(cudaStreamPerThread, cudaStreamCaptureModeThreadLocal);
+    cudaError_t beginStatus = cudaStreamBeginCapture(inferStream, cudaStreamCaptureModeThreadLocal);
     if(beginStatus != cudaSuccess) {
       throw StringError(
         string("TensorRT backend: cudaStreamBeginCapture failed: ") + cudaGetErrorString(beginStatus)
       );
     }
 
-    if(!exec->enqueueV3(cudaStreamPerThread)) {
+    if(!exec->enqueueV3(inferStream)) {
       cudaGraph_t ignoredGraph = nullptr;
-      (void)cudaStreamEndCapture(cudaStreamPerThread, &ignoredGraph);
+      (void)cudaStreamEndCapture(inferStream, &ignoredGraph);
       if(ignoredGraph != nullptr) {
         (void)cudaGraphDestroy(ignoredGraph);
       }
@@ -1816,7 +1895,7 @@ struct ComputeHandle {
       );
     }
 
-    cudaError_t endStatus = cudaStreamEndCapture(cudaStreamPerThread, &graph);
+    cudaError_t endStatus = cudaStreamEndCapture(inferStream, &graph);
     if(endStatus != cudaSuccess || graph == nullptr) {
       if(graph != nullptr) {
         (void)cudaGraphDestroy(graph);
@@ -1842,25 +1921,27 @@ struct ComputeHandle {
   void preCaptureAllBatchGraphs() {
     static std::mutex captureMutex;
     std::lock_guard<std::mutex> lock(captureMutex);
+    setDevice("preCaptureAllBatchGraphs");
 
     for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
       BatchGraphState& state = batchGraphStates[batchSize];
 
       setInputShapesForBatch(batchSize);
 
-      if(!exec->enqueueV3(cudaStreamPerThread)) {
+      if(!exec->enqueueV3(inferStream)) {
         throw StringError(
           "TensorRT backend: enqueueV3 warmup failed before cudaGraph capture for batch " + Global::intToString(batchSize)
         );
       }
-      CUDA_ERR("preCaptureAllBatchGraphs", cudaStreamSynchronize(cudaStreamPerThread));
+      CUDA_ERR("preCaptureAllBatchGraphs", cudaStreamSynchronize(inferStream));
       captureBatchGraph(batchSize, state);
     }
   }
 
   void enqueueWithOptionalCudaGraph(int batchSize) {
+    setDevice("enqueueWithOptionalCudaGraph");
     if(!trtUseCudaGraph) {
-      if(!exec->enqueueV3(cudaStreamPerThread)) {
+      if(!exec->enqueueV3(inferStream)) {
         throw StringError("TensorRT backend: enqueueV3 failed");
       }
       return;
@@ -1875,9 +1956,61 @@ struct ComputeHandle {
         "TensorRT backend: missing pre-captured cudaGraph for batch size " + Global::intToString(batchSize)
       );
     }
-    CUDA_ERR("enqueueWithOptionalCudaGraph", cudaGraphLaunch(state.graphExec, cudaStreamPerThread));
+    CUDA_ERR("enqueueWithOptionalCudaGraph", cudaGraphLaunch(state.graphExec, inferStream));
   }
 };
+
+static ComputeContext::DeviceTrtState* getOrCreateDeviceTrtState(
+  ComputeContext* context,
+  const LoadedModel* loadedModel,
+  Logger* logger,
+  int maxBatchSize,
+  bool requireExactNNLen,
+  int gpuIdx
+) {
+  int canonicalIdx = canonicalGpuIdx(gpuIdx);
+  std::lock_guard<std::mutex> lock(context->deviceTrtStateMutex);
+  auto existing = context->deviceTrtStates.find(canonicalIdx);
+  if(existing != context->deviceTrtStates.end())
+    return existing->second.get();
+
+  cudaDeviceProp prop;
+  CUDA_ERR("getOrCreateDeviceTrtState", cudaGetDeviceProperties(&prop, canonicalIdx));
+  if(logger != NULL) {
+    logger->write(
+      "TensorRT backend GPU " + Global::intToString(canonicalIdx) + ": Found GPU " + string(prop.name) +
+      " memory " + Global::uint64ToString(prop.totalGlobalMem) + " compute capability major " +
+      Global::intToString(prop.major) + " minor " + Global::intToString(prop.minor)
+    );
+    logger->write(
+      "TensorRT backend GPU " + Global::intToString(canonicalIdx) + ": Initializing shared engine (may take a long time)"
+    );
+  }
+
+  auto state = std::make_unique<ComputeContext::DeviceTrtState>(
+    logger,
+    &prop,
+    context,
+    loadedModel,
+    maxBatchSize,
+    requireExactNNLen,
+    canonicalIdx
+  );
+  if(logger != NULL) {
+    logger->write(
+      "TensorRT backend GPU " + Global::intToString(canonicalIdx) + ": Model version " +
+      Global::intToString(loadedModel->modelDesc.modelVersion) +
+      " useFP16 = " + Global::boolToString(state->usingFP16)
+    );
+    logger->write(
+      "TensorRT backend GPU " + Global::intToString(canonicalIdx) + ": Model name: " + loadedModel->modelDesc.name
+    );
+  }
+
+  auto* statePtr = state.get();
+  context->deviceTrtStates.emplace(canonicalIdx, std::move(state));
+  return statePtr;
+}
 
 ComputeHandle* NeuralNet::createComputeHandle(
   ComputeContext* context,
@@ -1904,28 +2037,21 @@ ComputeHandle* NeuralNet::createComputeHandle(
   // multi-GPU runs don't accidentally leave nonzero devices on the default scheduling mode.
   CUDA_ERR("createComputeHandle", cudaSetDeviceFlags(cudaSyncModeToDeviceFlags(context->trtCudaSyncMode)));
 
-  cudaDeviceProp prop;
-  CUDA_ERR("createComputeHandle", cudaGetDeviceProperties(&prop, gpuIdxForThisThread));
+  ComputeContext::DeviceTrtState* deviceState = getOrCreateDeviceTrtState(
+    context,
+    loadedModel,
+    logger,
+    maxBatchSize,
+    requireExactNNLen,
+    gpuIdxForThisThread
+  );
+  auto handle = new ComputeHandle(context, deviceState, maxBatchSize);
+  handle->serverThreadIdxForHandle = serverThreadIdx;
 
   if(logger != NULL) {
-    logger->write(
-      "TensorRT backend thread " + Global::intToString(serverThreadIdx) + ": Found GPU " + string(prop.name) +
-      " memory " + Global::uint64ToString(prop.totalGlobalMem) + " compute capability major " +
-      Global::intToString(prop.major) + " minor " + Global::intToString(prop.minor));
-    logger->write(
-      "TensorRT backend thread " + Global::intToString(serverThreadIdx) + ": Initializing (may take a long time)");
-  }
-
-  auto handle = new ComputeHandle(logger, &prop, context, loadedModel, maxBatchSize, requireExactNNLen, gpuIdxForThisThread);
-
-  if(logger != NULL) {
-    logger->write(
-      "TensorRT backend thread " + Global::intToString(serverThreadIdx) + ": Model version " +
-      Global::intToString(loadedModel->modelDesc.modelVersion) +
-      " useFP16 = " + Global::boolToString(handle->usingFP16));
     logger->write(
       "TensorRT backend thread " + Global::intToString(serverThreadIdx) +
-      ": Model name: " + loadedModel->modelDesc.name);
+      ": Attached to shared engine on GPU " + Global::intToString(handle->gpuIdxForHandle));
   }
 
   return handle;
@@ -2055,9 +2181,53 @@ struct InputBuffers {
   PinnedFloatBuffer out_moremiscvalueResults;
   PinnedFloatBuffer out_ownershipResults;
 
+  int trtGpuIdx;
+  bool trtSharedResourcesInitialized;
+  map<string, void*> trtDeviceBuffers;
+  cudaEvent_t trtH2DDoneEvent;
+  cudaEvent_t trtInferDoneEvent;
+  cudaEvent_t trtD2HDoneEvent;
+  vector<cudaEvent_t> trtPerfH2DStartEvents;
+  vector<cudaEvent_t> trtPerfH2DEndEvents;
+  cudaEvent_t trtPerfInferStartEvent;
+  cudaEvent_t trtPerfInferEndEvent;
+  cudaEvent_t trtPerfD2HStartEvent;
+  cudaEvent_t trtPerfD2HEndEvent;
+  bool trtH2DPending;
+  bool trtInferPending;
+  bool trtD2HPending;
+  vector<int64_t> trtH2DSubmitEndNs;
+  vector<int> trtH2DStreamIdx;
+  int64_t trtInferSubmitEndNs;
+  int trtInferStreamIdx;
+  int64_t trtD2HSubmitEndNs;
+  int trtD2HStreamIdx;
+
   InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int nnXLen, int nnYLen) {
     const ModelDesc& m = loadedModel->modelDesc;
     isOnnx = loadedModel->isOnnx;
+    maxBatchSize = maxBatchSz;
+    trtGpuIdx = -1;
+    trtSharedResourcesInitialized = false;
+    trtDeviceBuffers.clear();
+    trtH2DDoneEvent = nullptr;
+    trtInferDoneEvent = nullptr;
+    trtD2HDoneEvent = nullptr;
+    trtPerfH2DStartEvents.assign(maxBatchSz, nullptr);
+    trtPerfH2DEndEvents.assign(maxBatchSz, nullptr);
+    trtPerfInferStartEvent = nullptr;
+    trtPerfInferEndEvent = nullptr;
+    trtPerfD2HStartEvent = nullptr;
+    trtPerfD2HEndEvent = nullptr;
+    trtH2DPending = false;
+    trtInferPending = false;
+    trtD2HPending = false;
+    trtH2DSubmitEndNs.assign(maxBatchSz, 0);
+    trtH2DStreamIdx.assign(maxBatchSz, -1);
+    trtInferSubmitEndNs = 0;
+    trtInferStreamIdx = -1;
+    trtD2HSubmitEndNs = 0;
+    trtD2HStreamIdx = -1;
 
     if(nnXLen > NNPos::MAX_BOARD_LEN)
       throw StringError(
@@ -2065,8 +2235,6 @@ struct InputBuffers {
     if(nnYLen > NNPos::MAX_BOARD_LEN)
       throw StringError(
         Global::strprintf("nnYLen (%d) is greater than NNPos::MAX_BOARD_LEN (%d)", nnYLen, NNPos::MAX_BOARD_LEN));
-
-    maxBatchSize = maxBatchSz;
     singleMaskElts = nnXLen * nnYLen;
     singleMaskBytes = singleMaskElts * sizeof(float);
     singleInputElts = m.numInputChannels * nnXLen * nnYLen;
@@ -2145,6 +2313,70 @@ struct InputBuffers {
     ownershipResults = PinnedFloatBuffer(maxBatchSize * singleOwnershipResultElts);
   }
 
+  ~InputBuffers() {
+    if(trtSharedResourcesInitialized && trtGpuIdx >= 0) {
+      cudaError_t setStatus = cudaSetDevice(trtGpuIdx);
+      (void)setStatus;
+      for(auto& entry: trtDeviceBuffers) {
+        if(entry.second != nullptr) {
+          cudaError_t freeStatus = cudaFree(entry.second);
+          (void)freeStatus;
+          entry.second = nullptr;
+        }
+      }
+      trtDeviceBuffers.clear();
+      if(trtD2HDoneEvent != nullptr) {
+        cudaError_t status = cudaEventDestroy(trtD2HDoneEvent);
+        (void)status;
+        trtD2HDoneEvent = nullptr;
+      }
+      for(cudaEvent_t& event: trtPerfH2DEndEvents) {
+        if(event != nullptr) {
+          cudaError_t status = cudaEventDestroy(event);
+          (void)status;
+          event = nullptr;
+        }
+      }
+      for(cudaEvent_t& event: trtPerfH2DStartEvents) {
+        if(event != nullptr) {
+          cudaError_t status = cudaEventDestroy(event);
+          (void)status;
+          event = nullptr;
+        }
+      }
+      if(trtPerfD2HEndEvent != nullptr) {
+        cudaError_t status = cudaEventDestroy(trtPerfD2HEndEvent);
+        (void)status;
+        trtPerfD2HEndEvent = nullptr;
+      }
+      if(trtPerfD2HStartEvent != nullptr) {
+        cudaError_t status = cudaEventDestroy(trtPerfD2HStartEvent);
+        (void)status;
+        trtPerfD2HStartEvent = nullptr;
+      }
+      if(trtPerfInferEndEvent != nullptr) {
+        cudaError_t status = cudaEventDestroy(trtPerfInferEndEvent);
+        (void)status;
+        trtPerfInferEndEvent = nullptr;
+      }
+      if(trtPerfInferStartEvent != nullptr) {
+        cudaError_t status = cudaEventDestroy(trtPerfInferStartEvent);
+        (void)status;
+        trtPerfInferStartEvent = nullptr;
+      }
+      if(trtInferDoneEvent != nullptr) {
+        cudaError_t status = cudaEventDestroy(trtInferDoneEvent);
+        (void)status;
+        trtInferDoneEvent = nullptr;
+      }
+      if(trtH2DDoneEvent != nullptr) {
+        cudaError_t status = cudaEventDestroy(trtH2DDoneEvent);
+        (void)status;
+        trtH2DDoneEvent = nullptr;
+      }
+    }
+  }
+
   InputBuffers() = delete;
   InputBuffers(const InputBuffers&) = delete;
   InputBuffers& operator=(const InputBuffers&) = delete;
@@ -2156,6 +2388,481 @@ InputBuffers* NeuralNet::createInputBuffers(const LoadedModel* loadedModel, int 
 
 void NeuralNet::freeInputBuffers(InputBuffers* inputBuffers) {
   delete inputBuffers;
+}
+
+static void* getSharedDeviceBuffer(InputBuffers* inputBuffers, const char* name) {
+  auto search = inputBuffers->trtDeviceBuffers.find(name);
+  if(search == inputBuffers->trtDeviceBuffers.end()) {
+    throw StringError(Global::strprintf("InputBuffers: unknown TensorRT device buffer %s", name));
+  }
+  return search->second;
+}
+
+static ComputeHandle::RegisteredBufferState* findRegisteredBufferState(ComputeHandle* computeHandle, const InputBuffers* inputBuffers) {
+  for(const auto& state: computeHandle->registeredBuffers) {
+    if(state->inputBuffers == inputBuffers)
+      return state.get();
+  }
+  return nullptr;
+}
+
+static void setInputShapesForExec(ComputeHandle* computeHandle, IExecutionContext* execContext, int batchSize) {
+  if(computeHandle->ctx->isOnnx) {
+    execContext->setInputShape("input_spatial", computeHandle->getBufferDynamicShape("input_spatial", batchSize));
+    execContext->setInputShape("input_global", computeHandle->getBufferDynamicShape("input_global", batchSize));
+  } else {
+    execContext->setInputShape("InputMask", computeHandle->getBufferDynamicShape("InputMask", batchSize));
+    execContext->setInputShape("InputSpatial", computeHandle->getBufferDynamicShape("InputSpatial", batchSize));
+    execContext->setInputShape("InputGlobal", computeHandle->getBufferDynamicShape("InputGlobal", batchSize));
+    if(computeHandle->hasTensor("InputMeta"))
+      execContext->setInputShape("InputMeta", computeHandle->getBufferDynamicShape("InputMeta", batchSize));
+  }
+}
+
+static void destroyCapturedBatchGraph(const char* opName, ComputeHandle::BatchGraphState& state) {
+  if(state.graphExec != nullptr) {
+    CUDA_ERR(opName, cudaGraphExecDestroy(state.graphExec));
+    state.graphExec = nullptr;
+  }
+  if(state.graph != nullptr) {
+    CUDA_ERR(opName, cudaGraphDestroy(state.graph));
+    state.graph = nullptr;
+  }
+}
+
+static void captureBatchGraphForExec(
+  ComputeHandle* computeHandle,
+  IExecutionContext* execContext,
+  int batchSize,
+  ComputeHandle::BatchGraphState& state
+) {
+  cudaGraph_t graph = nullptr;
+  cudaGraphExec_t graphExec = nullptr;
+
+  cudaError_t beginStatus = cudaStreamBeginCapture(computeHandle->inferStream, cudaStreamCaptureModeThreadLocal);
+  if(beginStatus != cudaSuccess) {
+    throw StringError(
+      "TensorRT backend: stream begin capture failed: " + string(cudaGetErrorString(beginStatus))
+    );
+  }
+
+  if(!execContext->enqueueV3(computeHandle->inferStream)) {
+    cudaGraph_t ignoredGraph = nullptr;
+    (void)cudaStreamEndCapture(computeHandle->inferStream, &ignoredGraph);
+    if(ignoredGraph != nullptr)
+      cudaGraphDestroy(ignoredGraph);
+    throw StringError(
+      "TensorRT backend: enqueueV3 failed during graph capture for batch size " +
+      Global::intToString(batchSize)
+    );
+  }
+
+  cudaError_t endStatus = cudaStreamEndCapture(computeHandle->inferStream, &graph);
+  if(endStatus != cudaSuccess || graph == nullptr) {
+    if(graph != nullptr)
+      cudaGraphDestroy(graph);
+    throw StringError(
+      "TensorRT backend: stream end capture failed: " + string(cudaGetErrorString(endStatus))
+    );
+  }
+
+  cudaError_t instantiateStatus = cudaGraphInstantiate(&graphExec, graph, 0);
+  if(instantiateStatus != cudaSuccess) {
+    cudaGraphDestroy(graph);
+    throw StringError(
+      "TensorRT backend: graph instantiate failed: " + string(cudaGetErrorString(instantiateStatus))
+    );
+  }
+
+  state.graph = graph;
+  state.graphExec = graphExec;
+}
+
+static void preCaptureAllBatchGraphsForExec(
+  ComputeHandle* computeHandle,
+  IExecutionContext* execContext,
+  vector<ComputeHandle::BatchGraphState>& batchGraphStates
+) {
+  for(int batchSize = 1; batchSize <= computeHandle->maxBatchSize; batchSize++) {
+    ComputeHandle::BatchGraphState& state = batchGraphStates[batchSize];
+    destroyCapturedBatchGraph("preCaptureAllBatchGraphsForExec", state);
+    setInputShapesForExec(computeHandle, execContext, batchSize);
+    if(!computeHandle->trtUseCudaGraph) {
+      if(!execContext->enqueueV3(computeHandle->inferStream)) {
+        throw StringError(
+          "TensorRT backend: enqueueV3 failed while warming batch size " + Global::intToString(batchSize)
+        );
+      }
+      CUDA_ERR("preCaptureAllBatchGraphsForExec", cudaStreamSynchronize(computeHandle->inferStream));
+    }
+    else {
+      captureBatchGraphForExec(computeHandle, execContext, batchSize, state);
+    }
+  }
+}
+
+static void enqueueWithOptionalCudaGraphForExec(
+  ComputeHandle* computeHandle,
+  IExecutionContext* execContext,
+  vector<ComputeHandle::BatchGraphState>& batchGraphStates,
+  int batchSize
+) {
+  if(!computeHandle->trtUseCudaGraph) {
+    if(!execContext->enqueueV3(computeHandle->inferStream))
+      throw StringError("TensorRT backend: enqueueV3 failed");
+    return;
+  }
+  ComputeHandle::BatchGraphState& state = batchGraphStates[batchSize];
+  if(state.graphExec == nullptr) {
+    throw StringError(
+      "TensorRT backend: missing pre-captured cudaGraph for batch size " + Global::intToString(batchSize)
+    );
+  }
+  CUDA_ERR("enqueueWithOptionalCudaGraphForExec", cudaGraphLaunch(state.graphExec, computeHandle->inferStream));
+}
+
+static void packInputRow(
+  InputBuffers* inputBuffers,
+  const NNResultBuf* inputBuf,
+  int rowIdx,
+  int numSpatialFeatures,
+  int numGlobalFeatures,
+  int numMetaFeatures,
+  int nnXLen,
+  int nnYLen
+) {
+  float* rowMaskInput = &inputBuffers->maskInputs[inputBuffers->singleMaskElts * rowIdx];
+  float* rowSpatialInput = &inputBuffers->spatialInputs[inputBuffers->singleInputElts * rowIdx];
+  float* rowGlobalInput = &inputBuffers->globalInputs[inputBuffers->singleInputGlobalElts * rowIdx];
+  float* rowMetaInput = &inputBuffers->metaInputs[inputBuffers->singleInputMetaElts * rowIdx];
+
+  const float* rowGlobal = inputBuf->rowGlobalBuf.data();
+  const float* rowSpatial = inputBuf->rowSpatialBuf.data();
+  const float* rowMeta = inputBuf->rowMetaBuf.data();
+  const bool hasRowMeta = inputBuf->hasRowMeta;
+
+  std::copy(rowGlobal, rowGlobal + numGlobalFeatures, rowGlobalInput);
+  if(numMetaFeatures > 0) {
+    testAssert(rowMeta != NULL);
+    testAssert(hasRowMeta);
+    std::copy(rowMeta, rowMeta + numMetaFeatures, rowMetaInput);
+  }
+  else {
+    testAssert(!hasRowMeta);
+  }
+  SymmetryHelpers::copyInputsWithSymmetry(
+    rowSpatial, rowSpatialInput, 1, nnYLen, nnXLen, numSpatialFeatures, false, inputBuf->symmetry);
+  std::copy(rowSpatialInput, rowSpatialInput + inputBuffers->singleMaskElts, rowMaskInput);
+}
+
+static void enqueueInputRowCopy(
+  ComputeHandle* gpuHandle,
+  InputBuffers* inputBuffers,
+  int rowIdx
+) {
+  cudaStream_t h2dStream = gpuHandle->h2dStream;
+  if(gpuHandle->ctx->isOnnx) {
+    CUDA_ERR(
+      "trtEnqueueInputRowCopy",
+      cudaMemcpyAsync(
+        static_cast<char*>(getSharedDeviceBuffer(inputBuffers, "input_spatial")) + rowIdx * gpuHandle->getBufferRowBytes("input_spatial"),
+        inputBuffers->spatialInputs.get() + rowIdx * inputBuffers->singleInputElts,
+        inputBuffers->singleInputBytes,
+        cudaMemcpyHostToDevice,
+        h2dStream
+      )
+    );
+    CUDA_ERR(
+      "trtEnqueueInputRowCopy",
+      cudaMemcpyAsync(
+        static_cast<char*>(getSharedDeviceBuffer(inputBuffers, "input_global")) + rowIdx * gpuHandle->getBufferRowBytes("input_global"),
+        inputBuffers->globalInputs.get() + rowIdx * inputBuffers->singleInputGlobalElts,
+        inputBuffers->singleInputGlobalBytes,
+        cudaMemcpyHostToDevice,
+        h2dStream
+      )
+    );
+  }
+  else {
+    CUDA_ERR(
+      "trtEnqueueInputRowCopy",
+      cudaMemcpyAsync(
+        static_cast<char*>(getSharedDeviceBuffer(inputBuffers, "InputMask")) + rowIdx * gpuHandle->getBufferRowBytes("InputMask"),
+        inputBuffers->maskInputs.get() + rowIdx * inputBuffers->singleMaskElts,
+        inputBuffers->singleMaskBytes,
+        cudaMemcpyHostToDevice,
+        h2dStream
+      )
+    );
+    CUDA_ERR(
+      "trtEnqueueInputRowCopy",
+      cudaMemcpyAsync(
+        static_cast<char*>(getSharedDeviceBuffer(inputBuffers, "InputSpatial")) + rowIdx * gpuHandle->getBufferRowBytes("InputSpatial"),
+        inputBuffers->spatialInputs.get() + rowIdx * inputBuffers->singleInputElts,
+        inputBuffers->singleInputBytes,
+        cudaMemcpyHostToDevice,
+        h2dStream
+      )
+    );
+    CUDA_ERR(
+      "trtEnqueueInputRowCopy",
+      cudaMemcpyAsync(
+        static_cast<char*>(getSharedDeviceBuffer(inputBuffers, "InputGlobal")) + rowIdx * gpuHandle->getBufferRowBytes("InputGlobal"),
+        inputBuffers->globalInputs.get() + rowIdx * inputBuffers->singleInputGlobalElts,
+        inputBuffers->singleInputGlobalBytes,
+        cudaMemcpyHostToDevice,
+        h2dStream
+      )
+    );
+    if(inputBuffers->singleInputMetaElts > 0) {
+      CUDA_ERR(
+        "trtEnqueueInputRowCopy",
+        cudaMemcpyAsync(
+          static_cast<char*>(getSharedDeviceBuffer(inputBuffers, "InputMeta")) + rowIdx * gpuHandle->getBufferRowBytes("InputMeta"),
+          inputBuffers->metaInputs.get() + rowIdx * inputBuffers->singleInputMetaElts,
+          inputBuffers->singleInputMetaBytes,
+          cudaMemcpyHostToDevice,
+          h2dStream
+        )
+      );
+    }
+  }
+  CUDA_ERR("trtEnqueueInputRowCopy", cudaEventRecord(inputBuffers->trtH2DDoneEvent, h2dStream));
+  inputBuffers->trtH2DPending = true;
+}
+
+static void enqueueInputCopies(
+  ComputeHandle* gpuHandle,
+  InputBuffers* inputBuffers,
+  int batchSize,
+  int numMetaFeatures,
+  cudaStream_t h2dStream
+) {
+  if(gpuHandle->ctx->isOnnx) {
+    assert(inputBuffers->singleInputElts == gpuHandle->getBufferRowElts("input_spatial"));
+    assert(inputBuffers->singleInputGlobalElts == gpuHandle->getBufferRowElts("input_global"));
+
+    CUDA_ERR("getOutput", cudaMemcpyAsync(gpuHandle->getBuffer("input_spatial"), inputBuffers->spatialInputs.get(), inputBuffers->singleInputBytes * batchSize, cudaMemcpyHostToDevice, h2dStream));
+    CUDA_ERR("getOutput", cudaMemcpyAsync(gpuHandle->getBuffer("input_global"), inputBuffers->globalInputs.get(), inputBuffers->singleInputGlobalBytes * batchSize, cudaMemcpyHostToDevice, h2dStream));
+
+    auto spatialInputDims = gpuHandle->getBufferDynamicShape("input_spatial", batchSize);
+    auto globalInputDims = gpuHandle->getBufferDynamicShape("input_global", batchSize);
+    gpuHandle->exec->setInputShape("input_spatial", spatialInputDims);
+    gpuHandle->exec->setInputShape("input_global", globalInputDims);
+    return;
+  }
+
+  assert(inputBuffers->singleMaskElts == gpuHandle->getBufferRowElts("InputMask"));
+  assert(inputBuffers->singleInputElts == gpuHandle->getBufferRowElts("InputSpatial"));
+  assert(inputBuffers->singleInputGlobalElts == gpuHandle->getBufferRowElts("InputGlobal"));
+  if(numMetaFeatures > 0)
+    assert(inputBuffers->singleInputMetaElts == gpuHandle->getBufferRowElts("InputMeta"));
+
+  CUDA_ERR("getOutput", cudaMemcpyAsync(gpuHandle->getBuffer("InputMask"), inputBuffers->maskInputs.get(), inputBuffers->singleMaskBytes * batchSize, cudaMemcpyHostToDevice, h2dStream));
+  CUDA_ERR("getOutput", cudaMemcpyAsync(gpuHandle->getBuffer("InputSpatial"), inputBuffers->spatialInputs.get(), inputBuffers->singleInputBytes * batchSize, cudaMemcpyHostToDevice, h2dStream));
+  CUDA_ERR("getOutput", cudaMemcpyAsync(gpuHandle->getBuffer("InputGlobal"), inputBuffers->globalInputs.get(), inputBuffers->singleInputGlobalBytes * batchSize, cudaMemcpyHostToDevice, h2dStream));
+  if(numMetaFeatures > 0) {
+    CUDA_ERR("getOutput", cudaMemcpyAsync(gpuHandle->getBuffer("InputMeta"), inputBuffers->metaInputs.get(), inputBuffers->singleInputMetaBytes * batchSize, cudaMemcpyHostToDevice, h2dStream));
+  }
+
+  auto maskInputDims = gpuHandle->getBufferDynamicShape("InputMask", batchSize);
+  auto spatialInputDims = gpuHandle->getBufferDynamicShape("InputSpatial", batchSize);
+  auto globalInputDims = gpuHandle->getBufferDynamicShape("InputGlobal", batchSize);
+
+  gpuHandle->exec->setInputShape("InputMask", maskInputDims);
+  gpuHandle->exec->setInputShape("InputSpatial", spatialInputDims);
+  gpuHandle->exec->setInputShape("InputGlobal", globalInputDims);
+
+  if(numMetaFeatures > 0) {
+    auto metaInputDims = gpuHandle->getBufferDynamicShape("InputMeta", batchSize);
+    gpuHandle->exec->setInputShape("InputMeta", metaInputDims);
+  }
+}
+
+static void enqueueOutputCopies(
+  ComputeHandle* gpuHandle,
+  InputBuffers* inputBuffers,
+  int batchSize,
+  cudaStream_t d2hStream
+) {
+  if(gpuHandle->ctx->isOnnx) {
+    CUDA_ERR("getOutput", cudaMemcpyAsync(inputBuffers->out_policyResults.get(), gpuHandle->getBuffer("out_policy"), inputBuffers->singleout_policyBytes * batchSize, cudaMemcpyDeviceToHost, d2hStream));
+    CUDA_ERR("getOutput", cudaMemcpyAsync(inputBuffers->out_valueResults.get(), gpuHandle->getBuffer("out_value"), inputBuffers->singleout_valueBytes * batchSize, cudaMemcpyDeviceToHost, d2hStream));
+    CUDA_ERR("getOutput", cudaMemcpyAsync(inputBuffers->out_miscvalueResults.get(), gpuHandle->getBuffer("out_miscvalue"), inputBuffers->singleout_miscvalueBytes * batchSize, cudaMemcpyDeviceToHost, d2hStream));
+    CUDA_ERR("getOutput", cudaMemcpyAsync(inputBuffers->out_moremiscvalueResults.get(), gpuHandle->getBuffer("out_moremiscvalue"), inputBuffers->singleout_moremiscvalueBytes * batchSize, cudaMemcpyDeviceToHost, d2hStream));
+    CUDA_ERR("getOutput", cudaMemcpyAsync(inputBuffers->out_ownershipResults.get(), gpuHandle->getBuffer("out_ownership"), inputBuffers->singleout_ownershipBytes * batchSize, cudaMemcpyDeviceToHost, d2hStream));
+    return;
+  }
+
+  CUDA_ERR("getOutput", cudaMemcpyAsync(inputBuffers->policyPassResults.get(), gpuHandle->getBuffer("OutputPolicyPass"), inputBuffers->singlePolicyPassResultBytes * batchSize, cudaMemcpyDeviceToHost, d2hStream));
+  CUDA_ERR("getOutput", cudaMemcpyAsync(inputBuffers->policyResults.get(), gpuHandle->getBuffer("OutputPolicy"), inputBuffers->singlePolicyResultBytes * batchSize, cudaMemcpyDeviceToHost, d2hStream));
+  CUDA_ERR("getOutput", cudaMemcpyAsync(inputBuffers->valueResults.get(), gpuHandle->getBuffer("OutputValue"), inputBuffers->singleValueResultBytes * batchSize, cudaMemcpyDeviceToHost, d2hStream));
+  CUDA_ERR("getOutput", cudaMemcpyAsync(inputBuffers->scoreValueResults.get(), gpuHandle->getBuffer("OutputScoreValue"), inputBuffers->singleScoreValueResultBytes * batchSize, cudaMemcpyDeviceToHost, d2hStream));
+  CUDA_ERR("getOutput", cudaMemcpyAsync(inputBuffers->ownershipResults.get(), gpuHandle->getBuffer("OutputOwnership"), inputBuffers->singleOwnershipResultBytes * batchSize, cudaMemcpyDeviceToHost, d2hStream));
+}
+
+static void enqueueSharedOutputCopies(
+  ComputeHandle* gpuHandle,
+  InputBuffers* inputBuffers,
+  int batchSize,
+  cudaStream_t d2hStream
+) {
+  if(gpuHandle->ctx->isOnnx) {
+    CUDA_ERR("trtEnqueueOutputCopiesAsync", cudaMemcpyAsync(inputBuffers->out_policyResults.get(), getSharedDeviceBuffer(inputBuffers, "out_policy"), inputBuffers->singleout_policyBytes * batchSize, cudaMemcpyDeviceToHost, d2hStream));
+    CUDA_ERR("trtEnqueueOutputCopiesAsync", cudaMemcpyAsync(inputBuffers->out_valueResults.get(), getSharedDeviceBuffer(inputBuffers, "out_value"), inputBuffers->singleout_valueBytes * batchSize, cudaMemcpyDeviceToHost, d2hStream));
+    CUDA_ERR("trtEnqueueOutputCopiesAsync", cudaMemcpyAsync(inputBuffers->out_miscvalueResults.get(), getSharedDeviceBuffer(inputBuffers, "out_miscvalue"), inputBuffers->singleout_miscvalueBytes * batchSize, cudaMemcpyDeviceToHost, d2hStream));
+    CUDA_ERR("trtEnqueueOutputCopiesAsync", cudaMemcpyAsync(inputBuffers->out_moremiscvalueResults.get(), getSharedDeviceBuffer(inputBuffers, "out_moremiscvalue"), inputBuffers->singleout_moremiscvalueBytes * batchSize, cudaMemcpyDeviceToHost, d2hStream));
+    CUDA_ERR("trtEnqueueOutputCopiesAsync", cudaMemcpyAsync(inputBuffers->out_ownershipResults.get(), getSharedDeviceBuffer(inputBuffers, "out_ownership"), inputBuffers->singleout_ownershipBytes * batchSize, cudaMemcpyDeviceToHost, d2hStream));
+    return;
+  }
+
+  CUDA_ERR("trtEnqueueOutputCopiesAsync", cudaMemcpyAsync(inputBuffers->policyPassResults.get(), getSharedDeviceBuffer(inputBuffers, "OutputPolicyPass"), inputBuffers->singlePolicyPassResultBytes * batchSize, cudaMemcpyDeviceToHost, d2hStream));
+  CUDA_ERR("trtEnqueueOutputCopiesAsync", cudaMemcpyAsync(inputBuffers->policyResults.get(), getSharedDeviceBuffer(inputBuffers, "OutputPolicy"), inputBuffers->singlePolicyResultBytes * batchSize, cudaMemcpyDeviceToHost, d2hStream));
+  CUDA_ERR("trtEnqueueOutputCopiesAsync", cudaMemcpyAsync(inputBuffers->valueResults.get(), getSharedDeviceBuffer(inputBuffers, "OutputValue"), inputBuffers->singleValueResultBytes * batchSize, cudaMemcpyDeviceToHost, d2hStream));
+  CUDA_ERR("trtEnqueueOutputCopiesAsync", cudaMemcpyAsync(inputBuffers->scoreValueResults.get(), getSharedDeviceBuffer(inputBuffers, "OutputScoreValue"), inputBuffers->singleScoreValueResultBytes * batchSize, cudaMemcpyDeviceToHost, d2hStream));
+  CUDA_ERR("trtEnqueueOutputCopiesAsync", cudaMemcpyAsync(inputBuffers->ownershipResults.get(), getSharedDeviceBuffer(inputBuffers, "OutputOwnership"), inputBuffers->singleOwnershipResultBytes * batchSize, cudaMemcpyDeviceToHost, d2hStream));
+}
+
+static void unpackOutputRow(
+  InputBuffers* inputBuffers,
+  const NNResultBuf* inputBuf,
+  NNOutput* output,
+  int row,
+  int nnXLen,
+  int nnYLen,
+  int modelVersion,
+  bool isOnnx,
+  int trtPolicyChannels,
+  float* policyProbsTmp
+) {
+  assert(output->nnXLen == nnXLen);
+  assert(output->nnYLen == nnYLen);
+  const float policyOptimism = (float)inputBuf->policyOptimism;
+
+  if(isOnnx) {
+    const float* policySrcBuf = &inputBuffers->out_policyResults[row * inputBuffers->singleout_policyElts];
+    float* policyProbs = output->policyProbs;
+
+    int onnxPolicyChannels = (modelVersion >= 12 && modelVersion <= 99) ? 2 : 1;
+
+    if(onnxPolicyChannels == 2) {
+      assert(inputBuffers->singleout_policyElts == 6 * (nnXLen * nnYLen + 1));
+      for(int i = 0; i < nnXLen * nnYLen; i++) {
+        float p = policySrcBuf[i];
+        float pOpt = policySrcBuf[i + 5 * (nnXLen * nnYLen + 1)];
+        policyProbsTmp[i] = p + (pOpt - p) * policyOptimism;
+      }
+      SymmetryHelpers::copyOutputsWithSymmetry(
+        policyProbsTmp, policyProbs, 1, nnYLen, nnXLen, inputBuf->symmetry);
+      policyProbs[nnXLen * nnYLen] =
+        policySrcBuf[nnXLen * nnYLen] +
+        (policySrcBuf[5 * (nnXLen * nnYLen + 1) + nnXLen * nnYLen] - policySrcBuf[nnXLen * nnYLen]) * policyOptimism;
+    } else {
+      assert(onnxPolicyChannels == 1);
+      SymmetryHelpers::copyOutputsWithSymmetry(
+        policySrcBuf, policyProbs, 1, nnYLen, nnXLen, inputBuf->symmetry);
+      policyProbs[nnXLen * nnYLen] = policySrcBuf[nnXLen * nnYLen];
+    }
+
+    int numValueChannels = inputBuffers->singleout_valueElts;
+    assert(numValueChannels == 3);
+    output->whiteWinProb = inputBuffers->out_valueResults[row * numValueChannels];
+    output->whiteLossProb = inputBuffers->out_valueResults[row * numValueChannels + 1];
+    output->whiteNoResultProb = inputBuffers->out_valueResults[row * numValueChannels + 2];
+
+    if(output->whiteOwnerMap != NULL) {
+      const float* ownershipSrcBuf = &inputBuffers->out_ownershipResults[row * nnXLen * nnYLen];
+      assert(inputBuffers->singleout_ownershipElts == nnXLen * nnYLen);
+      SymmetryHelpers::copyOutputsWithSymmetry(
+        ownershipSrcBuf, output->whiteOwnerMap, 1, nnYLen, nnXLen, inputBuf->symmetry);
+    }
+
+    int numScoreValueChannels = inputBuffers->singleout_miscvalueElts;
+    int numMoreValueChannels = inputBuffers->singleout_moremiscvalueElts;
+    if(modelVersion >= 9) {
+      output->whiteScoreMean = inputBuffers->out_miscvalueResults[row * numScoreValueChannels];
+      output->whiteScoreMeanSq = inputBuffers->out_miscvalueResults[row * numScoreValueChannels + 1];
+      output->whiteLead = inputBuffers->out_miscvalueResults[row * numScoreValueChannels + 2];
+      output->varTimeLeft = inputBuffers->out_miscvalueResults[row * numScoreValueChannels + 3];
+      output->shorttermWinlossError = inputBuffers->out_moremiscvalueResults[row * numMoreValueChannels];
+      output->shorttermScoreError = inputBuffers->out_moremiscvalueResults[row * numMoreValueChannels + 1];
+    }
+    else {
+      std::cout << "version: " << modelVersion << " is not supported in ONNX" << std::endl;
+      assert(false);
+    }
+    return;
+  }
+
+  const float* policyPassSrcBuf = &inputBuffers->policyPassResults[row * inputBuffers->singlePolicyPassResultElts];
+  const float* policySrcBuf = &inputBuffers->policyResults[row * inputBuffers->singlePolicyResultElts];
+  float* policyProbs = output->policyProbs;
+
+  if(trtPolicyChannels == 2 || (trtPolicyChannels == 4 && modelVersion >= 16)) {
+    for(int i = 0; i < nnXLen * nnYLen; i++) {
+      float p = policySrcBuf[i];
+      float pOpt = policySrcBuf[i + nnXLen * nnYLen];
+      policyProbsTmp[i] = p + (pOpt - p) * policyOptimism;
+    }
+    SymmetryHelpers::copyOutputsWithSymmetry(
+      policyProbsTmp, policyProbs, 1, nnYLen, nnXLen, inputBuf->symmetry);
+    policyProbs[nnXLen * nnYLen] = policyPassSrcBuf[0] + (policyPassSrcBuf[1] - policyPassSrcBuf[0]) * policyOptimism;
+  } else {
+    assert(trtPolicyChannels == 1);
+    SymmetryHelpers::copyOutputsWithSymmetry(
+      policySrcBuf, policyProbs, 1, nnYLen, nnXLen, inputBuf->symmetry);
+    policyProbs[nnXLen * nnYLen] = policyPassSrcBuf[0];
+  }
+
+  int numValueChannels = inputBuffers->singleValueResultElts;
+  assert(numValueChannels == 3);
+  output->whiteWinProb = inputBuffers->valueResults[row * numValueChannels];
+  output->whiteLossProb = inputBuffers->valueResults[row * numValueChannels + 1];
+  output->whiteNoResultProb = inputBuffers->valueResults[row * numValueChannels + 2];
+
+  if(output->whiteOwnerMap != NULL) {
+    const float* ownershipSrcBuf = &inputBuffers->ownershipResults[row * nnXLen * nnYLen];
+    assert(inputBuffers->singleOwnershipResultElts == nnXLen * nnYLen);
+    SymmetryHelpers::copyOutputsWithSymmetry(
+      ownershipSrcBuf, output->whiteOwnerMap, 1, nnYLen, nnXLen, inputBuf->symmetry);
+  }
+
+  int numScoreValueChannels = inputBuffers->singleScoreValueResultElts;
+  if(modelVersion >= 9) {
+    assert(numScoreValueChannels == 6);
+    output->whiteScoreMean = inputBuffers->scoreValueResults[row * numScoreValueChannels];
+    output->whiteScoreMeanSq = inputBuffers->scoreValueResults[row * numScoreValueChannels + 1];
+    output->whiteLead = inputBuffers->scoreValueResults[row * numScoreValueChannels + 2];
+    output->varTimeLeft = inputBuffers->scoreValueResults[row * numScoreValueChannels + 3];
+    output->shorttermWinlossError = inputBuffers->scoreValueResults[row * numScoreValueChannels + 4];
+    output->shorttermScoreError = inputBuffers->scoreValueResults[row * numScoreValueChannels + 5];
+  } else if(modelVersion >= 8) {
+    assert(numScoreValueChannels == 4);
+    output->whiteScoreMean = inputBuffers->scoreValueResults[row * numScoreValueChannels];
+    output->whiteScoreMeanSq = inputBuffers->scoreValueResults[row * numScoreValueChannels + 1];
+    output->whiteLead = inputBuffers->scoreValueResults[row * numScoreValueChannels + 2];
+    output->varTimeLeft = inputBuffers->scoreValueResults[row * numScoreValueChannels + 3];
+    output->shorttermWinlossError = 0;
+    output->shorttermScoreError = 0;
+  } else if(modelVersion >= 4) {
+    assert(numScoreValueChannels == 2);
+    output->whiteScoreMean = inputBuffers->scoreValueResults[row * numScoreValueChannels];
+    output->whiteScoreMeanSq = inputBuffers->scoreValueResults[row * numScoreValueChannels + 1];
+    output->whiteLead = output->whiteScoreMean;
+    output->varTimeLeft = 0;
+    output->shorttermWinlossError = 0;
+    output->shorttermScoreError = 0;
+  } else if(modelVersion >= 3) {
+    assert(numScoreValueChannels == 1);
+    output->whiteScoreMean = inputBuffers->scoreValueResults[row * numScoreValueChannels];
+    output->whiteScoreMeanSq = output->whiteScoreMean * output->whiteScoreMean;
+    output->whiteLead = output->whiteScoreMean;
+    output->varTimeLeft = 0;
+    output->shorttermWinlossError = 0;
+    output->shorttermScoreError = 0;
+  } else {
+    ASSERT_UNREACHABLE;
+  }
 }
 
 void NeuralNet::getOutput(
@@ -2176,290 +2883,399 @@ void NeuralNet::getOutput(
   const int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(modelVersion);
   const int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(modelVersion);
   const int numMetaFeatures = inputBuffers->singleInputMetaElts;
-  cudaStream_t stream = cudaStreamPerThread;
+  gpuHandle->setDevice("getOutput");
+  cudaStream_t h2dStream = gpuHandle->h2dStream;
+  cudaStream_t inferStream = gpuHandle->inferStream;
+  cudaStream_t d2hStream = gpuHandle->d2hStream;
   const bool perfEnabled = gpuHandle->perfProfileEnabled;
-  double preprocessMs = 0.0;
   double d2hMs = 0.0;
   float h2dMs = 0.0f;
-  float waitGpuMs = 0.0f;
-  auto preprocessStart = std::chrono::steady_clock::now();
+  float inferMs = 0.0f;
+  int64_t h2dSubmitEndNs = 0;
+  int64_t inferSubmitEndNs = 0;
+  int64_t d2hSubmitEndNs = 0;
   assert(numSpatialFeatures * nnXLen * nnYLen == inputBuffers->singleInputElts);
   assert(numGlobalFeatures == inputBuffers->singleInputGlobalElts);
 
-  for(int nIdx = 0; nIdx < batchSize; nIdx++) {
-    float* rowMaskInput = &inputBuffers->maskInputs[inputBuffers->singleMaskElts * nIdx];
-    float* rowSpatialInput = &inputBuffers->spatialInputs[inputBuffers->singleInputElts * nIdx];
-    float* rowGlobalInput = &inputBuffers->globalInputs[inputBuffers->singleInputGlobalElts * nIdx];
-    float* rowMetaInput = &inputBuffers->metaInputs[inputBuffers->singleInputMetaElts * nIdx];
-
-    const float* rowGlobal = inputBufs[nIdx]->rowGlobalBuf.data();
-    const float* rowSpatial = inputBufs[nIdx]->rowSpatialBuf.data();
-    const float* rowMeta = inputBufs[nIdx]->rowMetaBuf.data();
-    const bool hasRowMeta = inputBufs[nIdx]->hasRowMeta;
-    copy(rowGlobal, rowGlobal + numGlobalFeatures, rowGlobalInput);
-    std::copy(rowGlobal,rowGlobal+numGlobalFeatures,rowGlobalInput);
-    if(numMetaFeatures > 0) {
-      testAssert(rowMeta != NULL);
-      testAssert(hasRowMeta);
-      std::copy(rowMeta,rowMeta+numMetaFeatures,rowMetaInput);
-    }
-    else {
-      testAssert(!hasRowMeta);
-    }
-    SymmetryHelpers::copyInputsWithSymmetry(
-      rowSpatial, rowSpatialInput, 1, nnYLen, nnXLen, numSpatialFeatures, false, inputBufs[nIdx]->symmetry);
-    copy(rowSpatialInput, rowSpatialInput + inputBuffers->singleMaskElts, rowMaskInput);
-  }
+  for(int nIdx = 0; nIdx < batchSize; nIdx++)
+    packInputRow(inputBuffers, inputBufs[nIdx], nIdx, numSpatialFeatures, numGlobalFeatures, numMetaFeatures, nnXLen, nnYLen);
   if(perfEnabled) {
-    preprocessMs = elapsedMilliseconds(preprocessStart);
-    CUDA_ERR("getOutput", cudaEventRecord(gpuHandle->perfH2DStartEvent, stream));
+    CUDA_ERR("getOutput", cudaEventRecord(gpuHandle->perfH2DStartEvent, h2dStream));
   }
 
-  // Set inputs
-  if (isOnnx) {
-      assert(inputBuffers->singleInputElts == gpuHandle->getBufferRowElts("input_spatial"));
-      assert(inputBuffers->singleInputGlobalElts == gpuHandle->getBufferRowElts("input_global"));
-      
-      CUDA_ERR("getOutput", cudaMemcpyAsync(gpuHandle->getBuffer("input_spatial"), inputBuffers->spatialInputs.get(), inputBuffers->singleInputBytes * batchSize, cudaMemcpyHostToDevice, stream));
-      CUDA_ERR("getOutput", cudaMemcpyAsync(gpuHandle->getBuffer("input_global"), inputBuffers->globalInputs.get(), inputBuffers->singleInputGlobalBytes * batchSize, cudaMemcpyHostToDevice, stream));
-      
-      auto spatialInputDims = gpuHandle->getBufferDynamicShape("input_spatial", batchSize);
-      auto globalInputDims = gpuHandle->getBufferDynamicShape("input_global", batchSize);
-      gpuHandle->exec->setInputShape("input_spatial", spatialInputDims);
-      gpuHandle->exec->setInputShape("input_global", globalInputDims);
-  } else {
-      assert(inputBuffers->singleMaskElts == gpuHandle->getBufferRowElts("InputMask"));
-      assert(inputBuffers->singleInputElts == gpuHandle->getBufferRowElts("InputSpatial"));
-      assert(inputBuffers->singleInputGlobalElts == gpuHandle->getBufferRowElts("InputGlobal"));
-      if(numMetaFeatures > 0)
-        assert(inputBuffers->singleInputMetaElts == gpuHandle->getBufferRowElts("InputMeta"));
-
-      CUDA_ERR("getOutput", cudaMemcpyAsync(gpuHandle->getBuffer("InputMask"), inputBuffers->maskInputs.get(), inputBuffers->singleMaskBytes * batchSize, cudaMemcpyHostToDevice, stream));
-      CUDA_ERR("getOutput", cudaMemcpyAsync(gpuHandle->getBuffer("InputSpatial"), inputBuffers->spatialInputs.get(), inputBuffers->singleInputBytes * batchSize, cudaMemcpyHostToDevice, stream));
-      CUDA_ERR("getOutput", cudaMemcpyAsync(gpuHandle->getBuffer("InputGlobal"), inputBuffers->globalInputs.get(), inputBuffers->singleInputGlobalBytes * batchSize, cudaMemcpyHostToDevice, stream));
-      if(numMetaFeatures > 0) {
-        CUDA_ERR("getOutput", cudaMemcpyAsync(gpuHandle->getBuffer("InputMeta"), inputBuffers->metaInputs.get(), inputBuffers->singleInputMetaBytes * batchSize, cudaMemcpyHostToDevice, stream));
-      }
-
-      auto maskInputDims = gpuHandle->getBufferDynamicShape("InputMask", batchSize);
-      auto spatialInputDims = gpuHandle->getBufferDynamicShape("InputSpatial", batchSize);
-      auto globalInputDims = gpuHandle->getBufferDynamicShape("InputGlobal", batchSize);
-
-      gpuHandle->exec->setInputShape("InputMask", maskInputDims);
-      gpuHandle->exec->setInputShape("InputSpatial", spatialInputDims);
-      gpuHandle->exec->setInputShape("InputGlobal", globalInputDims);
-
-      if(numMetaFeatures > 0) {
-        auto metaInputDims = gpuHandle->getBufferDynamicShape("InputMeta", batchSize);
-        gpuHandle->exec->setInputShape("InputMeta", metaInputDims);
-      }
-  }
+  enqueueInputCopies(gpuHandle, inputBuffers, batchSize, numMetaFeatures, h2dStream);
   if(perfEnabled)
-    CUDA_ERR("getOutput", cudaEventRecord(gpuHandle->perfH2DEndEvent, stream));
+    h2dSubmitEndNs = nowSteadyNs();
+  if(perfEnabled)
+    CUDA_ERR("getOutput", cudaEventRecord(gpuHandle->perfH2DEndEvent, h2dStream));
+  CUDA_ERR("getOutput", cudaEventRecord(gpuHandle->h2dDoneEvent, h2dStream));
+  CUDA_ERR("getOutput", cudaStreamWaitEvent(inferStream, gpuHandle->h2dDoneEvent, 0));
 
-  gpuHandle->maybeRecordLaunchInterval();
   gpuHandle->enqueueWithOptionalCudaGraph(batchSize);
   if(perfEnabled)
-    CUDA_ERR("getOutput", cudaEventRecord(gpuHandle->perfInferenceDoneEvent, stream));
-
-  // Get outputs
-  if (isOnnx) {
-      CUDA_ERR("getOutput", cudaMemcpyAsync(inputBuffers->out_policyResults.get(), gpuHandle->getBuffer("out_policy"), inputBuffers->singleout_policyBytes * batchSize, cudaMemcpyDeviceToHost, stream));
-      CUDA_ERR("getOutput", cudaMemcpyAsync(inputBuffers->out_valueResults.get(), gpuHandle->getBuffer("out_value"), inputBuffers->singleout_valueBytes * batchSize, cudaMemcpyDeviceToHost, stream));
-      CUDA_ERR("getOutput", cudaMemcpyAsync(inputBuffers->out_miscvalueResults.get(), gpuHandle->getBuffer("out_miscvalue"), inputBuffers->singleout_miscvalueBytes * batchSize, cudaMemcpyDeviceToHost, stream));
-      CUDA_ERR("getOutput", cudaMemcpyAsync(inputBuffers->out_moremiscvalueResults.get(), gpuHandle->getBuffer("out_moremiscvalue"), inputBuffers->singleout_moremiscvalueBytes * batchSize, cudaMemcpyDeviceToHost, stream));
-      CUDA_ERR("getOutput", cudaMemcpyAsync(inputBuffers->out_ownershipResults.get(), gpuHandle->getBuffer("out_ownership"), inputBuffers->singleout_ownershipBytes * batchSize, cudaMemcpyDeviceToHost, stream));
-  } else {
-      CUDA_ERR("getOutput", cudaMemcpyAsync(inputBuffers->policyPassResults.get(), gpuHandle->getBuffer("OutputPolicyPass"), inputBuffers->singlePolicyPassResultBytes * batchSize, cudaMemcpyDeviceToHost, stream));
-      CUDA_ERR("getOutput", cudaMemcpyAsync(inputBuffers->policyResults.get(), gpuHandle->getBuffer("OutputPolicy"), inputBuffers->singlePolicyResultBytes * batchSize, cudaMemcpyDeviceToHost, stream));
-      CUDA_ERR("getOutput", cudaMemcpyAsync(inputBuffers->valueResults.get(), gpuHandle->getBuffer("OutputValue"), inputBuffers->singleValueResultBytes * batchSize, cudaMemcpyDeviceToHost, stream));
-      CUDA_ERR("getOutput", cudaMemcpyAsync(inputBuffers->scoreValueResults.get(), gpuHandle->getBuffer("OutputScoreValue"), inputBuffers->singleScoreValueResultBytes * batchSize, cudaMemcpyDeviceToHost, stream));
-      CUDA_ERR("getOutput", cudaMemcpyAsync(inputBuffers->ownershipResults.get(), gpuHandle->getBuffer("OutputOwnership"), inputBuffers->singleOwnershipResultBytes * batchSize, cudaMemcpyDeviceToHost, stream));
-  }
+    inferSubmitEndNs = nowSteadyNs();
   if(perfEnabled)
-    CUDA_ERR("getOutput", cudaEventRecord(gpuHandle->perfD2HEndEvent, stream));
-  CUDA_ERR("getOutput", cudaStreamSynchronize(stream));
+    CUDA_ERR("getOutput", cudaEventRecord(gpuHandle->perfInferenceDoneEvent, inferStream));
+  CUDA_ERR("getOutput", cudaEventRecord(gpuHandle->inferDoneEvent, inferStream));
+  CUDA_ERR("getOutput", cudaStreamWaitEvent(d2hStream, gpuHandle->inferDoneEvent, 0));
+
+  enqueueOutputCopies(gpuHandle, inputBuffers, batchSize, d2hStream);
+  if(perfEnabled)
+    d2hSubmitEndNs = nowSteadyNs();
+  if(perfEnabled)
+    CUDA_ERR("getOutput", cudaEventRecord(gpuHandle->perfD2HEndEvent, d2hStream));
+  CUDA_ERR("getOutput", cudaStreamSynchronize(d2hStream));
   if(perfEnabled) {
     float d2hMsF = 0.0f;
     CUDA_ERR("getOutput", cudaEventElapsedTime(&h2dMs, gpuHandle->perfH2DStartEvent, gpuHandle->perfH2DEndEvent));
-    CUDA_ERR("getOutput", cudaEventElapsedTime(&waitGpuMs, gpuHandle->perfH2DEndEvent, gpuHandle->perfInferenceDoneEvent));
+    CUDA_ERR("getOutput", cudaEventElapsedTime(&inferMs, gpuHandle->perfH2DEndEvent, gpuHandle->perfInferenceDoneEvent));
     CUDA_ERR("getOutput", cudaEventElapsedTime(&d2hMsF, gpuHandle->perfInferenceDoneEvent, gpuHandle->perfD2HEndEvent));
     d2hMs = (double)d2hMsF;
+    GlobalPerfProfile::recordCudaStreamTask(
+      GlobalPerfProfile::CudaStreamType::H2D,
+      gpuHandle->serverThreadIdxForHandle,
+      h2dSubmitEndNs,
+      (double)h2dMs
+    );
+    GlobalPerfProfile::recordCudaStreamTask(
+      GlobalPerfProfile::CudaStreamType::Infer,
+      gpuHandle->serverThreadIdxForHandle,
+      inferSubmitEndNs,
+      (double)inferMs
+    );
+    GlobalPerfProfile::recordCudaStreamTask(
+      GlobalPerfProfile::CudaStreamType::D2H,
+      gpuHandle->serverThreadIdxForHandle,
+      d2hSubmitEndNs,
+      d2hMs
+    );
   }
 
   gpuHandle->printDebugOutput(batchSize);
-  gpuHandle->trtErrorRecorder.clear();
+  gpuHandle->clearErrorRecorder();
 
   assert(outputs.size() == batchSize);
 
   float policyProbsTmp[NNPos::MAX_NN_POLICY_SIZE];
-  const int numPolicyChannels = inputBuffers->singlePolicyPassResultElts;
-  auto postprocessStart = std::chrono::steady_clock::now();
+  const int trtPolicyChannels = inputBuffers->singlePolicyPassResultElts;
 
-  for(int row = 0; row < batchSize; row++) {
-    NNOutput* output = outputs[row];
+  for(int row = 0; row < batchSize; row++)
+    unpackOutputRow(inputBuffers, inputBufs[row], outputs[row], row, nnXLen, nnYLen, modelVersion, isOnnx, trtPolicyChannels, policyProbsTmp);
+}
 
-    assert(output->nnXLen == nnXLen);
-    assert(output->nnYLen == nnYLen);
-    float policyOptimism = (float)inputBufs[row]->policyOptimism;
+static bool queryCudaEvent(const char* opName, cudaEvent_t event) {
+  if(event == nullptr)
+    return true;
+  cudaError_t status = cudaEventQuery(event);
+  if(status == cudaSuccess)
+    return true;
+  if(status == cudaErrorNotReady)
+    return false;
+  throw StringError(string(opName) + ": " + cudaGetErrorString(status));
+}
 
-    if(isOnnx) {
-      const float* policySrcBuf = &inputBuffers->out_policyResults[row * inputBuffers->singleout_policyElts];
-      float* policyProbs = output->policyProbs;
+static double elapsedMsBetweenEvents(const char* opName, cudaEvent_t startEvent, cudaEvent_t endEvent) {
+  if(startEvent == nullptr || endEvent == nullptr)
+    return 0.0;
+  float elapsedMs = 0.0f;
+  CUDA_ERR(opName, cudaEventElapsedTime(&elapsedMs, startEvent, endEvent));
+  return (double)elapsedMs;
+}
 
-      int numPolicyChannels = (modelVersion >= 12 && modelVersion <= 99) ? 2 : 1;
+struct CudaTimedSection {
+  cudaEvent_t startEvent;
+  cudaEvent_t endEvent;
+};
 
-      if(numPolicyChannels == 2) {
-        assert(inputBuffers->singleout_policyElts == 6 * (nnXLen * nnYLen + 1));
-        // TRT is all NCHW
-        for(int i = 0; i < nnXLen * nnYLen; i++) {
-          float p = policySrcBuf[i];
-          // float pOpt = policySrcBuf[i + nnXLen * nnYLen];
-          float pOpt = policySrcBuf[i + 5 * (nnXLen * nnYLen + 1)];
-          policyProbsTmp[i] = p + (pOpt - p) * policyOptimism;
-        }
-        SymmetryHelpers::copyOutputsWithSymmetry(
-          policyProbsTmp, policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry); 
-        policyProbs[nnXLen * nnYLen] =
-          policySrcBuf[nnXLen * nnYLen] +
-          (policySrcBuf[5 * (nnXLen * nnYLen + 1) + nnXLen * nnYLen] - policySrcBuf[nnXLen * nnYLen]) * policyOptimism;
-      } else {
-        // Fallback or default for 1 channel (or just take first channel if > 1 and not handled)
-        // trtbackend1.cpp logic for 6/4 channels likely just takes the first one?
-        // "singleout_policyElts = 1 * policyNum * ..."
-        // If policyNum is 6, what do we do?
-        // In trtbackend1.cpp getOutput, it asserts numPolicyChannels == 1.
-        // If policyNum was 6, assert would fail if numPolicyChannels was 6.
-        // But numPolicyChannels variable in trtbackend1.cpp seemed to come from somewhere else or was 1.
-        // If we assume channel 0 is the main policy.
-        assert(numPolicyChannels == 1);
-        SymmetryHelpers::copyOutputsWithSymmetry(
-          policySrcBuf, policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
-        policyProbs[nnXLen * nnYLen] = policySrcBuf[nnXLen * nnYLen];
-      }
+template<typename EnqueueFunc>
+static void enqueueCudaTimedSection(
+  const char* opName,
+  cudaStream_t stream,
+  const CudaTimedSection& section,
+  EnqueueFunc&& enqueueFunc
+) {
+  if(section.startEvent != nullptr)
+    CUDA_ERR(opName, cudaEventRecord(section.startEvent, stream));
+  enqueueFunc();
+  if(section.endEvent != nullptr)
+    CUDA_ERR(opName, cudaEventRecord(section.endEvent, stream));
+}
 
-      int numValueChannels = inputBuffers->singleout_valueElts;
-      assert(numValueChannels == 3);
-      output->whiteWinProb = inputBuffers->out_valueResults[row * numValueChannels];
-      output->whiteLossProb = inputBuffers->out_valueResults[row * numValueChannels + 1];
-      output->whiteNoResultProb = inputBuffers->out_valueResults[row * numValueChannels + 2];
+void NeuralNet::trtInitializeSharedBuffer(
+  ComputeHandle* computeHandle,
+  InputBuffers* buffers
+) {
+  computeHandle->setDevice("trtInitializeSharedBuffer");
+  if(buffers->trtSharedResourcesInitialized)
+    return;
 
-      // As above, these are NOT actually from white's perspective, but rather the player to move.
-      // As usual the client does the postprocessing.
-      if(output->whiteOwnerMap != NULL) {
-        // const float* ownershipSrcBuf = &inputBuffers->ownershipResults[row * nnXLen * nnYLen];
-        const float* ownershipSrcBuf = &inputBuffers->out_ownershipResults[row * nnXLen * nnYLen];
-        assert(inputBuffers->singleout_ownershipElts == nnXLen * nnYLen);
-        SymmetryHelpers::copyOutputsWithSymmetry(
-          ownershipSrcBuf, output->whiteOwnerMap, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
-      }
-
-
-      int numScoreValueChannels = inputBuffers->singleout_miscvalueElts;
-      int numMoreValueChannels = inputBuffers->singleout_moremiscvalueElts;
-      if(modelVersion >= 9) {
-        output->whiteScoreMean = inputBuffers->out_miscvalueResults[row * numScoreValueChannels];
-        output->whiteScoreMeanSq = inputBuffers->out_miscvalueResults[row * numScoreValueChannels + 1];
-        output->whiteLead = inputBuffers->out_miscvalueResults[row * numScoreValueChannels + 2];
-        output->varTimeLeft = inputBuffers->out_miscvalueResults[row * numScoreValueChannels + 3];
-        output->shorttermWinlossError = inputBuffers->out_moremiscvalueResults[row * numMoreValueChannels];
-        output->shorttermScoreError = inputBuffers->out_moremiscvalueResults[row * numMoreValueChannels + 1];
-      }
-      else
-      {
-          std::cout << "version: " << modelVersion << " is not supported in ONNX" << std::endl;
-          assert(false);
-      }
-
-    } else {
-      const float* policyPassSrcBuf = &inputBuffers->policyPassResults[row * inputBuffers->singlePolicyPassResultElts];
-      const float* policySrcBuf = &inputBuffers->policyResults[row * inputBuffers->singlePolicyResultElts];
-      float* policyProbs = output->policyProbs;
-
-    // These are in logits, the client does the postprocessing to turn them into
-    // policy probabilities and white game outcome probabilities
-    // Also we don't fill in the nnHash here either
-    // Handle version >= 12 policy optimism
-      if(numPolicyChannels == 2 || (numPolicyChannels == 4 && modelVersion >= 16)) {
-      // TRT is all NCHW
-        for(int i = 0; i < nnXLen * nnYLen; i++) {
-          float p = policySrcBuf[i];
-          float pOpt = policySrcBuf[i + nnXLen * nnYLen];
-          policyProbsTmp[i] = p + (pOpt - p) * policyOptimism;
-        }
-        SymmetryHelpers::copyOutputsWithSymmetry(
-          policyProbsTmp, policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
-      policyProbs[nnXLen * nnYLen] = policyPassSrcBuf[0] + (policyPassSrcBuf[1] - policyPassSrcBuf[0]) * policyOptimism;
-      } else {
-        assert(numPolicyChannels == 1);
-      SymmetryHelpers::copyOutputsWithSymmetry(policySrcBuf, policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
-        policyProbs[nnXLen * nnYLen] = policyPassSrcBuf[0];
-      }
-
-      int numValueChannels = inputBuffers->singleValueResultElts;
-      assert(numValueChannels == 3);
-      output->whiteWinProb = inputBuffers->valueResults[row * numValueChannels];
-      output->whiteLossProb = inputBuffers->valueResults[row * numValueChannels + 1];
-      output->whiteNoResultProb = inputBuffers->valueResults[row * numValueChannels + 2];
-
-    // As above, these are NOT actually from white's perspective, but rather the player to move.
-    // As usual the client does the postprocessing.
-      if(output->whiteOwnerMap != NULL) {
-        const float* ownershipSrcBuf = &inputBuffers->ownershipResults[row * nnXLen * nnYLen];
-        assert(inputBuffers->singleOwnershipResultElts == nnXLen * nnYLen);
-        SymmetryHelpers::copyOutputsWithSymmetry(
-          ownershipSrcBuf, output->whiteOwnerMap, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
-      }
-
-      int numScoreValueChannels = inputBuffers->singleScoreValueResultElts;
-      if(modelVersion >= 9) {
-        assert(numScoreValueChannels == 6);
-        output->whiteScoreMean = inputBuffers->scoreValueResults[row * numScoreValueChannels];
-        output->whiteScoreMeanSq = inputBuffers->scoreValueResults[row * numScoreValueChannels + 1];
-        output->whiteLead = inputBuffers->scoreValueResults[row * numScoreValueChannels + 2];
-        output->varTimeLeft = inputBuffers->scoreValueResults[row * numScoreValueChannels + 3];
-        output->shorttermWinlossError = inputBuffers->scoreValueResults[row * numScoreValueChannels + 4];
-        output->shorttermScoreError = inputBuffers->scoreValueResults[row * numScoreValueChannels + 5];
-      } else if(modelVersion >= 8) {
-        assert(numScoreValueChannels == 4);
-        output->whiteScoreMean = inputBuffers->scoreValueResults[row * numScoreValueChannels];
-        output->whiteScoreMeanSq = inputBuffers->scoreValueResults[row * numScoreValueChannels + 1];
-        output->whiteLead = inputBuffers->scoreValueResults[row * numScoreValueChannels + 2];
-        output->varTimeLeft = inputBuffers->scoreValueResults[row * numScoreValueChannels + 3];
-        output->shorttermWinlossError = 0;
-        output->shorttermScoreError = 0;
-      } else if(modelVersion >= 4) {
-        assert(numScoreValueChannels == 2);
-        output->whiteScoreMean = inputBuffers->scoreValueResults[row * numScoreValueChannels];
-        output->whiteScoreMeanSq = inputBuffers->scoreValueResults[row * numScoreValueChannels + 1];
-        output->whiteLead = output->whiteScoreMean;
-        output->varTimeLeft = 0;
-        output->shorttermWinlossError = 0;
-        output->shorttermScoreError = 0;
-      } else if(modelVersion >= 3) {
-        assert(numScoreValueChannels == 1);
-        output->whiteScoreMean = inputBuffers->scoreValueResults[row * numScoreValueChannels];
-        output->whiteScoreMeanSq = output->whiteScoreMean * output->whiteScoreMean;
-        output->whiteLead = output->whiteScoreMean;
-        output->varTimeLeft = 0;
-        output->shorttermWinlossError = 0;
-        output->shorttermScoreError = 0;
-      } else {
-        ASSERT_UNREACHABLE;
-      }
+  buffers->trtGpuIdx = computeHandle->gpuIdxForHandle;
+  for(int i = 0; i < computeHandle->getEngine()->getNbIOTensors(); i++) {
+    auto name = computeHandle->getEngine()->getIOTensorName(i);
+    auto dims = computeHandle->getEngine()->getTensorShape(name);
+    size_t bytes = accumulate(dims.d + 1, dims.d + dims.nbDims, buffers->maxBatchSize * sizeof(float), multiplies<size_t>());
+    void* deviceBuffer = nullptr;
+    CUDA_ERR("trtInitializeSharedBuffer", cudaMalloc(&deviceBuffer, bytes));
+    buffers->trtDeviceBuffers.emplace(name, deviceBuffer);
+  }
+  CUDA_ERR("trtInitializeSharedBuffer", cudaEventCreateWithFlags(&buffers->trtH2DDoneEvent, cudaEventDisableTiming));
+  CUDA_ERR("trtInitializeSharedBuffer", cudaEventCreateWithFlags(&buffers->trtInferDoneEvent, cudaEventDisableTiming));
+  CUDA_ERR("trtInitializeSharedBuffer", cudaEventCreateWithFlags(&buffers->trtD2HDoneEvent, cudaEventDisableTiming));
+  buffers->trtH2DPending = false;
+  buffers->trtInferPending = false;
+  buffers->trtD2HPending = false;
+  if(computeHandle->perfProfileEnabled) {
+    for(int rowIdx = 0; rowIdx < buffers->maxBatchSize; rowIdx++) {
+      CUDA_ERR("trtInitializeSharedBuffer", cudaEventCreate(&buffers->trtPerfH2DStartEvents[rowIdx]));
+      CUDA_ERR("trtInitializeSharedBuffer", cudaEventCreate(&buffers->trtPerfH2DEndEvents[rowIdx]));
     }
+    CUDA_ERR("trtInitializeSharedBuffer", cudaEventCreate(&buffers->trtPerfInferStartEvent));
+    CUDA_ERR("trtInitializeSharedBuffer", cudaEventCreate(&buffers->trtPerfInferEndEvent));
+    CUDA_ERR("trtInitializeSharedBuffer", cudaEventCreate(&buffers->trtPerfD2HStartEvent));
+    CUDA_ERR("trtInitializeSharedBuffer", cudaEventCreate(&buffers->trtPerfD2HEndEvent));
   }
-  if(perfEnabled) {
-    double postprocessMs = elapsedMilliseconds(postprocessStart);
-    GlobalPerfProfile::recordInferencePhases(
-      preprocessMs,
-      (double)h2dMs,
-      (double)waitGpuMs,
-      d2hMs,
-      postprocessMs,
-      batchSize
-    );
+  buffers->trtSharedResourcesInitialized = true;
+}
+
+void NeuralNet::trtRegisterSharedBuffer(
+  ComputeHandle* computeHandle,
+  InputBuffers* buffers
+) {
+  computeHandle->setDevice("trtRegisterSharedBuffer");
+  if(!buffers->trtSharedResourcesInitialized)
+    throw StringError("trtRegisterSharedBuffer: shared buffer resources are not initialized");
+  if(findRegisteredBufferState(computeHandle, buffers) != nullptr)
+    return;
+
+  auto state = std::make_unique<ComputeHandle::RegisteredBufferState>(buffers, computeHandle->maxBatchSize);
+  state->exec.reset(computeHandle->getEngine()->createExecutionContext());
+  if(!state->exec)
+    throw StringError("TensorRT backend: failed to create execution context for shared buffer");
+
+  for(int i = 0; i < computeHandle->getEngine()->getNbIOTensors(); i++) {
+    auto name = computeHandle->getEngine()->getIOTensorName(i);
+    state->exec->setTensorAddress(name, getSharedDeviceBuffer(buffers, name));
   }
+
+  state->exec->setOptimizationProfileAsync(0, computeHandle->inferStream);
+  CUDA_ERR("trtRegisterSharedBuffer", cudaStreamSynchronize(computeHandle->inferStream));
+  computeHandle->clearErrorRecorder();
+  preCaptureAllBatchGraphsForExec(computeHandle, state->exec.get(), state->batchGraphStates);
+  computeHandle->registeredBuffers.push_back(std::move(state));
+}
+
+void NeuralNet::trtPackInputRow(
+  InputBuffers* buffers,
+  const NNResultBuf* inputBuf,
+  int rowIdx,
+  ComputeHandle* computeHandle
+) {
+  if(rowIdx < 0 || rowIdx >= buffers->maxBatchSize)
+    throw StringError("trtPackInputRow: rowIdx out of bounds");
+
+  const int modelVersion = computeHandle->modelVersion;
+  const int nnXLen = computeHandle->ctx->nnXLen;
+  const int nnYLen = computeHandle->ctx->nnYLen;
+  const int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(modelVersion);
+  const int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(modelVersion);
+  const int numMetaFeatures = buffers->singleInputMetaElts;
+  packInputRow(buffers, inputBuf, rowIdx, numSpatialFeatures, numGlobalFeatures, numMetaFeatures, nnXLen, nnYLen);
+}
+
+void NeuralNet::trtEnqueueInputRowCopy(
+  ComputeHandle* computeHandle,
+  InputBuffers* buffers,
+  int rowIdx
+) {
+  if(rowIdx < 0 || rowIdx >= buffers->maxBatchSize)
+    throw StringError("trtEnqueueInputRowCopy: rowIdx out of bounds");
+  computeHandle->setDevice("trtEnqueueInputRowCopy");
+  CudaTimedSection section = {
+    computeHandle->perfProfileEnabled ? buffers->trtPerfH2DStartEvents[rowIdx] : nullptr,
+    computeHandle->perfProfileEnabled ? buffers->trtPerfH2DEndEvents[rowIdx] : nullptr,
+  };
+  enqueueCudaTimedSection(
+    "trtEnqueueInputRowCopy",
+    computeHandle->h2dStream,
+    section,
+    [&]() { enqueueInputRowCopy(computeHandle, buffers, rowIdx); }
+  );
+  if(computeHandle->perfProfileEnabled) {
+    buffers->trtH2DSubmitEndNs[rowIdx] = nowSteadyNs();
+    buffers->trtH2DStreamIdx[rowIdx] = computeHandle->serverThreadIdxForHandle;
+  }
+}
+
+bool NeuralNet::trtQueryInputCopiesDone(InputBuffers* buffers) {
+  if(!buffers->trtH2DPending)
+    return false;
+  bool done = queryCudaEvent("trtQueryInputCopiesDone", buffers->trtH2DDoneEvent);
+  if(!done)
+    return false;
+  for(int rowIdx = 0; rowIdx < buffers->maxBatchSize; rowIdx++) {
+    if(buffers->trtH2DSubmitEndNs[rowIdx] <= 0 || buffers->trtH2DStreamIdx[rowIdx] < 0)
+      continue;
+    if(!queryCudaEvent("trtQueryInputCopiesDone", buffers->trtPerfH2DEndEvents[rowIdx]))
+      return false;
+  }
+  if(done) {
+    for(int rowIdx = 0; rowIdx < buffers->maxBatchSize; rowIdx++) {
+      if(buffers->trtH2DSubmitEndNs[rowIdx] <= 0 || buffers->trtH2DStreamIdx[rowIdx] < 0)
+        continue;
+      GlobalPerfProfile::recordCudaStreamTask(
+        GlobalPerfProfile::CudaStreamType::H2D,
+        buffers->trtH2DStreamIdx[rowIdx],
+        buffers->trtH2DSubmitEndNs[rowIdx],
+        elapsedMsBetweenEvents(
+          "trtQueryInputCopiesDone",
+          buffers->trtPerfH2DStartEvents[rowIdx],
+          buffers->trtPerfH2DEndEvents[rowIdx]
+        )
+      );
+      buffers->trtH2DSubmitEndNs[rowIdx] = 0;
+      buffers->trtH2DStreamIdx[rowIdx] = -1;
+    }
+    buffers->trtH2DPending = false;
+  }
+  return done;
+}
+
+void NeuralNet::trtLaunchInferenceAsync(
+  ComputeHandle* computeHandle,
+  InputBuffers* buffers,
+  int batchSize
+) {
+  if(batchSize <= 0 || batchSize > buffers->maxBatchSize)
+    throw StringError("trtLaunchInferenceAsync: invalid batch size");
+  computeHandle->setDevice("trtLaunchInferenceAsync");
+  ComputeHandle::RegisteredBufferState* state = findRegisteredBufferState(computeHandle, buffers);
+  if(state == nullptr)
+    throw StringError("trtLaunchInferenceAsync: shared buffer not registered with compute handle");
+  setInputShapesForExec(computeHandle, state->exec.get(), batchSize);
+  CudaTimedSection section = {
+    computeHandle->perfProfileEnabled ? buffers->trtPerfInferStartEvent : nullptr,
+    computeHandle->perfProfileEnabled ? buffers->trtPerfInferEndEvent : nullptr,
+  };
+  enqueueCudaTimedSection(
+    "trtLaunchInferenceAsync",
+    computeHandle->inferStream,
+    section,
+    [&]() { enqueueWithOptionalCudaGraphForExec(computeHandle, state->exec.get(), state->batchGraphStates, batchSize); }
+  );
+  if(computeHandle->perfProfileEnabled) {
+    buffers->trtInferSubmitEndNs = nowSteadyNs();
+    buffers->trtInferStreamIdx = computeHandle->serverThreadIdxForHandle;
+  }
+  CUDA_ERR("trtLaunchInferenceAsync", cudaEventRecord(buffers->trtInferDoneEvent, computeHandle->inferStream));
+  buffers->trtInferPending = true;
+}
+
+bool NeuralNet::trtQueryInferenceDone(InputBuffers* buffers) {
+  if(!buffers->trtInferPending)
+    return false;
+  bool done = queryCudaEvent("trtQueryInferenceDone", buffers->trtInferDoneEvent);
+  if(!done)
+    return false;
+  if(buffers->trtInferSubmitEndNs > 0 && buffers->trtInferStreamIdx >= 0 &&
+     !queryCudaEvent("trtQueryInferenceDone", buffers->trtPerfInferEndEvent))
+    return false;
+  if(done) {
+    if(buffers->trtInferSubmitEndNs > 0 && buffers->trtInferStreamIdx >= 0) {
+      GlobalPerfProfile::recordCudaStreamTask(
+        GlobalPerfProfile::CudaStreamType::Infer,
+        buffers->trtInferStreamIdx,
+        buffers->trtInferSubmitEndNs,
+        elapsedMsBetweenEvents(
+          "trtQueryInferenceDone",
+          buffers->trtPerfInferStartEvent,
+          buffers->trtPerfInferEndEvent
+        )
+      );
+      buffers->trtInferSubmitEndNs = 0;
+      buffers->trtInferStreamIdx = -1;
+    }
+    buffers->trtInferPending = false;
+  }
+  return done;
+}
+
+void NeuralNet::trtEnqueueOutputCopiesAsync(
+  ComputeHandle* computeHandle,
+  InputBuffers* buffers,
+  int batchSize
+) {
+  if(batchSize <= 0 || batchSize > buffers->maxBatchSize)
+    throw StringError("trtEnqueueOutputCopiesAsync: invalid batch size");
+  computeHandle->setDevice("trtEnqueueOutputCopiesAsync");
+  CudaTimedSection section = {
+    computeHandle->perfProfileEnabled ? buffers->trtPerfD2HStartEvent : nullptr,
+    computeHandle->perfProfileEnabled ? buffers->trtPerfD2HEndEvent : nullptr,
+  };
+  enqueueCudaTimedSection(
+    "trtEnqueueOutputCopiesAsync",
+    computeHandle->d2hStream,
+    section,
+    [&]() { enqueueSharedOutputCopies(computeHandle, buffers, batchSize, computeHandle->d2hStream); }
+  );
+  if(computeHandle->perfProfileEnabled) {
+    buffers->trtD2HSubmitEndNs = nowSteadyNs();
+    buffers->trtD2HStreamIdx = computeHandle->serverThreadIdxForHandle;
+  }
+  CUDA_ERR("trtEnqueueOutputCopiesAsync", cudaEventRecord(buffers->trtD2HDoneEvent, computeHandle->d2hStream));
+  buffers->trtD2HPending = true;
+}
+
+bool NeuralNet::trtQueryOutputCopiesDone(InputBuffers* buffers) {
+  if(!buffers->trtD2HPending)
+    return false;
+  bool done = queryCudaEvent("trtQueryOutputCopiesDone", buffers->trtD2HDoneEvent);
+  if(!done)
+    return false;
+  if(buffers->trtD2HSubmitEndNs > 0 && buffers->trtD2HStreamIdx >= 0 &&
+     !queryCudaEvent("trtQueryOutputCopiesDone", buffers->trtPerfD2HEndEvent))
+    return false;
+  if(done) {
+    if(buffers->trtD2HSubmitEndNs > 0 && buffers->trtD2HStreamIdx >= 0) {
+      GlobalPerfProfile::recordCudaStreamTask(
+        GlobalPerfProfile::CudaStreamType::D2H,
+        buffers->trtD2HStreamIdx,
+        buffers->trtD2HSubmitEndNs,
+        elapsedMsBetweenEvents(
+          "trtQueryOutputCopiesDone",
+          buffers->trtPerfD2HStartEvent,
+          buffers->trtPerfD2HEndEvent
+        )
+      );
+      buffers->trtD2HSubmitEndNs = 0;
+      buffers->trtD2HStreamIdx = -1;
+    }
+    buffers->trtD2HPending = false;
+  }
+  return done;
+}
+
+void NeuralNet::trtUnpackOutputRow(
+  InputBuffers* buffers,
+  const NNResultBuf* inputBuf,
+  NNOutput* output,
+  int rowIdx,
+  ComputeHandle* computeHandle
+) {
+  if(rowIdx < 0 || rowIdx >= buffers->maxBatchSize)
+    throw StringError("trtUnpackOutputRow: rowIdx out of bounds");
+  float policyProbsTmp[NNPos::MAX_NN_POLICY_SIZE];
+  unpackOutputRow(
+    buffers,
+    inputBuf,
+    output,
+    rowIdx,
+    computeHandle->ctx->nnXLen,
+    computeHandle->ctx->nnYLen,
+    computeHandle->modelVersion,
+    computeHandle->ctx->isOnnx,
+    buffers->singlePolicyPassResultElts,
+    policyProbsTmp
+  );
 }
 
 bool NeuralNet::testEvaluateConv(
