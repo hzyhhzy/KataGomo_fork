@@ -283,3 +283,67 @@ TIME user=16.64 sys=0.83 cpu=89% elapsed=19.57
 - This section only lists TRT configuration knobs whose behavior depends heavily on the exact GPU, driver, TensorRT version, and container or host environment.
 - Therefore they are exposed as open configuration knobs, but this document does not give fixed benchmark conclusions for them.
 - To compare them meaningfully, they should be tested in isolation while keeping `batchSize`, `cudaStream`, `cudaGraph`, clocks, and temperature conditions fixed.
+
+## 9. Simple Sampling
+
+### 9.1 benchmark.py workflow changes
+- `benchmark.py` now uses a single main workflow instead of separating normal benchmarking from a dedicated simple-sampling mode.
+- Added `--build-count`, meaning “how many independent plans to build for the same `batchSize`”.
+- Added `--devices`, so independent builds can be spread across multiple identical GPUs.
+- Added `--home-data-dir-base`, so every build gets its own isolated `homeDataDir/trtcache` and samples no longer overwrite each other.
+
+The point of this refactor was not to change TRT settings. It was to turn “build the same model multiple times and keep the best engine” into a stable, resumable, multi-GPU-friendly workflow.
+
+To run one fixed-configuration sampling pass across multiple GPUs, keep `batchSize` and `stream` pinned and combine `--devices`, `--build-count`, and `--home-data-dir-base`. The example below spreads `64` raw samples of `batch=7, stream=2` across two identical GPUs:
+
+```bash
+python python/benchmark.py \
+  --devices 3,4 \
+  --build-count 64 \
+  --max-batch 7 \
+  --batch-min 7 \
+  --batch-max 7 \
+  --stream-min 2 \
+  --stream-max 2 \
+  --home-data-dir-base benchmark/home_data_runs
+```
+
+`benchmark.py` distributes the independent builds across the selected GPUs and gives each build its own isolated `homeDataDir/trtcache`.
+
+### 9.2 Distribution of 128 raw samples
+- Fixed parameters: `batch=7, stream=2, cudaGraph=on`
+- Total sample count: `128` independently built raw engines
+- Summary:
+  - `mean = 4328.82 nnEval/s`
+  - `median = 4330.00 nnEval/s`
+  - `std = 38.04`
+  - `min = 4189.35`
+  - `max = 4427.51`
+  - `P05/P95 = 4261.58 / 4396.41`
+
+![Simple sampling histogram](benchmark/simple_sampling_raw128_hist_gpu-NVIDIA_GeForce_RTX_5080.png)
+
+Conclusions:
+- Even under the same configuration, TensorRT builder produces a real performance distribution across independently built engines rather than a single stable point.
+- The best sample is about `98.69 nnEval/s` above the overall mean, or roughly `+2.28%`.
+- This is enough to justify simple sampling by itself. In many cases, repeatedly rebuilding and selecting the best engine is already useful without introducing a more complicated search algorithm.
+
+### 9.3 Re-running the same engine
+- The best raw engine from simple sampling was then re-tested with `trtexec` `10` times.
+- Results are stored in `benchmark/simple_sampling_best_engine_repeat10_gpu-NVIDIA_GeForce_RTX_5080.json`
+- Summary:
+  - `mean = 4473.94 nnEval/s`
+  - `min/max = 4455.24 / 4502.48`
+  - `std = 15.15`
+
+Compared with the 128 raw samples:
+- Across different engines, the distribution spans `4189.35 -> 4427.51`, a total spread of about `238.15`
+- Re-running the same engine spans `4455.24 -> 4502.48`, a total spread of about `47.24`
+
+Conclusion:
+- Runtime measurement noise does exist, but it is much smaller than the difference introduced by rebuilding different engines.
+- Therefore the observed distribution is still primarily a compile-time tactic-selection effect, not a `trtexec` runtime-noise artifact.
+
+### 9.4 Additional note
+- A separate comparison also showed that building under locked GPU clocks and then running later under unlocked clocks can hurt performance.
+- Therefore later simple-sampling runs no longer rely on locked-clock builds. Engines are now built directly under the intended runtime conditions.

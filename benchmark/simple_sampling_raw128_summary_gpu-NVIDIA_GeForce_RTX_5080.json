@@ -1,0 +1,20 @@
+{
+  "count": 128,
+  "mean": 4328.8208359375,
+  "median": 4329.997,
+  "stdev": 38.036550949542494,
+  "min": 4189.353,
+  "max": 4427.507,
+  "p05": 4261.5762,
+  "p10": 4291.0945,
+  "p25": 4313.68175,
+  "p75": 4342.359,
+  "p90": 4376.240400000001,
+  "p95": 4396.41475,
+  "best": {
+    "fitness": 4427.507,
+    "source": "benchmark/trt_timing_cache_ga_raw32_ctrl_r2_gpu-NVIDIA_GeForce_RTX_5080/history.jsonl",
+    "id": "ind0004",
+    "plan_path": "/home/wangyize/.katago/KataGomo_fork/benchmark/trt_timing_cache_ga_raw32_ctrl_r2_gpu-NVIDIA_GeForce_RTX_5080/plans/ind0004.engine"
+  }
+}

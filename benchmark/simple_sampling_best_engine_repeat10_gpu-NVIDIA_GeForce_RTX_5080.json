@@ -1,0 +1,60 @@
+{
+  "plan_path": "/home/wangyize/.katago/KataGomo_fork/benchmark/trt_timing_cache_ga_raw32_ctrl_r2_gpu-NVIDIA_GeForce_RTX_5080/plans/ind0004.engine",
+  "count": 10,
+  "mean_nn_evals_per_sec": 4473.9421999999995,
+  "min_nn_evals_per_sec": 4455.241,
+  "max_nn_evals_per_sec": 4502.477,
+  "stdev_nn_evals_per_sec": 15.15309555701405,
+  "results": [
+    {
+      "repeat": 1,
+      "nn_evals_per_sec": 4502.477,
+      "throughput_qps": 643.211
+    },
+    {
+      "repeat": 2,
+      "nn_evals_per_sec": 4497.717,
+      "throughput_qps": 642.531
+    },
+    {
+      "repeat": 3,
+      "nn_evals_per_sec": 4475.8769999999995,
+      "throughput_qps": 639.411
+    },
+    {
+      "repeat": 4,
+      "nn_evals_per_sec": 4481.848,
+      "throughput_qps": 640.264
+    },
+    {
+      "repeat": 5,
+      "nn_evals_per_sec": 4466.182,
+      "throughput_qps": 638.026
+    },
+    {
+      "repeat": 6,
+      "nn_evals_per_sec": 4468.1140000000005,
+      "throughput_qps": 638.302
+    },
+    {
+      "repeat": 7,
+      "nn_evals_per_sec": 4472.335,
+      "throughput_qps": 638.905
+    },
+    {
+      "repeat": 8,
+      "nn_evals_per_sec": 4461.366,
+      "throughput_qps": 637.338
+    },
+    {
+      "repeat": 9,
+      "nn_evals_per_sec": 4458.264999999999,
+      "throughput_qps": 636.895
+    },
+    {
+      "repeat": 10,
+      "nn_evals_per_sec": 4455.241,
+      "throughput_qps": 636.463
+    }
+  ]
+}
