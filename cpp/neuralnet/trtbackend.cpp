@@ -1527,6 +1527,15 @@ struct ComputeHandle {
       void* buffer = nullptr;
       auto name = engine->getIOTensorName(i);
       auto dims = engine->getTensorShape(name);
+      if(dims.nbDims <= 0) {
+        cout << "Warning: io tensor=" << name << " has invalid number of dimensions " << dims.nbDims << endl;
+
+        CUDA_ERR("ComputeHandle", cudaMalloc(&buffer, 4));
+        buffers.emplace(make_pair(name, buffer));
+        exec->setTensorAddress(name, buffer);
+        continue;
+      }
+      //cout << "tensor=" << name << " nbDims=" << dims.nbDims << endl;
       size_t bytes = accumulate(dims.d + 1, dims.d + dims.nbDims, maxBatchSize * sizeof(float), multiplies<size_t>());
       CUDA_ERR("ComputeHandle", cudaMalloc(&buffer, bytes));
       buffers.emplace(make_pair(name, buffer));
