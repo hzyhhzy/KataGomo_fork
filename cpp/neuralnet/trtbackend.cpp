@@ -173,7 +173,7 @@ struct ModelParser {
   ModelParser& operator=(const ModelParser&) = delete;
 
   // Bump this when between katago versions we want to forcibly drop old timing caches and plan caches.
-  static constexpr int tuneSalt = 9;
+  static constexpr int tuneSalt = 18;
 
   unique_ptr<TRTModel> build(
     unique_ptr<INetworkDefinition> net,
@@ -1209,6 +1209,24 @@ struct ComputeHandle {
       }
       if(!parser->parseFromFile(ctx->onnxModelPath.c_str(), static_cast<int>(ILogger::Severity::kERROR))) {
         throw StringError("TensorRT backend: failed to parse ONNX model");
+      }
+
+      for(int i = 0; i < network->getNbLayers(); i++) {
+        ILayer* layer = network->getLayer(i);
+        std::string lname = layer->getName() ? layer->getName() : "";
+        if(layer == nullptr)
+          continue;
+
+        if(
+          lname.find("norm") != std::string::npos && lname.find("final") != std::string::npos   ) {
+          const char* name = layer->getName();
+          logger->write(std::string("Force FP32 on softmax layer: ") + (name ? name : "<unnamed>"));
+
+          layer->setPrecision(DataType::kFLOAT);
+          for(int j = 0; j < layer->getNbOutputs(); j++) {
+            layer->setOutputType(j, DataType::kFLOAT);
+          }
+        }
       }
       
       int64_t spatialC = NNModelVersion::getNumSpatialFeatures(modelVersion);
