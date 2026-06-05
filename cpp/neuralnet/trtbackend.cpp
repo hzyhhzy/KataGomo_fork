@@ -67,6 +67,7 @@ struct LoadedModel {
   bool isOnnx;
 
   LoadedModel(const string& fileName, const string& expectedSha256) {
+    (void)expectedSha256;
     this->fileName = fileName;
     if (Global::isSuffix(fileName, ".onnx")) {
       isOnnx = true;
@@ -77,9 +78,8 @@ struct LoadedModel {
         throw StringError("Failed to load ONNX model config: " + fileName + "\n" + e.what());
       }
     } else {
-      isOnnx = false;
-      ModelDesc::loadFromFileMaybeGZipped(fileName, modelDesc, expectedSha256);
-      modelDesc.applyScale8ToReduceActivations();
+      assert(false);
+      throw StringError("TensorRT backend for the toroidal engine only supports ONNX model files: " + fileName);
     }
   }
 
@@ -106,6 +106,10 @@ ComputeContext* NeuralNet::createComputeContext(
 
   if(useNHWCMode == enabled_t::True) {
     throw StringError("TensorRT backend: useNHWC = false required, other configurations not supported");
+  }
+  if(!loadedModel->isOnnx) {
+    assert(false);
+    throw StringError("TensorRT non-ONNX model execution is disabled for the toroidal engine");
   }
 
   ComputeContext* context = new ComputeContext();
@@ -1746,6 +1750,10 @@ struct InputBuffers {
   InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int nnXLen, int nnYLen) {
     const ModelDesc& m = loadedModel->modelDesc;
     isOnnx = loadedModel->isOnnx;
+    if(!isOnnx) {
+      assert(false);
+      throw StringError("TensorRT non-ONNX input buffers are disabled for the toroidal engine");
+    }
 
     if(nnXLen > NNPos::MAX_BOARD_LEN)
       throw StringError(
@@ -1860,6 +1868,10 @@ void NeuralNet::getOutput(
   const int nnYLen = gpuHandle->ctx->nnYLen;
   const int modelVersion = gpuHandle->modelVersion;
   bool isOnnx = gpuHandle->ctx->isOnnx;
+  if(!isOnnx) {
+    assert(false);
+    throw StringError("TensorRT non-ONNX inference is disabled for the toroidal engine");
+  }
 
   const int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(modelVersion);
   const int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(modelVersion);

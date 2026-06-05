@@ -34,16 +34,18 @@ static void initIfNeeded() {
 }
 
 PatternBonusTable::PatternBonusTable() {
-  initIfNeeded();
-  entries.resize(1024);
+  assert(false);
+  throw StringError("PatternBonusTable/local pattern search is disabled for toroidal boards");
 }
 PatternBonusTable::PatternBonusTable(int32_t numShards) {
-  initIfNeeded();
-  entries.resize(numShards);
+  (void)numShards;
+  assert(false);
+  throw StringError("PatternBonusTable/local pattern search is disabled for toroidal boards");
 }
 PatternBonusTable::PatternBonusTable(const PatternBonusTable& other) {
-  initIfNeeded();
-  entries = other.entries;
+  (void)other;
+  assert(false);
+  throw StringError("PatternBonusTable/local pattern search is disabled for toroidal boards");
 }
 PatternBonusTable::~PatternBonusTable() {
 }

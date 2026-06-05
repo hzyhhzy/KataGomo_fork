@@ -495,15 +495,15 @@ bool Search::shouldSuppressPass(const SearchNode* n) const {
     double plaOwnership = rootPla == P_WHITE ? whiteOwnerMap[pos] : -whiteOwnerMap[pos];
     bool oppOwned = plaOwnership < -extreme;
     bool adjToPlaOwned = false;
-    for(int j = 0; j<4; j++) {
-      Loc adj = moveLoc + rootBoard.adj_offsets[j];
-      if(rootBoard.isOnBoard(adj)) {
-        int adjPos = NNPos::locToPos(adj,rootBoard.x_size,nnXLen,nnYLen);
-        double adjPlaOwnership = rootPla == P_WHITE ? whiteOwnerMap[adjPos] : -whiteOwnerMap[adjPos];
-        if(adjPlaOwnership > extreme) {
-          adjToPlaOwned = true;
-          break;
-        }
+    Loc adjLocs[4];
+    int numAdjLocs = rootBoard.getAdjacentLocs(moveLoc, adjLocs);
+    for(int j = 0; j<numAdjLocs; j++) {
+      Loc adj = adjLocs[j];
+      int adjPos = NNPos::locToPos(adj,rootBoard.x_size,nnXLen,nnYLen);
+      double adjPlaOwnership = rootPla == P_WHITE ? whiteOwnerMap[adjPos] : -whiteOwnerMap[adjPos];
+      if(adjPlaOwnership > extreme) {
+        adjToPlaOwned = true;
+        break;
       }
     }
     if(oppOwned && !adjToPlaOwned)

@@ -30,9 +30,12 @@ endif()
 #--------------------------- CMAKE VARIABLES (partly for Cmake GUI) ----------------------------------------------------
 
 set(BUILD_DISTRIBUTED 0 CACHE BOOL "Build with http support for contributing to distributed training")
-set(USE_BACKEND CACHE STRING "Neural net backend")
+set(USE_BACKEND "TENSORRT" CACHE STRING "Neural net backend")
 string(TOUPPER "${USE_BACKEND}" USE_BACKEND)
 set_property(CACHE USE_BACKEND PROPERTY STRINGS "" CUDA TENSORRT OPENCL EIGEN ONNX-CPU ONNX-DIRECTML)
+if(USE_BACKEND STREQUAL "CUDA" OR USE_BACKEND STREQUAL "OPENCL" OR USE_BACKEND STREQUAL "EIGEN")
+  message(FATAL_ERROR "CUDA, OpenCL, and Eigen backends are disabled for the toroidal engine. Use USE_BACKEND=TENSORRT with an ONNX model.")
+endif()
 
 set(USE_TCMALLOC 0 CACHE BOOL "Use TCMalloc")
 set(NO_GIT_REVISION 0 CACHE BOOL "Disable embedding the git revision into the compiled exe")

@@ -36,9 +36,9 @@ static void initIfNeeded() {
 }
 
 SubtreeValueBiasTable::SubtreeValueBiasTable(int32_t numShards) {
-  initIfNeeded();
-  mutexPool = new MutexPool(numShards);
-  entries.resize(numShards);
+  (void)numShards;
+  assert(false);
+  throw StringError("SubtreeValueBiasTable is disabled for toroidal boards");
 }
 SubtreeValueBiasTable::~SubtreeValueBiasTable() {
   delete mutexPool;
@@ -60,6 +60,13 @@ void SubtreeValueBiasTable::clearUnusedSynchronous() {
 }
 
 std::shared_ptr<SubtreeValueBiasEntry> SubtreeValueBiasTable::get(Player pla, Loc parentPrevMoveLoc, Loc prevMoveLoc, const Board& prevBoard) {
+  (void)pla;
+  (void)parentPrevMoveLoc;
+  (void)prevMoveLoc;
+  (void)prevBoard;
+  assert(false);
+  throw StringError("SubtreeValueBiasTable is disabled for toroidal boards");
+
   Hash128 hash = ZOBRIST_MOVE_LOCS[parentPrevMoveLoc][0] ^ ZOBRIST_MOVE_LOCS[prevMoveLoc][1];
 
   hash ^= patternHasher.getHash(prevBoard,prevMoveLoc,pla);

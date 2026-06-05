@@ -65,6 +65,21 @@ SearchThread::~SearchThread() {
 
 static const double VALUE_WEIGHT_DEGREES_OF_FREEDOM = 3.0;
 
+static void failIfToroidalDisabledSearchParams(const SearchParams& params) {
+  if(params.avoidRepeatedPatternUtility != 0.0) {
+    assert(false);
+    throw StringError("avoidRepeatedPatternUtility/local pattern search is disabled for toroidal boards");
+  }
+  if(params.antiMirror) {
+    assert(false);
+    throw StringError("antiMirror/mirror search is disabled for toroidal boards");
+  }
+  if(params.subtreeValueBiasFactor != 0.0) {
+    assert(false);
+    throw StringError("subtreeValueBiasFactor is disabled for toroidal boards");
+  }
+}
+
 Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const string& rSeed)
   :Search(params,nnEval,NULL,lg,rSeed)
 {}
@@ -111,6 +126,7 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, NNEvaluator* humanEval,
    oldNNOutputsToCleanUpMutex(),
    oldNNOutputsToCleanUp()
 {
+  failIfToroidalDisabledSearchParams(searchParams);
   assert(logger != NULL);
   nnXLen = nnEval->getNNXLen();
   nnYLen = nnEval->getNNYLen();
@@ -253,15 +269,21 @@ void Search::setRootSymmetryPruningOnly(const std::vector<int>& v) {
 
 
 void Search::setParams(SearchParams params) {
+  failIfToroidalDisabledSearchParams(params);
   clearSearch();
   searchParams = params;
 }
 
 void Search::setParamsNoClearing(SearchParams params) {
+  failIfToroidalDisabledSearchParams(params);
   searchParams = params;
 }
 
 void Search::setExternalPatternBonusTable(std::unique_ptr<PatternBonusTable>&& table) {
+  if(table != nullptr) {
+    assert(false);
+    throw StringError("External pattern bonus tables are disabled for toroidal boards");
+  }
   if(table == externalPatternBonusTable)
     return;
   //Probably not actually needed so long as we do a fresh search to refresh and use the new table

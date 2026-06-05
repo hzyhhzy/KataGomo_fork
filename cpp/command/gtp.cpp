@@ -1111,6 +1111,10 @@ struct GTPEngine {
         if(initialOppAdvantage > getPointsThresholdForHandicapGame(getBoardSizeScaling(bot->getRootBoard())))
           avoidRepeatedPatternUtility = handicapAvoidRepeatedPatternUtility;
       }
+      if(avoidRepeatedPatternUtility != 0.0) {
+        assert(false);
+        throw StringError("avoidRepeatedPatternUtility/local pattern search is disabled for toroidal boards");
+      }
       paramsToUse.avoidRepeatedPatternUtility = avoidRepeatedPatternUtility;
     }
 
@@ -1964,7 +1968,11 @@ int MainCmds::gtp(const vector<string>& args) {
     const double analysisIgnorePreRootHistory =
       config.contains("analysisIgnorePreRootHistory") ? config.getBool("analysisIgnorePreRootHistory") : Setup::DEFAULT_ANALYSIS_IGNORE_PRE_ROOT_HISTORY;
     const bool genmoveAntiMirror =
-      config.contains("genmoveAntiMirror") ? config.getBool("genmoveAntiMirror") : config.contains("antiMirror") ? config.getBool("antiMirror") : true;
+      config.contains("genmoveAntiMirror") ? config.getBool("genmoveAntiMirror") : config.contains("antiMirror") ? config.getBool("antiMirror") : false;
+    if(genmoveAntiMirror) {
+      assert(false);
+      throw StringError("genmoveAntiMirror/mirror search is disabled for toroidal boards");
+    }
 
     genmoveOut = params;
     analysisOut = params;
@@ -2006,7 +2014,7 @@ int MainCmds::gtp(const vector<string>& args) {
   bool staticPDATakesPrecedence = cfg.contains("playoutDoublingAdvantage") && !cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead");
   const double normalAvoidRepeatedPatternUtility = initialGenmoveParams.avoidRepeatedPatternUtility;
   const double handicapAvoidRepeatedPatternUtility = cfg.contains("avoidRepeatedPatternUtility") ?
-    initialGenmoveParams.avoidRepeatedPatternUtility : 0.005;
+    initialGenmoveParams.avoidRepeatedPatternUtility : 0.0;
   const double initialDelayMoveScale = cfg.contains("delayMoveScale") ? cfg.getDouble("delayMoveScale",0.0,10000.0) : 0.0;
   const double initialDelayMoveMax = cfg.contains("delayMoveMax") ? cfg.getDouble("delayMoveMax",0.0,1000000.0) : 1000000.0;
 

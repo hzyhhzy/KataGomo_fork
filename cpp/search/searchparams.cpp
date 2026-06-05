@@ -321,7 +321,7 @@ SearchParams SearchParams::forTestsV2() {
   params.cpuctUtilityStdevPriorWeight = 2.0;
   params.cpuctUtilityStdevScale = 0.85;
   params.fillDameBeforePass = true;
-  params.subtreeValueBiasFactor = 0.45;
+  params.subtreeValueBiasFactor = 0.0;
   params.subtreeValueBiasFreeProp = 0.8;
   params.subtreeValueBiasWeightExponent = 0.85;
   return params;
@@ -358,7 +358,7 @@ SearchParams SearchParams::basicDecentParams() {
   params.cpuctUtilityStdevPriorWeight = 2.0;
   params.cpuctUtilityStdevScale = 0.85;
   params.fillDameBeforePass = true;
-  params.subtreeValueBiasFactor = 0.45;
+  params.subtreeValueBiasFactor = 0.0;
   params.subtreeValueBiasFreeProp = 0.8;
   params.subtreeValueBiasWeightExponent = 0.85;
   return params;

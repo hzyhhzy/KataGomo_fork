@@ -281,8 +281,10 @@ void NNInputs::fillScoring(
             if(board.colors[next] != areaColor)
               territoryCount++;
             //Push adjacent locations on to queue
-            for(int i = 0; i<4; i++) {
-              Loc adj = next + board.adj_offsets[i];
+            Loc adjLocs[4];
+            int numAdjLocs = board.getAdjacentLocs(next, adjLocs);
+            for(int i = 0; i<numAdjLocs; i++) {
+              Loc adj = adjLocs[i];
               if(area[adj] == areaColor && !visited[adj]) {
                 queue[queueTail] = adj;
                 queueTail++;

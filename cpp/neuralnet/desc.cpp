@@ -1789,6 +1789,9 @@ struct NonCopyingStreamBuf : public std::streambuf
 };
 
 void ModelDesc::loadFromFileMaybeGZipped(const string& fileName, ModelDesc& descBuf, const string& expectedSha256) {
+  assert(false);
+  throw StringError("Toroidal engine only supports ONNX model files; non-ONNX KataGo model formats are disabled: " + fileName);
+
   try {
     string lower = Global::toLower(fileName);
     //Read model file with no compression if it's directly named .txt or .bin

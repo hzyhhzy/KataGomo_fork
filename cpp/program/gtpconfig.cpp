@@ -190,13 +190,11 @@ resignConsecTurns = 3
 
 # Prefer to avoid playing the same joseki in every corner of the board.
 # Uncomment to set to a specific value. See "Avoid SGF patterns" section.
-# By default: 0 (even games), 0.005 (handicap games)
+# Disabled for toroidal boards; must remain 0.
 # avoidRepeatedPatternUtility = 0.0
 
-# Experimental logic to fight against mirror Go even with unfavorable komi.
-# Uncomment to set to a specific value to use for both playing and analysis.
-# By default: true when playing via GTP, but false when analyzing.
-# antiMirror = true
+# Disabled for toroidal boards.
+# antiMirror = false
 
 # Enable some hacks that mitigate rare instances when passing messes up deeper searches.
 # enablePassingHacks = true
@@ -388,8 +386,8 @@ $$MULTIPLE_GPUS
 # avoid losing yet.
 # rootPruneUselessMoves = true
 
-# Apply bias correction based on local pattern keys
-# subtreeValueBiasFactor = 0.45
+# Disabled for toroidal boards because it is based on local pattern keys.
+# subtreeValueBiasFactor = 0.0
 # subtreeValueBiasWeightExponent = 0.85
 
 # Use graph search rather than tree search - identify and share search for
