@@ -67,7 +67,6 @@ struct LoadedModel {
   bool isOnnx;
 
   LoadedModel(const string& fileName, const string& expectedSha256) {
-    (void)expectedSha256;
     this->fileName = fileName;
     if (Global::isSuffix(fileName, ".onnx")) {
       isOnnx = true;
@@ -77,9 +76,10 @@ struct LoadedModel {
       } catch (const StringError& e) {
         throw StringError("Failed to load ONNX model config: " + fileName + "\n" + e.what());
       }
-    } else {
-      assert(false);
-      throw StringError("TensorRT backend for the toroidal engine only supports ONNX model files: " + fileName);
+    }
+    else {
+      isOnnx = false;
+      ModelDesc::loadFromFileMaybeGZipped(fileName, modelDesc, expectedSha256);
     }
   }
 
@@ -107,11 +107,6 @@ ComputeContext* NeuralNet::createComputeContext(
   if(useNHWCMode == enabled_t::True) {
     throw StringError("TensorRT backend: useNHWC = false required, other configurations not supported");
   }
-  if(!loadedModel->isOnnx) {
-    assert(false);
-    throw StringError("TensorRT non-ONNX model execution is disabled for the toroidal engine");
-  }
-
   ComputeContext* context = new ComputeContext();
   context->nnXLen = nnXLen;
   context->nnYLen = nnYLen;
@@ -144,6 +139,7 @@ struct TRTModel {
   // TensorRT keeps only reference to weights before engine is built
   const LoadedModel* rawModel;
   vector<unique_ptr<float[]>> extraWeights;
+  vector<unique_ptr<int64_t[]>> extraInt64Weights;
 
   int modelVersion;
   uint8_t tuneHash[32];
@@ -177,7 +173,7 @@ struct ModelParser {
   ModelParser& operator=(const ModelParser&) = delete;
 
   // Bump this when between katago versions we want to forcibly drop old timing caches and plan caches.
-  static constexpr int tuneSalt = 9;
+  static constexpr int tuneSalt = 10;
 
   unique_ptr<TRTModel> build(
     unique_ptr<INetworkDefinition> net,
@@ -187,6 +183,11 @@ struct ModelParser {
     int nnYLen,
     int maxBatchSize,
     bool requireExactNNLen) {
+    if(!requireExactNNLen) {
+      assert(false);
+      throw StringError("TensorRT toroidal bin.gz models only support exactNNLen=true; masked NN lengths are disabled");
+    }
+
     model = make_unique<TRTModel>();
 
     model->nnXLen = nnXLen;
@@ -304,11 +305,16 @@ struct ModelParser {
       throw StringError(
         Global::strprintf("nnYLen (%d) is greater than NNPos::MAX_BOARD_LEN (%d)", nnYLen, NNPos::MAX_BOARD_LEN));
 
-    inputMask = network->addInput("InputMask", DataType::kFLOAT, {4, {-1, 1, nnYLen, nnXLen}});
-    inputMask->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
-    profile->setDimensions("InputMask", OptProfileSelector::kMIN, Dims4(1, 1, nnYLen, nnXLen));
-    profile->setDimensions("InputMask", OptProfileSelector::kOPT, Dims4(model->maxBatchSize, 1, nnYLen, nnXLen));
-    profile->setDimensions("InputMask", OptProfileSelector::kMAX, Dims4(model->maxBatchSize, 1, nnYLen, nnXLen));
+    if(!model->requireExactNNLen) {
+      inputMask = network->addInput("InputMask", DataType::kFLOAT, {4, {-1, 1, nnYLen, nnXLen}});
+      inputMask->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
+      profile->setDimensions("InputMask", OptProfileSelector::kMIN, Dims4(1, 1, nnYLen, nnXLen));
+      profile->setDimensions("InputMask", OptProfileSelector::kOPT, Dims4(model->maxBatchSize, 1, nnYLen, nnXLen));
+      profile->setDimensions("InputMask", OptProfileSelector::kMAX, Dims4(model->maxBatchSize, 1, nnYLen, nnXLen));
+    }
+    else {
+      inputMask = NULL;
+    }
 
     inputSpatial = network->addInput("InputSpatial", DataType::kFLOAT, {4, {-1, numInputChannels, nnYLen, nnXLen}});
     inputSpatial->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
@@ -765,6 +771,123 @@ struct ModelParser {
     return matBiasLayer;
   }
 
+  ITensor* buildInt64ConstantTensor(const vector<int64_t>& values, const string& name) {
+    auto weights = make_unique<int64_t[]>(values.size());
+    for(size_t i = 0; i < values.size(); i++)
+      weights[i] = values[i];
+
+    auto constantLayer = model->network->addConstant(
+      {1, {static_cast<int>(values.size())}},
+      {DataType::kINT64, weights.get(), static_cast<int64_t>(values.size())});
+    constantLayer->setName(name.c_str());
+    model->extraInt64Weights.push_back(move(weights));
+    return constantLayer->getOutput(0);
+  }
+
+  ITensor* buildBatchSizeTensor(ITensor* input, const string& name) {
+    auto shapeLayer = model->network->addShape(*input);
+    auto shapeLayerName = name + "/shape";
+    shapeLayer->setName(shapeLayerName.c_str());
+
+    auto batchSliceLayer = model->network->addSlice(
+      *shapeLayer->getOutput(0),
+      {1, {0}},
+      {1, {1}},
+      {1, {1}});
+    auto batchSliceLayerName = name + "/batch";
+    batchSliceLayer->setName(batchSliceLayerName.c_str());
+    return batchSliceLayer->getOutput(0);
+  }
+
+  ITensor* buildSliceSizeTensor(ITensor* input, int channels, int ySize, int xSize, const string& name) {
+    ITensor* sizeInputs[] = {
+      buildBatchSizeTensor(input, name + "/size"),
+      buildInt64ConstantTensor({channels}, name + "/channels"),
+      buildInt64ConstantTensor({ySize}, name + "/ysize"),
+      buildInt64ConstantTensor({xSize}, name + "/xsize"),
+    };
+    auto concatLayer = model->network->addConcatenation(sizeInputs, 4);
+    concatLayer->setAxis(0);
+    concatLayer->setName(name.c_str());
+    return concatLayer->getOutput(0);
+  }
+
+  ITensor* buildSpatialSlice(
+    ITensor* input,
+    int channels,
+    int yStart,
+    int ySize,
+    int xStart,
+    int xSize,
+    const string& name) {
+    auto sizeTensor = buildSliceSizeTensor(input, channels, ySize, xSize, name + "/size");
+    auto sliceLayer = model->network->addSlice(
+      *input,
+      Dims4(0, 0, yStart, xStart),
+      Dims4(1, channels, ySize, xSize),
+      Dims4(1, 1, 1, 1));
+    sliceLayer->setInput(2, *sizeTensor);
+    sliceLayer->setName(name.c_str());
+    return sliceLayer->getOutput(0);
+  }
+
+  ITensor* buildCircularPadLayer(ITensor* input, int channels, int padY, int padX, const string& name) {
+    Dims dims = input->getDimensions();
+    if(dims.nbDims != 4 || dims.d[1] != channels || dims.d[2] <= 0 || dims.d[3] <= 0) {
+      assert(false);
+      throw StringError("TensorRT toroidal convolution expected a fixed NCHW spatial tensor for " + name);
+    }
+    int height = dims.d[2];
+    int width = dims.d[3];
+    if(height < padY || width < padX) {
+      assert(false);
+      throw StringError(Global::strprintf(
+        "TensorRT toroidal convolution cannot circular-pad %dx%d by %dx%d in %s",
+        width, height, padX, padY, name.c_str()));
+    }
+
+    struct SliceSpec {
+      int start;
+      int size;
+      const char* name;
+    };
+    SliceSpec ySpecs[] = {
+      {height - padY, padY, "top"},
+      {0, height, "center"},
+      {0, padY, "bottom"},
+    };
+    SliceSpec xSpecs[] = {
+      {width - padX, padX, "left"},
+      {0, width, "center"},
+      {0, padX, "right"},
+    };
+
+    ITensor* rowTensors[3];
+    for(int y = 0; y < 3; y++) {
+      ITensor* colTensors[3];
+      for(int x = 0; x < 3; x++) {
+        colTensors[x] = buildSpatialSlice(
+          input,
+          channels,
+          ySpecs[y].start,
+          ySpecs[y].size,
+          xSpecs[x].start,
+          xSpecs[x].size,
+          name + "/" + ySpecs[y].name + "/" + xSpecs[x].name);
+      }
+      auto rowConcatLayer = model->network->addConcatenation(colTensors, 3);
+      rowConcatLayer->setAxis(3);
+      auto rowConcatLayerName = name + "/" + ySpecs[y].name + "/concat";
+      rowConcatLayer->setName(rowConcatLayerName.c_str());
+      rowTensors[y] = rowConcatLayer->getOutput(0);
+    }
+
+    auto padConcatLayer = model->network->addConcatenation(rowTensors, 3);
+    padConcatLayer->setAxis(2);
+    padConcatLayer->setName(name.c_str());
+    return padConcatLayer->getOutput(0);
+  }
+
   ILayer* buildConvLayer(ITensor* input, const ConvLayerDesc* desc, bool forceFP32 = false) {
     int convXSize = desc->convXSize;
     int convYSize = desc->convYSize;
@@ -786,14 +909,34 @@ struct ModelParser {
     assert(desc->weights.size() == convYSize * convXSize * numInChannels * numOutChannels);
     assert(input->getDimensions().d[1] == numInChannels);
 
+    if(dilationX != 1 || dilationY != 1) {
+      assert(false);
+      throw StringError("TensorRT toroidal convolution only supports dilation=1 in layer " + desc->name);
+    }
+
+    ITensor* convInput = input;
+    if(convXSize == 1 && convYSize == 1) {
+      // No spatial padding needed.
+    }
+    else if((convXSize == 3 && convYSize == 3) || (convXSize == 5 && convYSize == 5)) {
+      int padX = convXSize / 2;
+      int padY = convYSize / 2;
+      convInput = buildCircularPadLayer(input, numInChannels, padY, padX, desc->name + "/circularpad");
+    }
+    else {
+      assert(false);
+      throw StringError(Global::strprintf(
+        "TensorRT toroidal convolution only supports 1x1, 3x3, and 5x5 kernels, got %dx%d in layer %s",
+        convXSize, convYSize, desc->name.c_str()));
+    }
+
     auto convLayer = model->network->addConvolutionNd(
-      *input,
+      *convInput,
       desc->outChannels,
       {2, {convYSize, convXSize}},
       {DataType::kFLOAT, desc->weights.data(), static_cast<int64_t>(desc->weights.size())},
       {DataType::kFLOAT, nullptr, 0});
     convLayer->setDilationNd({2, {dilationY, dilationX}});
-    convLayer->setPaddingMode(PaddingMode::kSAME_UPPER);
     convLayer->setName(desc->name.c_str());
 
     if(forceFP32) {
@@ -1110,6 +1253,7 @@ struct ComputeHandle {
   ComputeContext* ctx;
 
   bool usingFP16;
+  bool requireExactNNLen;
   int maxBatchSize;
   int modelVersion;
   vector<pair<string, string>> debugOutputs;
@@ -1130,14 +1274,25 @@ struct ComputeHandle {
     bool requireExactNNLen) {
     ctx = context;
 
+    if(!requireExactNNLen) {
+      assert(false);
+      throw StringError("TensorRT toroidal engine only supports exactNNLen=true; masked NN lengths are disabled");
+    }
+
+    this->requireExactNNLen = requireExactNNLen;
     maxBatchSize = maxBatchSz;
     modelVersion = loadedModel->modelDesc.modelVersion;
 
     // Certain minor versions of TensorRT uses a global logger, which is bad.
     // Since TensorRT maintains ABI compatibility between minor versions, a dynamic library mismatch
     // does not necessarily generate a dynamic link error, therefore, an extra check is required.
-    if(getInferLibVersion() / 100 != NV_TENSORRT_VERSION / 100) {
-      throw StringError("TensorRT backend: detected incompatible version of TensorRT library");
+    int inferLibVersion = getInferLibVersion();
+    if(inferLibVersion / 100 != NV_TENSORRT_VERSION / 100) {
+      throw StringError(
+        "TensorRT backend: detected incompatible version of TensorRT library, compiled with " +
+        Global::intToString(NV_TENSORRT_VERSION) +
+        " but loaded runtime " + Global::intToString(inferLibVersion) +
+        ". Check nvinfer_10.dll next to katago.exe and on PATH.");
     }
 
     trtLogger.setLogger(logger);
@@ -1750,11 +1905,6 @@ struct InputBuffers {
   InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int nnXLen, int nnYLen) {
     const ModelDesc& m = loadedModel->modelDesc;
     isOnnx = loadedModel->isOnnx;
-    if(!isOnnx) {
-      assert(false);
-      throw StringError("TensorRT non-ONNX input buffers are disabled for the toroidal engine");
-    }
-
     if(nnXLen > NNPos::MAX_BOARD_LEN)
       throw StringError(
         Global::strprintf("nnXLen (%d) is greater than NNPos::MAX_BOARD_LEN (%d)", nnXLen, NNPos::MAX_BOARD_LEN));
@@ -1868,10 +2018,6 @@ void NeuralNet::getOutput(
   const int nnYLen = gpuHandle->ctx->nnYLen;
   const int modelVersion = gpuHandle->modelVersion;
   bool isOnnx = gpuHandle->ctx->isOnnx;
-  if(!isOnnx) {
-    assert(false);
-    throw StringError("TensorRT non-ONNX inference is disabled for the toroidal engine");
-  }
 
   const int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(modelVersion);
   const int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(modelVersion);
@@ -1880,7 +2026,6 @@ void NeuralNet::getOutput(
   assert(numGlobalFeatures == inputBuffers->singleInputGlobalElts);
 
   for(int nIdx = 0; nIdx < batchSize; nIdx++) {
-    float* rowMaskInput = &inputBuffers->maskInputs[inputBuffers->singleMaskElts * nIdx];
     float* rowSpatialInput = &inputBuffers->spatialInputs[inputBuffers->singleInputElts * nIdx];
     float* rowGlobalInput = &inputBuffers->globalInputs[inputBuffers->singleInputGlobalElts * nIdx];
     float* rowMetaInput = &inputBuffers->metaInputs[inputBuffers->singleInputMetaElts * nIdx];
@@ -1901,7 +2046,10 @@ void NeuralNet::getOutput(
     }
     SymmetryHelpers::copyInputsWithSymmetry(
       rowSpatial, rowSpatialInput, 1, nnYLen, nnXLen, numSpatialFeatures, false, inputBufs[nIdx]->symmetry);
-    copy(rowSpatialInput, rowSpatialInput + inputBuffers->singleMaskElts, rowMaskInput);
+    if(!isOnnx && !gpuHandle->requireExactNNLen) {
+      float* rowMaskInput = &inputBuffers->maskInputs[inputBuffers->singleMaskElts * nIdx];
+      copy(rowSpatialInput, rowSpatialInput + inputBuffers->singleMaskElts, rowMaskInput);
+    }
   }
 
   // Set inputs
@@ -1917,24 +2065,28 @@ void NeuralNet::getOutput(
       gpuHandle->exec->setInputShape("input_spatial", spatialInputDims);
       gpuHandle->exec->setInputShape("input_global", globalInputDims);
   } else {
-      assert(inputBuffers->singleMaskElts == gpuHandle->getBufferRowElts("InputMask"));
       assert(inputBuffers->singleInputElts == gpuHandle->getBufferRowElts("InputSpatial"));
       assert(inputBuffers->singleInputGlobalElts == gpuHandle->getBufferRowElts("InputGlobal"));
       if(numMetaFeatures > 0)
         assert(inputBuffers->singleInputMetaElts == gpuHandle->getBufferRowElts("InputMeta"));
 
-      CUDA_ERR("getOutput", cudaMemcpyAsync(gpuHandle->getBuffer("InputMask"), inputBuffers->maskInputs.get(), inputBuffers->singleMaskBytes * batchSize, cudaMemcpyHostToDevice));
+      if(!gpuHandle->requireExactNNLen) {
+        assert(inputBuffers->singleMaskElts == gpuHandle->getBufferRowElts("InputMask"));
+        CUDA_ERR("getOutput", cudaMemcpyAsync(gpuHandle->getBuffer("InputMask"), inputBuffers->maskInputs.get(), inputBuffers->singleMaskBytes * batchSize, cudaMemcpyHostToDevice));
+      }
       CUDA_ERR("getOutput", cudaMemcpyAsync(gpuHandle->getBuffer("InputSpatial"), inputBuffers->spatialInputs.get(), inputBuffers->singleInputBytes * batchSize, cudaMemcpyHostToDevice));
       CUDA_ERR("getOutput", cudaMemcpyAsync(gpuHandle->getBuffer("InputGlobal"), inputBuffers->globalInputs.get(), inputBuffers->singleInputGlobalBytes * batchSize, cudaMemcpyHostToDevice));
       if(numMetaFeatures > 0) {
         CUDA_ERR("getOutput", cudaMemcpyAsync(gpuHandle->getBuffer("InputMeta"), inputBuffers->metaInputs.get(), inputBuffers->singleInputMetaBytes * batchSize, cudaMemcpyHostToDevice));
       }
 
-      auto maskInputDims = gpuHandle->getBufferDynamicShape("InputMask", batchSize);
       auto spatialInputDims = gpuHandle->getBufferDynamicShape("InputSpatial", batchSize);
       auto globalInputDims = gpuHandle->getBufferDynamicShape("InputGlobal", batchSize);
 
-      gpuHandle->exec->setInputShape("InputMask", maskInputDims);
+      if(!gpuHandle->requireExactNNLen) {
+        auto maskInputDims = gpuHandle->getBufferDynamicShape("InputMask", batchSize);
+        gpuHandle->exec->setInputShape("InputMask", maskInputDims);
+      }
       gpuHandle->exec->setInputShape("InputSpatial", spatialInputDims);
       gpuHandle->exec->setInputShape("InputGlobal", globalInputDims);
 

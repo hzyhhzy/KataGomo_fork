@@ -366,14 +366,22 @@ static void serveEvals(
   int gpuIdxForThisThread,
   int serverThreadIdx
 ) {
-  NNServerBuf* buf = new NNServerBuf(*nnEval,loadedModel);
-  Rand rand(randSeedThisThread);
+  try {
+    NNServerBuf* buf = new NNServerBuf(*nnEval,loadedModel);
+    Rand rand(randSeedThisThread);
 
-  //Used to have a try catch around this but actually we're in big trouble if this raises an exception
-  //and causes possibly the only nnEval thread to die, so actually go ahead and let the exception escape to
-  //toplevel for easier debugging
-  nnEval->serve(*buf,rand,gpuIdxForThisThread,serverThreadIdx);
-  delete buf;
+    nnEval->serve(*buf,rand,gpuIdxForThisThread,serverThreadIdx);
+    delete buf;
+  }
+  catch(const exception& e) {
+    Global::fatalError("Neural net server thread failed: " + string(e.what()));
+  }
+  catch(const string& e) {
+    Global::fatalError("Neural net server thread failed: " + e);
+  }
+  catch(...) {
+    Global::fatalError("Neural net server thread failed with unknown exception");
+  }
 }
 
 void NNEvaluator::setNumThreads(const vector<int>& gpuIdxByServerThr) {

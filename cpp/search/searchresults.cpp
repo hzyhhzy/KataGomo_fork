@@ -2009,7 +2009,7 @@ bool Search::getAnalysisJson(
 
   const Board& board = rootBoard;
   const BoardHistory& hist = rootHistory;
-  bool duplicateForSymmetries = true;
+  bool duplicateForSymmetries = false;
   getAnalysisData(buf, minMoves, false, analysisPVLen, duplicateForSymmetries);
 
   const NNOutput* nnOutput = NULL;
